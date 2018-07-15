@@ -1,11 +1,12 @@
 ## --- Setup
+    using ProgressMeter: @showprogress
     using Plots
-    using MAT
+    using EtopoElev
+    using JLD
     include("Utilities.jl")
-    @time etopoelev = matread("./etopoelev.mat")["etopoelev"];
 
 ## --- Generate some random points on a sphere
-    npoints = 1000;
+    npoints = 50000;
     (randlat, randlon) = random_lat_lon(npoints)
 
 ## --- Let's find the geology at one of these points
@@ -35,7 +36,7 @@
 
         (temp_randlat, temp_randlon) = random_lat_lon(npoints)
 
-        elevations = findelevation(etopoelev,temp_randlat,temp_randlon)
+        elevations = findelevation(temp_randlat,temp_randlon)
 
         (lat,lon) = abovesea(elevations,temp_randlat,temp_randlon)
 
@@ -53,29 +54,45 @@
     zoom = 11
 
     responses = Array{Any}(length(elevations))
+    @showprogress 5 for i = 1:length(elevations)
+        try
+            responses[i] = query_macrostrat(randlat[i], randlon[i], zoom)
+        catch
+            print("Warning: no data from Macrostrat server \n")
+            try
+                # Wait and try again
+                sleep(10)
+                responses[i] = query_macrostrat(randlat[i], randlon[i], zoom)
+            catch
+                # if still nothing, add warnin
+                responses[i] = "No response"
+                print("Warning: no response from Macrostrat server\n")
+            end
+        end
+        sleep(0.1)
+        if mod(i,10000)==0
+            save("Responses.jld", "Responses", responses, "Elevations", elevations, "Latitude", randlat, "Longitude", randlon)
+        end
+    end
+
+    save("Responses.jld", "Responses", responses, "Elevations", elevations, "Latitude", randlat, "Longitude", randlon)
+
+## ---
+    # Load from saved version
+    retrive_file = load("Responses.jld")
+    elevations = retrive_file["Elevations"]
+    randlat = retrive_file["Latitude"]
+    randlon = retrive_file["Longitude"]
+    responses = retrive_file["Responses"]
+
+    # Variables for parsed responses
     rocktype = Array{String}(length(elevations))
     rockdescrip = Array{String}(length(elevations))
     rockname = Array{String}(length(elevations))
     rockstratname = Array{String}(length(elevations))
     rockcomments = Array{String}(length(elevations))
 
-    using ProgressMeter
-    @showprogress 5 for i = 1:length(elevations)
-        responses[i] = query_macrostrat(randlat[i], randlon[i], zoom)
-        sleep(0.1)
-    end
-
-    using JLD
-    save("/tmp/Responses from Macrostrat.jld", "Responses", responses, "Elevations", elevations, "Latitude", randlat, "Longitude", randlon)
-
-## ---
-    # Load from saved version
-    retrive_file = load("/tmp/Responses from Macrostrat.jld")
-    elevations = retrive_file["Elevations"]
-    latitude = retrive_file["Latitude"]
-    longitude = retrive_file["Longitude"]
-    responses = retrive_file["Responses"]
-
+    # Parse saved responses
     for i = 1:length(elevations)
         rocktype[i] = get_macrostrat_lith(responses[i])
         rockdescrip[i] = get_macrostrat_descrip(responses[i])
@@ -142,7 +159,7 @@
     number_not_matched = sum(not_matched)
     number_multi_matched = sum(multi_matched)
 
-    print("not matched = $number_not_matched, conflicting matches = $number_multi_matched")
+    print("not matched = $number_not_matched, conflicting matches = $number_multi_matched\n")
 
 ## ---
     # heatmap(etopoelev)

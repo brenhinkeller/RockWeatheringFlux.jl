@@ -11,7 +11,7 @@
 
 ## --- Let's find the geology at one of these points
 
-    elevations = findelevation(etopoelev,randlat,randlon)
+    elevations = findEtopoElevation(randlat,randlon)
 
 ## --- Check which points are above sea level
 
@@ -36,7 +36,7 @@
 
         (temp_randlat, temp_randlon) = random_lat_lon(npoints)
 
-        elevations = findelevation(temp_randlat,temp_randlon)
+        elevations = findEtopoElevation(temp_randlat,temp_randlon)
 
         (lat,lon) = abovesea(elevations,temp_randlat,temp_randlon)
 

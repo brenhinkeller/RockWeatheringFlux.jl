@@ -108,6 +108,20 @@
         rockcomments[i] = get_macrostrat_comments(responses[i])
     end
 
+    # Convert to lowercase to match names of rock types
+    rocktype = lowercase.(rocktype)
+    rockdescrip = lowercase.(rockdescrip)
+    rockname = lowercase.(rockname)
+    rockstratname = lowercase.(rockstratname)
+    rockcomments = lowercase.(rockcomments)
+
+    # Replacing tabs with spaces so as not to be confused with the delimitator
+    rocktype = replace.(rocktype, "    ", " ")
+    rockdescrip = replace.(rockdescrip, "    ", " ")
+    rockname = replace.(rockname, "    ", " ")
+    rockstratname = replace.(rockstratname, "    ", " ")
+    rockcomments = replace.(rockcomments, "    ", " ")
+
 ## ---
 
     #= Use this link to check the information on certain points in the macrostrat
@@ -116,9 +130,9 @@
 ## ---
 
     # Names or partial names of different rock types (from GetBurwellBulkAge.m)
-    sedtypes = ["fluv", "clast", "conglomerat", "gravel", "sand", "psamm", "arenit", "arkos", "silt", "mud", "clay", "shale", "wacke", "argillite", "argillaceous","pelit", "pebble", "mass-wasting", "carbonate", "limestone", "dolo", "chalk", "travertine", "tavertine", "boulder", "gravel", "glaci", "till", "loess", "lluv", "regolith", "debris", "fill", "slide", "unconsolidated", "talus", "stream", "beach", "terrace", "chert", "banded iron", "coal", "anthracite", "peat", "sediment"];
-    igntypes = ["volcanic", "extrusive", "tuff", "basalt", "andesit", "dacit", "rhyolit", "pillow", "carbonatite", "tephra", "obsidian", "ash", "scoria", "pumice", "cinder", "lahar", "lava", "latite", "basanite", "phonolite", "trachyte", "ignimbrite", "palagonite", "mugearite", "pipe", "plutonic", "intrusive", "granit", "tonalit", "gabbro", "diorit", "monzonit", "syenit", "peridot", "dunit", "harzburg", "dolerit", "diabase", "charnockite", "hypabyssal", "norite", "pegmatite", "aplite", "trond", "essexite", "pyroxenite", "adamellite", "porphyry", "megacryst", "bronzitite", "alaskite", "troctolite", "crystalline", "igneous", "silicic", "mafic", "felsic"];
-    mettypes = ["para", "metased", "schist", "quartzite", "marble", "slate", "phyllite", "ortho", "metaign", "serpentin", "amphibolit", "greenstone", "eclogite", "basite", "ultramafitite", "meta", "migma", "gneiss", "granulit", "hornfels", "granofels", "mylonit", "cataclasite", "melange", "gouge", "tecton", "calc silicate"];
+    sedtypes = ["fluv", "clast", "conglomerat", "gravel", "sand", "psamm", "arenit", "arkos", "silt", "mud", "marl", "clay", "shale", "wacke", "argillite", "argillaceous","pelit", "pebble", "mass-wasting", "carbonate", "limestone", "dolo", "chalk", "travertine", "tavertine", "tufa", "evaporite", "salt", "gypsum", "boulder", "gravel", "glaci", "till", "loess", "lluv", "regolith", "debris", "fill", "slide", "unconsolidated", "talus", "stream", "beach", "terrace", "chert", "banded iron", "coal", "anthracite", "peat", "sediment", "laterite", "surficial deposits", "marine deposits", "turbidite", "flysch"];
+    igntypes = ["volcanic", "extrusive", "tuff", "basalt", "andesit", "dacit", "rhyolit", "pillow", "carbonatite", "tephra", "obsidian", "ash", "scoria", "pumice", "cinder", "lahar", "lava", "latite", "basanite", "phonolite", "trachyte", "ignimbrite", "palagonite", "mugearite", "pipe", "plutonic", "intrusive", "granit", "tonalit", "gabbro", "diorit", "monzonit", "syenit", "peridot", "dunit", "harzburg", "dolerit", "diabase", "charnockite", "hypabyssal", "norite", "pegmatite", "aplite", "trond", "essexite", "pyroxenite", "adamellite", "porphyry", "megacryst", "bronzitite", "alaskite", "troctolite", "igneous", "silicic ", "mafic", "felsic"];
+    mettypes = ["para", "metased", "schist", "quartzite", "marble", "slate", "phyllite", "ortho", "metaign", "serpentin", "amphibolit", "greenstone", "eclogite", "basite", "ultramafitite", "meta", "migma", "gneiss", "granulit", "hornfels", "granofels", "mylonit", "cataclasite", "melange", "gouge", "tecton", "calc silicate", "crystalline"];
 
     # Check which burwell "lith" rocktypes match one of the rock types
     sed = fill(false,npoints)
@@ -168,6 +182,17 @@
 
     print("not matched = $number_not_matched, conflicting matches = $number_multi_matched\n")
 
+## ---
+
+    # Print proportions of sed vs ign, met, and nonsed rocks in responses
+    print("sed = ", sum(sed), ", ign + met + ~.sed = ", sum((ign .| met) .& .~sed))
+
+    # Create a file to check matching errors
+    writedlm("notmatched.tsv", hcat(rocktype[not_matched], rockname[not_matched], rockdescrip[not_matched], rockstratname[not_matched], rockcomments[not_matched]))
+    readdlm("notmatched.tsv")
+
+    writedlm("multimatched.tsv", hcat(rocktype[multi_matched], rockname[multi_matched], rockdescrip[multi_matched], rockstratname[multi_matched], rockcomments[multi_matched]))
+    readdlm("multimatched.tsv")
 
 ## ---
     # heatmap(etopoelev)

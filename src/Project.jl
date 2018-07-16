@@ -1,4 +1,10 @@
 ## --- Setup
+    try
+        Pkg.installed("EtopoElev")
+    catch
+        Pkg.clone("https://github.com/brenhinkeller/EtopoElev.jl")
+    end
+    
     using ProgressMeter: @showprogress
     using Plots
     using EtopoElev

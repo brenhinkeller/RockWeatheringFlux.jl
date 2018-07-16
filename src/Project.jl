@@ -1,13 +1,13 @@
 ## --- Setup
-    try
-        Pkg.installed("EtopoElev")
-    catch
-        Pkg.clone("https://github.com/brenhinkeller/EtopoElev.jl")
-    end
-    
+    # try
+    #     Pkg.installed("EtopoElev")
+    # catch
+    #     Pkg.clone("https://github.com/brenhinkeller/EtopoElev.jl")
+    # end
+
     using ProgressMeter: @showprogress
     using Plots
-    using EtopoElev
+    # using EtopoElev
     using JLD
     include("Utilities.jl")
 
@@ -77,11 +77,11 @@
         end
         sleep(0.1)
         if mod(i,10000)==0
-            save("Responses.jld", "Responses", responses, "Elevations", elevations, "Latitude", randlat, "Longitude", randlon)
+            save("Responses.jld", "Responses", responses, "Elevations", elevations, "Latitude", randlat, "Longitude", randlon, "npoints", npoints)
         end
     end
 
-    save("Responses.jld", "Responses", responses, "Elevations", elevations, "Latitude", randlat, "Longitude", randlon)
+    save("Responses.jld", "Responses", responses, "Elevations", elevations, "Latitude", randlat, "Longitude", randlon, "npoints", npoints)
 
 ## ---
     # Load from saved version
@@ -90,6 +90,7 @@
     randlat = retrive_file["Latitude"]
     randlon = retrive_file["Longitude"]
     responses = retrive_file["Responses"]
+    npoints = retrive_file["npoints"]
 
     # Variables for parsed responses
     rocktype = Array{String}(length(elevations))
@@ -115,7 +116,7 @@
 ## ---
 
     # Names or partial names of different rock types (from GetBurwellBulkAge.m)
-    sedtypes = ["fluv", "clast", "conglomerat", "gravel", "sand", "psamm", "arenit", "arkos", "silt", "mud", "clay", "shale", "wacke", "argillite", "argillaceous","pelit", "pebble", "mass-wasting", "carbonate", "limestone", "dolo", "chalk", "travertine", "tavertine", "boulder", "gravel", "glaci", "till", "loess", "lluv", "regolith", "debris", "fill", "slide", "unconsolidated", "talus", "stream", "beach", "terrace", "ice", "chert", "banded iron", "coal", "anthracite", "peat", "sediment"];
+    sedtypes = ["fluv", "clast", "conglomerat", "gravel", "sand", "psamm", "arenit", "arkos", "silt", "mud", "clay", "shale", "wacke", "argillite", "argillaceous","pelit", "pebble", "mass-wasting", "carbonate", "limestone", "dolo", "chalk", "travertine", "tavertine", "boulder", "gravel", "glaci", "till", "loess", "lluv", "regolith", "debris", "fill", "slide", "unconsolidated", "talus", "stream", "beach", "terrace", "chert", "banded iron", "coal", "anthracite", "peat", "sediment"];
     igntypes = ["volcanic", "extrusive", "tuff", "basalt", "andesit", "dacit", "rhyolit", "pillow", "carbonatite", "tephra", "obsidian", "ash", "scoria", "pumice", "cinder", "lahar", "lava", "latite", "basanite", "phonolite", "trachyte", "ignimbrite", "palagonite", "mugearite", "pipe", "plutonic", "intrusive", "granit", "tonalit", "gabbro", "diorit", "monzonit", "syenit", "peridot", "dunit", "harzburg", "dolerit", "diabase", "charnockite", "hypabyssal", "norite", "pegmatite", "aplite", "trond", "essexite", "pyroxenite", "adamellite", "porphyry", "megacryst", "bronzitite", "alaskite", "troctolite", "crystalline", "igneous", "silicic", "mafic", "felsic"];
     mettypes = ["para", "metased", "schist", "quartzite", "marble", "slate", "phyllite", "ortho", "metaign", "serpentin", "amphibolit", "greenstone", "eclogite", "basite", "ultramafitite", "meta", "migma", "gneiss", "granulit", "hornfels", "granofels", "mylonit", "cataclasite", "melange", "gouge", "tecton", "calc silicate"];
 
@@ -166,6 +167,7 @@
     number_multi_matched = sum(multi_matched)
 
     print("not matched = $number_not_matched, conflicting matches = $number_multi_matched\n")
+
 
 ## ---
     # heatmap(etopoelev)

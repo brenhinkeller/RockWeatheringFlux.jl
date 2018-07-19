@@ -1,23 +1,28 @@
 ## --- Setup
-    # try
-    #     Pkg.installed("EtopoElev")
-    # catch
-    #     Pkg.clone("https://github.com/brenhinkeller/EtopoElev.jl")
-    # end
 
+    # External packages
     using ProgressMeter: @showprogress
     using Plots
-    # using EtopoElev
     using JLD
-    include("Utilities.jl")
+    try
+        using StatGeochem
+    catch
+        Pkg.clone("https://github.com/brenhinkeller/StatGeochem.jl")
+        using StatGeochem
+    end
+
+    # Local utilities
+    include("src/Utilities.jl")
 
 ## --- Generate some random points on a sphere
+
     npoints = 50000;
     (randlat, randlon) = random_lat_lon(npoints)
 
 ## --- Let's find the geology at one of these points
 
-    elevations = findEtopoElevation(randlat,randlon)
+    etopo = get_etopo("elevation")
+    elevations = find_etopoelev(etopo,randlat,randlon)
 
 ## --- Check which points are above sea level
 
@@ -77,19 +82,19 @@
         end
         sleep(0.1)
         if mod(i,10000)==0
-            save("Responses.jld", "Responses", responses, "Elevations", elevations, "Latitude", randlat, "Longitude", randlon, "npoints", npoints)
+            save("data/Responses.jld", "responses", responses, "elevations", elevations, "latitude", randlat, "longitude", randlon, "npoints", npoints)
         end
     end
 
-    save("Responses.jld", "Responses", responses, "Elevations", elevations, "Latitude", randlat, "Longitude", randlon, "npoints", npoints)
+    save("data/Responses.jld", "responses", responses, "elevations", elevations, "latitude", randlat, "longitude", randlon, "npoints", npoints)
 
 ## ---
     # Load from saved version
-    retrive_file = load("Responses.jld")
-    elevations = retrive_file["Elevations"]
-    randlat = retrive_file["Latitude"]
-    randlon = retrive_file["Longitude"]
-    responses = retrive_file["Responses"]
+    retrive_file = load("data/Responses.jld")
+    elevations = retrive_file["elevations"]
+    randlat = retrive_file["latitude"]
+    randlon = retrive_file["longitude"]
+    responses = retrive_file["responses"]
     npoints = retrive_file["npoints"]
 
     # Variables for parsed responses

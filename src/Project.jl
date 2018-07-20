@@ -12,12 +12,12 @@
     end
 
     # Local utilities
+    using HTTP, JSON
     include("src/Utilities.jl")
 
 ## --- Generate some random points on a sphere
 
     npoints = 50000;
-    (randlat, randlon) = random_lat_lon(npoints)
 
 ## --- Let's find the geology at one of these points
 
@@ -26,39 +26,25 @@
 
 ## --- Check which points are above sea level
 
-    function abovesea(elevations,randlat,randlon)
-        lat = Array{Float64}(size(randlat))
-        lon = Array{Float64}(size(randlon))
-        j = 0
-        for i = 1:length(elevations)
-            if elevations[i] > 0
-                j += 1;
-                lat[j] = randlat[i]
-                lon[j] = randlon[i]
-            end
-        end
-        return (lat[1:j], lon[1:j])
+    rocklat = Array{Float64}(0)
+    rocklon = Array{Float64}(0)
+    while length(rocklat) < npoints
+
+        # Generate some random latitudes and longitudes with uniform
+        #  spatial density on the globe
+        (randlat, randlon) = random_lat_lon(npoints)
+
+        # Find which points are above sea level
+        elevations = findEtopoElevation(randlat,randlon)
+        abovesea = elevations .> 0
+
+        # Concatenate together all the points that represent exposed crust
+        rocklat = vcat(rocklat,randlat[abovesea])
+        rocklon = vcat(rocklon,randlon[abovesea])
     end
 
-    randlat = [];
-    randlon = [];
-    i = 0
-    while i < npoints
-
-        (temp_randlat, temp_randlon) = random_lat_lon(npoints)
-
-        elevations = findEtopoElevation(temp_randlat,temp_randlon)
-
-        (lat,lon) = abovesea(elevations,temp_randlat,temp_randlon)
-
-        randlat = vcat(randlat,lat)
-        randlon = vcat(randlon,lon)
-
-        i = length(randlat)
-    end
-
-    randlat = randlat[1:npoints];
-    randlon = randlon[1:npoints];
+    rocklat = rocklat[1:npoints];
+    rocklon = rocklon[1:npoints];
 
 ## -- Try it
 
@@ -67,13 +53,13 @@
     responses = Array{Any}(length(elevations))
     @showprogress 5 for i = 1:length(elevations)
         try
-            responses[i] = query_macrostrat(randlat[i], randlon[i], zoom)
+            responses[i] = query_macrostrat(rocklat[i], rocklon[i], zoom)
         catch
             print("Warning: no data from Macrostrat server \n")
             try
                 # Wait and try again
                 sleep(10)
-                responses[i] = query_macrostrat(randlat[i], randlon[i], zoom)
+                responses[i] = query_macrostrat(rocklat[i], rocklon[i], zoom)
             catch
                 # if still nothing, add warnin
                 responses[i] = "No response"
@@ -82,20 +68,22 @@
         end
         sleep(0.1)
         if mod(i,10000)==0
-            save("data/Responses.jld", "responses", responses, "elevations", elevations, "latitude", randlat, "longitude", randlon, "npoints", npoints)
+            save("data/responses.jld", "responses", responses, "elevations", elevations, "latitude", rocklat, "longitude", rocklon, "npoints", npoints)
         end
     end
 
-    save("data/Responses.jld", "responses", responses, "elevations", elevations, "latitude", randlat, "longitude", randlon, "npoints", npoints)
+    save("data/responses.jld", "responses", responses, "elevations", elevations, "latitude", rocklat, "longitude", rocklon, "npoints", npoints)
 
-## ---
-    # Load from saved version
-    retrive_file = load("data/Responses.jld")
-    elevations = retrive_file["elevations"]
-    randlat = retrive_file["latitude"]
-    randlon = retrive_file["longitude"]
-    responses = retrive_file["responses"]
-    npoints = retrive_file["npoints"]
+## --- Load from saved version (if applicable)
+
+    # retrive_file = load("data/responses.jld")
+    # elevations = retrive_file["levations"]
+    # rocklat = retrive_file["latitude"]
+    # rocklon = retrive_file["longitude"]
+    # responses = retrive_file["responses"]
+    # npoints = retrive_file["npoints"]
+
+## --- Parse the macrostrat repponses
 
     # Variables for parsed responses
     rocktype = Array{String}(length(elevations))
@@ -120,17 +108,15 @@
     rockstratname = lowercase.(rockstratname)
     rockcomments = lowercase.(rockcomments)
 
-    # Replacing tabs with spaces so as not to be confused with the delimitator
+    # Replacing tabs with spaces so as not to be confused with the delimitator if exported
     rocktype = replace.(rocktype, "    ", " ")
     rockdescrip = replace.(rockdescrip, "    ", " ")
     rockname = replace.(rockname, "    ", " ")
     rockstratname = replace.(rockstratname, "    ", " ")
     rockcomments = replace.(rockcomments, "    ", " ")
 
-## ---
-
     #= Use this link to check the information on certain points in the macrostrat
-    url = "https://macrostrat.org/api/mobile/map_query?lat=$(randlat[end])&lng=$(randlon[end])&z=11" =#
+    url = "https://macrostrat.org/api/mobile/map_query?lat=$(rocklat[end])&lng=$(rocklon[end])&z=11" =#
 
 ## ---
 
@@ -199,5 +185,13 @@
     writedlm("multimatched.tsv", hcat(rocktype[multi_matched], rockname[multi_matched], rockdescrip[multi_matched], rockstratname[multi_matched], rockcomments[multi_matched]))
     readdlm("multimatched.tsv")
 
-## ---
-    # heatmap(etopoelev)
+## --- Find slope and erosion rate
+    function Emmkyr(slp)
+        return 10^(slp*0.00567517 + 0.971075)
+    end
+
+    rockslope = find_srtm15plus_aveslope(slope,rocklat,rocklon)
+    rockEmmkyr = Emmkyr.(rockslope)
+
+
+    1+1

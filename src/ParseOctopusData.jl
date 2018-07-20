@@ -116,7 +116,6 @@
 
 ## --- Recalculate slopes
 
-    # srtm = get_srtm15plus_aveslope()
     using HDF5
     srtm = h5read("data/srtm15plus_aveslope.h5","vars/")
     slope = srtm["slope"]
@@ -143,20 +142,13 @@
         end
 
         # Average all the slopes
-        # basin_srtm15plus_aveslope[i] = mean(basin_slopes)
-        basin_srtm15plus_aveslope[i] = slp(mean(E.(basin_slopes)))
+        basin_srtm15plus_aveslope[i] = mean(basin_slopes)
 
         print("Basin: $i, slope: $(basin_srtm15plus_aveslope[i]) \n")
     end
 
-    # fid = h5open("OctopusSlopeRecalc.h5","w")
-    # g = g_create(fid, "vars")
-    # for key in keys(data)
-    #     print(key)
-    # end
-    # g["basin_srtm15plus_aveslope"] = basin_srtm15plus_aveslope
-    # close(fid)
-
+    # save("basin_srtm15plus_aveslope.jld","basin_srtm15plus_aveslope",basin_srtm15plus_aveslope)
+    # basin_srtm15plus_aveslope =  load("basin_srtm15plus_aveslope.jld")["basin_srtm15plus_aveslope"]
 
     # save("OctopusSlopeRecalc.jld","basin_srtm15plus_aveslope",basin_srtm15plus_aveslope,"basin_polygon_n",basin_polygon_n,"basin_polygon_lat",basin_polygon_lat,"basin_polygon_lon",basin_polygon_lon,"subbasins",subbasins)
 
@@ -169,25 +161,39 @@
     plot(data["slp_ave"],data["ebe_mmkyr"],seriestype=:scatter,label="OCTOPUS 10Be", fg_color_legend=:white)
     plot!(xlabel="Slope (m/km)", ylabel="Erosion rate (mm/kyr)",yscale=:log10)
     # savefig("Slope_vs_Erosion.pdf")
-## --- Plot raw erosion rate vs slope
+
+## --- Plot new erosion rate vs slope
+
     plot(basin_srtm15plus_aveslope,data["ebe_mmkyr"],seriestype=:scatter,label="OCTOPUS 10Be", fg_color_legend=:white)
     plot!(xlabel="SRTM15 Slope (m/km)", ylabel="Erosion rate (mm/kyr)",yscale=:log10)
     # savefig("Slope_vs_Erosion.pdf")
 
     # log10(E) = slope/140 + 0.7
     # E = 10^(slope/140 + 0.7)
-    x = 0:400;
-    y = 10.^(x/140 + 0.7)
-    plot!(x,y)
-    # (log10(E) - 0.7)*140 = slope
-    function slp(E)
-        return (log10(E) - 0.7)*140
+
+## --- Fit raw erosion rate as a function of slope (m/km)
+
+    using LsqFit: curve_fit
+
+    function linear(x,p)
+        y = p[1] + x * p[2]
     end
-    function E(slp)
-        return 10^(slp/140 + 0.7)
+    p = [0.5, 1/100]
+    t = .~isnan.(basin_srtm15plus_aveslope) .& .~isnan.(data["ebe_mmkyr"]) .& (basin_srtm15plus_aveslope .< 300)
+    x = basin_srtm15plus_aveslope[t]
+    y = log10.(data["ebe_mmkyr"])[t]
+    fobj = curve_fit(linear, x, y, p);
+
+    # fobj.param[1]: 0.987237
+    # fobj.param[2]: 0.00555159
+    function Emmkyr(slp)
+        return 10^(slp*0.00567517 + 0.971075)
     end
+
+    plot!(1:500, Emmkyr.(1:500), label = "fit")
+
 ## ---
-#
+
     # nbins = 20;
     # nsims = 10000;
     # (c, m, el, eu) = bin_bsr_means(data["slp_ave"], log10.(data["ebe_mmkyr"]), 0, 800, nbins, data["slp_std"]/10, nsims)

@@ -121,27 +121,40 @@
 ## ---
 
     # Names or partial names of different rock types (from GetBurwellBulkAge.m)
-    sedtypes = ["fluv", "clast", "conglomerat", "gravel", "sand", "psamm", "arenit", "arkos", "silt", "mud", "marl", "clay", "shale", "wacke", "argillite", "argillaceous","pelit", "pebble", "mass-wasting", "carbonate", "limestone", "dolo", "chalk", "travertine", "tavertine", "tufa", "evaporite", "salt", "gypsum", "boulder", "gravel", "glaci", "till", "loess", "lluv", "regolith", "debris", "fill", "slide", "unconsolidated", "talus", "stream", "beach", "terrace", "chert", "banded iron", "coal", "anthracite", "peat", "sediment", "laterite", "surficial deposits", "marine deposits", "turbidite", "flysch"];
-    igntypes = ["volcanic", "extrusive", "tuff", "basalt", "andesit", "dacit", "rhyolit", "pillow", "carbonatite", "tephra", "obsidian", "ash", "scoria", "pumice", "cinder", "lahar", "lava", "latite", "basanite", "phonolite", "trachyte", "ignimbrite", "palagonite", "mugearite", "pipe", "plutonic", "intrusive", "granit", "tonalit", "gabbro", "diorit", "monzonit", "syenit", "peridot", "dunit", "harzburg", "dolerit", "diabase", "charnockite", "hypabyssal", "norite", "pegmatite", "aplite", "trond", "essexite", "pyroxenite", "adamellite", "porphyry", "megacryst", "bronzitite", "alaskite", "troctolite", "igneous", "silicic ", "mafic", "felsic"];
-    mettypes = ["para", "metased", "schist", "quartzite", "marble", "slate", "phyllite", "ortho", "metaign", "serpentin", "amphibolit", "greenstone", "eclogite", "basite", "ultramafitite", "meta", "migma", "gneiss", "granulit", "hornfels", "granofels", "mylonit", "cataclasite", "melange", "gouge", "tecton", "calc silicate", "crystalline"];
+    sedtypes = ["fluv", " clast", "siliciclast", "conglomerat", "gravel", "sand", "psamm", "arenit", "arkos", "silt", "mud", "marl", "clay", "shale", "wacke", "argillite", "argillaceous","pelit", "pebble", "mass-wasting", "carbonate", "limestone", "dolo", "chalk", "travertine", "tavertine", "tufa", "evaporite", " salt", "gypsum", "boulder", "gravel", "glaci", "till", "loess", "lluv", "regolith", "debris", "fill", "slide", "unconsolidated", "talus", "stream", "beach", "terrace", "chert", "banded iron", "coal", "anthracite", "peat", "sediment", "laterite", "surficial deposits", "marine deposits", "turbidite", "flysch"];
+    igntypes = ["volcanic", "extrusive", "tuff ", "basalt", "andesit", "dacit", "rhyolit", "pillow", "carbonatite", "tephra", "obsidian", "ash", "scoria", "pumice", "cinder", "lahar", "lava", "latite", "basanite", "phonolite", "trachyte", "ignimbrite", "palagonite", "mugearite", "pipe", "plutonic", "intrusive", "granit", "tonalit", "gabbro", "diorit", "monzonit", "syenit", "peridot", "dunit", "harzburg", "dolerit", "diabase", "charnockite", "hypabyssal", "norite", "pegmatite", "aplite", "trond", "essexite", "pyroxenite", "adamellite", "porphyry", "megacryst", "bronzitite", "alaskite", "troctolite", "igneous", "silicic ", "mafic", "felsic"];
+    mettypes = ["para", "metased", "schist", "quartzite", "marble", "slate", "phyllite", "ortho", "metaign", "serpentin", "amphibolit", "greenstone", "eclogite", "basite", "ultramafitite", "meta", "migma", "gneiss", "granulit", "hornfels", "granofels", "mylonit", "cataclasite", "melange", "gouge", "tecton", "calc silicate", "crystalline basement"];
+
+    # Allocate arrays for each sample for each rock type
+    sed = fill(false,npoints)
+    ign = fill(false,npoints)
+    met = fill(false,npoints)
 
     # Check which burwell "lith" rocktypes match one of the rock types
-    sed = fill(false,npoints)
+    # Try the "major:: {...}" type first, if present
     for i = 1:length(sedtypes)
-      sed = sed .| contains.(rocktype,sedtypes[i])
+      sed = sed .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], sedtypes[i]) : false )
     end
-
-    ign = fill(false,npoints)
     for i = 1:length(igntypes)
-      ign = ign .| contains.(rocktype,igntypes[i])
+      ign = ign .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], igntypes[i]) : false )
     end
-
-    met = fill(false,npoints)
     for i = 1:length(mettypes)
-      met = met .| contains.(rocktype,mettypes[i])
+      met = met .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], mettypes[i]) : false )
     end
 
-    # If we don't find matches in rocktype, try rockname
+    # Then check the rest of rocktype
+    not_matched = .~(sed .| ign .| met)
+    for i = 1:length(sedtypes)
+      sed[not_matched] = sed[not_matched] .| contains.(rocktype[not_matched],sedtypes[i])
+    end
+    for i = 1:length(igntypes)
+      ign[not_matched] = ign[not_matched] .| contains.(rocktype[not_matched],igntypes[i])
+    end
+    for i = 1:length(mettypes)
+      met[not_matched] = met[not_matched] .| contains.(rocktype[not_matched],mettypes[i])
+    end
+
+    # Then rockname
     not_matched = .~(sed .| ign .| met)
     for i = 1:length(sedtypes)
       sed[not_matched] = sed[not_matched] .| contains.(rockname[not_matched],sedtypes[i])
@@ -176,16 +189,17 @@
 ## ---
 
     # Print proportions of sed vs ign, met, and nonsed rocks in responses
-    print("sed = ", sum(sed), ", ign + met + ~.sed = ", sum((ign .| met) .& .~sed))
+    print("sed = ", sum(sed), ", ign + (met & ~sed)= ", sum(ign .| (met .& .~sed)))
 
     # Create a file to check matching errors
     writedlm("notmatched.tsv", hcat(rocktype[not_matched], rockname[not_matched], rockdescrip[not_matched], rockstratname[not_matched], rockcomments[not_matched]))
-    readdlm("notmatched.tsv")
 
     writedlm("multimatched.tsv", hcat(rocktype[multi_matched], rockname[multi_matched], rockdescrip[multi_matched], rockstratname[multi_matched], rockcomments[multi_matched]))
-    readdlm("multimatched.tsv")
+
+    writedlm("ignsed.tsv", hcat(rocktype[ign .& sed], rockname[ign .& sed], rockdescrip[ign .& sed], rockstratname[ign .& sed], rockcomments[ign .& sed]))
 
 ## --- Find slope and erosion rate
+
     function Emmkyr(slp)
         return 10^(slp*0.00567517 + 0.971075)
     end
@@ -194,4 +208,11 @@
     rockEmmkyr = Emmkyr.(rockslope)
 
 
-    1+1
+    sedEsum = nansum(rockEmmkyr[sed])
+    crystEsum = nansum(rockEmmkyr[ign .| (met .& .~sed)])
+
+    sedEmean = nanmean(rockEmmkyr[sed])
+    crystEmean = nanmean(rockEmmkyr[ign .| (met .& .~sed)])
+
+    print("sed sum: $sedEsum cryst sum: $crystEsum\n")
+    print("sed mean: $sedEmean cryst mean: $crystEmean\n")

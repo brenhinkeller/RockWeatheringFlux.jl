@@ -66,6 +66,25 @@
 
 ## --- Functions for dealing with SRTM15
 
+    # Read srtm15plus file from HDF5 storage, downloading from cloud if necessary
+    function get_srtm15plus_aveslope(varname="")
+        # Available variable names: "slope", "y_lat_cntr", "x_lon_cntr",
+        # "nanval", "cellsize", "scalefactor", and "reference". Units are
+        # meters of elevation and decimal degrees of latitude and longitude
+
+        # Construct file path
+        filepath = joinpath(resourcepath,"srtm15plus","srtm15plus_aveslope.h5")
+
+        # Download HDF5 file from Google Cloud if necessary
+        if ~isfile(filepath)
+            print("Downloading srtm15plus.h5 from google cloud storage\n")
+            download("https://storage.googleapis.com/statgeochem/srtm15plus_aveslope.h5", filepath)
+        end
+
+        # Read and return the file
+        return h5read(filepath, "vars/"*varname)
+    end
+
     # Find the elevation of points at position (lat,lon) on the surface of the
     # Earth, using the SRTM15plus 15-arc-second elevation model.
     function find_srtm15plus_aveslope(srtm15plus,lat,lon)

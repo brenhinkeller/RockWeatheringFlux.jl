@@ -1,4 +1,8 @@
 .DS_Store
+dev/
+ignsed.tsv
+multimatched.tsv
+notmatched.tsv
 
 # Ignore large datafiles
 *.jld

@@ -65,6 +65,7 @@
     end
 
 ## --- Functions for dealing with SRTM15
+    resourcepath = "data"
 
     # Read srtm15plus file from HDF5 storage, downloading from cloud if necessary
     function get_srtm15plus_aveslope(varname="")
@@ -73,7 +74,7 @@
         # meters of elevation and decimal degrees of latitude and longitude
 
         # Construct file path
-        filepath = joinpath(resourcepath,"srtm15plus","srtm15plus_aveslope.h5")
+        filepath = joinpath(resourcepath,"srtm15plus_aveslope.h5")
 
         # Download HDF5 file from Google Cloud if necessary
         if ~isfile(filepath)
@@ -122,6 +123,53 @@
                 else
                     out[i] = res
                 end
+            end
+        end
+
+        return out
+    end
+
+    function find_srtm15plus_aveslope_around(srtm15plus,lat,lon; halfwidth_lat=10, halfwidth_lon=10)
+
+        # Interpret user input
+        if length(lat) != length(lon)
+            error("lat and lon must be equal length\n")
+        elseif isa(srtm15plus,Dict)
+            data = srtm15plus["slope"]
+        elseif isa(srtm15plus, Array)
+            data = srtm15plus
+        else
+            error("wrong srtm15plus variable")
+        end
+
+        # Scale factor (cells per degree) = 60 * 4 = 240
+        # (15 arc seconds goes into 1 arc degree 240 times)
+        sf = 240
+
+        # Create and fill output vector
+        out=Array{Float64}(size(lat));
+        for i=1:length(lat)
+            if isnan(lat[i]) || isnan(lon[i]) || lat[i]>90 || lat[i]<-90 || lon[i]>180 || lon[i]<-180
+                # Result is NaN if either input is NaN or out of bounds
+                out[i] = NaN
+            else
+                # Convert latitude and longitude into indicies of the elevation map array
+                # Note that STRTM15 plus has N+1 columns where N = 360*sf
+                row = 1 + round(Int,(90+lat[i])*sf)
+                col = 1 + round(Int,(180+lon[i])*sf)
+
+                # Find result by indexing
+                k = 0;
+                out[i] = 0;
+                for r = row-halfwidth_lat:row+halfwidth_lat
+                    for c = col-halfwidth_lon:col+halfwidth_lon
+                        if r>0 && r<43202
+                            k +=1
+                            out[i] += data[r,mod(c-1,86400)+1]
+                        end
+                    end
+                end
+                out[i] /= k
             end
         end
 

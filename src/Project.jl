@@ -1,9 +1,10 @@
+
 ## --- Setup
 
     # External packages
     using ProgressMeter: @showprogress
     using Plots
-    using JLD
+    using JLD, HDF5
     try
         using StatGeochem
     catch
@@ -12,22 +13,16 @@
     end
 
     # Local utilities
-    using HTTP, JSON
-    include("src/Utilities.jl")
+    # using HTTP, JSON
+    include("Utilities.jl")
 
 ## --- Generate some random points on a sphere
 
     npoints = 50000;
 
-## --- Let's find the geology at one of these points
-
-    etopo = get_etopo("elevation")
-    elevations = find_etopoelev(etopo,randlat,randlon)
-
-## --- Check which points are above sea level
-
     rocklat = Array{Float64}(0)
     rocklon = Array{Float64}(0)
+    etopo = get_etopo("elevation")
     while length(rocklat) < npoints
 
         # Generate some random latitudes and longitudes with uniform
@@ -35,7 +30,7 @@
         (randlat, randlon) = random_lat_lon(npoints)
 
         # Find which points are above sea level
-        elevations = findEtopoElevation(randlat,randlon)
+        elevations = find_etopoelev(randlat,randlon)
         abovesea = elevations .> 0
 
         # Concatenate together all the points that represent exposed crust
@@ -43,10 +38,12 @@
         rocklon = vcat(rocklon,randlon[abovesea])
     end
 
-    rocklat = rocklat[1:npoints];
-    rocklon = rocklon[1:npoints];
+    rocklat = rocklat[1:npoints]
+    rocklon = rocklon[1:npoints]
+    elevations = find_etopoelev(etopo,rocklat,rocklon)
 
-## -- Try it
+
+## -- Get data from Macrostrat / Burwell API
 
     zoom = 11
 
@@ -76,12 +73,12 @@
 
 ## --- Load from saved version (if applicable)
 
-    # retrive_file = load("data/responses.jld")
-    # elevations = retrive_file["levations"]
-    # rocklat = retrive_file["latitude"]
-    # rocklon = retrive_file["longitude"]
-    # responses = retrive_file["responses"]
-    # npoints = retrive_file["npoints"]
+    retrive_file = load("data/responses.jld")
+    elevations = retrive_file["elevations"]
+    rocklat = retrive_file["latitude"]
+    rocklon = retrive_file["longitude"]
+    responses = retrive_file["responses"]
+    npoints = retrive_file["npoints"]
 
 ## --- Parse the macrostrat repponses
 
@@ -204,9 +201,11 @@
         return 10^(slp*0.00567517 + 0.971075)
     end
 
-    rockslope = find_srtm15plus_aveslope(slope,rocklat,rocklon)
+    slope = get_srtm15plus_aveslope("slope")
+    rockslope = find_srtm15plus_aveslope_around(slope,rocklat,rocklon, halfwidth_lat=0, halfwidth_lon=0)
+    # rockslope = find_srtm15plus_aveslope(slope,rocklat,rocklon)
+    # rockslope[rockslope.>400] = NaN;
     rockEmmkyr = Emmkyr.(rockslope)
-
 
     sedEsum = nansum(rockEmmkyr[sed])
     crystEsum = nansum(rockEmmkyr[ign .| (met .& .~sed)])
@@ -214,6 +213,21 @@
     sedEmean = nanmean(rockEmmkyr[sed])
     crystEmean = nanmean(rockEmmkyr[ign .| (met .& .~sed)])
 
-    print("sed sum: $sedEsum cryst sum: $crystEsum\n")
-    print("$(round(100*sedEsum/(sedEsum+crystEsum),3))% sed, $(round(100*crystEsum/(sedEsum+crystEsum),3))% crystalline\n")
-    print("sed mean erosion rate: $sedEmean crystalline meanerosion rate: $crystEmean\n")
+    propotionSedArea = sum(sed)/(sum(sed)+sum(ign .| (met .& .~sed)));
+    print("$(round(100*propotionSedArea,3))% sed area, $(round(100*(1-propotionSedArea),3))% crystalline area\n")
+    print("sed E sum: $sedEsum cryst E sum: $crystEsum\n")
+    print("$(round(100*sedEsum/(sedEsum+crystEsum),3))% sed flux, $(round(100*crystEsum/(sedEsum+crystEsum),3))% crystalline flux\n")
+    print("sed mean E: $sedEmean crystalline mean E: $crystEmean\n")
+
+## --- For comparison
+
+    # Phanerozoic
+    sedimentSubduction_km3_yr = 1.64 # Clift, 2009
+    continentSedimentation_km3_yr = 0.8616 # Macrostrat
+    continentalErosion_km3_yr = sedimentSubduction_km3_yr + sedimentSubduction_km3_yr
+
+    continentalErosionQuaternary_km3_yr = 6.5 #\cite{Clift:2009fm}  / Milliman (1990)
+    continentalArea_km2 =  1.4894E8 # km^2
+
+    continentalErosion_km_yr = continentalErosion_km3_yr / continentalArea_km2
+    continentalErosion_mm_kyr = continentalErosion_km_yr * 1000 * 1000 * 1000

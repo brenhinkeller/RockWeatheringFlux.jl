@@ -3,12 +3,10 @@
 ## --- Load external packages
 
     using StatGeochem
-    using Plots
-    gr();
+    using Plots; gr();
     using ProgressMeter: @showprogress
 
 ## --- Load the OCTOPUS kml file
-
     # Unzip the kml file
     run(`gunzip data/octopus/crn_basins_global.kml.gz`) # Decompress
 
@@ -66,8 +64,8 @@
             subbasins[nbasins] = vcat(subbasins[nbasins],i)
         end
     end
-## --- Parse the file
 
+## --- Parse the file
     # Find a list of all the string variables
     lm = eachmatch(r"<SimpleField type=\"string\" name=\"(.*?)\"", str);
     stringvars = unique(map(x -> x[1], lm))
@@ -123,6 +121,7 @@
     y_lat_cntr = srtm["y_lat_cntr"]
 
     basin_srtm15plus_aveslope = Array{Float64}(nbasins)
+    basin_N = Array{Int64}(nbasins)
     for i = 1:nbasins
         rowsinbasin = Array{Int}(0)
         columnsinbasin = Array{Int}(0)
@@ -143,30 +142,47 @@
 
         # Average all the slopes
         basin_srtm15plus_aveslope[i] = mean(basin_slopes)
+        basin_N[i] = length(basin_slopes)
 
-        print("Basin: $i, slope: $(basin_srtm15plus_aveslope[i]) \n")
+        print("Basin: $i, slope: $(round(basin_srtm15plus_aveslope[i],3)), N: $(basin_N[i]) \n")
     end
 
+## --- Load/save slopes
+
+    using JLD
+
     # save("basin_srtm15plus_aveslope.jld","basin_srtm15plus_aveslope",basin_srtm15plus_aveslope)
-    # basin_srtm15plus_aveslope =  load("basin_srtm15plus_aveslope.jld")["basin_srtm15plus_aveslope"]
+    basin_srtm15plus_aveslope =  load("basin_srtm15plus_aveslope.jld")["basin_srtm15plus_aveslope"]
 
     # save("OctopusSlopeRecalc.jld","basin_srtm15plus_aveslope",basin_srtm15plus_aveslope,"basin_polygon_n",basin_polygon_n,"basin_polygon_lat",basin_polygon_lat,"basin_polygon_lon",basin_polygon_lon,"subbasins",subbasins)
 
 
 ## --- Plot raw Lat and Lon
-    plot(data["x_wgs84"],data["y_wgs84"],seriestype=:scatter)
-    plot!(xlabel="Longitude", ylabel="Latitude")
+    h = plot(data["x_wgs84"],data["y_wgs84"],seriestype=:scatter,label="basin locations")
+    plot!(h, xlabel="Longitude", ylabel="Latitude")
+    savefig(h, "Basin_Locations.pdf")
+    display(h)
 
-## --- Plot raw erosion rate vs slope
-    plot(data["slp_ave"],data["ebe_mmkyr"],seriestype=:scatter,label="OCTOPUS 10Be", fg_color_legend=:white)
-    plot!(xlabel="Slope (m/km)", ylabel="Erosion rate (mm/kyr)",yscale=:log10)
-    # savefig("Slope_vs_Erosion.pdf")
+## --- Plot raw erosion rate vs basin area
+    h = plot(data["area"],data["ebe_mmkyr"],seriestype=:scatter,label="OCTOPUS Be-10 data")
+    plot!(h, data["area"],data["eal_mmkyr"],seriestype=:scatter,label="OCTOPUS Al-26 data")
+    plot!(h, xlabel="Basin area (km^2)", ylabel="Erosion rate (mm/kyr)",yscale=:log10, xscale=:log10, legend=:topleft, fg_color_legend=:white)
+    savefig(h, "Area_vs_erosion.pdf")
+    display(h)
 
-## --- Plot new erosion rate vs slope
+## --- Plot raw erosion rate vs elevation
+    h = plot(data["elev_ave"],data["ebe_mmkyr"],seriestype=:scatter,label="OCTOPUS Be-10 data")
+    plot!(h,data["elev_ave"],data["eal_mmkyr"],seriestype=:scatter,label="OCTOPUS Al-26 data")
+    plot!(h, xlabel="Elevation (m)", ylabel="Erosion rate (mm/kyr)", yscale=:log10,legend=:topleft, fg_color_legend=:white)
+    savefig(h, "Elevation_vs_erosion.pdf")
+    display(h)
 
-    plot(basin_srtm15plus_aveslope,data["ebe_mmkyr"],seriestype=:scatter,label="OCTOPUS 10Be", fg_color_legend=:white)
-    plot!(xlabel="SRTM15 Slope (m/km)", ylabel="Erosion rate (mm/kyr)",yscale=:log10)
-    # savefig("Slope_vs_Erosion.pdf")
+## --- Plot new slope vs erosion rate
+    h = plot(basin_srtm15plus_aveslope,data["ebe_mmkyr"],seriestype=:scatter,label="OCTOPUS Be-10 data")
+    plot!(h,basin_srtm15plus_aveslope,data["eal_mmkyr"],seriestype=:scatter,label="OCTOPUS Al-26 data")
+    plot!(h, xlabel="SRTM15 Slope (m/km)", ylabel="Erosion rate (mm/kyr)", yscale=:log10,legend=:topleft, fg_color_legend=:white)
+    savefig(h, "Slope_vs_Erosion.pdf")
+    display(h)
 
     # log10(E) = slope/140 + 0.7
     # E = 10^(slope/140 + 0.7)
@@ -190,48 +206,97 @@
         return 10^(slp*0.00567517 + 0.971075)
     end
 
-    plot!(1:500, Emmkyr.(1:500), label = "fit")
+    h = plot(basin_srtm15plus_aveslope,data["ebe_mmkyr"],seriestype=:scatter,label="OCTOPUS 10Be data",legend=:topleft)
+    plot!(h, xlabel="SRTM15 Slope (m/km)", ylabel="Erosion rate (mm/kyr)",yscale=:log10)
+    plot!(h, 1:500, Emmkyr.(1:500), label = "E = 10^(slp/176.2 + 0.971)")
+    savefig(h, "Slope_vs_Erosion_Fitted.pdf")
+    display(h)
+
+## --- Plot Be-10 vs Al-26 erosion rate
+    h = plot(data["ebe_mmkyr"],data["eal_mmkyr"],seriestype=:scatter,label="")
+    plot!(h, xlabel="Be-10 erosion rate (t1/2=1.387E6) (mm/kyr) ", ylabel="Al-26 erosion rate (t1/2=7.17E5) (mm/kyr)",xscale=:log,yscale=:log)
+    plot!(h,10.0.^(-1:4),10.0.^(-1:4),label="1:1",legend=:topleft,fg_color_legend=:white)
+
+    function linslp1(x,p)
+        y = p[1] + x
+    end
+    p = [0.0]
+    t = .~isnan.(data["ebe_mmkyr"]) .& .~isnan.(data["eal_mmkyr"])
+    x = log10.(data["ebe_mmkyr"][t])
+    y = log10.(data["eal_mmkyr"][t])
+    fobj = curve_fit(linslp1, x, y, p);
+
+    plot!(h,10.0.^(-1:4),10.0.^((-1:4)+fobj.param[1]),label="1:$(10.0^fobj.param[1])")
+    savefig(h, "Be_vs_Al_rate.pdf")
+    display(h)
+
+## --- Plot residual erosion rate as a function of latitude
+    resid = data["ebe_mmkyr"] - Emmkyr.(basin_srtm15plus_aveslope)
+    h = plot(abs.(data["y_wgs84"]),abs.(resid),seriestype=:scatter,label="OCTOPUS 10Be data",legend=:topleft)
+    plot!(h, xlabel="Latitude", ylabel="Residual erosion rate (mm/kyr)",yscale=:log10)
+    # savefig(h, "Latitude_vs_erosion_residual.pdf")
+    display(h)
+
+
+## --- Plot residual erosion ratio as a function of latitude
+    resid = data["ebe_mmkyr"]./Emmkyr.(basin_srtm15plus_aveslope)
+    h = plot(abs.(data["y_wgs84"]),resid,seriestype=:scatter,label="OCTOPUS 10Be data",legend=:topleft)
+    plot!(h, xlabel="Latitude", ylabel="Residual erosion rate (mm/kyr)",yscale=:log10)
+    # savefig(h, "Latitude_vs_erosion_residual.pdf")
+    display(h)
+
+
+## --- Plot residual erosion rate as a function of elevation
+    resid = data["ebe_mmkyr"] - Emmkyr.(basin_srtm15plus_aveslope)
+    h = plot(data["elev_ave"],abs.(resid),seriestype=:scatter,label="OCTOPUS 10Be data",legend=:topleft)
+    plot!(h, xlabel="Elevation", ylabel="Residual erosion rate (mm/kyr)",yscale=:log10)
+    # savefig(h, "Latitude_vs_erosion_residual.pdf")
+    display(h)
+
+## --- Plot residual erosion ratio as a function of elevation
+    resid = data["ebe_mmkyr"] ./ Emmkyr.(basin_srtm15plus_aveslope)
+    h = plot(data["elev_ave"],abs.(resid),seriestype=:scatter,label="OCTOPUS 10Be data",legend=:topleft)
+    plot!(h, xlabel="Elevation", ylabel="Residual erosion ratio",yscale=:log10)
+    # savefig(h, "Latitude_vs_erosion_residual.pdf")
+    display(h)
+
 
 ## ---
-
-    # nbins = 20;
-    # nsims = 10000;
-    # (c, m, el, eu) = bin_bsr_means(data["slp_ave"], log10.(data["ebe_mmkyr"]), 0, 800, nbins, data["slp_std"]/10, nsims)
-    # plot(c, m, yerror=(el,eu), seriestype=:scatter, label="",xlabel="Slope", ylabel="Log10 Erosion rate (mm/kyr)")
-
-    (c,m,sigma) = binmeans(data["slp_ave"], log10.(data["ebe_mmkyr"]), 0, 800, 20)
-    plot(c,m,yerror=2*sigma,seriestype="scatter")
-    plot!(xlabel="Slope", ylabel="Log10 Erosion rate (mm/kyr)")
-
-## --- Plot raw erosion rate vs elevation
-    plot(data["elev_ave"],data["ebe_mmkyr"],seriestype=:scatter)
-    plot!(xlabel="Elevation (m)", ylabel="Erosion rate (mm/kyr)",yscale=:log10)
-
-## ---
-    (c,m,sigma) = binmeans(data["elev_ave"], data["ebe_mmkyr"], 0, 6000, 12)
-    plot(c,m,yerror=2*sigma,seriestype="scatter")
-    plot!(xlabel="Elevation (m)", ylabel="Erosion rate (mm/kyr)")
-
-## --- Plot raw erosion rate vs elevation scaled to snowline
-    plot(data["elev_ave"]./data["Snowline"],data["ebe_mmkyr"],seriestype=:scatter)
-    plot!(xlabel="Elevation/ELA", ylabel="Erosion rate (mm/kyr)",yscale=:log10)
-
-## ---
-    (c,m,sigma) = binmeans(data["elev_ave"]./data["Snowline"], data["ebe_mmkyr"], 0, 1.2, 12)
-    plot(c,m,yerror=2*sigma,seriestype="scatter")
-    plot!(xlabel="Elevation/ELA", ylabel="Erosion rate (mm/kyr)")
-
-## --- Plot resampled elevation vs erosion rate
-    nbins = 20;
-    nsims = 10000;
-    (c, m, el, eu) = bin_bsr_means(data["elev_ave"], data["ebe_mmkyr"], 0, 6000, nbins, data["elev_std"], nsims)
-    plot(c, m, yerror=(el,eu), seriestype=:scatter, label="",xlabel="Elevation (m)", ylabel="Erosion rate (mm/kyr)")
-
-## --- Plot resampled elevation / snowline vs erosion rate
-    nbins = 20;
-    nsims = 10000;
-    (c, m, el, eu) = bin_bsr_means(data["elev_ave"]./data["Snowline"], data["ebe_mmkyr"], 0, 1.2, nbins, data["elev_std"]./data["Snowline"], nsims)
-    plot(c, m, yerror=(el,eu), seriestype=:scatter, label="")
-    plot!(xlabel="Elevation/ELA", ylabel="Erosion rate (mm/kyr)")
+#
+#     # nbins = 20;
+#     # nsims = 10000;
+#     # (c, m, el, eu) = bin_bsr_means(data["slp_ave"], log10.(data["ebe_mmkyr"]), 0, 800, nbins, data["slp_std"]/10, nsims)
+#     # plot(c, m, yerror=(el,eu), seriestype=:scatter, label="",xlabel="Slope", ylabel="Log10 Erosion rate (mm/kyr)")
+#
+#     (c,m,sigma) = binmeans(data["slp_ave"], log10.(data["ebe_mmkyr"]), 0, 800, 20)
+#     plot(c,m,yerror=2*sigma,seriestype="scatter")
+#     plot!(xlabel="Slope", ylabel="Log10 Erosion rate (mm/kyr)")
+#
+# ## ---
+#     (c,m,sigma) = binmeans(data["elev_ave"], data["ebe_mmkyr"], 0, 6000, 12)
+#     plot(c,m,yerror=2*sigma,seriestype="scatter")
+#     plot!(xlabel="Elevation (m)", ylabel="Erosion rate (mm/kyr)")
+#
+# ## --- Plot raw erosion rate vs elevation scaled to snowline
+#     plot(data["elev_ave"]./data["Snowline"],data["ebe_mmkyr"],seriestype=:scatter)
+#     plot!(xlabel="Elevation/ELA", ylabel="Erosion rate (mm/kyr)",yscale=:log10)
+#
+# ## ---
+#     (c,m,sigma) = binmeans(data["elev_ave"]./data["Snowline"], data["ebe_mmkyr"], 0, 1.2, 12)
+#     plot(c,m,yerror=2*sigma,seriestype="scatter")
+#     plot!(xlabel="Elevation/ELA", ylabel="Erosion rate (mm/kyr)")
+#
+# ## --- Plot resampled elevation vs erosion rate
+#     nbins = 20;
+#     nsims = 10000;
+#     (c, m, el, eu) = bin_bsr_means(data["elev_ave"], data["ebe_mmkyr"], 0, 6000, nbins, data["elev_std"], nsims)
+#     plot(c, m, yerror=(el,eu), seriestype=:scatter, label="",xlabel="Elevation (m)", ylabel="Erosion rate (mm/kyr)")
+#
+# ## --- Plot resampled elevation / snowline vs erosion rate
+#     nbins = 20;
+#     nsims = 10000;
+#     (c, m, el, eu) = bin_bsr_means(data["elev_ave"]./data["Snowline"], data["ebe_mmkyr"], 0, 1.2, nbins, data["elev_std"]./data["Snowline"], nsims)
+#     plot(c, m, yerror=(el,eu), seriestype=:scatter, label="")
+#     plot!(xlabel="Elevation/ELA", ylabel="Erosion rate (mm/kyr)")
 
 ## --- End of File

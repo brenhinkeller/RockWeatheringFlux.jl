@@ -24,6 +24,30 @@
         return parsed
     end
 
+    function get_macrostrat_min_age(jobj)
+        try
+            return jobj["success"]["data"]["burwell"][1]["t_int_age"]::Number
+        catch error
+            return NaN
+        end
+    end
+
+    function get_macrostrat_max_age(jobj)
+        try
+            return jobj["success"]["data"]["burwell"][1]["b_int_age"]::Number
+        catch error
+            return NaN
+        end
+    end
+
+    function get_macrostrat_map_id(jobj)
+        try
+            return jobj["success"]["data"]["burwell"][1]["map_id"]::Number
+        catch error
+            return NaN
+        end
+    end
+
     function get_macrostrat_lith(jobj)
         try
             return jobj["success"]["data"]["burwell"][1]["lith"]
@@ -59,6 +83,38 @@
     function get_macrostrat_comments(jobj)
         try
             return jobj["success"]["data"]["burwell"][1]["comments"]
+        catch error
+            return "NA"
+        end
+    end
+
+    function get_macrostrat_ref_title(jobj)
+        try
+            return jobj["success"]["data"]["burwell"][1]["ref"]["ref_title"]
+        catch error
+            return "NA"
+        end
+    end
+
+    function get_macrostrat_ref_authors(jobj)
+        try
+            return jobj["success"]["data"]["burwell"][1]["ref"]["authors"]
+        catch error
+            return "NA"
+        end
+    end
+
+    function get_macrostrat_ref_year(jobj)
+        try
+            return jobj["success"]["data"]["burwell"][1]["ref"]["ref_year"]
+        catch error
+            return "NA"
+        end
+    end
+
+    function get_macrostrat_ref_doi(jobj)
+        try
+            return jobj["success"]["data"]["burwell"][1]["ref"]["isbn_doi"]
         catch error
             return "NA"
         end
@@ -129,7 +185,7 @@
         return out
     end
 
-    function find_srtm15plus_aveslope_around(srtm15plus,lat,lon; halfwidth_lat=10, halfwidth_lon=10)
+    function find_srtm15plus_aveslope_around(srtm15plus,lat,lon; halfwidth=1::Integer, max_allowed_slope=1000::Number)
 
         # Interpret user input
         if length(lat) != length(lon)
@@ -161,11 +217,14 @@
                 # Find result by indexing
                 k = 0;
                 out[i] = 0;
-                for r = row-halfwidth_lat:row+halfwidth_lat
-                    for c = col-halfwidth_lon:col+halfwidth_lon
+                for r = (row-halfwidth):(row+halfwidth)
+                    for c = (col-halfwidth):(col+halfwidth)
                         if r>0 && r<43202
-                            k +=1
-                            out[i] += data[r,mod(c-1,86400)+1]
+                            res = data[r,mod(c-1,86400)+1]
+                            if res < max_allowed_slope
+                                k +=1
+                                out[i] += res
+                            end
                         end
                     end
                 end

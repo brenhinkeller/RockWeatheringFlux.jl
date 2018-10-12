@@ -1,4 +1,4 @@
-
+	1+1
 ## --- Setup
 
     # External packages
@@ -13,7 +13,7 @@
     end
 
     # Local utilities
-    # using HTTP, JSON
+    using HTTP, JSON
     include("Utilities.jl")
 
 ## --- Generate some random points on a sphere
@@ -30,7 +30,7 @@
         (randlat, randlon) = random_lat_lon(npoints)
 
         # Find which points are above sea level
-        elevations = find_etopoelev(randlat,randlon)
+        elevations = find_etopoelev(etopo,randlat,randlon)
         abovesea = elevations .> 0
 
         # Concatenate together all the points that represent exposed crust
@@ -46,7 +46,7 @@
 ## -- Get data from Macrostrat / Burwell API
 
     zoom = 11
-
+	savefilename = "responses2"
     responses = Array{Any}(length(elevations))
     @showprogress 5 for i = 1:length(elevations)
         try
@@ -63,13 +63,13 @@
                 print("Warning: no response from Macrostrat server\n")
             end
         end
-        sleep(0.1)
+        sleep(0.05)
         if mod(i,10000)==0
-            save("data/responses.jld", "responses", responses, "elevations", elevations, "latitude", rocklat, "longitude", rocklon, "npoints", npoints)
+            save("data/$savefilename.jld", "responses", responses, "elevations", elevations, "latitude", rocklat, "longitude", rocklon, "npoints", npoints)
         end
     end
 
-    save("data/responses.jld", "responses", responses, "elevations", elevations, "latitude", rocklat, "longitude", rocklon, "npoints", npoints)
+    save("data/$savefilename.jld", "responses", responses, "elevations", elevations, "latitude", rocklat, "longitude", rocklon, "npoints", npoints)
 
 ## --- Load from saved version (if applicable)
 
@@ -80,6 +80,14 @@
     responses = retrive_file["responses"]
     npoints = retrive_file["npoints"]
 
+## ---
+	retrive_file = load("data/responses2.jld")
+	elevations = vcat(elevations, retrive_file["elevations"])
+	rocklat = vcat(rocklat, retrive_file["latitude"])
+	rocklon = vcat(rocklon, retrive_file["longitude"])
+	responses = vcat(responses, retrive_file["responses"])
+	npoints = npoints + retrive_file["npoints"]
+
 ## --- Parse the macrostrat repponses
 
     # Variables for parsed responses
@@ -88,6 +96,8 @@
     rockname = Array{String}(length(elevations))
     rockstratname = Array{String}(length(elevations))
     rockcomments = Array{String}(length(elevations))
+	agemax = Array{Float64}(length(elevations))
+	agemin = Array{Float64}(length(elevations))
 
     # Parse saved responses
     for i = 1:length(elevations)
@@ -96,6 +106,8 @@
         rockname[i] = get_macrostrat_name(responses[i])
         rockstratname[i] = get_macrostrat_strat_name(responses[i])
         rockcomments[i] = get_macrostrat_comments(responses[i])
+		agemax[i] = get_macrostrat_max_age(responses[i])
+		agemin[i] = get_macrostrat_min_age(responses[i])
     end
 
     # Convert to lowercase to match names of rock types
@@ -117,15 +129,38 @@
 
 ## ---
 
-    # Names or partial names of different rock types (from GetBurwellBulkAge.m)
-    sedtypes = ["fluv", " clast", "siliciclast", "conglomerat", "gravel", "sand", "psamm", "arenit", "arkos", "silt", "mud", "marl", "clay", "shale", "wacke", "argillite", "argillaceous","pelit", "pebble", "mass-wasting", "carbonate", "limestone", "dolo", "caliche", "chalk", "travertine", "tavertine", "teravertine", "tufa", "evaporite", " salt", "salt flat", "gypsum", "boulder", "gravel", "glaci", "till", "loess", "lluv", "regolith", "soil", "debris", "slide", "unconsolidated", "talus", "stream", "beach", "terrace", "chert", "banded iron", "coal", "anthracite", "peat", "swamp", "marsh", "sediment", "laterite", "surficial deposits", "marine deposits", "turbidite", "flysch"];
-    igntypes = ["volcanic", "extrusive", "tuff", "basalt", "andesit", "dacit", "rhyolit", "pillow", "carbonatite", "tephra", "obsidian", "ash", "scoria", "pumice", "cinder", "lahar", "lava", "latite", "basanite", "phonolite", "fonolito", "trachyte", "ignimbrite", "palagonite", "mugearite", "pipe", "plutonic", "intrusive", "granit", "tonalit", "gabbro", "diorit", "monzonit", "syenit", "peridot", "dunit", "harzburg", "dolerit", "diabase", "charnockite", "hypabyssal", "norite", "pegmatite", "aplite", "trond", "essexite", "pyroxenite", "adamellite", "porphyry", "megacryst", "bronzitite", "alaskite", "troctolite", "igneous", "silicic ", "mafic", "felsic"];
-    mettypes = ["para", "metased", "schist", "quartzite", "marble", "slate", "phyllite", "ortho", "metaign", "serpentin", "amphibolit", "greenstone", "eclogite", "basite", "ultramafitite", "meta", "migma", "gneiss", "granulit", "hornfels", "granofels", "mylonit", "cataclasite", "melange", "gouge", "tecton", "calc silicate", "crystalline basement"];
+	# Names or partial names of different rock types (from GetBurwellBulkAge.m)
+
+	covertypes = ["cover", "unconsolidated", "quaternary", "lluv", "soil", "regolith", "laterite", "surficial deposits", "talus", "scree", "mass-wasting", "slide", "peat", "swamp", "marsh", "water", "ice", "glaci", "till", "loess", "gravel"] # "debris",
+    sedtypes = ["sediment", "fluv", " clast", "siliciclast", "conglomerat", "gravel", "sand", "psamm", "arenit", "arkos", "silt", "mud", "marl", "clay", "shale", "wacke", "argillite", "argillaceous", "pelit", "pebble", "carbonate", "limestone", "dolo", "caliche", "chalk", "travertine", "tavertine", "teravertine", "tufa", "evaporite", " salt", "salt flat", "gypsum", "boulder", "diamict", "tillite", "stream", "beach", "terrace", "chert", "banded iron", "coal", "anthracite", "marine deposits", "turbidite", "flysch", "paleosol"]
+
+    volctypes = ["volcan", "lava", "lahar", "ignimbrite", "ashfall", "tuff", "diatreme", "pipe", "basalt", "andesit", "dacit", "rhyolit", "pillow", "carbonatite", "tephra", "obsidian", "ash", "scoria", "pumice", "cinder", "latite", "basanite", "phonolite", "fonolito", "trachyte", "palagonite", "mugearite", "kimberlite", "ultramafitite", "komatiite",]
+	pluttypes = ["pluton", "batholith", "granit", "tonalit", "gabbro", "norite", "diorit", "monzonit", "syenit", "peridot", "dunit", "harzburg", "anorthosite", "mangerite", "charnockite", "pegmatite", "aplite", "trond", "essexite", "pyroxenite", "adamellite", "porphyry", "megacryst", "rapakivi", "bronzitite", "alaskite", "troctolite",]
+	hypabyssaltypes = ["intrus", "hypabyssal", "sill", "dike", "stock", "laccolith", "lopolith", "dolerit", "diabase", "porphyry", "microgranite"]
+
+	igntypes = vcat(["igneous", "silicic ", "mafic", "felsic", "basite",],volctypes,pluttypes,hypabyssaltypes)
+
+	metasedtypes = ["para", "metased", "meta-sed", "schist", "quartzite", "marble", "skarn", "slate", "phyllite",]
+	metaigntypes = ["ortho", "metaign", "meta-ign", "serpentin", "amphibolit", "greenstone", "eclogite", "metabasite", "migma",]
+    mettypes = vcat(metasedtypes, metaigntypes, ["gneiss", "granulit", "hornfels", "granofels", "mylonit", "meta", "cataclasite", "melange", "gouge", "tecton", "calc silicate"])
+
+	lowgradetypes = ["slate", "phyllite", "serpentin", "greenstone", "greenschist", "zeolite", "gossan", "alter", "hydrothermal", "palagonite",]
+	highgradetypes = ["crystalline", "basement", "marble", "skarn", "blueschist", "gneiss", "amphibolit", "eclogite", "granulit", "hornfels", "granofels", "sanidinite", "migma", "enderbite", "anorthosite", "charnockite", "pyroxenite", "peridot", "dunit", "harzburg", "high grade metamorphic"]
+	cataclastictypes = ["mylonit", "cataclasite", "melange", "gouge", "tecton",]
 
     # Allocate arrays for each sample for each rock type
     sed = fill(false,npoints)
     ign = fill(false,npoints)
     met = fill(false,npoints)
+	volc = fill(false,npoints)
+	plut = fill(false,npoints)
+	hypabyssal = fill(false,npoints)
+	metaign = fill(false,npoints)
+	metased = fill(false,npoints)
+	lowgrade = fill(false,npoints)
+	highgrade = fill(false,npoints)
+	cover = fill(false,npoints)
+
 
     # Check which burwell "lith" rocktypes match one of the rock types
     # Try the "major:: {...}" type first, if present
@@ -138,9 +173,34 @@
     for i = 1:length(mettypes)
       met = met .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], mettypes[i]) : false )
     end
+	for i = 1:length(covertypes)
+	  cover = cover .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], covertypes[i]) : false )
+	end
+
+	for i = 1:length(volctypes)
+	  volc = volc .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], volctypes[i]) : false )
+	end
+	for i = 1:length(pluttypes)
+      plut = plut .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], pluttypes[i]) : false )
+    end
+    for i = 1:length(metaigntypes)
+      metaign = metaign .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], metaigntypes[i]) : false )
+    end
+	for i = 1:length(metasedtypes)
+	  metased = metased .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], metasedtypes[i]) : false )
+	end
+	for i = 1:length(lowgradetypes)
+      lowgrade = lowgrade .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], lowgradetypes[i]) : false )
+    end
+	for i = 1:length(highgradetypes)
+	  highgrade = highgrade .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], highgradetypes[i]) : false )
+	end
+	for i = 1:length(hypabyssaltypes)
+	  hypabyssal = hypabyssal .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], hypabyssaltypes[i]) : false )
+	end
 
     # Then check the rest of rocktype
-    not_matched = .~(sed .| ign .| met)
+    not_matched = .~(sed .| ign .| met .| cover)
     for i = 1:length(sedtypes)
       sed[not_matched] = sed[not_matched] .| contains.(rocktype[not_matched],sedtypes[i])
     end
@@ -150,9 +210,36 @@
     for i = 1:length(mettypes)
       met[not_matched] = met[not_matched] .| contains.(rocktype[not_matched],mettypes[i])
     end
+	for i = 1:length(covertypes)
+      cover[not_matched] = cover[not_matched] .| contains.(rocktype[not_matched],covertypes[i])
+    end
+
+	not_matched = .~(sed .| cover .| volc .| plut .| metaign .| metased .| lowgrade .| highgrade)
+	for i = 1:length(volctypes)
+      volc[not_matched] = volc[not_matched] .| contains.(rocktype[not_matched],volctypes[i])
+    end
+	for i = 1:length(pluttypes)
+      plut[not_matched] = plut[not_matched] .| contains.(rocktype[not_matched],pluttypes[i])
+    end
+	for i = 1:length(metaigntypes)
+	  metaign[not_matched] = metaign[not_matched] .| contains.(rocktype[not_matched],metaigntypes[i])
+	end
+	for i = 1:length(metasedtypes)
+	  metased[not_matched] = metased[not_matched] .| contains.(rocktype[not_matched],metasedtypes[i])
+	end
+	for i = 1:length(lowgradetypes)
+	  lowgrade[not_matched] = lowgrade[not_matched] .| contains.(rocktype[not_matched],lowgradetypes[i])
+	end
+	for i = 1:length(highgradetypes)
+	  highgrade[not_matched] = highgrade[not_matched] .| contains.(rocktype[not_matched],highgradetypes[i])
+	end
+	for i = 1:length(hypabyssaltypes)
+	  hypabyssal[not_matched] = hypabyssal[not_matched] .| contains.(rocktype[not_matched],hypabyssaltypes[i])
+	end
+
 
     # Then rockname
-    not_matched = .~(sed .| ign .| met)
+    not_matched = .~(sed .| ign .| met .| cover)
     for i = 1:length(sedtypes)
       sed[not_matched] = sed[not_matched] .| contains.(rockname[not_matched],sedtypes[i])
     end
@@ -162,9 +249,36 @@
     for i = 1:length(mettypes)
       met[not_matched] = met[not_matched] .| contains.(rockname[not_matched],mettypes[i])
     end
+	for i = 1:length(covertypes)
+      cover[not_matched] = cover[not_matched] .| contains.(rockname[not_matched],covertypes[i])
+    end
+
+	not_matched = .~(sed .| cover .| volc .| plut .| metaign .| metased .| lowgrade .| highgrade)
+	for i = 1:length(volctypes)
+      volc[not_matched] = volc[not_matched] .| contains.(rockname[not_matched],volctypes[i])
+    end
+	for i = 1:length(pluttypes)
+      plut[not_matched] = plut[not_matched] .| contains.(rockname[not_matched],pluttypes[i])
+    end
+	for i = 1:length(metaigntypes)
+	  metaign[not_matched] = metaign[not_matched] .| contains.(rockname[not_matched],metaigntypes[i])
+	end
+	for i = 1:length(metasedtypes)
+	  metased[not_matched] = metased[not_matched] .| contains.(rockname[not_matched],metasedtypes[i])
+	end
+	for i = 1:length(lowgradetypes)
+	  lowgrade[not_matched] = lowgrade[not_matched] .| contains.(rockname[not_matched],lowgradetypes[i])
+	end
+	for i = 1:length(highgradetypes)
+	  highgrade[not_matched] = highgrade[not_matched] .| contains.(rockname[not_matched],highgradetypes[i])
+	end
+	for i = 1:length(hypabyssaltypes)
+	  hypabyssal[not_matched] = hypabyssal[not_matched] .| contains.(rockname[not_matched],hypabyssaltypes[i])
+	end
+
 
     # Then rockdescrip
-    not_matched = .~(sed .| ign .| met)
+    not_matched = .~(sed .| ign .| met .| cover)
     for i = 1:length(sedtypes)
       sed[not_matched] = sed[not_matched] .| contains.(rockdescrip[not_matched],sedtypes[i])
     end
@@ -174,8 +288,42 @@
     for i = 1:length(mettypes)
       met[not_matched] = met[not_matched] .| contains.(rockdescrip[not_matched],mettypes[i])
     end
+	for i = 1:length(covertypes)
+	  cover[not_matched] = cover[not_matched] .| contains.(rockdescrip[not_matched],covertypes[i])
+	end
 
-    not_matched = .~(sed .| ign .| met);
+	not_matched = .~(sed .| cover .| volc .| plut .| metaign .| metased .| lowgrade .| highgrade)
+	for i = 1:length(volctypes)
+	  volc[not_matched] = volc[not_matched] .| contains.(rockdescrip[not_matched],volctypes[i])
+	end
+	for i = 1:length(pluttypes)
+	  plut[not_matched] = plut[not_matched] .| contains.(rockdescrip[not_matched],pluttypes[i])
+	end
+	for i = 1:length(metaigntypes)
+	  metaign[not_matched] = metaign[not_matched] .| contains.(rockdescrip[not_matched],metaigntypes[i])
+	end
+	for i = 1:length(metasedtypes)
+	  metased[not_matched] = metased[not_matched] .| contains.(rockdescrip[not_matched],metasedtypes[i])
+	end
+	for i = 1:length(lowgradetypes)
+	  lowgrade[not_matched] = lowgrade[not_matched] .| contains.(rockdescrip[not_matched],lowgradetypes[i])
+	end
+	for i = 1:length(highgradetypes)
+	  highgrade[not_matched] = highgrade[not_matched] .| contains.(rockdescrip[not_matched],highgradetypes[i])
+	end
+	for i = 1:length(hypabyssaltypes)
+	  hypabyssal[not_matched] = hypabyssal[not_matched] .| contains.(rockdescrip[not_matched],hypabyssaltypes[i])
+	end
+
+
+
+	# Exclude suspected cover from the other three categories, just to be sure
+	ign = ign .& .~cover
+	met = met .& .~cover
+	sed = sed .& .~cover
+	cryst = ign .| (met .& .~sed)
+
+    not_matched = .~(sed .| ign .| met .| cover);
     multi_matched = (sed .& ign) .| (sed .& met) .| (ign .& met);
 
     number_not_matched = sum(not_matched)
@@ -195,6 +343,111 @@
 
     writedlm("ignsed.tsv", hcat(rocktype[ign .& sed], rockname[ign .& sed], rockdescrip[ign .& sed], rockstratname[ign .& sed], rockcomments[ign .& sed]))
 
+	writedlm("plutonic.tsv", hcat(rocktype[plut], rockname[plut], rockdescrip[plut], rockstratname[plut], rockcomments[plut]))
+
+	writedlm("intrusive.tsv", hcat(rocktype[hypabyssal .& .~plut], rockname[hypabyssal .& .~plut], rockdescrip[hypabyssal .& .~plut], rockstratname[hypabyssal .& .~plut], rockcomments[hypabyssal .& .~plut]))
+
+	t = elevations .> 4000
+	writedlm("highelev.tsv", hcat(rocktype[t], rockname[t], rockdescrip[t], rockstratname[t], rockcomments[t]))
+
+## --- Plot abundance of sed, highgrade+plutonic and lowgrade+volcanic
+
+	nresampled = 10^6
+	edges = 0:40:4000
+	centers = cntr(edges)
+	nbins = length(centers)
+
+	t = sed .& .~cover
+	age = (agemax[t] + agemin[t])/2
+	# sigma = (agemax[t] - agemin[t])/2/sqrt(2*log(2))
+	sigma = (agemax[t] - agemin[t])/2
+	# ageresampled = bsresample_unif(age,sigma,nresampled)
+	ageresampled = bsresample_unif_norm(age,sigma,age*0.025,nresampled)
+	ageresampled = ageresampled[(ageresampled .> 0) .& (ageresampled .< 4500)]
+	h = histogram(ageresampled, bins=edges, fill=(0,:darkblue), linewidth=0.1, label="")
+	plot!(h,ylabel="N", ylims=(0,nresampled/nbins*6), xlims=(0,4000), xflip=true, xlabel="Age (Ma)")
+	savefig(h,"sed.pdf")
+
+	t = ign .& .~(cover .| sed)
+	age = (agemax[t] + agemin[t])/2
+	sigma = (agemax[t] - agemin[t])/2/sqrt(2*log(2))
+	# ageresampled = bsresample_unif(age,sigma,nresampled)
+	ageresampled = bsresample_unif_norm(age,sigma,age*0.025,nresampled)
+	ageresampled = ageresampled[(ageresampled .> 0) .& (ageresampled .< 4500)]
+	h = histogram(ageresampled, bins=edges, fill=(0,:darkred), linewidth=0.1, label="")
+	plot!(h, ylabel="N", ylims=(0,nresampled/nbins*6), xlims=(0,4000), xflip=true,  xlabel="Age (Ma)")
+	savefig(h,"ign.pdf")
+
+	t = (volc .| lowgrade) .& .~(cover .| sed)
+	age = (agemax[t] + agemin[t])/2
+	sigma = (agemax[t] - agemin[t])/2/sqrt(2*log(2))
+	ageresampled = bsresample_unif(age,sigma,nresampled)
+	ageresampled = ageresampled[(ageresampled .> 0) .& (ageresampled .< 4500)]
+	h = histogram(ageresampled, bins=edges, fill=(0,:red), linewidth=0.1, label="")
+	plot!(h, ylabel="N", ylims=(0,nresampled/nbins*6), xlims=(0,4000), xflip=true,  xlabel="Age (Ma)")
+	savefig(h,"volc.pdf")
+
+	t = hypabyssal .& .~(cover .| sed)
+	age = (agemax[t] + agemin[t])/2
+	sigma = (agemax[t] - agemin[t])/2/sqrt(2*log(2))
+	# ageresampled = bsresample_unif(age,sigma,nresampled)
+	ageresampled = bsresample_unif_norm(age,sigma,age*0.025,nresampled)
+	ageresampled = ageresampled[(ageresampled .> 0) .& (ageresampled .< 4500)]
+	h = histogram(ageresampled, bins=edges, fill=(0,:darkred), linewidth=0.1, label="")
+	plot!(h, ylabel="N", ylims=(0,nresampled/nbins*6), xlims=(0,4000), xflip=true,  xlabel="Age (Ma)")
+	savefig(h,"shallow intrusive.pdf")
+
+	t = plut .& .~(cover .| sed)
+	age = (agemax[t] + agemin[t])/2
+	sigma = (agemax[t] - agemin[t])/2/sqrt(2*log(2))
+	# ageresampled = bsresample_unif(age,sigma,nresampled)
+	ageresampled = bsresample_unif_norm(age,sigma,age*0.025,nresampled)
+	ageresampled = ageresampled[(ageresampled .> 0) .& (ageresampled .< 4500)]
+	h = histogram(ageresampled, bins=edges, fill=(0,:darkred), linewidth=0.1, label="")
+	plot!(h, ylabel="N", ylims=(0,nresampled/nbins*6), xlims=(0,4000), xflip=true,  xlabel="Age (Ma)")
+	savefig(h,"plut.pdf")
+
+	t = highgrade .& .~(cover .| sed)
+	age = (agemax[t] + agemin[t])/2
+	sigma = (agemax[t] - agemin[t])/2/sqrt(2*log(2))
+	# ageresampled = bsresample_unif(age,sigma,nresampled)
+	ageresampled = bsresample_unif_norm(age,sigma,age*0.025,nresampled)
+	ageresampled = ageresampled[(ageresampled .> 0) .& (ageresampled .< 4500)]
+	h = histogram(ageresampled, bins=edges, fill=(0,:darkred), linewidth=0.1, label="")
+	plot!(h, ylabel="N", ylims=(0,nresampled/nbins*6), xlims=(0,4000), xflip=true,  xlabel="Age (Ma)")
+	savefig(h,"highgrade.pdf")
+
+	t = (plut .| highgrade) .& .~(cover .| sed)
+	age = (agemax[t] + agemin[t])/2
+	sigma = (agemax[t] - agemin[t])/2/sqrt(2*log(2))
+	# ageresampled = bsresample_unif(age,sigma,nresampled)
+	ageresampled = bsresample_unif_norm(age,sigma,age*0.025,nresampled)
+	ageresampled = ageresampled[(ageresampled .> 0) .& (ageresampled .< 4500)]
+	h = histogram(ageresampled, bins=edges, fill=(0,:darkred), linewidth=0.1, label="")
+	plot!(h, ylabel="N", ylims=(0,nresampled/nbins*6), xlims=(0,4000), xflip=true,  xlabel="Age (Ma)")
+	savefig(h,"basement (plut+highgrade).pdf")
+
+	t = .~(cover .| sed)
+	age = (agemax[t] + agemin[t])/2
+	sigma = (agemax[t] - agemin[t])/2/sqrt(2*log(2))
+	# ageresampled = bsresample_unif(age,sigma,nresampled)
+	ageresampled = bsresample_unif_norm(age,sigma,age*0.025,nresampled)
+	ageresampled = ageresampled[(ageresampled .> 0) .& (ageresampled .< 4500)]
+	h = histogram(ageresampled, bins=edges, fill=(0,:darkred), linewidth=0.1, label="")
+	plot!(h, ylabel="N", ylims=(0,nresampled/nbins*6), xlims=(0,4000), xflip=true,  xlabel="Age (Ma)")
+	savefig(h,"nonsed.pdf")
+
+	t = .~(cover .| sed .| metased .| volc .| hypabyssal .| not_matched)
+	age = (agemax[t] + agemin[t])/2
+	sigma = (agemax[t] - agemin[t])/2/sqrt(2*log(2))
+	# ageresampled = bsresample_unif(age,sigma,nresampled)
+	ageresampled = bsresample_unif_norm(age,sigma,age*0.025,nresampled)
+	ageresampled = ageresampled[(ageresampled .> 0) .& (ageresampled .< 4500)]
+	h = histogram(ageresampled, bins=edges, fill=(0,:darkred), linewidth=0.1, label="")
+	plot!(h, ylabel="N", ylims=(0,nresampled/nbins*6), xlims=(0,4000), xflip=true,  xlabel="Age (Ma)")
+	savefig(h,"nonsednonvolc.pdf")
+
+
 ## --- Find slope and erosion rate
 
     function Emmkyr(slp)
@@ -202,23 +455,71 @@
     end
 
     slope = get_srtm15plus_aveslope("slope")
-    rockslope = find_srtm15plus_aveslope_around(slope,rocklat,rocklon, halfwidth_lat=0, halfwidth_lon=0)
-    # rockslope = find_srtm15plus_aveslope(slope,rocklat,rocklon)
-    # rockslope[rockslope.>400] = NaN;
+    rockslope = find_srtm15plus_aveslope_around(slope,rocklat,rocklon, halfwidth=7, max_allowed_slope=0xffff)
+
+	# Plot slope-area histogram
+	h = histogram(rockslope, label="",xlims=[0,500])
+	plot!(h,xlabel="Slope (m/km)",ylabel="N")
+	savefig(h,"Slope_Histogram.pdf")
+	display(h)
+
     rockEmmkyr = Emmkyr.(rockslope)
 
     sedEsum = nansum(rockEmmkyr[sed])
-    crystEsum = nansum(rockEmmkyr[ign .| (met .& .~sed)])
+    crystEsum = nansum(rockEmmkyr[cryst])
 
     sedEmean = nanmean(rockEmmkyr[sed])
-    crystEmean = nanmean(rockEmmkyr[ign .| (met .& .~sed)])
+    crystEmean = nanmean(rockEmmkyr[cryst])
+	Emean = nanmean(rockEmmkyr)
 
     propotionSedArea = sum(sed)/(sum(sed)+sum(ign .| (met .& .~sed)));
     print("$(round(100*propotionSedArea,3))% sed area, $(round(100*(1-propotionSedArea),3))% crystalline area\n")
     print("sed E sum: $sedEsum cryst E sum: $crystEsum\n")
     print("$(round(100*sedEsum/(sedEsum+crystEsum),3))% sed flux, $(round(100*crystEsum/(sedEsum+crystEsum),3))% crystalline flux\n")
-    print("sed mean E: $sedEmean crystalline mean E: $crystEmean\n")
+    print("sed mean E: $(round(sedEmean,3)), crystalline mean E: $(round(crystEmean,3)), overall mean: $(round(Emean,3))\n")
 
+## --- Proportion vs slope
+
+nbins = 50
+xmin = 0
+xmax = 500
+
+prop_cryst = Array{Float64}(nbins)
+prop_sed = Array{Float64}(nbins)
+binedges = linspace(xmin,xmax,nbins+1)
+bincenters = cntr(binedges)
+for i=1:nbins
+	t = (rockslope.>binedges[i]) .& (rockslope.<binedges[i+1])
+	prop_cryst[i] = sum(cryst[t])/sum(cryst[t] .| sed[t])
+	prop_sed[i] = sum(sed[t])/sum(cryst[t] .| sed[t])
+end
+
+h = plot(bincenters,prop_sed,label = "", xlabel="Slope (m/km)", ylabel="Proportion of Sedimentary Bedrock")
+# plot!(h,bincenters,prop_cryst+prop_sed,label="Sedimentary Basement")
+plot!(legend=:topleft)
+savefig(h,"Proportion_sedimentary_bedrock_slope.pdf")
+display(h)
+
+## --- Proportion vs elevation
+
+nbins = 50
+xmin = 0
+xmax = 5000
+
+prop_cryst = Array{Float64}(nbins)
+prop_sed = Array{Float64}(nbins)
+binedges = linspace(xmin,xmax,nbins+1)
+bincenters = cntr(binedges)
+for i=1:nbins
+	t = (elevations.>binedges[i]) .& (elevations.<binedges[i+1])
+	prop_cryst[i] = sum(cryst[t])/sum(cryst[t] .| sed[t])
+	prop_sed[i] = sum(sed[t])/sum(cryst[t] .| sed[t])
+end
+
+h = plot(bincenters,prop_sed,label = "", xlabel="Elevation (m)", ylabel="Proportion of Sedimentary Bedrock")
+# plot!(h,bincenters,prop_cryst+prop_sed,label="Sedimentary Basement")
+savefig(h,"Proportion_sedimentary_bedrock_elevation.pdf")
+display(h)
 ## --- For comparison
 
     # Phanerozoic
@@ -231,3 +532,97 @@
 
     continentalErosion_km_yr = continentalErosion_km3_yr / continentalArea_km2
     continentalErosion_mm_kyr = continentalErosion_km_yr * 1000 * 1000 * 1000
+
+### ---
+    using StatGeochem
+    elev = get_srtm15plus("elevation")
+
+    function movmean33(x::Array{<:Any,2})
+        # Simple moving average of 9-element box for 2-d array
+        m = Array{Float64}(size(x))
+        for i = 2:size(x,1)-1
+            for j = 2:size(x,2)-1
+                adj = [x[i,j],x[i+1,j+1],x[i,j+1],x[i-1,j+1],x[i-1,j],x[i-1,j-1],x[i,j-1],x[i+1,j-1],x[i+1,j]]
+                m[i,j] = mean(adj)
+            end
+        end
+        m[1,:] = m[2,:]
+        m[end,:] = m[end-1,:]
+        m[:,1] = m[:,2]
+        m[:,end] = m[:,end-1]
+        return m;
+    end
+
+    elev_smoothed = movmean33(elev)
+
+    # Save results
+    fid = h5open("srtm15plus_elev_smoothed.h5","w");
+    g = g_create(fid, "vars");
+    print("Saving to HDF5:\n")
+    g["y_lat_cntr"] = y_lat_cntr
+    g["x_lon_cntr"] = x_lon_cntr
+    g["cellsize"] = cellsize
+    g["scalefactor"] = scalefactor
+    @time g["elevation","compress",3] = elev_smoothed;
+    close(fid)
+
+### ---
+	elev = elev_smoothed
+	inbasin = fill(false,size(elev))
+
+	inbasin[elev .< -100] = true
+
+	function fill_uphill(elev,inbasin,i,j,depth=0,tolerance=15)
+
+        inbasin[i,j] = true
+        depth += 1
+
+        # If we're about to run in the recursion limit or the edge of the map, stop
+        if depth > 10000 || i<2 || i > size(elev,1)-1 || j<2 || j > size(elev,2)-1
+            return inbasin
+        end
+
+		# Otherwise, check each adjoining square recursively
+		e = elev[i,j] - tolerance
+
+		if elev[i+1,j+1] >= e && ~inbasin[i+1,j+1]
+			inbasin = fill_uphill(elev,inbasin,i+1,j+1,depth)
+		end
+		if elev[i,j+1] >= e && ~inbasin[i,j+1]
+			inbasin = fill_uphill(elev,inbasin,i,j+1,depth)
+		end
+		if elev[i-1,j+1] >= e && ~inbasin[i-1,j+1]
+			inbasin = fill_uphill(elev,inbasin,i-1,j+1,depth)
+		end
+		if elev[i-1,j] >= e && ~inbasin[i-1,j]
+			inbasin = fill_uphill(elev,inbasin,i-1,j,depth)
+		end
+		if elev[i-1,j-1] >= e && ~inbasin[i-1,j-1]
+			inbasin = fill_uphill(elev,inbasin,i-1,j-1,depth)
+		end
+		if elev[i,j-1] >= e && ~inbasin[i,j-1]
+			inbasin = fill_uphill(elev,inbasin,i,j-1,depth)
+		end
+		if elev[i+1,j-1] >= e && ~inbasin[i+1,j-1]
+			inbasin = fill_uphill(elev,inbasin,i+1,j-1,depth)
+		end
+        if elev[i+1,j] >= e && ~inbasin[i+1,j]
+            inbasin = fill_uphill(elev,inbasin,i+1,j,depth)
+        end
+		return inbasin
+	end
+
+	@showprogress for i=2:size(inbasin,1)-1
+		for j=2:size(inbasin,2)-1
+			if inbasin[i,j]
+                # inbasin = fill_uphill(elev,inbasin,i,j)
+				if ~inbasin[i+1,j] || ~inbasin[i+1,j+1] || ~inbasin[i,j+1] || ~inbasin[i-1,j+1] || ~inbasin[i-1,j] || ~inbasin[i-1,j-1]  || ~inbasin[i,j-1]  || ~inbasin[i+1,j-1]
+					inbasin = fill_uphill(elev,inbasin,i,j)
+				end
+			end
+		end
+	end
+
+    heatmap(downsample(inbasin,10))
+
+    1+1

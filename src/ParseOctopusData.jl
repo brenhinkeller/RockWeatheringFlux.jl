@@ -1,4 +1,3 @@
-## ---
     1+1
 
 ## --- Load external packages
@@ -6,6 +5,10 @@
     using StatGeochem
     using Plots; gr();
     using ProgressMeter: @showprogress
+
+    if VERSION>=v"0.7"
+        using Statistics, DelimitedFiles, SpecialFunctions
+    end
 
 ## --- Load the OCTOPUS kml file
     # Unzip the kml file
@@ -131,49 +134,12 @@
 
     (basin_polygon_n, basin_polygon_lat, basin_polygon_lon) = parse_octopus_polygon_outlines(str,isfirstcoord)
 
-
-## --- Recalculate slopes
-
-    using HDF5
-    srtm = h5read("data/srtm15plus_aveslope.h5","vars/")
-    slope = srtm["slope"]
-    x_lon_cntr = srtm["x_lon_cntr"]
-    y_lat_cntr = srtm["y_lat_cntr"]
-
-    basin_srtm15plus_aveslope = Array{Float64}(nbasins)
-    basin_N = Array{Int64}(nbasins)
-    for i = 1:nbasins
-        rowsinbasin = Array{Int}(0)
-        columnsinbasin = Array{Int}(0)
-        for j = 1:length(subbasins[i])
-            k = subbasins[i][j]
-            subbasin_lon = basin_polygon_lon[k]
-            subbasin_lat = basin_polygon_lat[k]
-            (row, column) = find_grid_inpolygon(x_lon_cntr, y_lat_cntr, subbasin_lon, subbasin_lat)
-            rowsinbasin = vcat(rowsinbasin,row)
-            columnsinbasin = vcat(columnsinbasin,column)
-        end
-
-        pointsinbasin = unique(hcat(rowsinbasin,columnsinbasin),1);
-        basin_slopes = Array{UInt16}(length(rowsinbasin))
-        for j=1:size(pointsinbasin,1)
-            basin_slopes[j] = slope[pointsinbasin[j,1],pointsinbasin[j,2]]
-        end
-
-        # Average all the slopes
-        basin_srtm15plus_aveslope[i] = mean(basin_slopes)
-        basin_N[i] = length(basin_slopes)
-
-        print("Basin: $i, slope: $(round(basin_srtm15plus_aveslope[i],3)), N: $(basin_N[i]) \n")
-    end
-
-## --- Calculate precipitation
+## --- Calculate precipitation for each basin
 
     using NetCDF
     prate = ncread("prate.sfc.mon.ltm.nc","prate")
     lat = ncread("prate.sfc.mon.ltm.nc","lat")
     lon = ncread("prate.sfc.mon.ltm.nc","lon")
-    using Statistics
 
     precip = mean(prate, dims=3)[:,:,1]
     imsc(collect(precip'), viridis)
@@ -198,13 +164,54 @@
 
     data["precip"] = find_precip(data["y_wgs84"],data["x_wgs84"])
 
+    # # Test find_precip to make sure it's not flipped
     # lat = repmat(-90:90,1,361)
     # lon = repmat((-180:180)',181,1)
     # imsc(find_precip(lat,lon),viridis)
-## --- Load/save slopes
+
+## --- Recalculate slopes for each basin
+
+    function get_basin_srtm15plus_aveslope(srtm::Dict,nbasins,subbasins,basin_polygon_lat,basin_polygon_lon)
+        slope = srtm["slope"]
+        x_lon_cntr = srtm["x_lon_cntr"]
+        y_lat_cntr = srtm["y_lat_cntr"]
+
+        basin_srtm15plus_aveslope = Array{Float64}(undef, nbasins)
+        basin_N = Array{Int64}(undef, nbasins)
+        for i = 1:nbasins
+            rowsinbasin = Array{Int}(undef, 0)
+            columnsinbasin = Array{Int}(undef, 0)
+            for j = 1:length(subbasins[i])
+                k = subbasins[i][j]
+                subbasin_lon = basin_polygon_lon[k]
+                subbasin_lat = basin_polygon_lat[k]
+                (row, column) = find_grid_inpolygon(x_lon_cntr, y_lat_cntr, subbasin_lon, subbasin_lat)
+                rowsinbasin = vcat(rowsinbasin,row)
+                columnsinbasin = vcat(columnsinbasin,column)
+            end
+
+            pointsinbasin = unique(hcat(rowsinbasin,columnsinbasin),dims=1);
+            basin_slopes = Array{UInt16}(undef, length(rowsinbasin))
+            for j=1:size(pointsinbasin,1)
+                basin_slopes[j] = slope[pointsinbasin[j,1],pointsinbasin[j,2]]
+            end
+
+            # Average all the slopes
+            basin_srtm15plus_aveslope[i] = mean(basin_slopes)
+            basin_N[i] = length(basin_slopes)
+
+            print("Basin: $i, slope: $(round(basin_srtm15plus_aveslope[i],digits=3)), N: $(basin_N[i]) \n")
+        end
+
+        return basin_srtm15plus_aveslope
+    end
+
+    # using HDF5
+    # srtm = h5read("data/srtm15plus_aveslope.h5","vars/")
+    # basin_srtm15plus_aveslope = get_basin_srtm15plus_aveslope(srtm,nbasins,subbasins,basin_polygon_lat,basin_polygon_lon)
+
 
     using JLD
-
     # save("basin_srtm15plus_aveslope.jld","basin_srtm15plus_aveslope",basin_srtm15plus_aveslope)
     basin_srtm15plus_aveslope =  load("basin_srtm15plus_aveslope.jld")["basin_srtm15plus_aveslope"]
 
@@ -254,6 +261,12 @@
 
     # log10(E) = slope/140 + 0.7
     # E = 10^(slope/140 + 0.7)
+
+## --- Plot new slope vs precipitation
+    h = plot(basin_srtm15plus_aveslope,data["precip"]*31557600,seriestype=:scatter,label="")
+    plot!(h, xlabel="SRTM15 Slope (m/km)", ylabel="Precipitation (kg/m^2/yr)", yscale=:log10,legend=:topleft, fg_color_legend=:white)
+    savefig(h, "Slope_vs_Precipitation.pdf")
+    display(h)
 
 ## --- Fit raw erosion rate as a function of slope (m/km)
 

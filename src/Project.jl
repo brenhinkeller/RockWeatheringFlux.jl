@@ -88,7 +88,7 @@
 	responses = vcat(responses, retrive_file["responses"])
 	npoints = npoints + retrive_file["npoints"]
 
-## --- Parse the macrostrat repponses
+## --- Parse the macrostrat responses
 
     # Variables for parsed responses
     rocktype = Array{String}(length(elevations))
@@ -447,6 +447,16 @@
 	plot!(h, ylabel="N", ylims=(0,nresampled/nbins*6), xlims=(0,4000), xflip=true,  xlabel="Age (Ma)")
 	savefig(h,"nonsednonvolc.pdf")
 
+
+## --- get references
+
+	authors = get_macrostrat_ref_authors.(responses)
+	years = get_macrostrat_ref_year.(responses)
+	titles = get_macrostrat_ref_title.(responses)
+	dois = get_macrostrat_ref_doi.(responses)
+
+	refstrings = authors .* "|" .* years .* "|" .* titles .* "|" .* dois
+	writedlm("burwellrefs.tsv",unique(refstrings),"\t")
 
 ## --- Find slope and erosion rate
 

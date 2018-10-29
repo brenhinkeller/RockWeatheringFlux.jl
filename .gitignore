@@ -1,8 +1,10 @@
 .DS_Store
 dev/
-ignsed.tsv
-multimatched.tsv
-notmatched.tsv
+/*.nc
+/*.xls
+/*.csv
+/*.tsv
+/*.pdf
 
 # Ignore large datafiles
 *.jld

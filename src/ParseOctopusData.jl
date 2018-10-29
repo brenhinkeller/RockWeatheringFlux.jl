@@ -1,5 +1,6 @@
 ## ---
     1+1
+
 ## --- Load external packages
 
     using StatGeochem
@@ -8,108 +9,127 @@
 
 ## --- Load the OCTOPUS kml file
     # Unzip the kml file
-    run(`gunzip data/octopus/crn_basins_global.kml.gz`) # Decompress
 
-    # Check number and ordering of coordinate lists
-    fid = open("data/octopus/crn_basins_global.kml")
+    function load_octopus_kml(filename)
 
-    # Count the number of lines in the file
-    i = 0
-    for line in eachline(fid)
-        i += 1
-    end
-    isfirstcoord = Array{Bool}(i)
+        # Check number and ordering of coordinate lists
+        fid = open("data/octopus/crn_basins_global.kml")
 
-    # Parse the coords (basin polygon outlines) in each placemark
-    i = 0
-    ncoords = 0
-    lastcoord = 0
-    lastplacemark = 0
-    seekstart(fid)
-    for line in eachline(fid)
-        i += 1
-        if ismatch(r"</ExtendedData>", line)
-            lastplacemark = i
-        elseif ismatch(r"<coordinates>", line)
-            ncoords += 1
-            # If we've had a new placemark more recently than a cordinate, then
-            # this is the first coord of the placemark
-            if lastplacemark > lastcoord
-                isfirstcoord[ncoords] = true
-            else
-                isfirstcoord[ncoords] = false
+        # Count the number of lines in the file
+        i = 0
+        for line in eachline(fid)
+            i += 1
+        end
+        isfirstcoord = Array{Bool}(undef, i)
+
+        # Parse the coords (basin polygon outlines) in each placemark
+        i = 0
+        ncoords = 0
+        lastcoord = 0
+        lastplacemark = 0
+        seekstart(fid)
+        for line in eachline(fid)
+            i += 1
+            if occursin("</ExtendedData>", line)
+                lastplacemark = i
+            elseif occursin("<coordinates>", line)
+                ncoords += 1
+                # If we've had a new placemark more recently than a cordinate, then
+                # this is the first coord of the placemark
+                if lastplacemark > lastcoord
+                    isfirstcoord[ncoords] = true
+                else
+                    isfirstcoord[ncoords] = false
+                end
+                lastcoord = i
             end
-            lastcoord = i
         end
-    end
-    isfirstcoord = isfirstcoord[1:ncoords]
+        isfirstcoord = isfirstcoord[1:ncoords]
 
-    # Read entire string
-    seekstart(fid)
-    str = read(fid,String);
+        # Read entire string
+        seekstart(fid)
+        str = read(fid,String)
 
-    # Close the file
-    close(fid);
+        # Close the file
+        close(fid)
 
-    # Recompress
-    run(`gzip data/octopus/crn_basins_global.kml`) # Recompress
-
-    nbasins = 0
-    subbasins = Array{Any}(sum(isfirstcoord))
-    for i = 1:length(isfirstcoord)
-        if isfirstcoord[i]
-            nbasins += 1
-            subbasins[nbasins] = i
-        else
-            subbasins[nbasins] = vcat(subbasins[nbasins],i)
+        nbasins = 0
+        subbasins = Array{Any}(undef, sum(isfirstcoord))
+        for i = 1:length(isfirstcoord)
+            if isfirstcoord[i]
+                nbasins += 1
+                subbasins[nbasins] = i
+            else
+                subbasins[nbasins] = vcat(subbasins[nbasins],i)
+            end
         end
+
+        return (str, isfirstcoord, nbasins, subbasins)
     end
+
+    run(`gunzip data/octopus/crn_basins_global.kml.gz`); # Decompress
+
+    (str, isfirstcoord, nbasins, subbasins) = load_octopus_kml("data/octopus/crn_basins_global.kml")
+
+    run(`gzip data/octopus/crn_basins_global.kml`); # Recompress
 
 ## --- Parse the file
-    # Find a list of all the string variables
-    lm = eachmatch(r"<SimpleField type=\"string\" name=\"(.*?)\"", str);
-    stringvars = unique(map(x -> x[1], lm))
 
-    # Find a list of all the numeric variables
-    lm = eachmatch(r"<SimpleField type=\"double\" name=\"(.*?)\"", str);
-    numvars = unique(map(x -> x[1], lm))
+    function parse_octopus_kml_variables(str)
+        # Find a list of all the string variables
+        lm = eachmatch(r"<SimpleField type=\"string\" name=\"(.*?)\"", str);
+        stringvars = unique(map(x -> x[1], lm))
 
-    # Make a dict to store all our parsed data
-    data = Dict();
+        # Find a list of all the numeric variables
+        lm = eachmatch(r"<SimpleField type=\"double\" name=\"(.*?)\"", str);
+        numvars = unique(map(x -> x[1], lm))
 
-    # Parse all the string variables
-    for i = 1:length(stringvars)
-        lm = eachmatch(Regex("<SimpleData name=\"$(stringvars[i])\">(.*?)</SimpleData>"),str)
-        data[stringvars[i]] = map(x -> x[1], lm);
+        # Make a dict to store all our parsed data
+        data = Dict();
+
+        # Parse all the string variables
+        for i = 1:length(stringvars)
+            lm = eachmatch(Regex("<SimpleData name=\"$(stringvars[i])\">(.*?)</SimpleData>"),str);
+            data[stringvars[i]] = map(x -> x[1], lm);
+        end
+
+        # Parse all the numeric variables
+        for i = 1:length(numvars)
+            lm = eachmatch(Regex("<SimpleData name=\"$(numvars[i])\">(.*?)</SimpleData>"),str);
+            data[numvars[i]] = map(x -> parse(Float64, x[1]), lm)
+        end
+
+        needsNaNs = ["alcorr", "be10ep", "beprod", "eal_err", "elev_std", "errbe_prod", "al26ep", "alprod", "be10ep_err", "beself", "eal_gcmyr", "erral_ams", "errbe_tot", "al26ep_err", "alself", "be10nc", "besnow", "eal_mmkyr", "erral_muon", "sizemax", "al26nc", "alsnow", "be10nc_err", "betopo", "ebe_err", "erral_prod", "sizemin", "al26nc_err", "altopo", "be10np", "betots", "ebe_gcmyr", "erral_tot", "slp_ave", "al26np", "altots", "be10np_err", "ebe_mmkyr", "errbe_ams", "slp_std", "al26np_err", "area", "becorr", "dbver", "elev_ave", "errbe_muon", ]
+
+        for i = 1:length(needsNaNs)
+            data[needsNaNs[i]][data[needsNaNs[i]] .< 0] .= NaN
+        end
+
+        return data
     end
 
-    # Parse all the numeric variables
-    for i = 1:length(numvars)
-        lm = eachmatch(Regex("<SimpleData name=\"$(numvars[i])\">(.*?)</SimpleData>"),str)
-        data[numvars[i]] = map(x -> parse(x[1]), lm);
-    end
+    data = parse_octopus_kml_variables(str)
 
     # Parse the basin polygon outlines
-    i = 0
-    n = 0
-    basin_polygon_lat = Array{Array}(length(isfirstcoord))
-    basin_polygon_lon = Array{Array}(length(isfirstcoord))
-    basin_polygon_n = Array{Int}(length(isfirstcoord))
-    for m in eachmatch(r"<coordinates>\n\t*(.*?)\n",str)
-        i += 1 # Number of parsed values
-        parsed = delim_string_function(x -> delim_string_parse(x, ',', Float64), m[1], ' ', Array{Float64,1})
-        nparsed = length(parsed)
+    function parse_octopus_polygon_outlines(str,isfirstcoord)
+        i = 0
+        n = 0
+        basin_polygon_lat = Array{Array}(undef, length(isfirstcoord))
+        basin_polygon_lon = Array{Array}(undef, length(isfirstcoord))
+        basin_polygon_n = Array{Int}(undef, length(isfirstcoord))
+        for m in eachmatch(r"<coordinates>\n\t*(.*?)\n",str)
+            i += 1 # Number of parsed values
+            parsed = delim_string_function(x -> delim_string_parse(x, ',', Float64), m[1], ' ', Array{Float64,1})
+            nparsed = length(parsed)
 
-        basin_polygon_n[i] = nparsed;
-        basin_polygon_lon[i] = parsed .|> x -> x[1]
-        basin_polygon_lat[i] = parsed .|> x -> x[2]
+            basin_polygon_n[i] = nparsed;
+            basin_polygon_lon[i] = parsed .|> x -> x[1]
+            basin_polygon_lat[i] = parsed .|> x -> x[2]
+        end
+        return (basin_polygon_n, basin_polygon_lat, basin_polygon_lon)
     end
 
-    needsNaNs = ["alcorr", "be10ep", "beprod", "eal_err", "elev_std", "errbe_prod", "al26ep", "alprod", "be10ep_err", "beself", "eal_gcmyr", "erral_ams", "errbe_tot", "al26ep_err", "alself", "be10nc", "besnow", "eal_mmkyr", "erral_muon", "sizemax", "al26nc", "alsnow", "be10nc_err", "betopo", "ebe_err", "erral_prod", "sizemin", "al26nc_err", "altopo", "be10np", "betots", "ebe_gcmyr", "erral_tot", "slp_ave", "al26np", "altots", "be10np_err", "ebe_mmkyr", "errbe_ams", "slp_std", "al26np_err", "area", "becorr", "dbver", "elev_ave", "errbe_muon", ]
-
-    for i = 1:length(needsNaNs)
-        data[needsNaNs[i]][data[needsNaNs[i]] .< 0] = NaN;
-    end
+    (basin_polygon_n, basin_polygon_lat, basin_polygon_lon) = parse_octopus_polygon_outlines(str,isfirstcoord)
 
 
 ## --- Recalculate slopes
@@ -147,6 +167,40 @@
         print("Basin: $i, slope: $(round(basin_srtm15plus_aveslope[i],3)), N: $(basin_N[i]) \n")
     end
 
+## --- Calculate precipitation
+
+    using NetCDF
+    prate = ncread("prate.sfc.mon.ltm.nc","prate")
+    lat = ncread("prate.sfc.mon.ltm.nc","lat")
+    lon = ncread("prate.sfc.mon.ltm.nc","lon")
+    using Statistics
+
+    precip = mean(prate, dims=3)[:,:,1]
+    imsc(collect(precip'), viridis)
+
+    function find_precip(lat,lon)
+        prate = ncread("prate.sfc.mon.ltm.nc","prate")
+        precip = mean(prate, dims=3)[:,:,1]
+
+        out = Array{Float64}(undef,size(lat))
+        for i=1:length(lat)
+            if isnan(lat[i]) || isnan(lon[i]) || lat[i] > 88.542 || lat[i] < -88.542
+                out[i] = NaN
+            else
+                row = trunc(Int, mod(lon[i]*192/360 + 0.5, 192.0)) + 1
+                col = trunc(Int, 46.99999 - lat[i]*94/177.084) + 1
+                out[i] = precip[row, col]
+            end
+        end
+
+        return out
+    end
+
+    data["precip"] = find_precip(data["y_wgs84"],data["x_wgs84"])
+
+    # lat = repmat(-90:90,1,361)
+    # lon = repmat((-180:180)',181,1)
+    # imsc(find_precip(lat,lon),viridis)
 ## --- Load/save slopes
 
     using JLD
@@ -168,6 +222,20 @@
     plot!(h, data["area"],data["eal_mmkyr"],seriestype=:scatter,label="OCTOPUS Al-26 data")
     plot!(h, xlabel="Basin area (km^2)", ylabel="Erosion rate (mm/kyr)",yscale=:log10, xscale=:log10, legend=:topleft, fg_color_legend=:white)
     savefig(h, "Area_vs_erosion.pdf")
+    display(h)
+
+## --- Plot raw erosion rate vs latitude
+    h = plot(data["y_wgs84"],data["ebe_mmkyr"],seriestype=:scatter,label="OCTOPUS Be-10 data")
+    plot!(h,data["y_wgs84"],data["eal_mmkyr"],seriestype=:scatter,label="OCTOPUS Al-26 data")
+    plot!(h, xlabel="Latitude", ylabel="Erosion rate (mm/kyr)", yscale=:log10,legend=:topleft, fg_color_legend=:white)
+    savefig(h, "Latitude_vs_erosion.pdf")
+    display(h)
+
+## --- Plot raw erosion rate vs precipitation
+    h = plot(data["precip"]*31557600,data["ebe_mmkyr"],seriestype=:scatter,label="OCTOPUS Be-10 data")
+    plot!(h,data["precip"]*31557600,data["eal_mmkyr"],seriestype=:scatter,label="OCTOPUS Al-26 data")
+    plot!(h, xlabel="Precipitation (kg/m^2/yr)", ylabel="Erosion rate (mm/kyr)", yscale=:log10, fg_color_legend=:white)
+    savefig(h, "Precipitation_vs_erosion.pdf")
     display(h)
 
 ## --- Plot raw erosion rate vs elevation
@@ -192,12 +260,15 @@
     using LsqFit: curve_fit
 
     function linear(x,p)
-        y = p[1] + x * p[2]
+        y = p[1] .+ x * p[2]
     end
     p = [0.5, 1/100]
     t = .~isnan.(basin_srtm15plus_aveslope) .& .~isnan.(data["ebe_mmkyr"]) .& (basin_srtm15plus_aveslope .< 300)
     x = basin_srtm15plus_aveslope[t]
-    y = log10.(data["ebe_mmkyr"])[t]
+    y = log10.(data["ebe_mmkyr"][t])
+    t = .~isnan.(basin_srtm15plus_aveslope) .& .~isnan.(data["eal_mmkyr"]) .& (basin_srtm15plus_aveslope .< 300)
+    x = append!(x, basin_srtm15plus_aveslope[t])
+    y = append!(y, log10.(data["eal_mmkyr"][t]))
     fobj = curve_fit(linear, x, y, p);
 
     # fobj.param[1]: 0.987237
@@ -206,9 +277,10 @@
         return 10^(slp*0.00567517 + 0.971075)
     end
 
-    h = plot(basin_srtm15plus_aveslope,data["ebe_mmkyr"],seriestype=:scatter,label="OCTOPUS 10Be data",legend=:topleft)
-    plot!(h, xlabel="SRTM15 Slope (m/km)", ylabel="Erosion rate (mm/kyr)",yscale=:log10)
-    plot!(h, 1:500, Emmkyr.(1:500), label = "E = 10^(slp/176.2 + 0.971)")
+    h = plot(basin_srtm15plus_aveslope,data["ebe_mmkyr"], seriestype=:scatter, label="OCTOPUS Be-10 data")
+    plot!(h, basin_srtm15plus_aveslope,data["eal_mmkyr"], seriestype=:scatter, label="OCTOPUS Al-26 data")
+    plot!(h, xlabel="SRTM15 Slope (m/km)", ylabel="Erosion rate (mm/kyr)", yscale=:log10, legend=:topleft)
+    plot!(h, 1:500, Emmkyr.(1:500), label = "E = 10^(slp/176.2 + 0.971)", fg_color_legend=:white)
     savefig(h, "Slope_vs_Erosion_Fitted.pdf")
     display(h)
 
@@ -218,7 +290,7 @@
     plot!(h,10.0.^(-1:4),10.0.^(-1:4),label="1:1",legend=:topleft,fg_color_legend=:white)
 
     function linslp1(x,p)
-        y = p[1] + x
+        y = p[1] .+ x
     end
     p = [0.0]
     t = .~isnan.(data["ebe_mmkyr"]) .& .~isnan.(data["eal_mmkyr"])
@@ -226,31 +298,35 @@
     y = log10.(data["eal_mmkyr"][t])
     fobj = curve_fit(linslp1, x, y, p);
 
-    plot!(h,10.0.^(-1:4),10.0.^((-1:4)+fobj.param[1]),label="1:$(10.0^fobj.param[1])")
+    plot!(h,10.0.^(-1:4), 10.0.^((-1:4) .+ fobj.param[1]), label="1:$(10.0^fobj.param[1])")
     savefig(h, "Be_vs_Al_rate.pdf")
     display(h)
 
 ## --- Plot residual erosion rate as a function of latitude
     resid = data["ebe_mmkyr"] - Emmkyr.(basin_srtm15plus_aveslope)
-    h = plot(abs.(data["y_wgs84"]),abs.(resid),seriestype=:scatter,label="OCTOPUS 10Be data",legend=:topleft)
-    plot!(h, xlabel="Latitude", ylabel="Residual erosion rate (mm/kyr)",yscale=:log10)
-    # savefig(h, "Latitude_vs_erosion_residual.pdf")
+    h = plot(abs.(data["y_wgs84"][resid.<0]), abs.(resid[resid.<0]), seriestype=:scatter, label="negative residuals", color=:red)
+    plot!(h, abs.(data["y_wgs84"][resid.>0]), resid[resid.>0], seriestype=:scatter, label="positive residuals", color=:blue)
+    plot!(h, xlabel="Latitude", ylabel="Residual erosion rate (mm/kyr)", yscale=:log10, legend=:topleft, fg_color_legend=:white)
+    savefig(h, "Latitude_vs_erosion_residual.pdf")
     display(h)
 
 
-## --- Plot residual erosion ratio as a function of latitude
-    resid = data["ebe_mmkyr"]./Emmkyr.(basin_srtm15plus_aveslope)
-    h = plot(abs.(data["y_wgs84"]),resid,seriestype=:scatter,label="OCTOPUS 10Be data",legend=:topleft)
-    plot!(h, xlabel="Latitude", ylabel="Residual erosion rate (mm/kyr)",yscale=:log10)
-    # savefig(h, "Latitude_vs_erosion_residual.pdf")
+## --- Plot residual erosion rate as a function of precipitation
+    resid = data["ebe_mmkyr"] - Emmkyr.(basin_srtm15plus_aveslope)
+    h = plot(data["precip"][resid.<0]*31557600, abs.(resid[resid.<0]), seriestype=:scatter, label="negative residuals", marker=(0.3,:red))
+    plot!(h, data["precip"][resid.>0]*31557600, resid[resid.>0], seriestype=:scatter, label="positive residuals", marker=(0.3,:blue))
+    plot!(h, xlabel="Precipitation (kg/m^2/yr)", ylabel="Residual erosion rate (mm/kyr)", yscale=:log10, fg_color_legend=:white)
+    savefig(h, "Precipitation_vs_erosion_residual.pdf")
     display(h)
 
 
 ## --- Plot residual erosion rate as a function of elevation
     resid = data["ebe_mmkyr"] - Emmkyr.(basin_srtm15plus_aveslope)
-    h = plot(data["elev_ave"],abs.(resid),seriestype=:scatter,label="OCTOPUS 10Be data",legend=:topleft)
-    plot!(h, xlabel="Elevation", ylabel="Residual erosion rate (mm/kyr)",yscale=:log10)
-    # savefig(h, "Latitude_vs_erosion_residual.pdf")
+    h = plot(abs.(data["elev_ave"][resid.<0]), abs.(resid[resid.<0]), seriestype=:scatter, label="negative residuals",  marker=(0.3,:red))
+    plot!(h, abs.(data["elev_ave"][resid.>0]), resid[resid.>0], seriestype=:scatter, label="positive residuals", marker=(0.3,:blue))
+    # h = plot(data["elev_ave"],abs.(resid),seriestype=:scatter,label="OCTOPUS 10Be data",legend=:topleft)
+    plot!(h, xlabel="Elevation", ylabel="Residual erosion rate (mm/kyr)",yscale=:log10,fg_color_legend=:white)
+    savefig(h, "Elevation_vs_erosion_residual.pdf")
     display(h)
 
 ## --- Plot residual erosion ratio as a function of elevation

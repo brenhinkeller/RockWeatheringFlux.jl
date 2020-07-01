@@ -14,7 +14,7 @@
 
     # Local utilities
     using HTTP, JSON
-    include("Utilities.jl")
+    include("RockWeatheringFluxUtilities.jl")
 
 ## --- Generate some random points on a sphere
 
@@ -496,7 +496,7 @@ xmax = 500
 
 prop_cryst = Array{Float64}(nbins)
 prop_sed = Array{Float64}(nbins)
-binedges = linspace(xmin,xmax,nbins+1)
+binedges = range(xmin,xmax,length=nbins+1)
 bincenters = cntr(binedges)
 for i=1:nbins
 	t = (rockslope.>binedges[i]) .& (rockslope.<binedges[i+1])
@@ -518,7 +518,7 @@ xmax = 5000
 
 prop_cryst = Array{Float64}(nbins)
 prop_sed = Array{Float64}(nbins)
-binedges = linspace(xmin,xmax,nbins+1)
+binedges = range(xmin,xmax,length=nbins+1)
 bincenters = cntr(binedges)
 for i=1:nbins
 	t = (elevations.>binedges[i]) .& (elevations.<binedges[i+1])

@@ -137,9 +137,9 @@
 ## --- Calculate precipitation for each basin
 
     using NetCDF
-    prate = ncread("prate.sfc.mon.ltm.nc","prate")
-    lat = ncread("prate.sfc.mon.ltm.nc","lat")
-    lon = ncread("prate.sfc.mon.ltm.nc","lon")
+    prate = ncread("data/prate.sfc.mon.ltm.nc","prate")
+    lat = ncread("data/prate.sfc.mon.ltm.nc","lat")
+    lon = ncread("data/prate.sfc.mon.ltm.nc","lon")
 
     precip = mean(prate, dims=3)[:,:,1]
     imsc(collect(precip'), viridis)
@@ -165,8 +165,8 @@
     data["precip"] = find_precip(data["y_wgs84"],data["x_wgs84"])
 
     # # Test find_precip to make sure it's not flipped
-    # lat = repmat(-90:90,1,361)
-    # lon = repmat((-180:180)',181,1)
+    # lat = repeat(-90:90,1,361)
+    # lon = repeat((-180:180)',181,1)
     # imsc(find_precip(lat,lon),viridis)
 
 ## --- Recalculate slopes for each basin

@@ -165,154 +165,154 @@
     # Check which burwell "lith" rocktypes match one of the rock types
     # Try the "major:: {...}" type first, if present
     for i = 1:length(sedtypes)
-      sed = sed .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], sedtypes[i]) : false )
+      sed = sed .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], sedtypes[i]) : false )
     end
     for i = 1:length(igntypes)
-      ign = ign .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], igntypes[i]) : false )
+      ign = ign .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], igntypes[i]) : false )
     end
     for i = 1:length(mettypes)
-      met = met .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], mettypes[i]) : false )
+      met = met .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], mettypes[i]) : false )
     end
 	for i = 1:length(covertypes)
-	  cover = cover .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], covertypes[i]) : false )
+	  cover = cover .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], covertypes[i]) : false )
 	end
 
 	for i = 1:length(volctypes)
-	  volc = volc .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], volctypes[i]) : false )
+	  volc = volc .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], volctypes[i]) : false )
 	end
 	for i = 1:length(pluttypes)
-      plut = plut .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], pluttypes[i]) : false )
+      plut = plut .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], pluttypes[i]) : false )
     end
     for i = 1:length(metaigntypes)
-      metaign = metaign .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], metaigntypes[i]) : false )
+      metaign = metaign .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], metaigntypes[i]) : false )
     end
 	for i = 1:length(metasedtypes)
-	  metased = metased .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], metasedtypes[i]) : false )
+	  metased = metased .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], metasedtypes[i]) : false )
 	end
 	for i = 1:length(lowgradetypes)
-      lowgrade = lowgrade .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], lowgradetypes[i]) : false )
+      lowgrade = lowgrade .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], lowgradetypes[i]) : false )
     end
 	for i = 1:length(highgradetypes)
-	  highgrade = highgrade .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], highgradetypes[i]) : false )
+	  highgrade = highgrade .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], highgradetypes[i]) : false )
 	end
 	for i = 1:length(hypabyssaltypes)
-	  hypabyssal = hypabyssal .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? contains(x[1], hypabyssaltypes[i]) : false )
+	  hypabyssal = hypabyssal .|  ( match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], hypabyssaltypes[i]) : false )
 	end
 
     # Then check the rest of rocktype
     not_matched = .~(sed .| ign .| met .| cover)
     for i = 1:length(sedtypes)
-      sed[not_matched] = sed[not_matched] .| contains.(rocktype[not_matched],sedtypes[i])
+      sed[not_matched] = sed[not_matched] .| containsi.(rocktype[not_matched],sedtypes[i])
     end
     for i = 1:length(igntypes)
-      ign[not_matched] = ign[not_matched] .| contains.(rocktype[not_matched],igntypes[i])
+      ign[not_matched] = ign[not_matched] .| containsi.(rocktype[not_matched],igntypes[i])
     end
     for i = 1:length(mettypes)
-      met[not_matched] = met[not_matched] .| contains.(rocktype[not_matched],mettypes[i])
+      met[not_matched] = met[not_matched] .| containsi.(rocktype[not_matched],mettypes[i])
     end
 	for i = 1:length(covertypes)
-      cover[not_matched] = cover[not_matched] .| contains.(rocktype[not_matched],covertypes[i])
+      cover[not_matched] = cover[not_matched] .| containsi.(rocktype[not_matched],covertypes[i])
     end
 
 	not_matched = .~(sed .| cover .| volc .| plut .| metaign .| metased .| lowgrade .| highgrade)
 	for i = 1:length(volctypes)
-      volc[not_matched] = volc[not_matched] .| contains.(rocktype[not_matched],volctypes[i])
+      volc[not_matched] = volc[not_matched] .| containsi.(rocktype[not_matched],volctypes[i])
     end
 	for i = 1:length(pluttypes)
-      plut[not_matched] = plut[not_matched] .| contains.(rocktype[not_matched],pluttypes[i])
+      plut[not_matched] = plut[not_matched] .| containsi.(rocktype[not_matched],pluttypes[i])
     end
 	for i = 1:length(metaigntypes)
-	  metaign[not_matched] = metaign[not_matched] .| contains.(rocktype[not_matched],metaigntypes[i])
+	  metaign[not_matched] = metaign[not_matched] .| containsi.(rocktype[not_matched],metaigntypes[i])
 	end
 	for i = 1:length(metasedtypes)
-	  metased[not_matched] = metased[not_matched] .| contains.(rocktype[not_matched],metasedtypes[i])
+	  metased[not_matched] = metased[not_matched] .| containsi.(rocktype[not_matched],metasedtypes[i])
 	end
 	for i = 1:length(lowgradetypes)
-	  lowgrade[not_matched] = lowgrade[not_matched] .| contains.(rocktype[not_matched],lowgradetypes[i])
+	  lowgrade[not_matched] = lowgrade[not_matched] .| containsi.(rocktype[not_matched],lowgradetypes[i])
 	end
 	for i = 1:length(highgradetypes)
-	  highgrade[not_matched] = highgrade[not_matched] .| contains.(rocktype[not_matched],highgradetypes[i])
+	  highgrade[not_matched] = highgrade[not_matched] .| containsi.(rocktype[not_matched],highgradetypes[i])
 	end
 	for i = 1:length(hypabyssaltypes)
-	  hypabyssal[not_matched] = hypabyssal[not_matched] .| contains.(rocktype[not_matched],hypabyssaltypes[i])
+	  hypabyssal[not_matched] = hypabyssal[not_matched] .| containsi.(rocktype[not_matched],hypabyssaltypes[i])
 	end
 
 
     # Then rockname
     not_matched = .~(sed .| ign .| met .| cover)
     for i = 1:length(sedtypes)
-      sed[not_matched] = sed[not_matched] .| contains.(rockname[not_matched],sedtypes[i])
+      sed[not_matched] = sed[not_matched] .| containsi.(rockname[not_matched],sedtypes[i])
     end
     for i = 1:length(igntypes)
-      ign[not_matched] = ign[not_matched] .| contains.(rockname[not_matched],igntypes[i])
+      ign[not_matched] = ign[not_matched] .| containsi.(rockname[not_matched],igntypes[i])
     end
     for i = 1:length(mettypes)
-      met[not_matched] = met[not_matched] .| contains.(rockname[not_matched],mettypes[i])
+      met[not_matched] = met[not_matched] .| containsi.(rockname[not_matched],mettypes[i])
     end
 	for i = 1:length(covertypes)
-      cover[not_matched] = cover[not_matched] .| contains.(rockname[not_matched],covertypes[i])
+      cover[not_matched] = cover[not_matched] .| containsi.(rockname[not_matched],covertypes[i])
     end
 
 	not_matched = .~(sed .| cover .| volc .| plut .| metaign .| metased .| lowgrade .| highgrade)
 	for i = 1:length(volctypes)
-      volc[not_matched] = volc[not_matched] .| contains.(rockname[not_matched],volctypes[i])
+      volc[not_matched] = volc[not_matched] .| containsi.(rockname[not_matched],volctypes[i])
     end
 	for i = 1:length(pluttypes)
-      plut[not_matched] = plut[not_matched] .| contains.(rockname[not_matched],pluttypes[i])
+      plut[not_matched] = plut[not_matched] .| containsi.(rockname[not_matched],pluttypes[i])
     end
 	for i = 1:length(metaigntypes)
-	  metaign[not_matched] = metaign[not_matched] .| contains.(rockname[not_matched],metaigntypes[i])
+	  metaign[not_matched] = metaign[not_matched] .| containsi.(rockname[not_matched],metaigntypes[i])
 	end
 	for i = 1:length(metasedtypes)
-	  metased[not_matched] = metased[not_matched] .| contains.(rockname[not_matched],metasedtypes[i])
+	  metased[not_matched] = metased[not_matched] .| containsi.(rockname[not_matched],metasedtypes[i])
 	end
 	for i = 1:length(lowgradetypes)
-	  lowgrade[not_matched] = lowgrade[not_matched] .| contains.(rockname[not_matched],lowgradetypes[i])
+	  lowgrade[not_matched] = lowgrade[not_matched] .| containsi.(rockname[not_matched],lowgradetypes[i])
 	end
 	for i = 1:length(highgradetypes)
-	  highgrade[not_matched] = highgrade[not_matched] .| contains.(rockname[not_matched],highgradetypes[i])
+	  highgrade[not_matched] = highgrade[not_matched] .| containsi.(rockname[not_matched],highgradetypes[i])
 	end
 	for i = 1:length(hypabyssaltypes)
-	  hypabyssal[not_matched] = hypabyssal[not_matched] .| contains.(rockname[not_matched],hypabyssaltypes[i])
+	  hypabyssal[not_matched] = hypabyssal[not_matched] .| containsi.(rockname[not_matched],hypabyssaltypes[i])
 	end
 
 
     # Then rockdescrip
     not_matched = .~(sed .| ign .| met .| cover)
     for i = 1:length(sedtypes)
-      sed[not_matched] = sed[not_matched] .| contains.(rockdescrip[not_matched],sedtypes[i])
+      sed[not_matched] = sed[not_matched] .| containsi.(rockdescrip[not_matched],sedtypes[i])
     end
     for i = 1:length(igntypes)
-      ign[not_matched] = ign[not_matched] .| contains.(rockdescrip[not_matched],igntypes[i])
+      ign[not_matched] = ign[not_matched] .| containsi.(rockdescrip[not_matched],igntypes[i])
     end
     for i = 1:length(mettypes)
-      met[not_matched] = met[not_matched] .| contains.(rockdescrip[not_matched],mettypes[i])
+      met[not_matched] = met[not_matched] .| containsi.(rockdescrip[not_matched],mettypes[i])
     end
 	for i = 1:length(covertypes)
-	  cover[not_matched] = cover[not_matched] .| contains.(rockdescrip[not_matched],covertypes[i])
+	  cover[not_matched] = cover[not_matched] .| containsi.(rockdescrip[not_matched],covertypes[i])
 	end
 
 	not_matched = .~(sed .| cover .| volc .| plut .| metaign .| metased .| lowgrade .| highgrade)
 	for i = 1:length(volctypes)
-	  volc[not_matched] = volc[not_matched] .| contains.(rockdescrip[not_matched],volctypes[i])
+	  volc[not_matched] = volc[not_matched] .| containsi.(rockdescrip[not_matched],volctypes[i])
 	end
 	for i = 1:length(pluttypes)
-	  plut[not_matched] = plut[not_matched] .| contains.(rockdescrip[not_matched],pluttypes[i])
+	  plut[not_matched] = plut[not_matched] .| containsi.(rockdescrip[not_matched],pluttypes[i])
 	end
 	for i = 1:length(metaigntypes)
-	  metaign[not_matched] = metaign[not_matched] .| contains.(rockdescrip[not_matched],metaigntypes[i])
+	  metaign[not_matched] = metaign[not_matched] .| containsi.(rockdescrip[not_matched],metaigntypes[i])
 	end
 	for i = 1:length(metasedtypes)
-	  metased[not_matched] = metased[not_matched] .| contains.(rockdescrip[not_matched],metasedtypes[i])
+	  metased[not_matched] = metased[not_matched] .| containsi.(rockdescrip[not_matched],metasedtypes[i])
 	end
 	for i = 1:length(lowgradetypes)
-	  lowgrade[not_matched] = lowgrade[not_matched] .| contains.(rockdescrip[not_matched],lowgradetypes[i])
+	  lowgrade[not_matched] = lowgrade[not_matched] .| containsi.(rockdescrip[not_matched],lowgradetypes[i])
 	end
 	for i = 1:length(highgradetypes)
-	  highgrade[not_matched] = highgrade[not_matched] .| contains.(rockdescrip[not_matched],highgradetypes[i])
+	  highgrade[not_matched] = highgrade[not_matched] .| containsi.(rockdescrip[not_matched],highgradetypes[i])
 	end
 	for i = 1:length(hypabyssaltypes)
-	  hypabyssal[not_matched] = hypabyssal[not_matched] .| contains.(rockdescrip[not_matched],hypabyssaltypes[i])
+	  hypabyssal[not_matched] = hypabyssal[not_matched] .| containsi.(rockdescrip[not_matched],hypabyssaltypes[i])
 	end
 
 
@@ -350,6 +350,11 @@
 	t = elevations .> 4000
 	writedlm("highelev.tsv", hcat(rocktype[t], rockname[t], rockdescrip[t], rockstratname[t], rockcomments[t]))
 
+## --- Kernel function for resampling
+	function unif_norm(rng, mu, sigma)
+		return mu + (2rand(rng)-1)*sigma[1] + randn(rng)*sigma[2]
+	end
+
 ## --- Plot abundance of sed, highgrade+plutonic and lowgrade+volcanic
 
 	nresampled = 10^6
@@ -361,8 +366,12 @@
 	age = (agemax[t] + agemin[t])/2
 	# sigma = (agemax[t] - agemin[t])/2/sqrt(2*log(2))
 	sigma = (agemax[t] - agemin[t])/2
-	# ageresampled = bsresample_unif(age,sigma,nresampled)
-	ageresampled = bsresample_unif_norm(age,sigma,age*0.025,nresampled)
+	# ageresampled = bsresample(age,sigma,nresampled,kernel=uniform)
+	ageresampled = bsresample(age,
+		collect(zip(sigma,age*0.025)),
+		nresampled,
+		kernel=unif_norm
+	)
 	ageresampled = ageresampled[(ageresampled .> 0) .& (ageresampled .< 4500)]
 	h = histogram(ageresampled, bins=edges, fill=(0,:darkblue), linewidth=0.1, label="")
 	plot!(h,ylabel="N", ylims=(0,nresampled/nbins*6), xlims=(0,4000), xflip=true, xlabel="Age (Ma)")
@@ -371,8 +380,11 @@
 	t = ign .& .~(cover .| sed)
 	age = (agemax[t] + agemin[t])/2
 	sigma = (agemax[t] - agemin[t])/2/sqrt(2*log(2))
-	# ageresampled = bsresample_unif(age,sigma,nresampled)
-	ageresampled = bsresample_unif_norm(age,sigma,age*0.025,nresampled)
+	ageresampled = bsresample(age,
+		collect(zip(sigma,age*0.025)),
+		nresampled,
+		kernel=unif_norm
+	)
 	ageresampled = ageresampled[(ageresampled .> 0) .& (ageresampled .< 4500)]
 	h = histogram(ageresampled, bins=edges, fill=(0,:darkred), linewidth=0.1, label="")
 	plot!(h, ylabel="N", ylims=(0,nresampled/nbins*6), xlims=(0,4000), xflip=true,  xlabel="Age (Ma)")
@@ -381,7 +393,12 @@
 	t = (volc .| lowgrade) .& .~(cover .| sed)
 	age = (agemax[t] + agemin[t])/2
 	sigma = (agemax[t] - agemin[t])/2/sqrt(2*log(2))
-	ageresampled = bsresample_unif(age,sigma,nresampled)
+	# ageresampled = bsresample(age,sigma,nresampled,kernel=uniform)
+	ageresampled = bsresample(age,
+		collect(zip(sigma,age*0.025)),
+		nresampled,
+		kernel=unif_norm
+	)
 	ageresampled = ageresampled[(ageresampled .> 0) .& (ageresampled .< 4500)]
 	h = histogram(ageresampled, bins=edges, fill=(0,:red), linewidth=0.1, label="")
 	plot!(h, ylabel="N", ylims=(0,nresampled/nbins*6), xlims=(0,4000), xflip=true,  xlabel="Age (Ma)")
@@ -390,8 +407,12 @@
 	t = hypabyssal .& .~(cover .| sed)
 	age = (agemax[t] + agemin[t])/2
 	sigma = (agemax[t] - agemin[t])/2/sqrt(2*log(2))
-	# ageresampled = bsresample_unif(age,sigma,nresampled)
-	ageresampled = bsresample_unif_norm(age,sigma,age*0.025,nresampled)
+	# ageresampled = bsresample(age,sigma,nresampled,kernel=uniform)
+	ageresampled = bsresample(age,
+		collect(zip(sigma,age*0.025)),
+		nresampled,
+		kernel=unif_norm
+	)
 	ageresampled = ageresampled[(ageresampled .> 0) .& (ageresampled .< 4500)]
 	h = histogram(ageresampled, bins=edges, fill=(0,:darkred), linewidth=0.1, label="")
 	plot!(h, ylabel="N", ylims=(0,nresampled/nbins*6), xlims=(0,4000), xflip=true,  xlabel="Age (Ma)")
@@ -400,8 +421,12 @@
 	t = plut .& .~(cover .| sed)
 	age = (agemax[t] + agemin[t])/2
 	sigma = (agemax[t] - agemin[t])/2/sqrt(2*log(2))
-	# ageresampled = bsresample_unif(age,sigma,nresampled)
-	ageresampled = bsresample_unif_norm(age,sigma,age*0.025,nresampled)
+	# ageresampled = bsresample(age,sigma,nresampled,kernel=uniform)
+	ageresampled = bsresample(age,
+		collect(zip(sigma,age*0.025)),
+		nresampled,
+		kernel=unif_norm
+	)
 	ageresampled = ageresampled[(ageresampled .> 0) .& (ageresampled .< 4500)]
 	h = histogram(ageresampled, bins=edges, fill=(0,:darkred), linewidth=0.1, label="")
 	plot!(h, ylabel="N", ylims=(0,nresampled/nbins*6), xlims=(0,4000), xflip=true,  xlabel="Age (Ma)")
@@ -410,8 +435,12 @@
 	t = highgrade .& .~(cover .| sed)
 	age = (agemax[t] + agemin[t])/2
 	sigma = (agemax[t] - agemin[t])/2/sqrt(2*log(2))
-	# ageresampled = bsresample_unif(age,sigma,nresampled)
-	ageresampled = bsresample_unif_norm(age,sigma,age*0.025,nresampled)
+	# ageresampled = bsresample(age,sigma,nresampled,kernel=uniform)
+	ageresampled = bsresample(age,
+		collect(zip(sigma,age*0.025)),
+		nresampled,
+		kernel=unif_norm
+	)
 	ageresampled = ageresampled[(ageresampled .> 0) .& (ageresampled .< 4500)]
 	h = histogram(ageresampled, bins=edges, fill=(0,:darkred), linewidth=0.1, label="")
 	plot!(h, ylabel="N", ylims=(0,nresampled/nbins*6), xlims=(0,4000), xflip=true,  xlabel="Age (Ma)")
@@ -420,8 +449,12 @@
 	t = (plut .| highgrade) .& .~(cover .| sed)
 	age = (agemax[t] + agemin[t])/2
 	sigma = (agemax[t] - agemin[t])/2/sqrt(2*log(2))
-	# ageresampled = bsresample_unif(age,sigma,nresampled)
-	ageresampled = bsresample_unif_norm(age,sigma,age*0.025,nresampled)
+	# ageresampled = bsresample(age,sigma,nresampled,kernel=uniform)
+	ageresampled = bsresample(age,
+		collect(zip(sigma,age*0.025)),
+		nresampled,
+		kernel=unif_norm
+	)
 	ageresampled = ageresampled[(ageresampled .> 0) .& (ageresampled .< 4500)]
 	h = histogram(ageresampled, bins=edges, fill=(0,:darkred), linewidth=0.1, label="")
 	plot!(h, ylabel="N", ylims=(0,nresampled/nbins*6), xlims=(0,4000), xflip=true,  xlabel="Age (Ma)")
@@ -430,8 +463,12 @@
 	t = .~(cover .| sed)
 	age = (agemax[t] + agemin[t])/2
 	sigma = (agemax[t] - agemin[t])/2/sqrt(2*log(2))
-	# ageresampled = bsresample_unif(age,sigma,nresampled)
-	ageresampled = bsresample_unif_norm(age,sigma,age*0.025,nresampled)
+	# ageresampled = bsresample(age,sigma,nresampled,kernel=uniform)
+	ageresampled = bsresample(age,
+		collect(zip(sigma,age*0.025)),
+		nresampled,
+		kernel=unif_norm
+	)
 	ageresampled = ageresampled[(ageresampled .> 0) .& (ageresampled .< 4500)]
 	h = histogram(ageresampled, bins=edges, fill=(0,:darkred), linewidth=0.1, label="")
 	plot!(h, ylabel="N", ylims=(0,nresampled/nbins*6), xlims=(0,4000), xflip=true,  xlabel="Age (Ma)")
@@ -440,8 +477,12 @@
 	t = .~(cover .| sed .| metased .| volc .| hypabyssal .| not_matched)
 	age = (agemax[t] + agemin[t])/2
 	sigma = (agemax[t] - agemin[t])/2/sqrt(2*log(2))
-	# ageresampled = bsresample_unif(age,sigma,nresampled)
-	ageresampled = bsresample_unif_norm(age,sigma,age*0.025,nresampled)
+	# ageresampled = bsresample(age,sigma,nresampled,kernel=uniform)
+	ageresampled = bsresample(age,
+		collect(zip(sigma,age*0.025)),
+		nresampled,
+		kernel=unif_norm
+	)
 	ageresampled = ageresampled[(ageresampled .> 0) .& (ageresampled .< 4500)]
 	h = histogram(ageresampled, bins=edges, fill=(0,:darkred), linewidth=0.1, label="")
 	plot!(h, ylabel="N", ylims=(0,nresampled/nbins*6), xlims=(0,4000), xflip=true,  xlabel="Age (Ma)")

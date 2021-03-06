@@ -145,7 +145,7 @@
     imsc(collect(precip'), viridis)
 
     function find_precip(lat,lon)
-        prate = ncread("prate.sfc.mon.ltm.nc","prate")
+        prate = ncread("data/prate.sfc.mon.ltm.nc","prate")
         precip = mean(prate, dims=3)[:,:,1]
 
         out = Array{Float64}(undef,size(lat))
@@ -217,6 +217,8 @@
 
     # save("OctopusSlopeRecalc.jld","basin_srtm15plus_aveslope",basin_srtm15plus_aveslope,"basin_polygon_n",basin_polygon_n,"basin_polygon_lat",basin_polygon_lat,"basin_polygon_lon",basin_polygon_lon,"subbasins",subbasins)
 
+    using StatGeochem
+    exportdataset(data,"octopusdata.tsv",'\t')
 
 ## --- Plot raw Lat and Lon
     h = plot(data["x_wgs84"],data["y_wgs84"],seriestype=:scatter,label="basin locations")

@@ -23,7 +23,7 @@ print("Loading SRTM\n")
 
 # Calculate maximum slope
 print("Calculating slope\n")
-@time slope = max_slope_earth(srtm["elevation"], srtm["x_lon_cntr"], srtm["y_lat_cntr"], srtm["cellsize"], minmatval=-12000)
+@time slope = maxslope(srtm["elevation"], srtm["x_lon_cntr"], srtm["y_lat_cntr"], srtm["cellsize"], minmatval=-12000)
 
 # Save results
 fid = h5open("srtm15plus_maxslope.h5","w");

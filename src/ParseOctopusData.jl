@@ -185,7 +185,7 @@
                 k = subbasins[i][j]
                 subbasin_lon = basin_polygon_lon[k]
                 subbasin_lat = basin_polygon_lat[k]
-                (row, column) = find_grid_inpolygon(x_lon_cntr, y_lat_cntr, subbasin_lon, subbasin_lat)
+                (column, row) = find_grid_inpolygon(x_lon_cntr, y_lat_cntr, subbasin_lon, subbasin_lat)
                 rowsinbasin = vcat(rowsinbasin,row)
                 columnsinbasin = vcat(columnsinbasin,column)
             end

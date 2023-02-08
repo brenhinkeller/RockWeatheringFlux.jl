@@ -20,8 +20,8 @@
 
     npoints = 50000;
 
-    rocklat = Array{Float64}(0)
-    rocklon = Array{Float64}(0)
+    rocklat = Array{Float64}(undef, 0)
+    rocklon = Array{Float64}(undef, 0)
     etopo = get_etopo("elevation")
     while length(rocklat) < npoints
 

@@ -1,3 +1,46 @@
+## --- Define function for generating random points on the continental crust
+"""
+```julia
+gen_continental_points(npoints, etopo)
+```
+
+Generate `npoints` element-long lists of latitudes, longitudes, and elevations for points 
+uniformly distributed across the continental crust. Requires `etopo` matrix of 1 arc minute 
+resolution global relief model. 
+
+Units are meters of elevation and decimal degrees of latitude and longitude.
+
+See also: `get_etopo`.
+"""
+function gen_continental_points(npoints, etopo)
+    # Initialize
+    rocklat = Array{Float64}(undef, npoints)
+    rocklon = Array{Float64}(undef, npoints)
+    elevations = Array{Float64}(undef, npoints)
+
+    # Number of points added to lat / lon arrays
+    currentpoints = 0
+
+    while currentpoints < npoints
+        # Generate some random latitudes and longitudes with uniform spatial density on the globe
+        (randlat, randlon) = randlatlon(length(rocklat))
+
+        # Find points above sea level
+        elev = find_etopoelev(etopo,randlat,randlon)
+        abovesea = elev .> 0
+        newpoints = min(count(abovesea), length(rocklat) - currentpoints)
+
+        # Concatenate together all the points that represent exposed crust
+        rocklat[(currentpoints+1):(currentpoints+newpoints)] = randlat[abovesea][1:newpoints]
+        rocklon[(currentpoints+1):(currentpoints+newpoints)] = randlon[abovesea][1:newpoints]
+        elevations[(currentpoints+1):(currentpoints+newpoints)] = elev[abovesea][1:newpoints]
+
+        currentpoints += newpoints
+    end
+
+    return rocklat, rocklon, elevations
+end
+
 ## --- Define function for picking random points
 # Take this out and use the one that's in StatGeochem GIS.jl?
 

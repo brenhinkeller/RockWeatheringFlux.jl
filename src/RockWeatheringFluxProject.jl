@@ -1,4 +1,3 @@
-	1+1
 ## --- Setup
 
     # External packages
@@ -11,57 +10,39 @@
     # Local utilities
     include("RockWeatheringFluxUtilities.jl")
 
-## --- Generate some random points on a sphere
+## --- Generate some random points on the continental crust
 
-    npoints = 50;
-
-    rocklat = Array{Float64}(undef, 0)
-    rocklon = Array{Float64}(undef, 0)
-    etopo = get_etopo("elevation")
-    while length(rocklat) < npoints
-
-        # Generate some random latitudes and longitudes with uniform
-        #  spatial density on the globe
-        (randlat, randlon) = random_lat_lon(npoints)
-
-        # Find which points are above sea level
-        elevations = find_etopoelev(etopo,randlat,randlon)
-        abovesea = elevations .> 0
-
-        # Concatenate together all the points that represent exposed crust
-    	global rocklat = vcat(rocklat,randlat[abovesea])	# turn this into a function?
-        global rocklon = vcat(rocklon,randlon[abovesea])
-    end
-
-    rocklat = rocklat[1:npoints]
-    rocklon = rocklon[1:npoints]
-    elevations = find_etopoelev(etopo,rocklat,rocklon)
+    npoints = 10
+	etopo = get_etopo("elevation")
+	rocklat, rocklon, elevations = gen_continental_points(npoints, etopo)
 
 
 ## -- Get data from Macrostrat / Burwell API
 
     zoom = 11
-	savefilename = "responses2"
+	savefilename = "responses3"
     responses = Array{Any}(undef, npoints, 1)
     @showprogress 5 for i = 1:npoints
         try
             responses[i] = query_macrostrat(rocklat[i], rocklon[i], zoom)
         catch
-            print("Warning: no data from Macrostrat server \n")
+            @warn "No response from Macrostrat server. Trying again in 10 seconds. \n"
             try
                 # Wait and try again
                 sleep(10)
                 responses[i] = query_macrostrat(rocklat[i], rocklon[i], zoom)
             catch
-                # if still nothing, add warning
+                # If still nothing, add warning
                 responses[i] = "No response"
-                print("Warning: no response from Macrostrat server\n")
+                @warn "No data from Macrostrat server for index $i\n"
             end
         end
+		
         sleep(0.05)
-        if mod(i,10000)==0
-            save("data/$savefilename.jld", "responses", responses, "elevations", elevations, "latitude", rocklat, "longitude", rocklon, "npoints", npoints)
-        end
+
+        #if mod(i,10000)==0
+        #    save("data/$savefilename.jld", "responses", responses, "elevations", elevations, "latitude", rocklat, "longitude", rocklon, "npoints", npoints)
+        #end
     end
 
     save("data/$savefilename.jld", "responses", responses, "elevations", elevations, "latitude", rocklat, "longitude", rocklon, "npoints", npoints)
@@ -75,18 +56,19 @@
     responses = retrive_file["responses"]
     npoints = retrive_file["npoints"]
 
-## ---
-	retrive_file = load("data/responses2.jld")
-	elevations = vcat(elevations, retrive_file["elevations"])
-	rocklat = vcat(rocklat, retrive_file["latitude"])
-	rocklon = vcat(rocklon, retrive_file["longitude"])
-	responses = vcat(responses, retrive_file["responses"])
-	npoints = npoints + retrive_file["npoints"]
+## --- Load from generated version
+
+	# retrive_file = load("data/responses2.jld")
+	# elevations = vcat(elevations, retrive_file["elevations"])
+	# rocklat = vcat(rocklat, retrive_file["latitude"])
+	# rocklon = vcat(rocklon, retrive_file["longitude"])
+	# responses = vcat(responses, retrive_file["responses"])
+	# npoints = npoints + retrive_file["npoints"]
 
 ## --- Parse the macrostrat responses
 
     # Variables for parsed responses
-    rocktype = Array{String}(length(elevations))
+    rocktype = Array{String}(length(elevations), 1)
     rockdescrip = Array{String}(length(elevations))
     rockname = Array{String}(length(elevations))
     rockstratname = Array{String}(length(elevations))

@@ -9,6 +9,7 @@ using StatGeochem
 using HTTP, JSON
 
 # Local utilities
+cd(@__DIR__)
 include("RockWeatheringFluxUtilities.jl")
 
 
@@ -44,7 +45,7 @@ end
 rocklat = Array{Float64}(undef, 0)
 rocklon = Array{Float64}(undef, 0)
 
-function foo(rocklat, rocklon, etopo)
+function foo!(rocklat, rocklon, etopo)
     while length(rocklat) < npoints
 
         # Generate some random latitudes and longitudes with uniform
@@ -63,4 +64,30 @@ function foo(rocklat, rocklon, etopo)
     rocklat = rocklat[1:npoints]
     rocklon = rocklon[1:npoints]
     elevations = find_etopoelev(etopo,rocklat,rocklon)
+end
+
+function foo2!(rocklat, rocklon, etopo)
+    @assert eachindex(rocklat) == eachindex(rocklon)
+    npoints = 0
+    
+    while npoints < length(rocklat)
+
+        # Generate some random latitudes and longitudes with uniform
+        #  spatial density on the globe
+        (randlat, randlon) = random_lat_lon(length(rocklat))
+
+        # Find which points are above sea level
+        elevation = find_etopoelev(etopo,randlat,randlon)
+        abovesea = elevation .> 0
+        newpoints = min(count(abovesea), length(rocklat)-npoints)
+
+        # Concatenate together all the points that represent exposed crust
+        rocklat[(npoints+1):(npoints+newpoints)] = randlat[abovesea][1:newpoints]
+        rocklon[(npoints+1):(npoints+newpoints)] = randlon[abovesea][1:newpoints]
+
+        npoints += newpoints
+    end
+
+    # elevations = find_etopoelev(etopo,rocklat,rocklon)
+    rocklat, rocklon, elevations
 end

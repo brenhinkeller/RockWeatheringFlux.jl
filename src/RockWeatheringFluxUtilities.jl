@@ -1,8 +1,9 @@
 ## --- Define function for picking random points
+# Take this out and use the one that's in StatGeochem GIS.jl?
 
     function random_lat_lon(n)
-        randlon = rand(n)*360-180
-        randlat = 90 - acos.(rand(n)*2-1)*180/pi
+        randlon = rand(n)*360 .- 180
+        randlat = 90 .- acos.(rand(n)*2 .- 1)*180/pi
 
         return (randlat, randlon)
     end

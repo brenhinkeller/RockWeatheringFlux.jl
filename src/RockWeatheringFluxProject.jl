@@ -5,20 +5,15 @@
     using ProgressMeter: @showprogress
     using Plots
     using JLD, HDF5
-    try
-        using StatGeochem
-    catch
-        Pkg.clone("https://github.com/brenhinkeller/StatGeochem.jl")
-        using StatGeochem
-    end
+	using StatGeochem
+	using HTTP, JSON
 
     # Local utilities
-    using HTTP, JSON
     include("RockWeatheringFluxUtilities.jl")
 
 ## --- Generate some random points on a sphere
 
-    npoints = 50000;
+    npoints = 50;
 
     rocklat = Array{Float64}(undef, 0)
     rocklon = Array{Float64}(undef, 0)
@@ -34,8 +29,8 @@
         abovesea = elevations .> 0
 
         # Concatenate together all the points that represent exposed crust
-        rocklat = vcat(rocklat,randlat[abovesea])
-        rocklon = vcat(rocklon,randlon[abovesea])
+    	global rocklat = vcat(rocklat,randlat[abovesea])	# turn this into a function?
+        global rocklon = vcat(rocklon,randlon[abovesea])
     end
 
     rocklat = rocklat[1:npoints]
@@ -47,8 +42,8 @@
 
     zoom = 11
 	savefilename = "responses2"
-    responses = Array{Any}(length(elevations))
-    @showprogress 5 for i = 1:length(elevations)
+    responses = Array{Any}(undef, npoints, 1)
+    @showprogress 5 for i = 1:npoints
         try
             responses[i] = query_macrostrat(rocklat[i], rocklon[i], zoom)
         catch
@@ -58,7 +53,7 @@
                 sleep(10)
                 responses[i] = query_macrostrat(rocklat[i], rocklon[i], zoom)
             catch
-                # if still nothing, add warnin
+                # if still nothing, add warning
                 responses[i] = "No response"
                 print("Warning: no response from Macrostrat server\n")
             end

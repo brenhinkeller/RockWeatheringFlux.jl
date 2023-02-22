@@ -7,7 +7,7 @@ print("Loading SRTM\n")
 
 # # Calculate average slope
 # print("Calculating slope\n")
-# @time slope = ave_slope_earth(srtm["elevation"], srtm["x_lon_cntr"], srtm["y_lat_cntr"], srtm["cellsize"], minmatval=-12000, maxmatval=9000)
+# @time slope = aveslope(srtm["elevation"], srtm["x_lon_cntr"], srtm["y_lat_cntr"], srtm["cellsize"], minmatval=-12000, maxmatval=9000)
 #
 # # Save results
 # fid = h5open("srtm15plus_aveslope.h5","w");

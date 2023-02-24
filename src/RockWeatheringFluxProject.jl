@@ -2,17 +2,22 @@
 
     # External packages
     using ProgressMeter: @showprogress
-    using Plots
-    using JLD, HDF5
 	using StatGeochem
-	using HTTP, JSON
+	using DelimitedFiles
+    using Plots
+
+	# File parsing packages
+    using JLD
+	using HDF5
+	using HTTP
+	using JSON
 
     # Local utilities
     include("RockWeatheringFluxUtilities.jl")
 
 ## --- Generate some random points on the continental crust
 
-    npoints = 10
+    npoints = 5
 	etopo = get_etopo("elevation")
 	rocklat, rocklon, elevations = gen_continental_points(npoints, etopo)
 
@@ -26,7 +31,7 @@
         try
             responses[i] = query_macrostrat(rocklat[i], rocklon[i], zoom)
         catch
-            @warn "No response from Macrostrat server. Trying again in 10 seconds. \n"
+            @warn "No response from Macrostrat server for coordinate $i/$npoints. Trying again in 10 seconds. \n"
             try
                 # Wait and try again
                 sleep(10)
@@ -34,22 +39,24 @@
             catch
                 # If still nothing, add warning
                 responses[i] = "No response"
-                @warn "No data from Macrostrat server for index $i\n"
+                @warn "No data from Macrostrat server for coordinate $i/$npoints\n"
             end
         end
 		
         sleep(0.05)
 
-        #if mod(i,10000)==0
-        #    save("data/$savefilename.jld", "responses", responses, "elevations", elevations, "latitude", rocklat, "longitude", rocklon, "npoints", npoints)
-        #end
+		# Checkpoint save every 10,000 points
+        if mod(i,10000)==0
+           save("data/$savefilename.jld", "responses", responses, "elevations", elevations, "latitude", rocklat, "longitude", rocklon, "npoints", npoints)
+        end
     end
 
+	# Save the file
     save("data/$savefilename.jld", "responses", responses, "elevations", elevations, "latitude", rocklat, "longitude", rocklon, "npoints", npoints)
 
 ## --- Load from saved version (if applicable)
 
-    retrive_file = load("data/responses.jld")
+    retrive_file = load("data/responses2.jld")
     elevations = retrive_file["elevations"]
     rocklat = retrive_file["latitude"]
     rocklon = retrive_file["longitude"]
@@ -68,13 +75,13 @@
 ## --- Parse the macrostrat responses
 
     # Variables for parsed responses
-    rocktype = Array{String}(length(elevations), 1)
-    rockdescrip = Array{String}(length(elevations))
-    rockname = Array{String}(length(elevations))
-    rockstratname = Array{String}(length(elevations))
-    rockcomments = Array{String}(length(elevations))
-	agemax = Array{Float64}(length(elevations))
-	agemin = Array{Float64}(length(elevations))
+    rocktype = Array{String}(undef, length(elevations), 1)
+    rockdescrip = Array{String}(undef, length(elevations), 1)
+    rockname = Array{String}(undef, length(elevations), 1)
+    rockstratname = Array{String}(undef, length(elevations), 1)
+    rockcomments = Array{String}(undef, length(elevations), 1)
+	agemax = Array{Float64}(undef, length(elevations), 1)
+	agemin = Array{Float64}(undef, length(elevations), 1)
 
     # Parse saved responses
     for i = 1:length(elevations)
@@ -95,11 +102,11 @@
     rockcomments = lowercase.(rockcomments)
 
     # Replacing tabs with spaces so as not to be confused with the delimitator if exported
-    rocktype = replace.(rocktype, "    ", " ")
-    rockdescrip = replace.(rockdescrip, "    ", " ")
-    rockname = replace.(rockname, "    ", " ")
-    rockstratname = replace.(rockstratname, "    ", " ")
-    rockcomments = replace.(rockcomments, "    ", " ")
+    rocktype = replace.(rocktype, "    " => " ")
+    rockdescrip = replace.(rockdescrip, "    " => " ")
+    rockname = replace.(rockname, "    " => " ")
+    rockstratname = replace.(rockstratname, "    " => " ")
+    rockcomments = replace.(rockcomments, "    " => " ")
 
     #= Use this link to check the information on certain points in the macrostrat
     url = "https://macrostrat.org/api/mobile/map_query?lat=$(rocklat[end])&lng=$(rocklon[end])&z=11" =#
@@ -291,7 +298,6 @@
 	for i = 1:length(hypabyssaltypes)
 	  hypabyssal[not_matched] = hypabyssal[not_matched] .| containsi.(rockdescrip[not_matched],hypabyssaltypes[i])
 	end
-
 
 
 	# Exclude suspected cover from the other three categories, just to be sure
@@ -653,4 +659,3 @@ display(h)
 
     heatmap(downsample(inbasin,10))
 
-    1+1

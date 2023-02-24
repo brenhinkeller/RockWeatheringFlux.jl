@@ -1,4 +1,4 @@
-## --- Define function for generating random points on the continental crust
+## --- Generate random points on the continental crust
 """
 ```julia
 gen_continental_points(npoints, etopo)
@@ -41,18 +41,20 @@ function gen_continental_points(npoints, etopo)
     return rocklat, rocklon, elevations
 end
 
-## --- Define function for picking random points
-# Take this out and use the one that's in StatGeochem GIS.jl?
+## --- Slope and erosion rate relationship
+"""
+```julia
+emmkyr(slp)
+```
 
-    function random_lat_lon(n)
-        randlon = rand(n)*360 .- 180
-        randlat = 90 .- acos.(rand(n)*2 .- 1)*180/pi
-
-        return (randlat, randlon)
+Find the erosion rate in mm/kyr given a slope `slp`.
+"""
+    function emmkyr(slp)
+        return 10^(slp*0.00567517 + 0.971075)
     end
 
 
-## --- Define functions for querying macrostrat
+## --- Functions for querying macrostrat
 
     function query_macrostrat(lat, lon, zoom)
         resp = HTTP.get("https://macrostrat.org/api/mobile/map_query?lat=$lat&lng=$lon&z=$zoom")
@@ -164,7 +166,20 @@ end
         end
     end
 
+
 ## --- Functions for dealing with SRTM15
+
+
+
+
+
+
+
+
+
+
+## --- Functions for dealing with SRTM15
+# I think I can get rid of these and use the statgeochem ones, or at least a modification of them...
     resourcepath = "data"
 
     # Read srtm15plus file from HDF5 storage, downloading from cloud if necessary

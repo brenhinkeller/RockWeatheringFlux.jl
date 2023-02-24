@@ -293,3 +293,82 @@ Find the erosion rate in mm/kyr given a slope `slp`.
 
         return out
     end
+
+
+## --- Find the average value of slope over an area
+"""
+```julia
+avg_over_area(data::Matrix, lat::Vector, lon::Vector, sf::Number=240; 
+    halfwidth::Number=1, 
+    maxpossible::Number=0xffff)
+```
+Find the average value of `data` over an area with radius `halfwidth` arc-seconds
+at coordinates `lat` and `lon`.
+
+This is distinct from `StatGeochem`'s `aveslope`. This function finds the average over an area, not the
+average slope for a specific point. For example, this might be given a matrix of maximum slope at each point
+on Earth, and would return the _average maximum slope_ at each point of interest.
+
+Other optional arguments and defaults:
+
+    sf::Number=240
+
+Scale factor (cells per degree) for the SRTM15+ data. For 15 arc-second resolution, the scale factor is 240, 
+because 15 arc-seconds go into 1 arc-degree 60 * 4 = 240 times.
+
+    maxpossible::Number=0xffff
+
+The maximum possible value for the variable of interest; variables with values greater than this are ignored.
+
+"""
+function avg_over_area(data::Matrix, lat::Vector, lon::Vector, sf::Number=240;
+    halfwidth::Number=1, 
+    maxpossible::Number=0xffff)
+    # Make sure we will never index out of bounds
+    @assert eachindex(lat) == eachindex(lon)
+
+    # Make sure data has values that cover all of Earth
+    (nrows, ncols) = size(data)
+    @assert nrows == 180 * sf + 1   # Why 180 instead of 360?
+    @assert ncols == 360 * sf + 1
+    
+
+    # Preallocate
+    out = fill(NaN, length(lat))
+
+    # Find result by indexing into the varname matrix
+    for i in eachindex(lat)
+        if isnan(lat[i]) || isnan(lon[i]) || lat[i]>90 || lat[i]<-90 || lon[i]>180 || lon[i]<-180
+            # Result is NaN if either input is NaN or out of bounds
+            continue
+
+        else
+            # Convert latitude and longitude into indicies 
+            row = 1 + round(Int,(90 + lat[i]) * sf)
+            col = 1 + round(Int,(180 + lon[i]) * sf)
+
+            # Index into the array - could I use @turbo here? It currently gets mad
+            k = 0           # Generic counter
+            out[i] = 0      # Starting value
+            for r = (row-halfwidth):(row+halfwidth)
+                for c = (col-halfwidth):(col+halfwidth)
+                    # Only do the computation if we are in bounds
+                    if 1 <= r <= nrows
+                        res = data[r, mod(c-1,ncols-1)+1]
+
+                        # Ignore values that are larger than the max possible value
+                        if res < maxpossible
+                            k +=1
+                            out[i] += res
+                        end
+                    end
+                end
+            end
+
+            # Save the average value
+            out[i] /= k
+        end
+    end
+
+    return out
+end

@@ -5,8 +5,9 @@
   using DelimitedFiles
   using Plots
   using Dates
+  using LoopVectorization
 
-	# File parsing and API-related packages
+	# File parsing packages
   using JLD
   using HDF5
   using HTTP
@@ -59,25 +60,30 @@
 
 ## --- Load data that was just generated
 #=
+  I'm like 90% sure that we don't actually have to do this... we just finished generating the data. It's alrady
+  in these arrays.
+=#
+#=
   @info "Loading generated data. This make take up to $(0.0001*npoints) minutes. Started $(Dates.format(now(), "HH:MM"))"
   retrive_file = load("data/$savefilename.jld")
 
-  elevations = retrive_file["elevations"]
   responses = retrive_file["responses"]
-
-  rocklat = retrive_file["latitude"]      # Read in for continuity, but note that all of this data
-  rocklon = retrive_file["longitude"]     # should be the same as the data that was just generated
-  npoints = retrive_file["npoints"]       # and so this code is redundant
+  elevations = float.(retrive_file["elevations"])
+  
+  rocklat = float.(retrive_file["latitude"])
+  rocklon = float.(retrive_file["longitude"])    
+  npoints = retrive_file["npoints"]
 =#
 
 ## --- Alternatively, load pre-generated data
-  @info "Loading pregenerated data. This may take up to 5 minutes. Started $(Dates.format(now(), "HH:MM"))"
+  @info "Loading pregenerated data. This may take up to 30 minutes on slow machines. Started $(Dates.format(now(), "HH:MM"))"
   retrive_file = load("data/pregenerated_responses.jld")
 
-  elevations = retrive_file["elevations"]
   responses = retrive_file["responses"]
-  rocklat = retrive_file["latitude"]
-  rocklon = retrive_file["longitude"]    
+  elevations = float.(retrive_file["elevations"])
+  
+  rocklat = float.(retrive_file["latitude"])
+  rocklon = float.(retrive_file["longitude"])    
   npoints = retrive_file["npoints"]
 
 
@@ -353,7 +359,7 @@
 	cryst = ign .| (met .& .~sed)
 
   not_matched = .~(sed .| ign .| met .| cover);
-  multi_matched = (sed .& ign) .| (sed .& met) .| (ign .& met);
+  multi_matched = (sed .& ign) .| (sed .& met) .| (ign .& met)
 
   number_not_matched = sum(not_matched)
   number_multi_matched = sum(multi_matched)
@@ -382,35 +388,27 @@
 
 
 ## --- Calculate erosion rate at each point
-  # Load the SRTM15+ file
-  # Abstraction is cancelled until I figure out what I want the SRTM15+ functions to do and how insular I want this repo to be
-  # and also what this file actually contains... is it slope or elevation? who's to say
-  #slope = h5read("data/srtm15plus_aveslope.h5", "vars/slope")
+  # Load the slope variable from the SRTM15+ maxslope file
+  srtm15_slope = h5read("data/srtm15plus_maxslope.h5", "vars/slope")
+  srtm15_sf = h5read("data/srtm15plus_maxslope.h5", "vars/scalefactor")
 
-  # Load the SRTM15+ maxslope file
-  srtm15 = h5read("data/srtm15plus_maxslope.h5", "vars/slope")
+  # Get slope at each point (rocklat, rocklon)
+  rockslope = avg_over_area(srtm15_slope, rocklat, rocklon, srtm15_sf, halfwidth=7)
 
-  # Preallocate
-  slope = Array{Float64}(undef, npoints, 1)
-  erosion = Array{Float64}(undef, npoints, 1)
+  # Erosion rates (mm/kyr)
+  rock_ersn = emmkyr.(rockslope)
 
-  # Get slope and erosion rate at each coordinate point
-  @inbounds for i in eachindex(rocklat, rocklon)
-      slope[i] = maxslope(matrix, x_lon_cntr, y_lat_cntr, cellsize)
+  # Do statistics
+  # After running the proof of concent, just make all the BitMatrices Bitvectors when they're assigned
+  sed_ersn_sum = nansum(rock_ersn[vec(sed)])      # Sedimentary
+  ign_ersn_sum = nansum(rock_ersn[vec(ign)])      # Igneous
+  met_ersn_sum = nansum(rock_ersn[vec(met)])      # Metamorphic
+  cryst_ersn_sum = nansum(rock_ersn[vec(cryst)])  # All crystalline (igneous and metamorphic)
 
-    #=
-      No documentation on this function so some questions - 
-        (lon, lat) format?
-        what is the x_lon and y_lon delination, as opposed to (lon, lat) or (lat, lon)
-        cellsize?
-      Maybe look at calcSRTMslope.jl?
-    =#
-
-    erosion[i] = emmkyr(slope[i])
-  end
-
-
-## --- Calculate erosion rates for each rock type
+  sed_ersn_mean = nanmean(rock_ersn[vec(sed)])      # Sedimentary
+  ign_ersn_sum = nanmean(rock_ersn[vec(ign)])      # Igneous
+  met_ersn_sum = nanmean(rock_ersn[vec(met)])      # Metamorphic
+  cryst_ersn_sum = nanmean(rock_ersn[vec(cryst)])  # All crystalline (igneous and metamorphic)
 
 
 ## --- Import and parse the bulk EarthChem data

@@ -372,3 +372,20 @@ function avg_over_area(data::Matrix, lat::Vector, lon::Vector, sf::Number=240;
 
     return out
 end
+
+"""
+```julia
+get_stats(data)
+```
+Ignoring `NaN`s, calculate the sum, mean, and standard deviation of `data`.
+
+### Example
+```
+(data_s, data_m, data_e) = get_stats(data)
+```
+"""
+function get_stats(data)
+    return nansum(data), nanmean(data), nanstd(data)
+end
+
+## --- End of file

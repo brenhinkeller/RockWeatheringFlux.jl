@@ -131,11 +131,11 @@
   # Exclude suspected cover from the other three categories, just to be sure
   sed .&= .!cover
   ign .&= .!cover
-  met .&= .!cover .& .!sed &. .!ign   # Metaseds / metaigns grouped with sed / ign
+  met .&= .!cover .& .!sed .& .!ign   # Metaseds / metaigns grouped with sed / ign
   cryst = ign .| met                  # Define crystalline rocks as igneous or non metased/ign metamorphic
 
   # Figure out how many data points weren't matched
-  not_matched = .~(sed .| ign .| met .| cover);
+  not_matched = .~(sed .| ign .| met .| cover)
   multi_matched = (sed .& ign) .| (sed .& met) .| (ign .& met)
 
   number_not_matched = sum(not_matched)
@@ -151,7 +151,7 @@
   # Output data to terminal
   @info "not matched = $number_not_matched, conflicting matches = $number_multi_matched\n"
 
-  @info "Rock type totals and relative abundance (multi matched may be counted twice):
+  @info "Rock type totals and relative abundance (multi matched are counted twice):
   sed = $(sum(sed)) ($(sed_abnce))
   ign = $(sum(ign)) ($(ign_abnce))
   met = $(sum(met)) ($(met_abnce))
@@ -163,12 +163,14 @@
     rockstratname[not_matched], rockcomments[not_matched]))
   writedlm("output/multimatched.tsv", hcat(rocktype[multi_matched], rockname[multi_matched], rockdescrip[multi_matched], 
     rockstratname[multi_matched], rockcomments[multi_matched]))
-  writedlm("output/ignsed.tsv", hcat(rocktype[ign .& sed], rockname[ign .& sed], rockdescrip[ign .& sed], 
-    rockstratname[ign .& sed], rockcomments[ign .& sed]))
-  writedlm("output/plutonic.tsv", hcat(rocktype[plut], rockname[plut], rockdescrip[plut], 
-    rockstratname[plut], rockcomments[plut]))
-	writedlm("output/intrusive.tsv", hcat(rocktype[hypabyssal .& .~plut], rockname[hypabyssal .& .~plut], rockdescrip[hypabyssal .& .~plut], 
-    rockstratname[hypabyssal .& .~plut], rockcomments[hypabyssal .& .~plut]))
+  writedlm("output/sed.tsv", hcat(rocktype[sed], rockname[sed], rockdescrip[sed], rockstratname[sed], rockcomments[sed]))
+  writedlm("output/ign.tsv", hcat(rocktype[ign], rockname[ign], rockdescrip[ign], rockstratname[ign], rockcomments[ign]))
+  writedlm("output/met.tsv", hcat(rocktype[met], rockname[met], rockdescrip[met], rockstratname[met], rockcomments[met]))
+
+  # writedlm("output/plutonic.tsv", hcat(rocktype[plut], rockname[plut], rockdescrip[plut], 
+  #   rockstratname[plut], rockcomments[plut]))
+	# writedlm("output/intrusive.tsv", hcat(rocktype[hypabyssal .& .~plut], rockname[hypabyssal .& .~plut], rockdescrip[hypabyssal .& .~plut], 
+  #   rockstratname[hypabyssal .& .~plut], rockcomments[hypabyssal .& .~plut]))
 
 	t = elevations .> 4000
 	writedlm("output/highelev.tsv", hcat(rocktype[t], rockname[t], rockdescrip[t], rockstratname[t], rockcomments[t]))
@@ -187,9 +189,9 @@
 
   # Do statistics
   ersn_sed_s, ersn_sed_m, ersn_sed_e = get_stats(rock_ersn[sed])            # Sedimentary
-  ersn_sed_s, ersn_ign_m, ersn_ign_e = get_stats(rock_ersn[ign])            # Igneous
+  ersn_ign_s, ersn_ign_m, ersn_ign_e = get_stats(rock_ersn[ign])            # Igneous
   ersn_met_s, ersn_met_m, ersn_met_e = get_stats(rock_ersn[met])            # Metamorphic
-  ersn_cryst_s, ersn_cryst_m, ersn_cryst_e = get_stats(rock_ersn[cryst])    # All crystalline (igneous and metamorphic)
+  ersn_cryst_s, ersn_cryst_m, ersn_cryst_e = get_stats(rock_ersn[cryst])    # Crystalline
   ersn_global_s, ersn_global_m, ersn_global_e = get_stats(rock_ersn)        # Global
 
   # Calculate relative contributions of each rock type to total global erosion
@@ -221,66 +223,56 @@
 
   bulk = NamedTuple{Tuple(Symbol.(keys(bulk_dict)))}(values(bulk_dict))
 
-  # Interpret the rock type codes using the list in RockNameInference.m
-  n_bulk = length(bulk.Type)
-  bulksed = vec(fill(false, n_bulk))
-  bulkign = vec(fill(false, n_bulk))
-  bulkmet = vec(fill(false, n_bulk))
-  unmatched = vec(fill(false, n_bulk))
-
-  @inbounds for i in eachindex(bulk.Type)
-    code = modf(bulk.Type[i])[2]
-
-    if code==1
-      bulksed[i] = true
-    elseif code==2
-      bulkign[i] = true
-    elseif code==3
-      bulkmet[i] = true
-    else
-      unmatched[i] = true
-    end
-  end
-
-  n_unmatched = count(unmatched)
-  @info "$n_unmatched of $n_bulk total samples ($(round(n_unmatched/n_bulk*100, digits=2))%) were not matched to a rock type.\n"
+  # Match EarthChem Types to rock type names
+  bulksed, bulkign, bulkmet = match_earthchem(bulk.Type)
+  bulkcryst = bulkign .| bulkmet                            # Crystalline (ign and met where met excludes metaseds and metaigns)
+  bulk_not_matched = .!bulksed .& .!bulkign .& .!bulkmet    # Unmatched samples
+  
+  # Print to terminal
+  @info "not matched = $(count(bulk_not_matched)) of $(length(bulk.Type)) total ($(round((count(bulk_not_matched))/(length(bulk.Type))*100, digits=2))%)\n"
 
 
 ## --- Find the average combined P and P2O5 content of each rock type
   p2o5_sed = nanmean(bulk.P2O5[bulksed])
   p2o5_ign = nanmean(bulk.P2O5[bulkign])
   p2o5_met = nanmean(bulk.P2O5[bulkmet])
-  
-  p2o5_cryst = nanmean(bulk.P2O5[bulkmet]) #problem
-  p_cryst = p_ign + p_met #problem
+  p2o5_cryst = nanmean(bulk.P2O5[bulkcryst])
 
-  p2o5_total = p2o5_sed + p2o5_ign + p2o5_met
-  
+  # p_sed = nanmean(bulk.P[bulksed]) * 1e-6
+  # p_ign = nanmean(bulk.P[bulkign]) * 1e-6
+  # p_met = nanmean(bulk.P[bulkmet]) * 1e-6
+  # p_cryst = nanmean(bulk.P[bulkcryst]) * 1e-6
 
-  p_sed = nanmean(bulk.P[bulksed]) * 1e-6
-  p_ign = nanmean(bulk.P[bulkign]) * 1e-6
-  p_met = nanmean(bulk.P[bulkmet]) * 1e-6
-  p_total = p_sed + p_ign + p_met
+  # # Calculate combined wt.% and relative abundance of P + P2O5 by rock type
+  # pwt_sed = p2o5_sed+p_sed
+  # pwt_ign = p2o5_ign+p_ign
+  # pwt_met = p2o5_met+p_met
+  # pwt_cryst = p2o5_cryst+p_cryst
 
-  # Calculate combined wt.% and relative abundance of P + P2O5 by rock type
-  pwt_sed = p2o5_sed+p_sed
-  pwt_ign = p2o5_ign+p_ign
-  pwt_met = p2o5_met+p_met
-  pwt_cryst = p2o5_cryst+p_cryst
+  # prel_sed = pwt_sed / (p2o5_total+p_total) * 100
+  # prel_ign = pwt_ign / (p2o5_total+p_total) * 100
+  # prel_met = pwt_met / (p2o5_total+p_total) * 100
+  # prel_cryst = pwt_cryst / (p2o5_total+p_total) * 100
 
-  prel_sed = pwt_sed / (p2o5_total+p_total) * 100
-  prel_ign = pwt_ign / (p2o5_total+p_total) * 100
-  prel_met = pwt_met / (p2o5_total+p_total) * 100
-  prel_cryst = pwt_cryst / (p2o5_total+p_total) * 100
+  # Calculate wt.% as only P2O5
+  pwt_sed = p2o5_sed
+  pwt_ign = p2o5_ign
+  pwt_met = p2o5_met
+  pwt_cryst = p2o5_cryst
+
+  prel_sed = pwt_sed / (p2o5_total) * 100
+  prel_ign = pwt_ign / (p2o5_total) * 100
+  prel_met = pwt_met / (p2o5_total) * 100
+  prel_cryst = pwt_cryst / (p2o5_total) * 100
 
   # Print to terminal
-  @info "Average combined P2O5 and P content by rock type:
+  @info "Average phosphorus content by rock type:
   sed = $(round(pwt_sed,digits=2)) wt.%
   ign = $(round(pwt_ign,digits=2)) wt.%
   met = $(round(pwt_met,digits=2)) wt.%
   cryst (ign + (met & ~sed)) = $(round(pwt_cryst,digits=2)) wt.%"
 
-  @info "Relative abundance of combined P2O5 and P by rock type
+  @info "Relative abundance of phosphorus by rock type:
   sed = $(round(prel_sed,digits=2))%
   ign = $(round(prel_ign,digits=2))%
   met = $(round(prel_met,digits=2))%
@@ -288,9 +280,24 @@
 
 
 ## -- Calculate what % of total eroded P comes from each rock type
-  # get P into  kg/yr and compare to pre-existing estimates
-  # ersn_sed_m * pwt_sed # m/Myr * wt% # If you multiply by area of the continents in m2 then you get m3/myr, multiply by density (say 2750 for average crust) then you have kg/myr, then can convert that to kg P/myr
-  # ersn_ign_m * pwt_ign
-  # ersn_met_m * pwt_met
+  # Compute contenental area
+  const contl_area = 148940000 * 1000000    # Area of continents (m²)
+  const crustal_density = 2750              # Average crustal density (kg/m³)
+
+  # Calculate P flux by source contributions in kg/yr
+  sed_contrib = ersn_sed_m * pwt_sed/100 * contl_area * crustal_density * 1e-6
+  ign_contrib = ersn_ign_m * pwt_ign/100 * contl_area * crustal_density * 1e-6
+  met_contrib = ersn_met_m * pwt_met/100 * contl_area * crustal_density * 1e-6
+  cryst_contrib = ersn_cryst_m * pwt_cryst/100 * contl_area * crustal_density * 1e-6
+
+  # methods for this... because this (=7.72e11) does not equal sed_contrib + ign_contrib + met_contrib (=9.65e11)
+  # global_contrib = ersn_global_m * (pwt_sed+pwt_ign+pwt_met)/100 * contl_area * crustal_density * 1e-6
+
+  # Print to terminal with some arbitrary significant figure
+  @info "Global P flux by source:
+  sed = $(round(sed_contrib, sigdigits=3))
+  ign = $(round(ign_contrib, sigdigits=3))
+  met = $(round(met_contrib, sigdigits=3))
+  cryst = $(round(cryst_contrib, sigdigits=3))\n"
 
 ## -- End of file

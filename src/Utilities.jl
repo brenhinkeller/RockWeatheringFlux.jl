@@ -393,8 +393,8 @@ end
 ```julia
 match_rocktype(rocktype, rockname, rockdescrip; major=false)
 ```
-Match samples to our rock types from the Burwell `rocktype`, `rockname`, and `rockdescrip`. If `major` is `true`, 
-only returns matches for `sed`, `ign`, `met`, and `cover` rocks. If `major` is `false`, returns:
+Match samples to our rock type definitions from the Burwell `rocktype`, `rockname`, and `rockdescrip`. If 
+`major` is `true`, only returns matches for `sed`, `ign`, `met`, and `cover` rocks. If `major` is `false`, returns:
 ```
 sed, ign, met, volc, plut, hypabyssal, metaign, metased, lowgrade, highgrade, cover
 ```
@@ -674,5 +674,46 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
     end
 end
 
+
+"""
+```julia
+match_earthchem(types)
+```
+Convert EartChem `type` to `sed`, `ign`, and `met` types. Classifies metaseds as `sed` and metaigns as `ign`.
+Returns `BitVector`s to index into the `type` array outside the function.
+
+"""
+function match_earthchem(type)
+    npoints = length(type)
+    sed = vec(fill(false, npoints))
+    ign = vec(fill(false, npoints))
+    met = vec(fill(false, npoints))
+    cryst = vec(fill(false, npoints))
+
+    @inbounds for i in eachindex(type)
+        # Type code interpretation from RockNameInference.m
+        typecode = floor(type[i])
+    
+        if typecode==1
+        # Sedimentary
+            sed[i] = true
+        elseif typecode==2
+            # Classify metaseds as seds and metaigns as ign to match Burwell division
+                metcode = modf(type[i])[1]
+            if metcode==0
+                met[i] = true
+            elseif metcode==1
+                sed[i] = true
+            elseif metcode==3
+                ign = true
+            end
+        elseif typecode==3
+            # Igneous
+            ign[i] = true
+        end
+    end
+
+    return sed, ign, met
+end
 
 ## --- End of file

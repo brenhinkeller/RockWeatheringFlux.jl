@@ -125,78 +125,14 @@
 	writedlm("output/burwellrefs.tsv",unique(refstrings),"\t")
 
 
-## --- Define rock types based on names or partial names of different rock types from GetBurwellBulkAge.m
-  # Sedimentary
-  sedtypes = ["sediment", "fluv", " clast", "siliciclast", "conglomerat", "gravel", "sand", "psamm", "arenit", "arkos", "silt", 
-    "mud", "marl", "clay", "shale", "wacke", "argillite", "argillaceous", "pelit", "pebble", "carbonate", "limestone", "dolo", 
-    "caliche", "chalk", "travertine", "tavertine", "teravertine", "tufa", "evaporite", " salt", "salt flat", "gypsum", "boulder", 
-    "diamict", "tillite", "stream", "beach", "terrace", "chert", "banded iron", "coal", "anthracite", "marine deposits", "turbidite", 
-    "flysch", "paleosol"]
-
-  # Igneous
-  volctypes = ["volcan", "lava", "lahar", "ignimbrite", "ashfall", "tuff", "diatreme", "pipe", "basalt", "andesit", "dacit", "rhyolit", 
-    "pillow", "carbonatite", "tephra", "obsidian", "ash", "scoria", "pumice", "cinder", "latite", "basanite", "phonolite", "fonolito", 
-    "trachyte", "palagonite", "mugearite", "kimberlite", "ultramafitite", "komatiite",]
-  pluttypes = ["pluton", "batholith", "granit", "tonalit", "gabbro", "norite", "diorit", "monzonit", "syenit", "peridot", "dunit", 
-    "harzburg", "anorthosite", "mangerite", "charnockite", "pegmatite", "aplite", "trond", "essexite", "pyroxenite", "adamellite", 
-    "porphyry", "megacryst", "rapakivi", "bronzitite", "alaskite", "troctolite",]
-  hypabyssaltypes = ["intrus", "hypabyssal", "sill", "dike", "stock", "laccolith", "lopolith", "dolerit", "diabase", "porphyry", 
-    "microgranite"]
-  igntypes = vcat(["igneous", "silicic ", "mafic", "felsic", "basite",],volctypes,pluttypes,hypabyssaltypes)
-
-  # Metamorphic
-  metasedtypes = ["para", "metased", "meta-sed", "schist", "quartzite", "marble", "skarn", "slate", "phyllite",]
-  metaigntypes = ["ortho", "metaign", "meta-ign", "serpentin", "amphibolit", "greenstone", "eclogite", "metabasite", "migma",]
-  mettypes = vcat(metasedtypes, metaigntypes, ["gneiss", "granulit", "hornfels", "granofels", "mylonit", "meta", "cataclasite", 
-    "melange", "gouge", "tecton", "calc silicate"])
-  lowgradetypes = ["slate", "phyllite", "serpentin", "greenstone", "greenschist", "zeolite", "gossan", "alter", "hydrothermal", 
-    "palagonite",]
-  highgradetypes = ["crystalline", "basement", "marble", "skarn", "blueschist", "gneiss", "amphibolit", "eclogite", "granulit", 
-    "hornfels", "granofels", "sanidinite", "migma", "enderbite", "anorthosite", "charnockite", "pyroxenite", "peridot", "dunit", 
-    "harzburg", "high grade metamorphic"]
-
-  # Other
-  covertypes = ["cover", "unconsolidated", "quaternary", "lluv", "soil", "regolith", "laterite", "surficial deposits", "talus", 
-      "scree", "mass-wasting", "slide", "peat", "swamp", "marsh", "water", "ice", "glaci", "till", "loess", "gravel", "debris"]
-  cataclastictypes = ["mylonit", "cataclasite", "melange", "gouge", "tecton",]
-
-
-## --- Match the Burwell rocktype with our rock types defined above
-  # Preallocate arrays for each rock type
-  sed = fill(false,npoints)
-  ign = fill(false,npoints)
-  met = fill(false,npoints)
-	volc = fill(false,npoints)
-	plut = fill(false,npoints)
-	hypabyssal = fill(false,npoints)
-	metaign = fill(false,npoints)
-	metased = fill(false,npoints)
-	lowgrade = fill(false,npoints)
-	highgrade = fill(false,npoints)
-	cover = fill(false,npoints)
-
-  # Match rocktypes
-  # This is maybe a little cursed but it does fix the scope problem. Adding "make this user friendly" to my to do list
-  sed, ign, met, volc, plut, hypabyssal, metaign, metased, lowgrade, highgrade, cover = match_rocktype!(rocktype, sed, ign, met, volc, plut, hypabyssal, metaign, metased, lowgrade, highgrade, cover)
-
-  # Change to BitVectors
-  sed = vec(sed)
-  ign = vec(ign)
-  met = vec(met)
-	volc = vec(volc)
-	plut = vec(plut)
-	hypabyssal = vec(hypabyssal)
-	metaign = vec(metaign)
-	metased = vec(metased)
-	lowgrade = vec(lowgrade)
-	highgrade = vec(highgrade)
-	cover = vec(cover)
+## --- Match the Burwell rocktype with our rock types
+  sed, ign, met, cover = match_rocktype(rocktype, rockname, rockdescrip, major=true)
 
   # Exclude suspected cover from the other three categories, just to be sure
-  ign = ign .& .~cover
-  met = met .& .~cover
-  sed = sed .& .~cover
-  cryst = ign .| (met .& .~sed)   # Define crystalline rocks
+  sed .&= .!cover
+  ign .&= .!cover
+  met .&= .!cover .& .!sed &. .!ign   # Metaseds / metaigns grouped with sed / ign
+  cryst = ign .| met                  # Define crystalline rocks as igneous or non metased/ign metamorphic
 
   # Figure out how many data points weren't matched
   not_matched = .~(sed .| ign .| met .| cover);
@@ -204,9 +140,22 @@
 
   number_not_matched = sum(not_matched)
   number_multi_matched = sum(multi_matched)
+  total_matched = npoints - number_not_matched
+
+  # Relative abundance, significant figures are also completely arbitrary
+  sed_abnce = round(sum(sed) / total_matched*100, digits=2)
+  ign_abnce = round(sum(ign) / total_matched*100, digits=2)
+  met_abnce = round(sum(met) / total_matched*100, digits=2)
+  cryst_abnce = round(sum(cryst) / total_matched*100, digits=2)
 
   # Output data to terminal
   @info "not matched = $number_not_matched, conflicting matches = $number_multi_matched\n"
+
+  @info "Rock type totals and relative abundance (multi matched may be counted twice):
+  sed = $(sum(sed)) ($(sed_abnce))
+  ign = $(sum(ign)) ($(ign_abnce))
+  met = $(sum(met)) ($(met_abnce))
+  cryst (ign + (met & ~sed)) = $(sum(cryst)) ($(cryst_abnce))\n"
 
 
 ## -- Write the data to .tsv files so we can access or export it
@@ -225,29 +174,6 @@
 	writedlm("output/highelev.tsv", hcat(rocktype[t], rockname[t], rockdescrip[t], rockstratname[t], rockcomments[t]))
 
 
-## --- Calculate the relative abundance of each rock type
-  # Note that this doesn't exclude multi matched points so they will be counted twice...
-  # Significant figures are also completely arbitrary
-  total_matched = npoints - number_not_matched
-  sed_abnce = round(sum(sed) / total_matched*100, digits=2)
-  ign_abnce = round(sum(ign) / total_matched*100, digits=2)
-  met_abnce = round(sum(met) / total_matched*100, digits=2)
-  cryst_abnce = round(sum(cryst) / total_matched*100, digits=2)
-
-  # Output data to terminal
-  @info "Rock type totals:
-  sed = $(sum(sed))
-  ign = $(sum(ign))
-  met = $(sum(met))
-  cryst (ign + (met & ~sed)) = $(sum(cryst))"
-
-  @info "Relative rock type abundance:
-  sed = $(sed_abnce)
-  ign = $(ign_abnce)
-  met = $(met_abnce)
-  cryst (ign + (met & ~sed)) = $(cryst_abnce)"
-
-
 ## --- Calculate erosion rate at each coordinate point of interest
   # Load the slope variable from the SRTM15+ maxslope file
   srtm15_slope = h5read("data/srtm15plus_maxslope.h5", "vars/slope")
@@ -261,7 +187,7 @@
 
   # Do statistics
   ersn_sed_s, ersn_sed_m, ersn_sed_e = get_stats(rock_ersn[sed])            # Sedimentary
-  ersn_ign_s, ersn_ign_m, ersn_ign_e = get_stats(rock_ersn[ign])            # Igneous
+  ersn_sed_s, ersn_ign_m, ersn_ign_e = get_stats(rock_ersn[ign])            # Igneous
   ersn_met_s, ersn_met_m, ersn_met_e = get_stats(rock_ersn[met])            # Metamorphic
   ersn_cryst_s, ersn_cryst_m, ersn_cryst_e = get_stats(rock_ersn[cryst])    # All crystalline (igneous and metamorphic)
   ersn_global_s, ersn_global_m, ersn_global_e = get_stats(rock_ersn)        # Global
@@ -272,13 +198,20 @@
   ersn_rel_met = ersn_met_s / ersn_global_s * 100
   ersn_rel_cryst = ersn_cryst_s / ersn_global_s * 100
 
-  # Print to terminal
-  # More arbitrary significant figure use
-  @info "Relative contribution to global erosion by rock type:
-  sed = $(round(ersn_rel_sed, digits=2))
-  ign = $(round(ersn_rel_ign, digits=2))
-  met = $(round(ersn_rel_met, digits=2))
-  cryst (ign + (met & ~sed)) = $(round(ersn_rel_cryst, digits=2))"
+  # Print to terminal (more arbitrary significant figure use)
+  @info "Erosion rates by rock type
+  global = $(round(ersn_global_m, digits=2)) mm/kyr
+  sed = $(round(ersn_sed_m, digits=2)) mm/kyr
+  ign = $(round(ersn_ign_m, digits=2)) mm/kyr
+  met = $(round(ersn_met_m, digits=2)) mm/kyr
+  cryst (ign + (met & ~sed)) = $(round(ersn_cryst_m, digits=2)) mm/kyr"
+
+  @info "Total global erosion by rock type
+  global total = $(round(ersn_global_s, sigdigits=3)) mm/kyr
+  sed = $(round(ersn_sed_s, sigdigits=3)) mm/kyr ($(round(ersn_rel_sed, digits=2))%)
+  ign = $(round(ersn_ign_s, sigdigits=3)) mm/kyr ($(round(ersn_rel_ign, digits=2))%)
+  met = $(round(ersn_met_s, sigdigits=3)) mm/kyr ($(round(ersn_rel_met, digits=2))%)
+  cryst (ign + (met & ~sed)) = $(round(ersn_cryst_s, sigdigits=3)) mm/kyr ($(round(ersn_rel_cryst, digits=2))%)\n"
 
 
 ## --- Import and parse the bulk EarthChem data into a NamedTuple
@@ -310,23 +243,23 @@
   end
 
   n_unmatched = count(unmatched)
-  @info "$n_unmatched of $n_bulk total samples ($(round(n_unmatched/n_bulk*100, digits=2))%) were not matched to a rock type."
+  @info "$n_unmatched of $n_bulk total samples ($(round(n_unmatched/n_bulk*100, digits=2))%) were not matched to a rock type.\n"
 
 
 ## --- Find the average combined P and P2O5 content of each rock type
-  p2o5_sed = nansum(bulk.P2O5[bulksed]) / count(!isnan, bulk.P2O5[bulksed])
-  p_sed = nansum(bulk.P[bulksed]) / count(!isnan, bulk.P[bulksed]) * 1e-6   # Convert from ppm to wt%
-
-  p2o5_ign = nansum(bulk.P2O5[bulkign]) / count(!isnan, bulk.P2O5[bulkign])
-  p_ign = nansum(bulk.P[bulkign]) / count(!isnan, bulk.P[bulkign]) * 1e-6
-
-  p2o5_met = nansum(bulk.P2O5[bulkmet]) / count(!isnan, bulk.P2O5[bulkmet])
-  p_met = nansum(bulk.P[bulkmet]) / count(!isnan, bulk.P[bulkmet]) * 1e-6
-
-  p2o5_cryst = p2o5_ign + p2o5_met
-  p_cryst = p_ign + p_met
+  p2o5_sed = nanmean(bulk.P2O5[bulksed])
+  p2o5_ign = nanmean(bulk.P2O5[bulkign])
+  p2o5_met = nanmean(bulk.P2O5[bulkmet])
+  
+  p2o5_cryst = nanmean(bulk.P2O5[bulkmet]) #problem
+  p_cryst = p_ign + p_met #problem
 
   p2o5_total = p2o5_sed + p2o5_ign + p2o5_met
+  
+
+  p_sed = nanmean(bulk.P[bulksed]) * 1e-6
+  p_ign = nanmean(bulk.P[bulkign]) * 1e-6
+  p_met = nanmean(bulk.P[bulkmet]) * 1e-6
   p_total = p_sed + p_ign + p_met
 
   # Calculate combined wt.% and relative abundance of P + P2O5 by rock type
@@ -345,16 +278,19 @@
   sed = $(round(pwt_sed,digits=2)) wt.%
   ign = $(round(pwt_ign,digits=2)) wt.%
   met = $(round(pwt_met,digits=2)) wt.%
-  cryst = $(round(pwt_cryst,digits=2)) wt.%"
+  cryst (ign + (met & ~sed)) = $(round(pwt_cryst,digits=2)) wt.%"
 
   @info "Relative abundance of combined P2O5 and P by rock type
   sed = $(round(prel_sed,digits=2))%
   ign = $(round(prel_ign,digits=2))%
   met = $(round(prel_met,digits=2))%
-  cryst = $(round(prel_cryst,digits=2))%"
+  cryst (ign + (met & ~sed)) = $(round(prel_cryst,digits=2))%\n"
 
 
 ## -- Calculate what % of total eroded P comes from each rock type
-  
+  # get P into  kg/yr and compare to pre-existing estimates
+  # ersn_sed_m * pwt_sed # m/Myr * wt% # If you multiply by area of the continents in m2 then you get m3/myr, multiply by density (say 2750 for average crust) then you have kg/myr, then can convert that to kg P/myr
+  # ersn_ign_m * pwt_ign
+  # ersn_met_m * pwt_met
 
 ## -- End of file

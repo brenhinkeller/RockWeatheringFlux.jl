@@ -135,7 +135,8 @@
   cryst = ign .| met                  # Define crystalline rocks as igneous or non metased/ign metamorphic
 
   # Figure out how many data points weren't matched
-  not_matched = .~(sed .| ign .| met .| cover)
+  matched = sed .| ign .| met .| cover
+  not_matched = .~(matched)
   multi_matched = (sed .& ign) .| (sed .& met) .| (ign .& met)
 
   number_not_matched = sum(not_matched)
@@ -152,10 +153,10 @@
   @info "not matched = $number_not_matched, conflicting matches = $number_multi_matched\n"
 
   @info "Rock type totals and relative abundance (multi matched are counted twice):
-  sed = $(sum(sed)) ($(sed_abnce))
-  ign = $(sum(ign)) ($(ign_abnce))
-  met = $(sum(met)) ($(met_abnce))
-  cryst (ign + (met & ~sed)) = $(sum(cryst)) ($(cryst_abnce))\n"
+  sed = $(sum(sed)) ($(sed_abnce)%)
+  ign = $(sum(ign)) ($(ign_abnce)%)
+  met = $(sum(met)) ($(met_abnce)%)
+  cryst (ign + (met & ~sed)) = $(sum(cryst)) ($(cryst_abnce)%)\n"
 
 
 ## -- Write the data to .tsv files so we can access or export it
@@ -188,11 +189,11 @@
   rock_ersn = emmkyr.(rockslope)
 
   # Do statistics
-  ersn_sed_s, ersn_sed_m, ersn_sed_e = get_stats(rock_ersn[sed])            # Sedimentary
-  ersn_ign_s, ersn_ign_m, ersn_ign_e = get_stats(rock_ersn[ign])            # Igneous
-  ersn_met_s, ersn_met_m, ersn_met_e = get_stats(rock_ersn[met])            # Metamorphic
-  ersn_cryst_s, ersn_cryst_m, ersn_cryst_e = get_stats(rock_ersn[cryst])    # Crystalline
-  ersn_global_s, ersn_global_m, ersn_global_e = get_stats(rock_ersn)        # Global
+  ersn_sed_s, ersn_sed_m, ersn_sed_e = get_stats(rock_ersn[sed])                # Sedimentary
+  ersn_ign_s, ersn_ign_m, ersn_ign_e = get_stats(rock_ersn[ign])                # Igneous
+  ersn_met_s, ersn_met_m, ersn_met_e = get_stats(rock_ersn[met])                # Metamorphic
+  ersn_cryst_s, ersn_cryst_m, ersn_cryst_e = get_stats(rock_ersn[cryst])        # Crystalline
+  ersn_global_s, ersn_global_m, ersn_global_e = get_stats(rock_ersn[matched])   # Global (matched points only)
 
   # Calculate relative contributions of each rock type to total global erosion
   ersn_rel_sed = ersn_sed_s / ersn_global_s * 100
@@ -227,43 +228,30 @@
   bulksed, bulkign, bulkmet = match_earthchem(bulk.Type)
   bulkcryst = bulkign .| bulkmet                            # Crystalline (ign and met where met excludes metaseds and metaigns)
   bulk_not_matched = .!bulksed .& .!bulkign .& .!bulkmet    # Unmatched samples
+  bulk_matched = .!bulk_not_matched                         # All matched samples
   
   # Print to terminal
   @info "not matched = $(count(bulk_not_matched)) of $(length(bulk.Type)) total ($(round((count(bulk_not_matched))/(length(bulk.Type))*100, digits=2))%)\n"
 
 
-## --- Find the average combined P and P2O5 content of each rock type
-  p2o5_sed = nanmean(bulk.P2O5[bulksed])
-  p2o5_ign = nanmean(bulk.P2O5[bulkign])
-  p2o5_met = nanmean(bulk.P2O5[bulkmet])
-  p2o5_cryst = nanmean(bulk.P2O5[bulkcryst])
-
+## --- Find the average combined phosphorus content of each rock type
+  # # Average P content (corrected from ppm to wt.%) per type
   # p_sed = nanmean(bulk.P[bulksed]) * 1e-6
   # p_ign = nanmean(bulk.P[bulkign]) * 1e-6
   # p_met = nanmean(bulk.P[bulkmet]) * 1e-6
   # p_cryst = nanmean(bulk.P[bulkcryst]) * 1e-6
 
-  # # Calculate combined wt.% and relative abundance of P + P2O5 by rock type
-  # pwt_sed = p2o5_sed+p_sed
-  # pwt_ign = p2o5_ign+p_ign
-  # pwt_met = p2o5_met+p_met
-  # pwt_cryst = p2o5_cryst+p_cryst
-
-  # prel_sed = pwt_sed / (p2o5_total+p_total) * 100
-  # prel_ign = pwt_ign / (p2o5_total+p_total) * 100
-  # prel_met = pwt_met / (p2o5_total+p_total) * 100
-  # prel_cryst = pwt_cryst / (p2o5_total+p_total) * 100
-
   # Calculate wt.% as only P2O5
-  pwt_sed = p2o5_sed
-  pwt_ign = p2o5_ign
-  pwt_met = p2o5_met
-  pwt_cryst = p2o5_cryst
+  pwt_sed = nanmean(bulk.P2O5[bulksed])
+  pwt_ign = nanmean(bulk.P2O5[bulkign])
+  pwt_met = nanmean(bulk.P2O5[bulkmet])
+  pwt_cryst = nanmean(bulk.P2O5[bulkcryst])
+  pwt_global = nanmean(bulk.P2O5[bulk_matched])   # Global average
 
-  prel_sed = pwt_sed / (p2o5_total) * 100
-  prel_ign = pwt_ign / (p2o5_total) * 100
-  prel_met = pwt_met / (p2o5_total) * 100
-  prel_cryst = pwt_cryst / (p2o5_total) * 100
+  prel_sed = pwt_sed / (pwt_sed+pwt_ign+pwt_met) * 100
+  prel_ign = pwt_ign / (pwt_sed+pwt_ign+pwt_met) * 100
+  prel_met = pwt_met / (pwt_sed+pwt_ign+pwt_met) * 100
+  prel_cryst = pwt_cryst / (pwt_sed+pwt_ign+pwt_met) * 100
 
   # Print to terminal
   @info "Average phosphorus content by rock type:
@@ -290,8 +278,9 @@
   met_contrib = ersn_met_m * pwt_met/100 * contl_area * crustal_density * 1e-6
   cryst_contrib = ersn_cryst_m * pwt_cryst/100 * contl_area * crustal_density * 1e-6
 
-  # methods for this... because this (=7.72e11) does not equal sed_contrib + ign_contrib + met_contrib (=9.65e11)
-  # global_contrib = ersn_global_m * (pwt_sed+pwt_ign+pwt_met)/100 * contl_area * crustal_density * 1e-6
+  # Global contributions
+  global_contrib_avg = ersn_global_m * pwt_global/100 * contl_area * crustal_density * 1e-6     # Average (1.36e11)
+  global_contrib_sum = sed_contrib + ign_contrib + met_contrib                                  # Total? (9.65e11)
 
   # Print to terminal with some arbitrary significant figure
   @info "Global P flux by source:

@@ -70,13 +70,12 @@
         return (str, isfirstcoord, nbasins, subbasins)
     end
 
-    # Doesn't work, but might not need to? Unsure
-    # run(`gunzip data/octopus/crn_basins_global.kml.gz`); # Decompress
+    
+    run(`gunzip data/octopus/crn_basins_global.kml.gz`); # Decompress
 
     (str, isfirstcoord, nbasins, subbasins) = load_octopus_kml("data/octopus/crn_basins_global.kml");
 
-    # This appears to create and then immediately delete a file
-    # run(`gzip data/octopus/crn_basins_global.kml`); # Recompress
+    run(`gzip data/octopus/crn_basins_global.kml`); # Recompress
 
 
 ## --- Parse the file
@@ -230,6 +229,18 @@
     savefig(h, "Basin_Locations.pdf")
     display(h)
 
+## --- Prettier lat / lon plot
+    # That won't save over a remote connection :(
+    using GeoMakie
+    using CairoMakie
+    using ImageMagick
+    f = Figure(resolution = (1200, 600));
+    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri");
+    h = CairoMakie.scatter!(ax, data["x_wgs84"], data["y_wgs84"], markersize = 10, 
+        color = red, alpha = 0.8
+    );
+    # save("Basin_Locations_Pretty.pdf", h);
+
 ## --- Plot raw erosion rate vs basin area
     h = plot(data["area"],data["ebe_mmkyr"],seriestype=:scatter,label="OCTOPUS Be-10 data")
     plot!(h, data["area"],data["eal_mmkyr"],seriestype=:scatter,label="OCTOPUS Al-26 data")
@@ -282,30 +293,37 @@
     end
 
     p = [0.5, 1/100]
-    t = .~isnan.(basin_srtm15plus_aveslope) .& .~isnan.(data["ebe_mmkyr"]) .& (basin_srtm15plus_aveslope .< 300)
+    t = .!isnan.(basin_srtm15plus_aveslope) .& .!isnan.(data["ebe_mmkyr"]) .& (basin_srtm15plus_aveslope .< 300)
     x = basin_srtm15plus_aveslope[t]
     y = log10.(data["ebe_mmkyr"][t])
-    t = .!isnan.(basin_srtm15plus_aveslope) .& .~isnan.(data["eal_mmkyr"]) .& (basin_srtm15plus_aveslope .< 300)
+    t = .!isnan.(basin_srtm15plus_aveslope) .& .!isnan.(data["eal_mmkyr"]) .& (basin_srtm15plus_aveslope .< 300)
     x = append!(x, basin_srtm15plus_aveslope[t])
     y = append!(y, log10.(data["eal_mmkyr"][t]))
     fobj = curve_fit(linear, x, y, p)
+
+    msw = mean(fobj.resid .^ 2)         # Mean-square error
+    ssr = sum((fobj.resid) .^ 2)        # Sum squared regression
+    ybar = nanmean(y)                   # Mean
+    sst = sum((y .- ybar) .^ 2)         # Total sum of squares
+    r2 = 1 - (ssr/sst)                  # r^2 value
 
     # My parameters are different?
 
     # fobj.param[1]: 0.987237
     # fobj.param[2]: 0.00555159
     function emmkyr(slp)
-        return 10^(slp*fobj.param[1] + fobj.param[2])
+        return 10^(slp*fobj.param[2] + fobj.param[1])
     end
 
     # function emmkyr(slp)
     #     return 10^(slp*(0.00567517 ± 0.001) + (0.971075 ± 0.1))
     # end
 
-    h = plot(basin_srtm15plus_aveslope,data["ebe_mmkyr"], seriestype=:scatter, label="OCTOPUS Be-10 data", msc=:auto, alpha=:0.75);
-    plot!(h, basin_srtm15plus_aveslope,data["eal_mmkyr"], seriestype=:scatter, label="OCTOPUS Al-26 data", msc=:auto, alpha=:0.75);
-    plot!(h, xlabel="SRTM15 Slope (m/km)", ylabel="Erosion rate (mm/kyr)", yscale=:log10, legend=:topleft, framestyle=:box);
-    plot!(h, 1:500, emmkyr.(1:500), label = "E = 10^(slp/176.2 + 0.971)", fg_color_legend=:white);
+    h = Plots.plot(basin_srtm15plus_aveslope,data["ebe_mmkyr"], seriestype=:scatter, label="OCTOPUS Be-10 data", msc=:auto, alpha=:0.75);
+    Plots.plot!(h, basin_srtm15plus_aveslope,data["eal_mmkyr"], seriestype=:scatter, label="OCTOPUS Al-26 data", msc=:auto, alpha=:0.75);
+    Plots.plot!(h, xlabel="SRTM15 Slope (m/km)", ylabel="Erosion rate (mm/kyr)", yscale=:log10, legend=:topleft, framestyle=:box);
+    #Plots.plot!(h, 1:500, emmkyr.(1:500), label = "E = 10^(slp*0.00556 + 0.987)", fg_color_legend=:white);
+    Plots.plot!(h, 1:500, emmkyr.(1:500), label = "", fg_color_legend=:white);
     savefig(h, "Slope_vs_Erosion_Fitted.pdf")
     display(h)
 

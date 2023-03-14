@@ -1,18 +1,18 @@
-    1+1
-
 ## --- Load external packages
 
     using StatGeochem
     using Plots; gr();
     using ProgressMeter: @showprogress
+    using Statistics
+    using DelimitedFiles
+    using SpecialFunctions
+    using JLD
+    using NetCDF
+    using LsqFit: curve_fit
 
-    if VERSION>=v"0.7"
-        using Statistics, DelimitedFiles, SpecialFunctions
-    end
 
 ## --- Load the OCTOPUS kml file
     # Unzip the kml file
-
     function load_octopus_kml(filename)
 
         # Check number and ordering of coordinate lists
@@ -70,11 +70,14 @@
         return (str, isfirstcoord, nbasins, subbasins)
     end
 
-    run(`gunzip data/octopus/crn_basins_global.kml.gz`); # Decompress
+    # Doesn't work, but might not need to? Unsure
+    # run(`gunzip data/octopus/crn_basins_global.kml.gz`); # Decompress
 
-    (str, isfirstcoord, nbasins, subbasins) = load_octopus_kml("data/octopus/crn_basins_global.kml")
+    (str, isfirstcoord, nbasins, subbasins) = load_octopus_kml("data/octopus/crn_basins_global.kml");
 
-    run(`gzip data/octopus/crn_basins_global.kml`); # Recompress
+    # This appears to create and then immediately delete a file
+    # run(`gzip data/octopus/crn_basins_global.kml`); # Recompress
+
 
 ## --- Parse the file
 
@@ -102,7 +105,11 @@
             data[numvars[i]] = map(x -> parse(Float64, x[1]), lm)
         end
 
-        needsNaNs = ["alcorr", "be10ep", "beprod", "eal_err", "elev_std", "errbe_prod", "al26ep", "alprod", "be10ep_err", "beself", "eal_gcmyr", "erral_ams", "errbe_tot", "al26ep_err", "alself", "be10nc", "besnow", "eal_mmkyr", "erral_muon", "sizemax", "al26nc", "alsnow", "be10nc_err", "betopo", "ebe_err", "erral_prod", "sizemin", "al26nc_err", "altopo", "be10np", "betots", "ebe_gcmyr", "erral_tot", "slp_ave", "al26np", "altots", "be10np_err", "ebe_mmkyr", "errbe_ams", "slp_std", "al26np_err", "area", "becorr", "dbver", "elev_ave", "errbe_muon", ]
+        needsNaNs = ["alcorr", "be10ep", "beprod", "eal_err", "elev_std", "errbe_prod", "al26ep", "alprod", "be10ep_err", 
+            "beself", "eal_gcmyr", "erral_ams", "errbe_tot", "al26ep_err", "alself", "be10nc", "besnow", "eal_mmkyr", 
+            "erral_muon", "sizemax", "al26nc", "alsnow", "be10nc_err", "betopo", "ebe_err", "erral_prod", "sizemin", 
+            "al26nc_err", "altopo", "be10np", "betots", "ebe_gcmyr", "erral_tot", "slp_ave", "al26np", "altots", "be10np_err", 
+            "ebe_mmkyr", "errbe_ams", "slp_std", "al26np_err", "area", "becorr", "dbver", "elev_ave", "errbe_muon", ]
 
         for i = 1:length(needsNaNs)
             data[needsNaNs[i]][data[needsNaNs[i]] .< 0] .= NaN
@@ -134,9 +141,8 @@
 
     (basin_polygon_n, basin_polygon_lat, basin_polygon_lon) = parse_octopus_polygon_outlines(str,isfirstcoord)
 
-## --- Calculate precipitation for each basin
 
-    using NetCDF
+## --- Calculate precipitation for each basin
     prate = ncread("data/prate.sfc.mon.ltm.nc","prate")
     lat = ncread("data/prate.sfc.mon.ltm.nc","lat")
     lon = ncread("data/prate.sfc.mon.ltm.nc","lon")
@@ -169,8 +175,9 @@
     # lon = repeat((-180:180)',181,1)
     # imsc(find_precip(lat,lon),viridis)
 
-## --- Recalculate slopes for each basin
 
+## --- Recalculate slopes for each basin
+    # For the future, maybe I want this to be max slope?
     function get_basin_srtm15plus_aveslope(srtm::Dict,nbasins,subbasins,basin_polygon_lat,basin_polygon_lon)
         slope = srtm["slope"]
         x_lon_cntr = srtm["x_lon_cntr"]
@@ -209,15 +216,12 @@
     # using HDF5
     # srtm = h5read("data/srtm15plus_aveslope.h5","vars/")
     # basin_srtm15plus_aveslope = get_basin_srtm15plus_aveslope(srtm,nbasins,subbasins,basin_polygon_lat,basin_polygon_lon)
-
-
-    using JLD
+    
     # save("basin_srtm15plus_aveslope.jld","basin_srtm15plus_aveslope",basin_srtm15plus_aveslope)
     basin_srtm15plus_aveslope =  load("basin_srtm15plus_aveslope.jld")["basin_srtm15plus_aveslope"]
 
     # save("OctopusSlopeRecalc.jld","basin_srtm15plus_aveslope",basin_srtm15plus_aveslope,"basin_polygon_n",basin_polygon_n,"basin_polygon_lat",basin_polygon_lat,"basin_polygon_lon",basin_polygon_lon,"subbasins",subbasins)
 
-    using StatGeochem
     exportdataset(data,"octopusdata.tsv",'\t')
 
 ## --- Plot raw Lat and Lon
@@ -255,10 +259,12 @@
     display(h)
 
 ## --- Plot new slope vs erosion rate
-    h = plot(basin_srtm15plus_aveslope,data["ebe_mmkyr"],seriestype=:scatter,label="OCTOPUS Be-10 data")
-    plot!(h,basin_srtm15plus_aveslope,data["eal_mmkyr"],seriestype=:scatter,label="OCTOPUS Al-26 data")
-    plot!(h, xlabel="SRTM15 Slope (m/km)", ylabel="Erosion rate (mm/kyr)", yscale=:log10,legend=:topleft, fg_color_legend=:white)
-    savefig(h, "Slope_vs_Erosion.pdf")
+    h = plot(basin_srtm15plus_aveslope,data["ebe_mmkyr"],seriestype=:scatter,label="OCTOPUS Be-10 data", msc=:auto, alpha=:0.75);
+    plot!(h,basin_srtm15plus_aveslope,data["eal_mmkyr"],seriestype=:scatter,label="OCTOPUS Al-26 data", msc=:auto, alpha=:0.75);
+    plot!(h, xlabel="SRTM15 Slope (m/km)", ylabel="Erosion rate (mm/kyr)", yscale=:log10,legend=:topleft, fg_color_legend=:white,
+        framestyle=:box
+    );
+    savefig(h, "Slope_vs_Erosion.pdf");
     display(h)
 
     # log10(E) = slope/140 + 0.7
@@ -271,31 +277,35 @@
     display(h)
 
 ## --- Fit raw erosion rate as a function of slope (m/km)
-
-    using LsqFit: curve_fit
-
     function linear(x,p)
         y = p[1] .+ x * p[2]
     end
+
     p = [0.5, 1/100]
     t = .~isnan.(basin_srtm15plus_aveslope) .& .~isnan.(data["ebe_mmkyr"]) .& (basin_srtm15plus_aveslope .< 300)
     x = basin_srtm15plus_aveslope[t]
     y = log10.(data["ebe_mmkyr"][t])
-    t = .~isnan.(basin_srtm15plus_aveslope) .& .~isnan.(data["eal_mmkyr"]) .& (basin_srtm15plus_aveslope .< 300)
+    t = .!isnan.(basin_srtm15plus_aveslope) .& .~isnan.(data["eal_mmkyr"]) .& (basin_srtm15plus_aveslope .< 300)
     x = append!(x, basin_srtm15plus_aveslope[t])
     y = append!(y, log10.(data["eal_mmkyr"][t]))
-    fobj = curve_fit(linear, x, y, p);
+    fobj = curve_fit(linear, x, y, p)
+
+    # My parameters are different?
 
     # fobj.param[1]: 0.987237
     # fobj.param[2]: 0.00555159
-    function Emmkyr(slp)
-        return 10^(slp*0.00567517 + 0.971075)
+    function emmkyr(slp)
+        return 10^(slp*fobj.param[1] + fobj.param[2])
     end
 
-    h = plot(basin_srtm15plus_aveslope,data["ebe_mmkyr"], seriestype=:scatter, label="OCTOPUS Be-10 data")
-    plot!(h, basin_srtm15plus_aveslope,data["eal_mmkyr"], seriestype=:scatter, label="OCTOPUS Al-26 data")
-    plot!(h, xlabel="SRTM15 Slope (m/km)", ylabel="Erosion rate (mm/kyr)", yscale=:log10, legend=:topleft)
-    plot!(h, 1:500, Emmkyr.(1:500), label = "E = 10^(slp/176.2 + 0.971)", fg_color_legend=:white)
+    # function emmkyr(slp)
+    #     return 10^(slp*(0.00567517 ± 0.001) + (0.971075 ± 0.1))
+    # end
+
+    h = plot(basin_srtm15plus_aveslope,data["ebe_mmkyr"], seriestype=:scatter, label="OCTOPUS Be-10 data", msc=:auto, alpha=:0.75);
+    plot!(h, basin_srtm15plus_aveslope,data["eal_mmkyr"], seriestype=:scatter, label="OCTOPUS Al-26 data", msc=:auto, alpha=:0.75);
+    plot!(h, xlabel="SRTM15 Slope (m/km)", ylabel="Erosion rate (mm/kyr)", yscale=:log10, legend=:topleft, framestyle=:box);
+    plot!(h, 1:500, emmkyr.(1:500), label = "E = 10^(slp/176.2 + 0.971)", fg_color_legend=:white);
     savefig(h, "Slope_vs_Erosion_Fitted.pdf")
     display(h)
 

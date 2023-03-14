@@ -17,45 +17,45 @@
     # Local utilities
     include("Utilities.jl")
 
-#=
+
 ## --- Generate some random points and get their lithology from Macrostrat / Burwell API
-    # Generate random points on the continental crust
-    npoints = 5
-    etopo = get_etopo("elevation")
-    rocklat, rocklon, elevations = gen_continental_points(npoints, etopo)
+    # # Generate random points on the continental crust
+    # npoints = 5
+    # etopo = get_etopo("elevation")
+    # rocklat, rocklon, elevations = gen_continental_points(npoints, etopo)
 
-    # Initialize
-    zoom = 11
-    savefilename = "responses3"
-    responses = Array{Any}(undef, npoints, 1)
+    # # Initialize
+    # zoom = 11
+    # savefilename = "responses3"
+    # responses = Array{Any}(undef, npoints, 1)
 
-    # Request data from API
-    @showprogress 5 for i = 1:npoints
-    try
-        responses[i] = query_macrostrat(rocklat[i], rocklon[i], zoom)
-    catch
-        @warn "No response from Macrostrat server for coordinate $i/$npoints. Trying again in 5 seconds. \n"
-        try
-        # Wait and try again
-        sleep(5)
-        responses[i] = query_macrostrat(rocklat[i], rocklon[i], zoom)
-        catch
-        # If still nothing, add warning
-        responses[i] = "No response"
-        @warn "No data from Macrostrat server for coordinate $i/$npoints\n"
-        end
-    end
-    sleep(0.05)
+    # # Request data from API
+    # @showprogress 5 for i = 1:npoints
+    # try
+    #     responses[i] = query_macrostrat(rocklat[i], rocklon[i], zoom)
+    # catch
+    #     @warn "No response from Macrostrat server for coordinate $i/$npoints. Trying again in 5 seconds. \n"
+    #     try
+    #     # Wait and try again
+    #     sleep(5)
+    #     responses[i] = query_macrostrat(rocklat[i], rocklon[i], zoom)
+    #     catch
+    #     # If still nothing, add warning
+    #     responses[i] = "No response"
+    #     @warn "No data from Macrostrat server for coordinate $i/$npoints\n"
+    #     end
+    # end
+    # sleep(0.05)
 
-    # Checkpoint save every 10,000 points
-    if mod(i,10000)==0
-        save("data/$savefilename.jld", "responses", responses, "elevations", elevations, "latitude", rocklat, "longitude", rocklon, "npoints", npoints)
-    end
-    end
+    # # Checkpoint save every 10,000 points
+    # if mod(i,10000)==0
+    #     save("data/$savefilename.jld", "responses", responses, "elevations", elevations, "latitude", rocklat, "longitude", rocklon, "npoints", npoints)
+    # end
+    # end
 
-    # Save the file
-    save("data/$savefilename.jld", "responses", responses, "elevations", elevations, "latitude", rocklat, "longitude", rocklon, "npoints", npoints)
-    =#
+    # # Save the file
+    # save("data/$savefilename.jld", "responses", responses, "elevations", elevations, "latitude", rocklat, "longitude", rocklon, "npoints", npoints)
+    
 
 ## --- Alternatively, load pre-generated data
     @info "Loading pregenerated data. This may take up to 30 minutes on slow machines. Started $(Dates.format(now(), "HH:MM"))"
@@ -293,25 +293,8 @@
     sed = $(round(sed_contrib, sigdigits=3)) kg/yr
     ign = $(round(ign_contrib, sigdigits=3)) kg/yr
     met = $(round(met_contrib, sigdigits=3)) kg/yr
-    cryst = $(round(cryst_contrib, sigdigits=3)) kg/yr\n"
-
-
-## --- Make a bunch of plots
-    # Plot the Earth by rock type (map from Hartmann and Moosdorf, 2012 DOI: 10.1029/2012GC004370)
-    hartmann = readdlm("hartmann_2012.txt.asc", skipstart=6)
-    hartmann[hartmann.==-9999] .= NaN                               # Ocean
-
-    # I want a coarser rock type catagories than the file defines:
-    # seds = 1, mets = 2, igns = 3, cover = 4, ice = 5, water = NaN, no data = NaN
-    newid = [4, 3, 1, 3, 1, 1, 3, 2, 3, 3, NaN, 3, 3, 1, NaN, 5]
-    for i = 1:16
-        hartmann[hartmann.==i] .= newid[i]
-    end
-
-    h = heatmap(reverse(hartmann, dims=1), size=(1200,600), framestyle=:box)
-    savefig(h, "output/figures_flux/earth_rocktype.pdf")
-
-    # 
+    cryst = $(round(cryst_contrib, sigdigits=3)) kg/yr
+    global = $(round(global_contrib, sigdigits=3))\n"
 
   
 ## -- End of file

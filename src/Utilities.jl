@@ -596,9 +596,9 @@ function match_earthchem(type; major=false)
 
                 if metcode==0
                     met[i] = true
-                elseif metcode==1
+                elseif isapprox(metcode, 1)
                     sed[i] = true
-                elseif metcode==3
+                elseif isapprox(metcode, 3)
                     ign = true
                 end
             elseif typecode==3
@@ -608,6 +608,7 @@ function match_earthchem(type; major=false)
         end
 
         return sed, ign, met
+
     else
         sed = vec(fill(false, npoints))
         ign = vec(fill(false, npoints))
@@ -629,10 +630,11 @@ function match_earthchem(type; major=false)
             # Metamorphic
                 met[i] = true
 
-                if subtypecode==1
+                if isapprox(subtypecode, 0.1)
                     metased[i] = true
-                elseif subtypecode==3
-                    metaign = true
+                    println("here")
+                elseif isapprox(subtypecode, 0.3)
+                    metaign[i] = true
                 end
             elseif typecode==3
             # Igneous
@@ -641,13 +643,14 @@ function match_earthchem(type; major=false)
                 if subtypecode==1
                     volc[i] = true
                 elseif subtypecode==2
-                    plut = true
+                    plut[i] = true
                 end
             end
         end
 
         return sed, met, ign, volc, plut, metaign, metased
     end
+
 end
 
 

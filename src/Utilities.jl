@@ -327,7 +327,6 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
 
     # sedtypes = vcat(["paleosol"], siliciclastictypes, carbtypes, chemtypes, evaporitetypes, coaltypes)
 
-
     if major
         # Preallocate
         sed = falses(npoints)
@@ -572,7 +571,7 @@ Convert EartChem `type` to `sed`, `ign`, and `met` types. Classifies metaseds as
 Returns `BitVector`s to index into the `type` array outside the function. If  `major` is `true`, only returns 
 matches for `sed`, `ign`, and `met` rocks. If `major` is `false`, returns:
 ```
-sed, ign, met, volc, plut, hypabyssal, metaign, metased, lowgrade, highgrade, cover
+sed, ign, met, volc, plut, metaign, metased
 ```
 
 """
@@ -592,8 +591,9 @@ function match_earthchem(type; major=false)
             # Sedimentary
                 sed[i] = true
             elseif typecode==2
-                # Classify metaseds as seds and metaigns as ign to match Burwell division
-                    metcode = modf(type[i])[1]
+            # Classify metaseds as seds and metaigns as ign to match Burwell division
+                metcode = modf(type[i])[1]
+
                 if metcode==0
                     met[i] = true
                 elseif metcode==1
@@ -602,37 +602,51 @@ function match_earthchem(type; major=false)
                     ign = true
                 end
             elseif typecode==3
-                # Igneous
+            # Igneous
                 ign[i] = true
             end
         end
 
         return sed, ign, met
     else
+        sed = vec(fill(false, npoints))
+        ign = vec(fill(false, npoints))
+        met = vec(fill(false, npoints))
+        volc = vec(fill(false, npoints))
+        plut = vec(fill(false, npoints))
+        metased = vec(fill(false, npoints))
+        metaign = vec(fill(false, npoints))
+        
         @inbounds for i in eachindex(type)
             # Type code interpretation from RockNameInference.m
             typecode = floor(type[i])
+            subtypecode = modf(type[i])[1]
         
             if typecode==1
             # Sedimentary
                 sed[i] = true
             elseif typecode==2
-                # Classify metaseds as seds and metaigns as ign to match Burwell division
-                    metcode = modf(type[i])[1]
-                if metcode==0
-                    met[i] = true
-                elseif metcode==1
-                    sed[i] = true
-                elseif metcode==3
-                    ign = true
+            # Metamorphic
+                met[i] = true
+
+                if subtypecode==1
+                    metased[i] = true
+                elseif subtypecode==3
+                    metaign = true
                 end
             elseif typecode==3
-                # Igneous
+            # Igneous
                 ign[i] = true
+
+                if subtypecode==1
+                    volc[i] = true
+                elseif subtypecode==2
+                    plut = true
+                end
             end
         end
 
-        return 
+        return sed, met, ign, volc, plut, metaign, metased
     end
 end
 

@@ -49,250 +49,122 @@ emmkyr(slp)
 
 Find the erosion rate in mm/kyr given a slope `slp`.
 """
-    function emmkyr(slp)
-        return 10^(slp*0.00567517 + 0.971075)
-    end
+function emmkyr(slp)
+    return 10^(slp*0.00567517 + 0.971075)
+end
 
 
 ## --- Functions for querying macrostrat
 
-    function query_macrostrat(lat, lon, zoom)
-        resp = HTTP.get("https://macrostrat.org/api/mobile/map_query?lat=$lat&lng=$lon&z=$zoom")
+function query_macrostrat(lat, lon, zoom)
+    resp = HTTP.get("https://macrostrat.org/api/mobile/map_query?lat=$lat&lng=$lon&z=$zoom")
+    str = String(resp.body)
+    parsed = JSON.Parser.parse(str)
+    try
+        parsed["success"]["data"]["burwell"][1]["lith"]
+    catch error
+        resp = HTTP.get("https://macrostrat.org/api/mobile/map_query?lat=$lat&lng=$lon&z=1")
         str = String(resp.body)
         parsed = JSON.Parser.parse(str)
-        try
-            parsed["success"]["data"]["burwell"][1]["lith"]
-        catch error
-            resp = HTTP.get("https://macrostrat.org/api/mobile/map_query?lat=$lat&lng=$lon&z=1")
-            str = String(resp.body)
-            parsed = JSON.Parser.parse(str)
-        end
-        return parsed
     end
+    return parsed
+end
 
-    function get_macrostrat_min_age(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["t_int_age"]::Number
-        catch error
-            return NaN
-        end
+function get_macrostrat_min_age(jobj)
+    try
+        return jobj["success"]["data"]["burwell"][1]["t_int_age"]::Number
+    catch error
+        return NaN
     end
+end
 
-    function get_macrostrat_max_age(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["b_int_age"]::Number
-        catch error
-            return NaN
-        end
+function get_macrostrat_max_age(jobj)
+    try
+        return jobj["success"]["data"]["burwell"][1]["b_int_age"]::Number
+    catch error
+        return NaN
     end
+end
 
-    function get_macrostrat_map_id(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["map_id"]::Number
-        catch error
-            return NaN
-        end
+function get_macrostrat_map_id(jobj)
+    try
+        return jobj["success"]["data"]["burwell"][1]["map_id"]::Number
+    catch error
+        return NaN
     end
+end
 
-    function get_macrostrat_lith(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["lith"]
-        catch error
-            return "NA"
-        end
+function get_macrostrat_lith(jobj)
+    try
+        return jobj["success"]["data"]["burwell"][1]["lith"]
+    catch error
+        return "NA"
     end
+end
 
-    function get_macrostrat_descrip(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["descrip"]
-        catch error
-            return "NA"
-        end
+function get_macrostrat_descrip(jobj)
+    try
+        return jobj["success"]["data"]["burwell"][1]["descrip"]
+    catch error
+        return "NA"
     end
+end
 
-    function get_macrostrat_name(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["name"]
-        catch error
-            return "NA"
-        end
+function get_macrostrat_name(jobj)
+    try
+        return jobj["success"]["data"]["burwell"][1]["name"]
+    catch error
+        return "NA"
     end
+end
 
-    function get_macrostrat_strat_name(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["strat_name"]
-        catch error
-            return "NA"
-        end
+function get_macrostrat_strat_name(jobj)
+    try
+        return jobj["success"]["data"]["burwell"][1]["strat_name"]
+    catch error
+        return "NA"
     end
+end
 
-    function get_macrostrat_comments(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["comments"]
-        catch error
-            return "NA"
-        end
+function get_macrostrat_comments(jobj)
+    try
+        return jobj["success"]["data"]["burwell"][1]["comments"]
+    catch error
+        return "NA"
     end
+end
 
-    function get_macrostrat_ref_title(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["ref"]["ref_title"]
-        catch error
-            return "NA"
-        end
+function get_macrostrat_ref_title(jobj)
+    try
+        return jobj["success"]["data"]["burwell"][1]["ref"]["ref_title"]
+    catch error
+        return "NA"
     end
+end
 
-    function get_macrostrat_ref_authors(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["ref"]["authors"]
-        catch error
-            return "NA"
-        end
+function get_macrostrat_ref_authors(jobj)
+    try
+        return jobj["success"]["data"]["burwell"][1]["ref"]["authors"]
+    catch error
+        return "NA"
     end
+end
 
-    function get_macrostrat_ref_year(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["ref"]["ref_year"]
-        catch error
-            return "NA"
-        end
+function get_macrostrat_ref_year(jobj)
+    try
+        return jobj["success"]["data"]["burwell"][1]["ref"]["ref_year"]
+    catch error
+        return "NA"
     end
+end
 
-    function get_macrostrat_ref_doi(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["ref"]["isbn_doi"]
-        catch error
-            return "NA"
-        end
+function get_macrostrat_ref_doi(jobj)
+    try
+        return jobj["success"]["data"]["burwell"][1]["ref"]["isbn_doi"]
+    catch error
+        return "NA"
     end
-
-
-## --- Functions for dealing with SRTM15
-
-
-
-
-
-
-
-
-
-
-## --- Functions for dealing with SRTM15
-# I think I can get rid of these and use the statgeochem ones, or at least a modification of them...
-    resourcepath = "data"
-
-    # Read srtm15plus file from HDF5 storage, downloading from cloud if necessary
-    function get_srtm15plus_aveslope(varname="")
-        # Available variable names: "slope", "y_lat_cntr", "x_lon_cntr",
-        # "nanval", "cellsize", "scalefactor", and "reference". Units are
-        # meters of elevation and decimal degrees of latitude and longitude
-
-        # Construct file path
-        filepath = joinpath(resourcepath,"srtm15plus_aveslope.h5")
-
-        # Download HDF5 file from Google Cloud if necessary
-        if ~isfile(filepath)
-            print("Downloading srtm15plus.h5 from google cloud storage\n")
-            download("https://storage.googleapis.com/statgeochem/srtm15plus_aveslope.h5", filepath)
-        end
-
-        # Read and return the file
-        return h5read(filepath, "vars/"*varname)
-    end
-
-    # Find the elevation of points at position (lat,lon) on the surface of the
-    # Earth, using the SRTM15plus 15-arc-second elevation model.
-    function find_srtm15plus_aveslope(srtm15plus,lat,lon)
-
-        # Interpret user input
-        if length(lat) != length(lon)
-            error("lat and lon must be equal length\n")
-        elseif isa(srtm15plus,Dict)
-            data = srtm15plus["slope"]
-        elseif isa(srtm15plus, Array)
-            data = srtm15plus
-        else
-            error("wrong srtm15plus variable")
-        end
-
-        # Scale factor (cells per degree) = 60 * 4 = 240
-        # (15 arc seconds goes into 1 arc degree 240 times)
-        sf = 240
-
-        # Create and fill output vector
-        out=Array{Float64}(size(lat));
-        for i=1:length(lat)
-            if isnan(lat[i]) || isnan(lon[i]) || lat[i]>90 || lat[i]<-90 || lon[i]>180 || lon[i]<-180
-                # Result is NaN if either input is NaN or out of bounds
-                out[i] = NaN
-            else
-                # Convert latitude and longitude into indicies of the elevation map array
-                # Note that STRTM15 plus has N+1 columns where N = 360*sf
-                row = 1 + round(Int,(90+lat[i])*sf)
-                col = 1 + round(Int,(180+lon[i])*sf)
-                # Find result by indexing
-                res = data[row,col]
-                if res > 1000
-                    out[i] = NaN
-                else
-                    out[i] = res
-                end
-            end
-        end
-
-        return out
-    end
-
-    function find_srtm15plus_aveslope_around(srtm15plus,lat,lon; halfwidth=1::Integer, max_allowed_slope=1000::Number)
-
-        # Interpret user input
-        if length(lat) != length(lon)
-            error("lat and lon must be equal length\n")
-        elseif isa(srtm15plus,Dict)
-            data = srtm15plus["slope"]
-        elseif isa(srtm15plus, Array)
-            data = srtm15plus
-        else
-            error("wrong srtm15plus variable")
-        end
-
-        # Scale factor (cells per degree) = 60 * 4 = 240
-        # (15 arc seconds goes into 1 arc degree 240 times)
-        sf = 240
-
-        # Create and fill output vector
-        out=Array{Float64}(size(lat));
-        for i=1:length(lat)
-            if isnan(lat[i]) || isnan(lon[i]) || lat[i]>90 || lat[i]<-90 || lon[i]>180 || lon[i]<-180
-                # Result is NaN if either input is NaN or out of bounds
-                out[i] = NaN
-            else
-                # Convert latitude and longitude into indicies of the elevation map array
-                # Note that STRTM15 plus has N+1 columns where N = 360*sf
-                row = 1 + round(Int,(90+lat[i])*sf)
-                col = 1 + round(Int,(180+lon[i])*sf)
-
-                # Find result by indexing
-                k = 0;
-                out[i] = 0;
-                for r = (row-halfwidth):(row+halfwidth)
-                    for c = (col-halfwidth):(col+halfwidth)
-                        if r>0 && r<43202
-                            res = data[r,mod(c-1,86400)+1]
-                            if res < max_allowed_slope
-                                k +=1
-                                out[i] += res
-                            end
-                        end
-                    end
-                end
-                out[i] /= k
-            end
-        end
-
-        return out
-    end
+end
 
 
 ## --- Find the average value of slope over an area
@@ -373,6 +245,7 @@ function avg_over_area(data::Matrix, lat::Vector, lon::Vector, sf::Number=240;
     return out
 end
 
+## --- Simplify statistics calculations
 """
 ```julia
 get_stats(data)
@@ -438,6 +311,22 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
     covertypes = ["cover", "unconsolidated", "quaternary", "lluv", "soil", "regolith", "laterite", "surficial deposits", "talus", 
         "scree", "mass-wasting", "slide", "peat", "swamp", "marsh", "water", "ice", "glaci", "till", "loess", "gravel", "debris"]
     cataclastictypes = ["mylonit", "cataclasite", "melange", "gouge", "tecton",]
+
+
+    # # Alternative sedimentary catagorizations to match EarthChem data
+    # # Sedimentary
+    # siliciclastictypes = ["sediment", "fluv", " clast", "siliciclast", "conglomerat", "gravel", 
+    #     "sand", "psamm", "arenit", "arkos", "silt", "mud", "marl", "clay", "shale", "wacke", 
+    #     "argillite", "argillaceous", "pelit", "pebble", "boulder", "diamict", "tillite", "
+    #     stream", "beach", "terrace", "marine deposits", "turbidite", "flysch",]
+    # carbtypes = ["caliche", "chalk", "carbonate", "limestone", "dolo", "travertine", "tavertine", 
+    #     "teravertine", "tufa",]
+    # chemtypes = ["chert", "banded iron",]
+    # evaporitetypes = ["evaporite", " salt", "salt flat", "gypsum",]
+    # coaltypes = ["coal", "anthracite",]
+
+    # sedtypes = vcat(["paleosol"], siliciclastictypes, carbtypes, chemtypes, evaporitetypes, coaltypes)
+
 
     if major
         # Preallocate
@@ -677,43 +566,200 @@ end
 
 """
 ```julia
-match_earthchem(types)
+match_earthchem(types; major=false)
 ```
 Convert EartChem `type` to `sed`, `ign`, and `met` types. Classifies metaseds as `sed` and metaigns as `ign`.
-Returns `BitVector`s to index into the `type` array outside the function.
+Returns `BitVector`s to index into the `type` array outside the function. If  `major` is `true`, only returns 
+matches for `sed`, `ign`, and `met` rocks. If `major` is `false`, returns:
+```
+sed, ign, met, volc, plut, hypabyssal, metaign, metased, lowgrade, highgrade, cover
+```
 
 """
-function match_earthchem(type)
+function match_earthchem(type; major=false)
     npoints = length(type)
-    sed = vec(fill(false, npoints))
-    ign = vec(fill(false, npoints))
-    met = vec(fill(false, npoints))
-    cryst = vec(fill(false, npoints))
 
-    @inbounds for i in eachindex(type)
-        # Type code interpretation from RockNameInference.m
-        typecode = floor(type[i])
-    
-        if typecode==1
-        # Sedimentary
-            sed[i] = true
-        elseif typecode==2
-            # Classify metaseds as seds and metaigns as ign to match Burwell division
-                metcode = modf(type[i])[1]
-            if metcode==0
-                met[i] = true
-            elseif metcode==1
+    if major
+        sed = vec(fill(false, npoints))
+        ign = vec(fill(false, npoints))
+        met = vec(fill(false, npoints))
+
+        @inbounds for i in eachindex(type)
+            # Type code interpretation from RockNameInference.m
+            typecode = floor(type[i])
+        
+            if typecode==1
+            # Sedimentary
                 sed[i] = true
-            elseif metcode==3
-                ign = true
+            elseif typecode==2
+                # Classify metaseds as seds and metaigns as ign to match Burwell division
+                    metcode = modf(type[i])[1]
+                if metcode==0
+                    met[i] = true
+                elseif metcode==1
+                    sed[i] = true
+                elseif metcode==3
+                    ign = true
+                end
+            elseif typecode==3
+                # Igneous
+                ign[i] = true
             end
-        elseif typecode==3
-            # Igneous
-            ign[i] = true
         end
+
+        return sed, ign, met
+    else
+        @inbounds for i in eachindex(type)
+            # Type code interpretation from RockNameInference.m
+            typecode = floor(type[i])
+        
+            if typecode==1
+            # Sedimentary
+                sed[i] = true
+            elseif typecode==2
+                # Classify metaseds as seds and metaigns as ign to match Burwell division
+                    metcode = modf(type[i])[1]
+                if metcode==0
+                    met[i] = true
+                elseif metcode==1
+                    sed[i] = true
+                elseif metcode==3
+                    ign = true
+                end
+            elseif typecode==3
+                # Igneous
+                ign[i] = true
+            end
+        end
+
+        return 
+    end
+end
+
+
+
+
+
+
+
+
+
+## --- Functions for dealing with SRTM15
+    resourcepath = "data"
+
+    # Read srtm15plus file from HDF5 storage, downloading from cloud if necessary
+    function get_srtm15plus_aveslope(varname="")
+        # Available variable names: "slope", "y_lat_cntr", "x_lon_cntr",
+        # "nanval", "cellsize", "scalefactor", and "reference". Units are
+        # meters of elevation and decimal degrees of latitude and longitude
+
+        # Construct file path
+        filepath = joinpath(resourcepath,"srtm15plus_aveslope.h5")
+
+        # Download HDF5 file from Google Cloud if necessary
+        if ~isfile(filepath)
+            print("Downloading srtm15plus.h5 from google cloud storage\n")
+            download("https://storage.googleapis.com/statgeochem/srtm15plus_aveslope.h5", filepath)
+        end
+
+        # Read and return the file
+        return h5read(filepath, "vars/"*varname)
     end
 
-    return sed, ign, met
-end
+    # Find the elevation of points at position (lat,lon) on the surface of the
+    # Earth, using the SRTM15plus 15-arc-second elevation model.
+    function find_srtm15plus_aveslope(srtm15plus,lat,lon)
+
+        # Interpret user input
+        if length(lat) != length(lon)
+            error("lat and lon must be equal length\n")
+        elseif isa(srtm15plus,Dict)
+            data = srtm15plus["slope"]
+        elseif isa(srtm15plus, Array)
+            data = srtm15plus
+        else
+            error("wrong srtm15plus variable")
+        end
+
+        # Scale factor (cells per degree) = 60 * 4 = 240
+        # (15 arc seconds goes into 1 arc degree 240 times)
+        sf = 240
+
+        # Create and fill output vector
+        out=Array{Float64}(size(lat));
+        for i=1:length(lat)
+            if isnan(lat[i]) || isnan(lon[i]) || lat[i]>90 || lat[i]<-90 || lon[i]>180 || lon[i]<-180
+                # Result is NaN if either input is NaN or out of bounds
+                out[i] = NaN
+            else
+                # Convert latitude and longitude into indicies of the elevation map array
+                # Note that STRTM15 plus has N+1 columns where N = 360*sf
+                row = 1 + round(Int,(90+lat[i])*sf)
+                col = 1 + round(Int,(180+lon[i])*sf)
+                # Find result by indexing
+                res = data[row,col]
+                if res > 1000
+                    out[i] = NaN
+                else
+                    out[i] = res
+                end
+            end
+        end
+
+        return out
+    end
+
+    function find_srtm15plus_aveslope_around(srtm15plus,lat,lon; halfwidth=1::Integer, max_allowed_slope=1000::Number)
+
+        # Interpret user input
+        if length(lat) != length(lon)
+            error("lat and lon must be equal length\n")
+        elseif isa(srtm15plus,Dict)
+            data = srtm15plus["slope"]
+        elseif isa(srtm15plus, Array)
+            data = srtm15plus
+        else
+            error("wrong srtm15plus variable")
+        end
+
+        # Scale factor (cells per degree) = 60 * 4 = 240
+        # (15 arc seconds goes into 1 arc degree 240 times)
+        sf = 240
+
+        # Create and fill output vector
+        out=Array{Float64}(size(lat));
+        for i=1:length(lat)
+            if isnan(lat[i]) || isnan(lon[i]) || lat[i]>90 || lat[i]<-90 || lon[i]>180 || lon[i]<-180
+                # Result is NaN if either input is NaN or out of bounds
+                out[i] = NaN
+            else
+                # Convert latitude and longitude into indicies of the elevation map array
+                # Note that STRTM15 plus has N+1 columns where N = 360*sf
+                row = 1 + round(Int,(90+lat[i])*sf)
+                col = 1 + round(Int,(180+lon[i])*sf)
+
+                # Find result by indexing
+                k = 0;
+                out[i] = 0;
+                for r = (row-halfwidth):(row+halfwidth)
+                    for c = (col-halfwidth):(col+halfwidth)
+                        if r>0 && r<43202
+                            res = data[r,mod(c-1,86400)+1]
+                            if res < max_allowed_slope
+                                k +=1
+                                out[i] += res
+                            end
+                        end
+                    end
+                end
+                out[i] /= k
+            end
+        end
+
+        return out
+    end
+
+
+
 
 ## --- End of file

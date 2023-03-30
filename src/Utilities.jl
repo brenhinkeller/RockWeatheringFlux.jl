@@ -567,9 +567,10 @@ end
 ```julia
 match_earthchem(types; major=false)
 ```
-Convert EartChem `type` to `sed`, `ign`, and `met` types. Classifies metaseds as `sed` and metaigns as `ign`.
-Returns `BitVector`s to index into the `type` array outside the function. If  `major` is `true`, only returns 
-matches for `sed`, `ign`, and `met` rocks. If `major` is `false`, returns:
+Convert EartChem `type` to `sed`, `ign`, and `met` types. Returns `BitVector`s to index 
+into the `type` array outside the function. If  `major` is `true`, classifies metaseds 
+as `sed` and metaigns as `ign`. only returns matches for `sed`, `ign`, and `met` rocks.
+ If `major` is `false`, returns:
 ```
 sed, ign, met, volc, plut, metaign, metased
 ```
@@ -583,23 +584,22 @@ function match_earthchem(type; major=false)
         ign = vec(fill(false, npoints))
         met = vec(fill(false, npoints))
 
-        @inbounds for i in eachindex(type)
+        for i in eachindex(type)
             # Type code interpretation from RockNameInference.m
             typecode = floor(type[i])
+            subtypecode = modf(type[i])[1]
         
             if typecode==1
             # Sedimentary
                 sed[i] = true
             elseif typecode==2
             # Classify metaseds as seds and metaigns as ign to match Burwell division
-                metcode = modf(type[i])[1]
-
-                if metcode==0
+                if subtypecode==0
                     met[i] = true
-                elseif isapprox(metcode, 1)
+                elseif isapprox(subtypecode, 0.1)
                     sed[i] = true
-                elseif isapprox(metcode, 3)
-                    ign = true
+                elseif isapprox(subtypecode, 0.3)
+                    ign[i] = true
                 end
             elseif typecode==3
             # Igneous
@@ -618,7 +618,7 @@ function match_earthchem(type; major=false)
         metased = vec(fill(false, npoints))
         metaign = vec(fill(false, npoints))
         
-        @inbounds for i in eachindex(type)
+        for i in eachindex(type)
             # Type code interpretation from RockNameInference.m
             typecode = floor(type[i])
             subtypecode = modf(type[i])[1]
@@ -632,7 +632,6 @@ function match_earthchem(type; major=false)
 
                 if isapprox(subtypecode, 0.1)
                     metased[i] = true
-                    println("here")
                 elseif isapprox(subtypecode, 0.3)
                     metaign[i] = true
                 end
@@ -640,9 +639,9 @@ function match_earthchem(type; major=false)
             # Igneous
                 ign[i] = true
 
-                if subtypecode==1
+                if isapprox(subtypecode, 0.1)
                     volc[i] = true
-                elseif subtypecode==2
+                elseif isapprox(subtypecode, 0.2)
                     plut[i] = true
                 end
             end

@@ -1,5 +1,4 @@
 ## --- Load external packages
-
     using StatGeochem
     using Plots; gr();
     using ProgressMeter: @showprogress
@@ -9,60 +8,99 @@
     using JLD
     using NetCDF
     using LsqFit: curve_fit
+    using HDF5
 
-    include("OCTOPUS_utilities.jl")     # TO DO: re-organize utilities and give these better names
+    # Local utilities
+    include("OCTOPUS_utilities.jl")     # TO DO: re-organize utilities files and give these better names
 
 
-## --- Load the OCTOPUS kml file
-    run(`gunzip data/octopus/crn_basins_global.kml.gz`); # Decompress
-
+## --- Load and parse the OCTOPUS kml file
+    # Decompress, load, and recompress 
+    run(`gunzip data/octopus/crn_basins_global.kml.gz`);
     (str, isfirstcoord, nbasins, subbasins) = load_octopus_kml("data/octopus/crn_basins_global.kml");
+    run(`gzip data/octopus/crn_basins_global.kml`);                                           
 
-    run(`gzip data/octopus/crn_basins_global.kml`); # Recompress
-
-
-## --- Parse the file
-    @info "Starting to parse OCTOPUS file"
-
+    # Get variables and data
     data = parse_octopus_kml_variables(str)
 
-    # Parse the basin polygon outlines
+    # Get basin polygon outlines
     (basin_polygon_n, basin_polygon_lat, basin_polygon_lon) = parse_octopus_polygon_outlines(str,isfirstcoord)
 
 
-## --- Calculate precipitation for each basin
-    @info "Calculating basin precipitation"
-
-    prate = ncread("data/prate.sfc.mon.ltm.nc","prate")
-    lat = ncread("data/prate.sfc.mon.ltm.nc","lat")
-    lon = ncread("data/prate.sfc.mon.ltm.nc","lon")
-
-    precip = mean(prate, dims=3)[:,:,1]
-    imsc(collect(precip'), viridis)
-
-    data["precip"] = find_precip(data["y_wgs84"],data["x_wgs84"])
-
-    # # Test find_precip to make sure it's not flipped
-    # lat = repeat(-90:90,1,361)
-    # lon = repeat((-180:180)',181,1)
-    # imsc(find_precip(lat,lon),viridis)
-
-
-## --- Recalculate slopes for each basin
+## --- Calculate slope for each basin
     @info "Calculating slope for each basin"
 
-    # TO DO: why is this commented out? Deprecated?
-
-    # using HDF5
     # srtm = h5read("data/srtm15plus_aveslope.h5","vars/")
     # basin_srtm15plus_aveslope = get_basin_srtm15plus_aveslope(srtm,nbasins,subbasins,basin_polygon_lat,basin_polygon_lon)
-    
+
     # save("basin_srtm15plus_aveslope.jld","basin_srtm15plus_aveslope",basin_srtm15plus_aveslope)
     basin_srtm15plus_aveslope =  load("basin_srtm15plus_aveslope.jld")["basin_srtm15plus_aveslope"]
 
     # save("OctopusSlopeRecalc.jld","basin_srtm15plus_aveslope",basin_srtm15plus_aveslope,"basin_polygon_n",basin_polygon_n,"basin_polygon_lat",basin_polygon_lat,"basin_polygon_lon",basin_polygon_lon,"subbasins",subbasins)
 
     exportdataset(data,"octopusdata.tsv",'\t')
+
+## --- Alternatively, load pregenerated slope data for each basin
+    
+
+## --- Fit raw erosion rate as a function of slope (m/km)
+    @info "Fitting erosion / slope curve"
+        
+    p = [0.5, 1/100]
+    t = .!isnan.(basin_srtm15plus_aveslope) .& .!isnan.(data["ebe_mmkyr"]) .& (basin_srtm15plus_aveslope .< 300)
+    x = basin_srtm15plus_aveslope[t]
+    y = log10.(data["ebe_mmkyr"][t])
+    t = .!isnan.(basin_srtm15plus_aveslope) .& .!isnan.(data["eal_mmkyr"]) .& (basin_srtm15plus_aveslope .< 300)
+    x = append!(x, basin_srtm15plus_aveslope[t])
+    y = append!(y, log10.(data["eal_mmkyr"][t]))
+    fobj = curve_fit(linear, x, y, p)
+
+    mse = mean(fobj.resid .^ 2)         # Mean-square error         0.30764514536299076
+    ssr = sum((fobj.resid) .^ 2)        # Sum squared regression    984.4644651615704
+    ybar = nanmean(y)                   # Mean                      1.7771592362257302
+    sst = sum((y .- ybar) .^ 2)         # Total sum of squares      1626.2293532703075
+    r2 = 1 - (ssr/sst)                  # r^2 value                 0.39463368854962777        
+
+    # My parameters are different?
+    # Not adding this to the utilities document because I need to figure out a way to get this to
+    # talk to the flux code and if I want things to recalculate each time... TO DO
+
+    # fobj.param[1]: 0.987237
+    # fobj.param[2]: 0.00555159
+    function emmkyr(slp)
+        return 10^(slp*fobj.param[2] + fobj.param[1])
+    end
+
+    # TO DO: error propagation through this calculation
+
+    # function emmkyr(slp)
+    #     return 10^(slp*(0.00567517 ± 0.001) + (0.971075 ± 0.1))
+    # end
+
+
+
+
+
+
+################################# PLOTS AND UNUSED CODE #################################
+
+## --- Calculate precipitation for each basin
+    # @info "Calculating basin precipitation"
+
+    # prate = ncread("data/prate.sfc.mon.ltm.nc","prate")
+    # lat = ncread("data/prate.sfc.mon.ltm.nc","lat")
+    # lon = ncread("data/prate.sfc.mon.ltm.nc","lon")
+
+    # precip = mean(prate, dims=3)[:,:,1]
+    # imsc(collect(precip'), viridis)
+
+    # data["precip"] = find_precip(data["y_wgs84"],data["x_wgs84"])
+
+    # # Test find_precip to make sure it's not flipped
+    # lat = repeat(-90:90,1,361)
+    # lon = repeat((-180:180)',181,1)
+    # imsc(find_precip(lat,lon),viridis)
+
 
 # Plots don't play nicely with an SSH connection.
 # ## --- Plot raw Lat and Lon
@@ -117,39 +155,39 @@
 #     savefig(h, "Slope_vs_Precipitation.pdf")
 #     display(h)
 
-## --- Fit raw erosion rate as a function of slope (m/km)
-    @info "Fitting erosion / slope curve"
+# ## --- Fit raw erosion rate as a function of slope (m/km)
+#     @info "Fitting erosion / slope curve"
     
-    p = [0.5, 1/100]
-    t = .!isnan.(basin_srtm15plus_aveslope) .& .!isnan.(data["ebe_mmkyr"]) .& (basin_srtm15plus_aveslope .< 300)
-    x = basin_srtm15plus_aveslope[t]
-    y = log10.(data["ebe_mmkyr"][t])
-    t = .!isnan.(basin_srtm15plus_aveslope) .& .!isnan.(data["eal_mmkyr"]) .& (basin_srtm15plus_aveslope .< 300)
-    x = append!(x, basin_srtm15plus_aveslope[t])
-    y = append!(y, log10.(data["eal_mmkyr"][t]))
-    fobj = curve_fit(linear, x, y, p)
+#     p = [0.5, 1/100]
+#     t = .!isnan.(basin_srtm15plus_aveslope) .& .!isnan.(data["ebe_mmkyr"]) .& (basin_srtm15plus_aveslope .< 300)
+#     x = basin_srtm15plus_aveslope[t]
+#     y = log10.(data["ebe_mmkyr"][t])
+#     t = .!isnan.(basin_srtm15plus_aveslope) .& .!isnan.(data["eal_mmkyr"]) .& (basin_srtm15plus_aveslope .< 300)
+#     x = append!(x, basin_srtm15plus_aveslope[t])
+#     y = append!(y, log10.(data["eal_mmkyr"][t]))
+#     fobj = curve_fit(linear, x, y, p)
 
-    mse = mean(fobj.resid .^ 2)         # Mean-square error         0.30764514536299076
-    ssr = sum((fobj.resid) .^ 2)        # Sum squared regression    984.4644651615704
-    ybar = nanmean(y)                   # Mean                      1.7771592362257302
-    sst = sum((y .- ybar) .^ 2)         # Total sum of squares      1626.2293532703075
-    r2 = 1 - (ssr/sst)                  # r^2 value                 0.39463368854962777        
+#     mse = mean(fobj.resid .^ 2)         # Mean-square error         0.30764514536299076
+#     ssr = sum((fobj.resid) .^ 2)        # Sum squared regression    984.4644651615704
+#     ybar = nanmean(y)                   # Mean                      1.7771592362257302
+#     sst = sum((y .- ybar) .^ 2)         # Total sum of squares      1626.2293532703075
+#     r2 = 1 - (ssr/sst)                  # r^2 value                 0.39463368854962777        
 
-    # My parameters are different?
-    # Not adding this to the utilities document because I need to figure out a way to get this to
-    # talk to the flux code and if I want things to recalculate each time... TO DO
+#     # My parameters are different?
+#     # Not adding this to the utilities document because I need to figure out a way to get this to
+#     # talk to the flux code and if I want things to recalculate each time... TO DO
 
-    # fobj.param[1]: 0.987237
-    # fobj.param[2]: 0.00555159
-    function emmkyr(slp)
-        return 10^(slp*fobj.param[2] + fobj.param[1])
-    end
+#     # fobj.param[1]: 0.987237
+#     # fobj.param[2]: 0.00555159
+#     function emmkyr(slp)
+#         return 10^(slp*fobj.param[2] + fobj.param[1])
+#     end
 
-    # TO DO: error propagation through this calculation
+#     # TO DO: error propagation through this calculation
 
-    # function emmkyr(slp)
-    #     return 10^(slp*(0.00567517 ± 0.001) + (0.971075 ± 0.1))
-    # end
+#     # function emmkyr(slp)
+#     #     return 10^(slp*(0.00567517 ± 0.001) + (0.971075 ± 0.1))
+#     # end
 
     # h = Plots.plot(basin_srtm15plus_aveslope,data["ebe_mmkyr"], seriestype=:scatter, label="OCTOPUS Be-10 data", msc=:auto, alpha=:0.75);
     # Plots.plot!(h, basin_srtm15plus_aveslope,data["eal_mmkyr"], seriestype=:scatter, label="OCTOPUS Al-26 data", msc=:auto, alpha=:0.75);

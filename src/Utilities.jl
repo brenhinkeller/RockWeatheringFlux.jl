@@ -589,7 +589,6 @@ function match_earthchem(type::Vector; major=false)
     npoints = length(type)
 
     if major
-        println("running major=true")
         sed = vec(fill(false, npoints))
         ign = vec(fill(false, npoints))
         met = vec(fill(false, npoints))
@@ -623,7 +622,6 @@ function match_earthchem(type::Vector; major=false)
         return sed, ign, met
 
     else
-        println("running major=false")
         sed = vec(fill(false, npoints))
         ign = vec(fill(false, npoints))
         met = vec(fill(false, npoints))

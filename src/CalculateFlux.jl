@@ -5,7 +5,7 @@
     using DelimitedFiles
     using Plots
     using Dates
-    using LoopVectorization
+    # using LoopVectorization
 
     # File parsing packages
     using JLD
@@ -18,15 +18,15 @@
     include("Utilities.jl")
 
 
-## --- Generate some random points and get their lithology from Macrostrat / Burwell API
-    # # Generate random points on the continental crust
-    # npoints = 5
+## --- Get some random points on the continental crust
+    # # Generate random points
+    # npoints = 100000
     # etopo = get_etopo("elevation")
     # rocklat, rocklon, elevations = gen_continental_points(npoints, etopo)
 
     # # Initialize
     # zoom = 11
-    # savefilename = "responses3"
+    # savefilename = "responses2"
     # responses = Array{Any}(undef, npoints, 1)
 
     # # Request data from API
@@ -141,13 +141,13 @@
     multi_matched = (sed .& ign) .| (sed .& met) .| (ign .& met)
     total_known = count(known)
 
-    # Relative abundance (could add area to name since this is areal abundance)
+    # Relative abundance
     sed_area_frac = count(sed) / total_known
     ign_area_frac = count(ign) / total_known
     met_area_frac = count(met) / total_known
     cryst_area_frac = count(cryst) / total_known
 
-    # Output data to terminal
+    # Print to terminal
     @info "not matched = $(count(not_matched)), conflicting matches = $(count(multi_matched))\n"
 
     @info "Rock type totals and relative abundance (multi matched are counted twice):
@@ -158,13 +158,16 @@
 
 
 ## -- Write the data to .tsv files so we can access or export it
-    writedlm("output/notmatched.tsv", hcat(rocktype[not_matched], rockname[not_matched], rockdescrip[not_matched], 
-    rockstratname[not_matched], rockcomments[not_matched]))
-    writedlm("output/multimatched.tsv", hcat(rocktype[multi_matched], rockname[multi_matched], rockdescrip[multi_matched], 
-    rockstratname[multi_matched], rockcomments[multi_matched]))
-    writedlm("output/sed.tsv", hcat(rocktype[sed], rockname[sed], rockdescrip[sed], rockstratname[sed], rockcomments[sed]))
-    writedlm("output/ign.tsv", hcat(rocktype[ign], rockname[ign], rockdescrip[ign], rockstratname[ign], rockcomments[ign]))
-    writedlm("output/met.tsv", hcat(rocktype[met], rockname[met], rockdescrip[met], rockstratname[met], rockcomments[met]))
+    writedlm("output/notmatched.tsv", hcat(rocklat[not_matched], rocklon[not_matched], rocktype[not_matched], rockname[not_matched], 
+        rockdescrip[not_matched], rockstratname[not_matched], rockcomments[not_matched]))
+    writedlm("output/multimatched.tsv", hcat(rocklat[multi_matched], rocklon[multi_matched], rocktype[multi_matched], 
+        rockname[multi_matched], rockdescrip[multi_matched], rockstratname[multi_matched], rockcomments[multi_matched]))
+    writedlm("output/sed.tsv", hcat(rocklat[sed], rocklon[sed], rocktype[sed], rockname[sed], rockdescrip[sed], rockstratname[sed], 
+        rockcomments[sed]))
+    writedlm("output/ign.tsv", hcat(rocklat[ign], rocklon[ign], rocktype[ign], rockname[ign], rockdescrip[ign], rockstratname[ign], 
+        rockcomments[ign]))
+    writedlm("output/met.tsv", hcat(rocklat[met], rocklon[met], rocktype[met], rockname[met], rockdescrip[met], rockstratname[met], 
+        rockcomments[met]))
 
     # writedlm("output/plutonic.tsv", hcat(rocktype[plut], rockname[plut], rockdescrip[plut], 
     #   rockstratname[plut], rockcomments[plut]))
@@ -172,7 +175,8 @@
     #   rockstratname[hypabyssal .& .~plut], rockcomments[hypabyssal .& .~plut]))
 
     t = elevations .> 4000
-    writedlm("output/highelev.tsv", hcat(rocktype[t], rockname[t], rockdescrip[t], rockstratname[t], rockcomments[t]))
+    writedlm("output/highelev.tsv", hcat(rocklat[t], rocklon[t], rocktype[t], rockname[t], rockdescrip[t], rockstratname[t], 
+        rockcomments[t]))
 
 
 ## --- Calculate erosion rate at each coordinate point of interest
@@ -180,10 +184,10 @@
     srtm15_slope = h5read("data/srtm15plus_maxslope.h5", "vars/slope")
     srtm15_sf = h5read("data/srtm15plus_maxslope.h5", "vars/scalefactor")
 
-    # Get slope at each point (rocklat, rocklon)
+    # Get slope at each coordinate point
     rockslope = avg_over_area(srtm15_slope, rocklat, rocklon, srtm15_sf, halfwidth=7)
 
-    # All erosion rates (mm/kyr)
+    # Calculate all erosion rates (mm/kyr)
     rock_ersn = emmkyr.(rockslope)
 
 
@@ -229,7 +233,8 @@
     bulk = NamedTuple{Tuple(Symbol.(keys(bulk_dict)))}(values(bulk_dict))
 
     # Match EarthChem Types to rock type names
-    bulksed, bulkign, bulkmet = match_earthchem(bulk.Type)
+    bulksed, bulkign, bulkmet = match_earthchem(bulk.Type, major=true)
+
     bulkcryst = bulkign .| bulkmet                            # Crystalline (ign and met where met excludes metaseds and metaigns)
     bulk_not_matched = .!bulksed .& .!bulkign .& .!bulkmet    # Unmatched samples
     bulk_matched = .!bulk_not_matched                         # All matched samples
@@ -288,7 +293,7 @@
     cryst_contrib = ersn_cryst_m * pwt_cryst/100 * cryst_area * crustal_density * 1e-6
     global_contrib = sed_contrib + ign_contrib + met_contrib
 
-    # Print to terminal with some arbitrary significant figure
+    # Print to terminal
     @info "Global P flux by source:
     sed = $(round(sed_contrib, sigdigits=3)) kg/yr
     ign = $(round(ign_contrib, sigdigits=3)) kg/yr
@@ -296,5 +301,17 @@
     cryst = $(round(cryst_contrib, sigdigits=3)) kg/yr
     global = $(round(global_contrib, sigdigits=3))\n"
 
+
+## -- Calculate P content for a more granular rock type catagorization
+    bulksed, bulkign, bulkmet, bulkvolc, bulkplut, bulkmetaign, bulkmetased = match_earthchem(bulk.Type, major=false)
+
+    pwt_sed = nanmean(bulk.P2O5[bulksed])
+    pwt_ign = nanmean(bulk.P2O5[bulkign])
+    pwt_met = nanmean(bulk.P2O5[bulkmet])
+
+    pwt_volc = nanmean(bulk.P2O5[bulkvolc])
+    pwt_plut = nanmean(bulk.P2O5[bulkplut])
+    pwt_metaign = nanmean(bulk.P2O5[bulkmetaign])
+    pwt_metased = nanmean(bulk.P2O5[bulkmetased])
   
 ## -- End of file

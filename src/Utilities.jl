@@ -4,11 +4,11 @@
 gen_continental_points(npoints, etopo)
 ```
 
-Generate `npoints` element-long lists of latitudes, longitudes, and elevations for points 
-uniformly distributed across the continental crust. Requires `etopo` matrix of 1 arc minute 
-resolution global relief model. 
+Generate an `npoints` element-long lists of latitudes, longitudes, and elevations for points 
+randomly and uniformly distributed across the continental crust. 
 
-Units are meters of elevation and decimal degrees of latitude and longitude.
+Requires `etopo` matrix of 1 arc minute resolution global relief model. Units are meters of 
+elevation and decimal degrees of latitude and longitude.
 
 See also: `get_etopo`.
 """
@@ -47,7 +47,7 @@ end
 emmkyr(slp)
 ```
 
-Find the erosion rate in mm/kyr given a slope `slp`.
+Find erosion rate in mm/kyr given slope `slp`.
 """
 function emmkyr(slp)
     return 10^(slp*0.00567517 + 0.971075)
@@ -55,8 +55,16 @@ end
 
 
 ## --- Functions for querying macrostrat
+"""
+```julia
+query_macrostrat(lat, lon, zoom::Number=11)
+```
+Get lithological data for rocks at `lat`, `lon` coordinate from the Macrostrat API.
 
-function query_macrostrat(lat, lon, zoom)
+Argument `zoom` controls precision; default is approximately 5km. Automatically retry with
+less precise window if initial query does not return data.
+"""
+function query_macrostrat(lat, lon, zoom::Number=11)
     resp = HTTP.get("https://macrostrat.org/api/mobile/map_query?lat=$lat&lng=$lon&z=$zoom")
     str = String(resp.body)
     parsed = JSON.Parser.parse(str)
@@ -177,20 +185,22 @@ avg_over_area(data::Matrix, lat::Vector, lon::Vector, sf::Number=240;
 Find the average value of `data` over an area with radius `halfwidth` (units of gridcells) at 
 coordinates `lat` and `lon`.
 
-This is distinct from `StatGeochem`'s `aveslope`. This function finds the average over an area, not the
-average slope for a specific point. For example, this might be given a matrix of maximum slope at each point
-on Earth, and would return the _average maximum slope_ at each point of interest.
+This is distinct from `StatGeochem`'s `aveslope`. This function finds the average over an 
+area, not the average slope for a specific point. For example, this might be given a matrix 
+of maximum slope at each point on Earth, and would return the _average maximum slope_ at 
+each point of interest.
 
-Other optional arguments and defaults:
+# Arguments
 
     sf::Number=240
 
-Scale factor (cells per degree) for the SRTM15+ data. For 15 arc-second resolution, the scale factor is 240, 
-because 15 arc-seconds go into 1 arc-degree 60 * 4 = 240 times.
+Scale factor (cells per degree) for the SRTM15+ data. For 15 arc-second resolution, the scale
+factor is 240, because 15 arc-seconds go into 1 arc-degree 60 * 4 = 240 times.
 
     maxpossible::Number=0xffff
 
-The maximum possible value for the variable of interest; variables with values greater than this are ignored.
+The maximum possible value for the variable of interest; variables with values greater than 
+this are ignored.
 
 """
 function avg_over_area(data::Matrix, lat::Vector, lon::Vector, sf::Number=240;
@@ -266,8 +276,14 @@ end
 ```julia
 match_rocktype(rocktype, rockname, rockdescrip; major=false)
 ```
-Match samples to our rock type definitions from the Burwell `rocktype`, `rockname`, and `rockdescrip`. If 
-`major` is `true`, only returns matches for `sed`, `ign`, `met`, and `cover` rocks. If `major` is `false`, returns:
+Match samples to our rock type definitions from the Burwell `rocktype`, `rockname`, and `rockdescrip`. 
+
+If `major` is `true`, returns:
+```
+sed, ign, met, cover
+``` 
+
+If `major` is `false`, returns:
 ```
 sed, ign, met, volc, plut, hypabyssal, metaign, metased, lowgrade, highgrade, cover
 ```

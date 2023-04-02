@@ -1,12 +1,6 @@
 ## --- test match_earthchem()
-    using MAT
     using Test
     include("Utilities.jl")
-
-    # bulk_file = matopen("data/bulk.mat")
-    # bulk_dict = read(bulk_file, "bulk")
-    # close(bulk_file)
-    # bulk = NamedTuple{Tuple(Symbol.(keys(bulk_dict)))}(values(bulk_dict))
 
     codes = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.3, 3.1, 3.2]
     testset = rand(codes, 100)

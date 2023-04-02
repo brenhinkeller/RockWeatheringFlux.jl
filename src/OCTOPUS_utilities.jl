@@ -1,9 +1,14 @@
 ## --- Unzip the kml file
     """
     ```julia
-    load_octopus_kml(filename)
+    str, isfirstcoord, nbasins, subbasins = load_octopus_kml(filename)
     ```
+    Load OCTOPUS .kml file.
 
+    Returns unparsed variables `str`, and the number of basins `nbasins`. The
+    
+    the  `isfirstcoord` `BitVector` 
+    and the `subbasins` a `Vector` where each element is an `Array` of indices 
     """
     function load_octopus_kml(filename)
         # Check number and ordering of coordinate lists
@@ -28,7 +33,7 @@
                 lastplacemark = i
             elseif occursin("<coordinates>", line)
                 ncoords += 1
-                # If we've had a new placemark more recently than a cordinate, then
+                # If we've had a new placemark more recently than a coordinate, then
                 # this is the first coord of the placemark
                 if lastplacemark > lastcoord
                     isfirstcoord[ncoords] = true
@@ -48,7 +53,7 @@
         close(fid)
 
         nbasins = 0
-        subbasins = Array{Any}(undef, sum(isfirstcoord))
+        subbasins = Array{Any}(undef, count(isfirstcoord))
         for i = 1:length(isfirstcoord)
             if isfirstcoord[i]
                 nbasins += 1
@@ -58,13 +63,15 @@
             end
         end
 
-        return (str, isfirstcoord, nbasins, subbasins)
+        return str, isfirstcoord, nbasins, subbasins
     end
 
 ## --- Parse the file
     """
     ```julia
     parse_octopus_kml_variables(str)
+
+    Parse .kml formatted data `str` into a `Dict`.
     ```
     """
     function parse_octopus_kml_variables(str)
@@ -107,15 +114,22 @@
 ## --- Parse the basin polygon outlines
     """
     ```julia
-    parse_octopus_polygon_outlines(str,isfirstcoord)
+    basin_polygon_n, basin_polygon_lat, basin_polygon_lon = parse_octopus_polygon_outlines(str,isfirstcoord)
     ```
+
+    Return coordinates `basin_polygon_lat`, `basin_polygon_lon` for each basin, and the 
+    number of coordinates in each basin `basin_polygon_n`.
+
+    Requires unparsed OCTOPUS data `str`. Does not combine subbasins.
     """
     function parse_octopus_polygon_outlines(str,isfirstcoord)
+        # Preallocate
+        nbasins = length(isfirstcoord)  # Does not differentiate basins and subbasins
+        basin_polygon_lat = Array{Array}(undef, nbasins)
+        basin_polygon_lon = Array{Array}(undef, nbasins)
+        basin_polygon_n = Array{Int}(undef, nbasins)
+
         i = 0
-        n = 0
-        basin_polygon_lat = Array{Array}(undef, length(isfirstcoord))
-        basin_polygon_lon = Array{Array}(undef, length(isfirstcoord))
-        basin_polygon_n = Array{Int}(undef, length(isfirstcoord))
         for m in eachmatch(r"<coordinates>\n\t*(.*?)\n",str)
             i += 1 # Number of parsed values
             parsed = delim_string_function(x -> delim_string_parse(x, ',', Float64), m[1], ' ', Array{Float64,1})
@@ -125,7 +139,8 @@
             basin_polygon_lon[i] = parsed .|> x -> x[1]
             basin_polygon_lat[i] = parsed .|> x -> x[2]
         end
-        return (basin_polygon_n, basin_polygon_lat, basin_polygon_lon)
+
+        return basin_polygon_n, basin_polygon_lat, basin_polygon_lon
     end
 
 ## --- Calculate precipitation
@@ -189,7 +204,7 @@
             basin_srtm15plus_aveslope[i] = mean(basin_slopes)
             basin_N[i] = length(basin_slopes)
 
-            print("Basin: $i, slope: $(round(basin_srtm15plus_aveslope[i],digits=3)), N: $(basin_N[i]) \n")
+            @info "Basin: $i, slope: $(round(basin_srtm15plus_aveslope[i],digits=3)), N: $(basin_N[i]) \n"
         end
 
         return basin_srtm15plus_aveslope

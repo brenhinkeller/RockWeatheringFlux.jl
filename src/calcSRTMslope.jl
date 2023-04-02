@@ -3,18 +3,6 @@
     using HDF5
     using Dates
 
-"""
-```julia
-```
-Calculate the maximum slope for each point in the SRTM15+ data set. Generates a file that lives in
-the resource folder.
-
-This doesn't really make sense in utilities.jl because it's just to generate one of the data files.
-Something to think about when I do repo organization...
-
-Also I know I just moved this to a function but in retrospect. Not sure I actually like that!
-"""
-function max_srtm_slope()
     # Get SRTM15+ file
     @info "Loading SRTM\n"
     srtm = get_srtm15plus()
@@ -23,7 +11,7 @@ function max_srtm_slope()
     @info "Calculating slope. This may take up to 30 minutes. Started $(Dates.format(now(), "HH:MM"))"
     slope = maxslope(srtm["elevation"], srtm["x_lon_cntr"], srtm["y_lat_cntr"], srtm["cellsize"], minmatval=-12000)
 
-    # Save results
+    # Save results to the data folder
     @info "Saving slope to HDF5 file"
     filename = "srtm15plus_maxslope"
     fid = h5open("data/$filename.h5","w")
@@ -36,9 +24,8 @@ function max_srtm_slope()
     g["scalefactor"] = srtm["scalefactor"]
 
     # Add a data set for slope and compress data
-    @time g["slope", compress=3] = slope
+    @time g["slope", compress=3] = slope    # Takes about 2.5 minutes
     close(fid)
-end
 
 
 

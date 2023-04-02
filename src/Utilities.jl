@@ -565,7 +565,7 @@ end
 
 """
 ```julia
-match_earthchem(type::Vector; major=false)
+match_earthchem(type; major=false)
 ```
 Classify EarthChem bulk.mat `type` codes to rock types. Returns `BitVector`s. 
     
@@ -585,7 +585,7 @@ plutonic (`plut`), _or_ undifferentiated igneous (`ign`). Metamorphic rocks are 
 metasedimentary (`metased`), metaigenous (`metaign`), _or_ undifferentiated metamorphic (`met`).
 
 """
-function match_earthchem(type::Vector; major=false)
+function match_earthchem(type; major=false)
     npoints = length(type)
 
     if major

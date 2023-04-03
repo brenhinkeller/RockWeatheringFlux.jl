@@ -5,10 +5,11 @@
     ```
     Load OCTOPUS .kml file.
 
-    Returns unparsed variables `str`, and the number of basins `nbasins`. The
+    Return unparsed variables `str`, and the number of basins `nbasins`. Each basin may 
+    contain one or more `subbasins`. 
     
-    the  `isfirstcoord` `BitVector` 
-    and the `subbasins` a `Vector` where each element is an `Array` of indices 
+    The `isfirstcoord` `BitVector` is used internally to get whole basin data (combining
+    subbasins into their parent basins). It cannot be used to index into a `Vector`.
     """
     function load_octopus_kml(filename)
         # Check number and ordering of coordinate lists
@@ -114,7 +115,7 @@
 ## --- Parse the basin polygon outlines
     """
     ```julia
-    basin_polygon_n, basin_polygon_lat, basin_polygon_lon = parse_octopus_polygon_outlines(str,isfirstcoord)
+    basin_polygon_n, basin_polygon_lat, basin_polygon_lon = parse_octopus_polygon_outlines(str, isfirstcoord)
     ```
 
     Return coordinates `basin_polygon_lat`, `basin_polygon_lon` for each basin, and the 
@@ -143,48 +144,29 @@
         return basin_polygon_n, basin_polygon_lat, basin_polygon_lon
     end
 
-## --- Calculate precipitation
-    """
-    ```julia
-    find_precip(lat,lon)
-    ```
-    for each basin? or each coordinate?
-    """
-    function find_precip(lat,lon)
-        prate = ncread("data/prate.sfc.mon.ltm.nc","prate")
-        precip = mean(prate, dims=3)[:,:,1]
-
-        out = Array{Float64}(undef,size(lat))
-        for i=1:length(lat)
-            if isnan(lat[i]) || isnan(lon[i]) || lat[i] > 88.542 || lat[i] < -88.542
-                out[i] = NaN
-            else
-                row = trunc(Int, mod(lon[i]*192/360 + 0.5, 192.0)) + 1
-                col = trunc(Int, 46.99999 - lat[i]*94/177.084) + 1
-                out[i] = precip[row, col]
-            end
-        end
-
-        return out
-    end
-
-## --- (Re?)Calculate slope for each basin
+## --- Calculate slope for each basin
     """
     ```julia
     get_basin_srtm15plus_aveslope(srtm::Dict,nbasins,subbasins,basin_polygon_lat,basin_polygon_lon)
     ```
+
+    Calculate average slope of each basin using STRTM15+ `srtm` data.
     """
-    # For the future, maybe I want this to be max slope?
     function get_basin_srtm15plus_aveslope(srtm::Dict,nbasins,subbasins,basin_polygon_lat,basin_polygon_lon)
+        # For the future, maybe I want this to be max slope instead of avg.?
         slope = srtm["slope"]
         x_lon_cntr = srtm["x_lon_cntr"]
         y_lat_cntr = srtm["y_lat_cntr"]
 
         basin_srtm15plus_aveslope = Array{Float64}(undef, nbasins)
         basin_N = Array{Int64}(undef, nbasins)
+
+        p = Progress(nbasins, desc = "Calculating basin slope:")
         for i = 1:nbasins
+            # Preallocate
             rowsinbasin = Array{Int}(undef, 0)
             columnsinbasin = Array{Int}(undef, 0)
+
             for j = 1:length(subbasins[i])
                 k = subbasins[i][j]
                 subbasin_lon = basin_polygon_lon[k]
@@ -204,7 +186,8 @@
             basin_srtm15plus_aveslope[i] = mean(basin_slopes)
             basin_N[i] = length(basin_slopes)
 
-            @info "Basin: $i, slope: $(round(basin_srtm15plus_aveslope[i],digits=3)), N: $(basin_N[i]) \n"
+            # Bump progress meter
+            next!(p)
         end
 
         return basin_srtm15plus_aveslope
@@ -219,3 +202,28 @@
     function linear(x,p)
         y = p[1] .+ x * p[2]
     end
+
+## --- Calculate precipitation
+"""
+```julia
+find_precip(lat,lon)
+```
+for each basin? or each coordinate?
+"""
+function find_precip(lat,lon)
+    prate = ncread("data/prate.sfc.mon.ltm.nc","prate")
+    precip = mean(prate, dims=3)[:,:,1]
+
+    out = Array{Float64}(undef,size(lat))
+    for i=1:length(lat)
+        if isnan(lat[i]) || isnan(lon[i]) || lat[i] > 88.542 || lat[i] < -88.542
+            out[i] = NaN
+        else
+            row = trunc(Int, mod(lon[i]*192/360 + 0.5, 192.0)) + 1
+            col = trunc(Int, 46.99999 - lat[i]*94/177.084) + 1
+            out[i] = precip[row, col]
+        end
+    end
+
+    return out
+end

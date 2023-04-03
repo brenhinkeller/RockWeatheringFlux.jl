@@ -1,27 +1,30 @@
 ## --- Load external packages
-    using StatGeochem
-    using Plots; gr();
-    using ProgressMeter: @showprogress
-    using Statistics
+    using StatGeochem           # Used for slope
+    using Plots; gr();          # Commented out
+    using ProgressMeter         # Used for slope
+    using Statistics            # Used for slope
     using DelimitedFiles
     using SpecialFunctions
-    using JLD
+    using JLD                   # Used for slope
     using NetCDF
-    using LsqFit: curve_fit
-    using HDF5
+    using LsqFit: curve_fit     # Used for slope
+    using HDF5                  # Used for slope
 
     # Local utilities
     include("OCTOPUS_utilities.jl")     # TO DO: re-organize utilities files and give these better names
 
 
 ## --- Load and parse the OCTOPUS kml file
+    @info "Loading OCTOPUS data"
+
     # Decompress, load, and recompress 
     run(`gunzip data/octopus/crn_basins_global.kml.gz`);
     (str, isfirstcoord, nbasins, subbasins) = load_octopus_kml("data/octopus/crn_basins_global.kml");
     run(`gzip data/octopus/crn_basins_global.kml`);                                           
 
-    # Get variables and data
+    # Parse and export variables and data
     data = parse_octopus_kml_variables(str)
+    exportdataset(data,"output/octopusdata.tsv",'\t')
 
     # Get basin polygon outlines
     (basin_polygon_n, basin_polygon_lat, basin_polygon_lon) = parse_octopus_polygon_outlines(str,isfirstcoord)
@@ -30,29 +33,34 @@
 ## --- Calculate slope for each basin
     @info "Calculating slope for each basin"
 
-    # srtm = h5read("data/srtm15plus_aveslope.h5","vars/")
-    # basin_srtm15plus_aveslope = get_basin_srtm15plus_aveslope(srtm,nbasins,subbasins,basin_polygon_lat,basin_polygon_lon)
+    srtm = h5read("data/srtm15plus_aveslope.h5","vars/")
+    basin_srtm15plus_aveslope = get_basin_srtm15plus_aveslope(srtm, nbasins, subbasins, 
+        basin_polygon_lat, basin_polygon_lon
+    )
 
-    # save("basin_srtm15plus_aveslope.jld","basin_srtm15plus_aveslope",basin_srtm15plus_aveslope)
-    basin_srtm15plus_aveslope =  load("basin_srtm15plus_aveslope.jld")["basin_srtm15plus_aveslope"]
+    # Slope can be loaded from here instead of calculating everything again
+    save("data/OCTOPUS_basin_aveslope.jld","basin_srtm15plus_aveslope",basin_srtm15plus_aveslope,
+        "basin_polygon_n",basin_polygon_n,"basin_polygon_lat",basin_polygon_lat,
+        "basin_polygon_lon",basin_polygon_lon, "subbasins",subbasins
+    )
 
-    # save("OctopusSlopeRecalc.jld","basin_srtm15plus_aveslope",basin_srtm15plus_aveslope,"basin_polygon_n",basin_polygon_n,"basin_polygon_lat",basin_polygon_lat,"basin_polygon_lon",basin_polygon_lon,"subbasins",subbasins)
-
-    exportdataset(data,"octopusdata.tsv",'\t')
 
 ## --- Alternatively, load pregenerated slope data for each basin
-    
+    @info "Loading basin slope data"
+    basin_srtm15plus_aveslope =  load("data/OCTOPUS_basin_aveslope.jld")["basin_srtm15plus_aveslope"]
 
 ## --- Fit raw erosion rate as a function of slope (m/km)
     @info "Fitting erosion / slope curve"
         
-    p = [0.5, 1/100]
     t = .!isnan.(basin_srtm15plus_aveslope) .& .!isnan.(data["ebe_mmkyr"]) .& (basin_srtm15plus_aveslope .< 300)
     x = basin_srtm15plus_aveslope[t]
     y = log10.(data["ebe_mmkyr"][t])
+
     t = .!isnan.(basin_srtm15plus_aveslope) .& .!isnan.(data["eal_mmkyr"]) .& (basin_srtm15plus_aveslope .< 300)
     x = append!(x, basin_srtm15plus_aveslope[t])
     y = append!(y, log10.(data["eal_mmkyr"][t]))
+
+    p = [0.5, 1/100]
     fobj = curve_fit(linear, x, y, p)
 
     mse = mean(fobj.resid .^ 2)         # Mean-square error         0.30764514536299076
@@ -70,6 +78,9 @@
     function emmkyr(slp)
         return 10^(slp*fobj.param[2] + fobj.param[1])
     end
+
+    # In the final code, these should be put in as the variables for reproducability
+    # I don't wanna run this every time I work on it though, so make a hardcoded version!
 
     # TO DO: error propagation through this calculation
 

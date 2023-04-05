@@ -115,9 +115,9 @@
     # Parse into preallocated arrays
     for i = eachindex(authors)
     authors[i] = get_macrostrat_ref_authors(responses[i])
-    years[i] =get_macrostrat_ref_authors(responses[i])
-    titles[i] = get_macrostrat_ref_authors(responses[i])
-    dois[i] = get_macrostrat_ref_authors(responses[i])
+    years[i] =get_macrostrat_ref_year(responses[i])
+    titles[i] = get_macrostrat_ref_title(responses[i])
+    dois[i] = get_macrostrat_ref_doi(responses[i])
     end
 
     # Write the references to a file

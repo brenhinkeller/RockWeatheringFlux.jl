@@ -276,16 +276,32 @@ end
 ```julia
 match_rocktype(rocktype, rockname, rockdescrip; major=false)
 ```
-Match samples to our rock type definitions from the Burwell `rocktype`, `rockname`, and `rockdescrip`. 
+Return the `NamedTuple` of `BitVector`s catagorizing Macrostrat `rocktype`, 
+`rockname`, and `rockdescrip` as sedimentary, igneous, metamorphic, or cover. 
 
-If `major` is `true`, returns:
+# Keyword argument `major`
+If `major` is `true`, return only major rock types:
 ```
-sed, ign, met, cover
-``` 
+sed ign met cover
+```
 
-If `major` is `false`, returns:
+If `major` is `false`, return both major rock types and more granular subcatagories. Note 
+that major rock types include more granular subcatagories; i.e. `ign` includes all rock 
+catagorized as `volc` and `plut`, as well as rocks that do not fall into either of those 
+subcatagories. To match this catagorization to the EarthChem system, `plut` includes
+hypabyssal rocks, and `chert` includes banded iron formations.
 ```
-sed, ign, met, volc, plut, hypabyssal, metaign, metased, lowgrade, highgrade, cover
+siliciclast carb chert evaporite coal sed volc plut ign metased metaign cataclastic met cover
+```
+
+# Example
+```julia-repl
+cats = match_rocktype(rocktype, rockname, rockdescrip, major=true)
+NamedTuple with 4 elements:
+  sed    = BitVector(50000,)    [true ... true]
+  ign    = BitVector(50000,)    [false ... false]
+  met    = BitVector(50000,)    [false ... false]
+  cover  = BitVector(50000,)    [false ... false]
 ```
 """
 function match_rocktype(rocktype, rockname, rockdescrip; major=false)

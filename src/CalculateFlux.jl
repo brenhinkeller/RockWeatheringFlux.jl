@@ -126,53 +126,54 @@
 
 
 ## --- Match the Burwell rocktype with our rock types
-    sed, ign, met, cover = match_rocktype(rocktype, rockname, rockdescrip, major=true)
+    cats = match_rocktype(rocktype, rockname, rockdescrip, major=true)
 
     # Exclude suspected cover from the other three categories, just to be sure
-    sed .&= .!cover .& .!ign
-    ign .&= .!cover
-    met .&= .!cover .& .!sed .& .!ign   # Metaseds / metaigns grouped with sed / ign
-    cryst = ign .| met                  # Define crystalline rocks as igneous or non metased/ign metamorphic
+    cats.sed .&= .! cats.cover .& .! cats.ign
+    cats.ign .&= .! cats.cover
+
+    # Metaseds / metaigns grouped with sed / ign
+    cats.met .&= .! cats.cover .& .! cats.sed .& .! cats.ign
+    
+    # Define crystalline rocks as igneous or non metased/ign metamorphic
+    cryst = cats.ign .| cats.met                               
 
     # Figure out how many data points weren't matched
-    known = sed .| ign .| met
-    matched = known .| cover
+    known = cats.sed .| cats.ign .| cats.met
+    matched = known .| cats.cover
     not_matched = .!matched
-    multi_matched = (sed .& ign) .| (sed .& met) .| (ign .& met)
+    multi_matched = (cats.sed .& cats.ign) .| (cats.sed .& cats.met) .| (cats.ign .& cats.met)
     total_known = count(known)
 
     # Relative abundance
-    sed_area_frac = count(sed) / total_known
-    ign_area_frac = count(ign) / total_known
-    met_area_frac = count(met) / total_known
+    sed_area_frac = count(cats.sed) / total_known
+    ign_area_frac = count(cats.ign) / total_known
+    met_area_frac = count(cats.met) / total_known
     cryst_area_frac = count(cryst) / total_known
 
     # Print to terminal
     @info "not matched = $(count(not_matched)), conflicting matches = $(count(multi_matched))\n"
 
     @info "Rock type totals and relative abundance (multi matched are counted twice):
-    sed = $(sum(sed)) ($(round(sed_area_frac*100, digits=2))%)
-    ign = $(sum(ign)) ($(round(ign_area_frac*100, digits=2))%)
-    met = $(sum(met)) ($(round(met_area_frac*100, digits=2))%)
-    cryst (ign + (met & ~sed)) = $(sum(cryst)) ($(round(cryst_area_frac*100, digits=2))%)\n"
+    sed = $(count(cats.sed)) ($(round(sed_area_frac*100, digits=2))%)
+    ign = $(count(cats.ign)) ($(round(ign_area_frac*100, digits=2))%)
+    met = $(count(cats.met)) ($(round(met_area_frac*100, digits=2))%)
+    cryst (ign + (met & ~sed)) = $(count(cryst)) ($(round(cryst_area_frac*100, digits=2))%)\n"
 
 
 ## -- Write the data to .tsv files so we can access or export it
-    writedlm("output/notmatched.tsv", hcat(rocklat[not_matched], rocklon[not_matched], rocktype[not_matched], rockname[not_matched], 
-        rockdescrip[not_matched], rockstratname[not_matched], rockcomments[not_matched]))
-    writedlm("output/multimatched.tsv", hcat(rocklat[multi_matched], rocklon[multi_matched], rocktype[multi_matched], 
-        rockname[multi_matched], rockdescrip[multi_matched], rockstratname[multi_matched], rockcomments[multi_matched]))
-    writedlm("output/sed.tsv", hcat(rocklat[sed], rocklon[sed], rocktype[sed], rockname[sed], rockdescrip[sed], rockstratname[sed], 
-        rockcomments[sed]))
-    writedlm("output/ign.tsv", hcat(rocklat[ign], rocklon[ign], rocktype[ign], rockname[ign], rockdescrip[ign], rockstratname[ign], 
-        rockcomments[ign]))
-    writedlm("output/met.tsv", hcat(rocklat[met], rocklon[met], rocktype[met], rockname[met], rockdescrip[met], rockstratname[met], 
-        rockcomments[met]))
-
-    # writedlm("output/plutonic.tsv", hcat(rocktype[plut], rockname[plut], rockdescrip[plut], 
-    #   rockstratname[plut], rockcomments[plut]))
-    # writedlm("output/intrusive.tsv", hcat(rocktype[hypabyssal .& .~plut], rockname[hypabyssal .& .~plut], rockdescrip[hypabyssal .& .~plut], 
-    #   rockstratname[hypabyssal .& .~plut], rockcomments[hypabyssal .& .~plut]))
+    writedlm("output/notmatched.tsv", hcat(rocklat[not_matched], rocklon[not_matched], 
+        rocktype[not_matched], rockname[not_matched], rockdescrip[not_matched], rockstratname[not_matched], 
+        rockcomments[not_matched]))
+    writedlm("output/multimatched.tsv", hcat(rocklat[multi_matched], rocklon[multi_matched], 
+        rocktype[multi_matched], rockname[multi_matched], rockdescrip[multi_matched], 
+        rockstratname[multi_matched], rockcomments[multi_matched]))
+    writedlm("output/sed.tsv", hcat(rocklat[cats.sed], rocklon[cats.sed], rocktype[cats.sed], 
+        rockname[cats.sed], rockdescrip[cats.sed], rockstratname[cats.sed], rockcomments[cats.sed]))
+    writedlm("output/ign.tsv", hcat(rocklat[cats.ign], rocklon[cats.ign], rocktype[cats.ign], 
+        rockname[cats.ign], rockdescrip[cats.ign], rockstratname[cats.ign], rockcomments[cats.ign]))
+    writedlm("output/met.tsv", hcat(rocklat[cats.met], rocklon[cats.met], rocktype[cats.met], 
+        rockname[cats.met], rockdescrip[cats.met], rockstratname[cats.met], rockcomments[cats.met]))
 
     t = elevations .> 4000
     writedlm("output/highelev.tsv", hcat(rocklat[t], rocklon[t], rocktype[t], rockname[t], rockdescrip[t], rockstratname[t], 
@@ -193,13 +194,14 @@
 
 ## --- Save data to a file so we can access it easily without rerunning slow scripts
     filecols = ["sed" "met" "ign" "cover" "lat" "lon" "slope"]
-    writedlm("output/responses_parsed.tsv", vcat(filecols, hcat(sed, met, ign, cover, rocklat, rocklon, rockslope)))
+    writedlm("output/responses_parsed.tsv", vcat(filecols, 
+        hcat(cats.sed, cats.met, cats.ign, cats.cover, rocklat, rocklon, rockslope)))
 
 
 ## --- Do statistics to get sum (s), mean (m), and standard error (e)
-    ersn_sed_s, ersn_sed_m, ersn_sed_e = get_stats(rock_ersn[sed])                # Sedimentary
-    ersn_ign_s, ersn_ign_m, ersn_ign_e = get_stats(rock_ersn[ign])                # Igneous
-    ersn_met_s, ersn_met_m, ersn_met_e = get_stats(rock_ersn[met])                # Metamorphic
+    ersn_sed_s, ersn_sed_m, ersn_sed_e = get_stats(rock_ersn[cats.sed])           # Sedimentary
+    ersn_ign_s, ersn_ign_m, ersn_ign_e = get_stats(rock_ersn[cats.ign])           # Igneous
+    ersn_met_s, ersn_met_m, ersn_met_e = get_stats(rock_ersn[cats.met])           # Metamorphic
     ersn_cryst_s, ersn_cryst_m, ersn_cryst_e = get_stats(rock_ersn[cryst])        # Crystalline
     ersn_global_s, ersn_global_m, ersn_global_e = get_stats(rock_ersn[matched])   # Global (matched points only)
 
@@ -303,15 +305,15 @@
 
 
 ## -- Calculate P content for a more granular rock type catagorization
-    bulksed, bulkign, bulkmet, bulkvolc, bulkplut, bulkmetaign, bulkmetased = match_earthchem(bulk.Type, major=false)
+    # bulksed, bulkign, bulkmet, bulkvolc, bulkplut, bulkmetaign, bulkmetased = match_earthchem(bulk.Type, major=false)
 
-    pwt_sed = nanmean(bulk.P2O5[bulksed])
-    pwt_ign = nanmean(bulk.P2O5[bulkign])
-    pwt_met = nanmean(bulk.P2O5[bulkmet])
+    # pwt_sed = nanmean(bulk.P2O5[bulksed])
+    # pwt_ign = nanmean(bulk.P2O5[bulkign])
+    # pwt_met = nanmean(bulk.P2O5[bulkmet])
 
-    pwt_volc = nanmean(bulk.P2O5[bulkvolc])
-    pwt_plut = nanmean(bulk.P2O5[bulkplut])
-    pwt_metaign = nanmean(bulk.P2O5[bulkmetaign])
-    pwt_metased = nanmean(bulk.P2O5[bulkmetased])
+    # pwt_volc = nanmean(bulk.P2O5[bulkvolc])
+    # pwt_plut = nanmean(bulk.P2O5[bulkplut])
+    # pwt_metaign = nanmean(bulk.P2O5[bulkmetaign])
+    # pwt_metased = nanmean(bulk.P2O5[bulkmetased])
   
 ## -- End of file

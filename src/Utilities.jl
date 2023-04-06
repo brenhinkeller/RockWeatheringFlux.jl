@@ -291,45 +291,7 @@ sed, ign, met, volc, plut, hypabyssal, metaign, metased, lowgrade, highgrade, co
 function match_rocktype(rocktype, rockname, rockdescrip; major=false)
     npoints = length(rocktype)
 
-    # Define our rock types based on names or partial names of different rock types from GetBurwellBulkAge.m
-    # # Sedimentary
-    # sedtypes = ["sediment", "fluv", " clast", "siliciclast", "conglomerat", "gravel", "sand", "psamm", "arenit", "arkos", "silt", 
-    # "mud", "marl", "clay", "shale", "wacke", "argillite", "argillaceous", "pelit", "pebble", "carbonate", "limestone", "dolo", 
-    # "caliche", "chalk", "travertine", "tavertine", "teravertine", "tufa", "evaporite", " salt", "salt flat", "gypsum", "boulder", 
-    # "diamict", "tillite", "stream", "beach", "terrace", "chert", "banded iron", "coal", "anthracite", "marine deposits", "turbidite", 
-    # "flysch", "paleosol"]
-
-    # # Igneous
-    # volctypes = ["volcan", "lava", "lahar", "ignimbrite", "ashfall", "tuff", "diatreme", "pipe", "basalt", "andesit", "dacit", "rhyolit", 
-    # "pillow", "carbonatite", "tephra", "obsidian", "ash", "scoria", "pumice", "cinder", "latite", "basanite", "phonolite", "fonolito", 
-    # "trachyte", "palagonite", "mugearite", "kimberlite", "ultramafitite", "komatiite",]
-    # pluttypes = ["pluton", "batholith", "granit", "tonalit", "gabbro", "norite", "diorit", "monzonit", "syenit", "peridot", "dunit", 
-    # "harzburg", "anorthosite", "mangerite", "charnockite", "pegmatite", "aplite", "trond", "essexite", "pyroxenite", "adamellite", 
-    # "porphyry", "megacryst", "rapakivi", "bronzitite", "alaskite", "troctolite",]
-    # hypabyssaltypes = ["intrus", "hypabyssal", "sill", "dike", "stock", "laccolith", "lopolith", "dolerit", "diabase", "porphyry", 
-    # "microgranite"]
-    
-    # igntypes = vcat(["igneous", "silicic ", "mafic", "felsic", "basite",],volctypes,pluttypes,hypabyssaltypes)
-
-    # # Metamorphic
-    # metasedtypes = ["para", "metased", "meta-sed", "schist", "quartzite", "marble", "skarn", "slate", "phyllite",]
-    # metaigntypes = ["ortho", "metaign", "meta-ign", "serpentin", "amphibolit", "greenstone", "eclogite", "metabasite", "migma",]
-    # lowgradetypes = ["slate", "phyllite", "serpentin", "greenstone", "greenschist", "zeolite", "gossan", "alter", "hydrothermal", 
-    # "palagonite",]
-    # highgradetypes = ["crystalline", "basement", "marble", "skarn", "blueschist", "gneiss", "amphibolit", "eclogite", "granulit", 
-    # "hornfels", "granofels", "sanidinite", "migma", "enderbite", "anorthosite", "charnockite", "pyroxenite", "peridot", "dunit", 
-    # "harzburg", "high grade metamorphic"]
-    
-    # mettypes = vcat(["gneiss", "granulit", "hornfels", "granofels", "mylonit", "meta", "cataclasite", "melange", "gouge", "tecton", 
-    # "calc silicate"], metasedtypes, metaigntypes, lowgradetypes, highgradetypes)
-
-    # # Other
-    # covertypes = ["cover", "unconsolidated", "quaternary", "lluv", "soil", "regolith", "laterite", "surficial deposits", "talus", 
-    #     "scree", "mass-wasting", "slide", "peat", "swamp", "marsh", "water", "ice", "glaci", "till", "loess", "gravel", "debris"]
-    # cataclastictypes = ["mylonit", "cataclasite", "melange", "gouge", "tecton",]
-
-
-    # Alternative catagorizations based on EarthChem system
+    # Rock types based on EarthChem system in RockNameInference.m
     # Sedimentary
     siliciclasttypes = ["siliciclast", "conglomerat", "sand", "psamm", "arenit", "arkos", "silt",]
     shaletypes = ["mud", "clay","shale", "wacke", "argillite", "argillaceous", "flysch", "pelit", 
@@ -383,97 +345,117 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
     
     if major
         # Preallocate
-        sed = falses(npoints)
-        ign = falses(npoints)
-        met = falses(npoints)
-        cover = falses(npoints)
+        cats = (
+            sed = falses(npoints),
+            ign = falses(npoints),
+            met = falses(npoints),
+            cover = falses(npoints)
+        )
 
         # Check major lithology first
         for i = 1:length(sedtypes)
-            sed .|= (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], sedtypes[i]) : false)
+            cats.sed .|= (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], sedtypes[i]) : false)
         end
         for i = 1:length(igntypes)
-            ign .|= (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], igntypes[i]) : false)
+            cats.ign .|= (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], igntypes[i]) : false)
         end
         for i = 1:length(mettypes)
-            met .|= (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], mettypes[i]) : false)
+            cats.met .|= (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], mettypes[i]) : false)
         end
         for i = 1:length(covertypes)
-            cover .|= (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], covertypes[i]) : false)
+            cats.cover .|= (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], covertypes[i]) : false)
         end
 
         # Check the rest of rocktype
         not_matched = .~(sed .| ign .| met .| cover)
         for i = 1:length(sedtypes)
-            sed[not_matched] .|= containsi.(rocktype[not_matched],sedtypes[i])
+            cats.sed[not_matched] .|= containsi.(rocktype[not_matched],sedtypes[i])
         end
         for i = 1:length(igntypes)
-            ign[not_matched] .|= containsi.(rocktype[not_matched],igntypes[i])
+            cats.ign[not_matched] .|= containsi.(rocktype[not_matched],igntypes[i])
         end
         for i = 1:length(mettypes)
-            met[not_matched] .|= containsi.(rocktype[not_matched],mettypes[i])
+            cats.met[not_matched] .|= containsi.(rocktype[not_matched],mettypes[i])
         end
         for i = 1:length(covertypes)
-            cover[not_matched] .|= containsi.(rocktype[not_matched],covertypes[i])
+            cats.cover[not_matched] .|= containsi.(rocktype[not_matched],covertypes[i])
         end
 
         # Then rockname
         not_matched = .~(sed .| ign .| met .| cover)
         for i = 1:length(sedtypes)
-            sed[not_matched] .|= containsi.(rockname[not_matched],sedtypes[i])
+            cats.sed[not_matched] .|= containsi.(rockname[not_matched],sedtypes[i])
         end
         for i = 1:length(igntypes)
-            ign[not_matched] .|= containsi.(rockname[not_matched],igntypes[i])
+            cats.ign[not_matched] .|= containsi.(rockname[not_matched],igntypes[i])
         end
         for i = 1:length(mettypes)
-            met[not_matched] .|= containsi.(rockname[not_matched],mettypes[i])
+            cats.met[not_matched] .|= containsi.(rockname[not_matched],mettypes[i])
         end
-            for i = 1:length(covertypes)
-            cover[not_matched] .|= containsi.(rockname[not_matched],covertypes[i])
+        for i = 1:length(covertypes)
+            cats.cover[not_matched] .|= containsi.(rockname[not_matched],covertypes[i])
         end
 
         # Then rockdescrip
         not_matched = .~(sed .| ign .| met .| cover)
         for i = 1:length(sedtypes)
-            sed[not_matched] .|= sed[not_matched] .| containsi.(rockdescrip[not_matched],sedtypes[i])
+            cats.sed[not_matched] .|= sed[not_matched] .| containsi.(rockdescrip[not_matched],sedtypes[i])
         end
         for i = 1:length(igntypes)
-            ign[not_matched] .|= containsi.(rockdescrip[not_matched],igntypes[i])
+            cats.ign[not_matched] .|= containsi.(rockdescrip[not_matched],igntypes[i])
         end
         for i = 1:length(mettypes)
-            met[not_matched] .|= containsi.(rockdescrip[not_matched],mettypes[i])
+            cats.met[not_matched] .|= containsi.(rockdescrip[not_matched],mettypes[i])
         end
         for i = 1:length(covertypes)
-        cover[not_matched] .|= containsi.(rockdescrip[not_matched],covertypes[i])
+            cats.cover[not_matched] .|= containsi.(rockdescrip[not_matched],covertypes[i])
         end
 
-        return sed, ign, met, cover
+        return cats
     else
-        # Preallocate arrays for each rock type
-        sed = falses(npoints)
-        ign = falses(npoints)
-        met = falses(npoints)
-        volc = falses(npoints)
-        plut = falses(npoints)
-        hypabyssal = falses(npoints)
-        metaign = falses(npoints)
-        metased = falses(npoints)
-        lowgrade = falses(npoints)
-        highgrade = falses(npoints)
-        cover = falses(npoints)
+        # Preallocate
+        cats = (
+            siliciclast = falses(npoints),
+            shale = falses(npoints),
+            carb = falses(npoints),
+            chert = falses(npoints),
+            evaporite = falses(npoints),
+            coal = falses(npoints),
+            sed = falses(npoints),
+
+            volc = falses(npoints),
+            plut = falses(npoints),
+            ign = falses(npoints),
+
+            metased = falses(npoints),
+            metaign = falses(npoints),
+            cataclastic = falses(npoints),
+            met = falses(npoints),
+
+            cover = falses(npoints),
+        )
+
+        # Check major lithology first
+
+        # Check the rest of rocktype
+
+        # Then rockname
+
+        # Then rockdescrip
+
 
         # Check all possible types, starting with major lithology
         for i = 1:length(sedtypes)
-            sed .|=  (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], sedtypes[i]) : false)
+            cats.sed .|=  (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], sedtypes[i]) : false)
         end
         for i = 1:length(igntypes)
-            ign .|=  (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], igntypes[i]) : false)
+            cats.ign .|=  (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], igntypes[i]) : false)
         end
         for i = 1:length(mettypes)
-            met .|=  (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], mettypes[i]) : false)
+            cats.met .|=  (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], mettypes[i]) : false)
         end
         for i = 1:length(covertypes)
-            cover .|=  (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], covertypes[i]) : false)
+            cats.cover .|=  (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], covertypes[i]) : false)
         end
         
         for i = 1:length(volctypes)
@@ -612,7 +594,7 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
             hypabyssal[not_matched] .|= containsi.(rockdescrip[not_matched],hypabyssaltypes[i])
         end
 
-        return sed, ign, met, volc, plut, hypabyssal, metaign, metased, lowgrade, highgrade, cover
+        return cats
     end
 end
 

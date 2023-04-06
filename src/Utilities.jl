@@ -292,57 +292,95 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
     npoints = length(rocktype)
 
     # Define our rock types based on names or partial names of different rock types from GetBurwellBulkAge.m
+    # # Sedimentary
+    # sedtypes = ["sediment", "fluv", " clast", "siliciclast", "conglomerat", "gravel", "sand", "psamm", "arenit", "arkos", "silt", 
+    # "mud", "marl", "clay", "shale", "wacke", "argillite", "argillaceous", "pelit", "pebble", "carbonate", "limestone", "dolo", 
+    # "caliche", "chalk", "travertine", "tavertine", "teravertine", "tufa", "evaporite", " salt", "salt flat", "gypsum", "boulder", 
+    # "diamict", "tillite", "stream", "beach", "terrace", "chert", "banded iron", "coal", "anthracite", "marine deposits", "turbidite", 
+    # "flysch", "paleosol"]
+
+    # # Igneous
+    # volctypes = ["volcan", "lava", "lahar", "ignimbrite", "ashfall", "tuff", "diatreme", "pipe", "basalt", "andesit", "dacit", "rhyolit", 
+    # "pillow", "carbonatite", "tephra", "obsidian", "ash", "scoria", "pumice", "cinder", "latite", "basanite", "phonolite", "fonolito", 
+    # "trachyte", "palagonite", "mugearite", "kimberlite", "ultramafitite", "komatiite",]
+    # pluttypes = ["pluton", "batholith", "granit", "tonalit", "gabbro", "norite", "diorit", "monzonit", "syenit", "peridot", "dunit", 
+    # "harzburg", "anorthosite", "mangerite", "charnockite", "pegmatite", "aplite", "trond", "essexite", "pyroxenite", "adamellite", 
+    # "porphyry", "megacryst", "rapakivi", "bronzitite", "alaskite", "troctolite",]
+    # hypabyssaltypes = ["intrus", "hypabyssal", "sill", "dike", "stock", "laccolith", "lopolith", "dolerit", "diabase", "porphyry", 
+    # "microgranite"]
+    
+    # igntypes = vcat(["igneous", "silicic ", "mafic", "felsic", "basite",],volctypes,pluttypes,hypabyssaltypes)
+
+    # # Metamorphic
+    # metasedtypes = ["para", "metased", "meta-sed", "schist", "quartzite", "marble", "skarn", "slate", "phyllite",]
+    # metaigntypes = ["ortho", "metaign", "meta-ign", "serpentin", "amphibolit", "greenstone", "eclogite", "metabasite", "migma",]
+    # lowgradetypes = ["slate", "phyllite", "serpentin", "greenstone", "greenschist", "zeolite", "gossan", "alter", "hydrothermal", 
+    # "palagonite",]
+    # highgradetypes = ["crystalline", "basement", "marble", "skarn", "blueschist", "gneiss", "amphibolit", "eclogite", "granulit", 
+    # "hornfels", "granofels", "sanidinite", "migma", "enderbite", "anorthosite", "charnockite", "pyroxenite", "peridot", "dunit", 
+    # "harzburg", "high grade metamorphic"]
+    
+    # mettypes = vcat(["gneiss", "granulit", "hornfels", "granofels", "mylonit", "meta", "cataclasite", "melange", "gouge", "tecton", 
+    # "calc silicate"], metasedtypes, metaigntypes, lowgradetypes, highgradetypes)
+
+    # # Other
+    # covertypes = ["cover", "unconsolidated", "quaternary", "lluv", "soil", "regolith", "laterite", "surficial deposits", "talus", 
+    #     "scree", "mass-wasting", "slide", "peat", "swamp", "marsh", "water", "ice", "glaci", "till", "loess", "gravel", "debris"]
+    # cataclastictypes = ["mylonit", "cataclasite", "melange", "gouge", "tecton",]
+
+
+    # Alternative catagorizations based on EarthChem system
     # Sedimentary
-    sedtypes = ["sediment", "fluv", " clast", "siliciclast", "conglomerat", "gravel", "sand", "psamm", "arenit", "arkos", "silt", 
-    "mud", "marl", "clay", "shale", "wacke", "argillite", "argillaceous", "pelit", "pebble", "carbonate", "limestone", "dolo", 
-    "caliche", "chalk", "travertine", "tavertine", "teravertine", "tufa", "evaporite", " salt", "salt flat", "gypsum", "boulder", 
-    "diamict", "tillite", "stream", "beach", "terrace", "chert", "banded iron", "coal", "anthracite", "marine deposits", "turbidite", 
-    "flysch", "paleosol"]
+    siliciclasttypes = ["siliciclast", "conglomerat", "sand", "psamm", "arenit", "arkos", "silt",]
+    shaletypes = ["mud", "clay","shale", "wacke", "argillite", "argillaceous", "flysch", "pelit", 
+        "turbidite",]
+    carbtypes = ["carbonate", "limestone", "dolo", "marl", "chalk", "travertine", "tavertine", 
+        "teravertine", "tufa",]
+    cherttypes = ["chert", "banded iron",]
+    evaporitetypes = ["evaporite", "gypsum", "salt", "salt flat",]
+    coaltypes = ["coal", "anthracite",]
+    
+    sedtypes = vcat(["sediment", "fluv", "clast", "gravel", "pebble", "caliche", "boulder", 
+        "diamict", "tillite", "stream", "beach", "terrace",  "marine deposits",  "paleosol"],
+        siliciclasttypes, shaletypes, carbtypes, cherttypes, evaporitetypes, coaltypes)
 
     # Igneous
-    volctypes = ["volcan", "lava", "lahar", "ignimbrite", "ashfall", "tuff", "diatreme", "pipe", "basalt", "andesit", "dacit", "rhyolit", 
-    "pillow", "carbonatite", "tephra", "obsidian", "ash", "scoria", "pumice", "cinder", "latite", "basanite", "phonolite", "fonolito", 
-    "trachyte", "palagonite", "mugearite", "kimberlite", "ultramafitite", "komatiite",]
-    pluttypes = ["pluton", "batholith", "granit", "tonalit", "gabbro", "norite", "diorit", "monzonit", "syenit", "peridot", "dunit", 
-    "harzburg", "anorthosite", "mangerite", "charnockite", "pegmatite", "aplite", "trond", "essexite", "pyroxenite", "adamellite", 
-    "porphyry", "megacryst", "rapakivi", "bronzitite", "alaskite", "troctolite",]
-    hypabyssaltypes = ["intrus", "hypabyssal", "sill", "dike", "stock", "laccolith", "lopolith", "dolerit", "diabase", "porphyry", 
-    "microgranite"]
+    volctypes = ["volcan", "lava", "lahar", "ignimbrite", "ashfall", "tuff", "diatreme",
+        "pipe", "basalt", "andesit", "dacit", "rhyolit", "pillow", "carbonatite", "tephra", 
+        "obsidian", "ash", "scoria", "pumice", "cinder", "latite", "basanite", "phonolite", 
+        "fonolito", "trachyte", "palagonite", "mugearite", "kimberlite", "ultramafitite", 
+        "komatiite",]
+    hypabyssaltypes = ["intrus", "hypabyssal", "sill", "dike", "stock", "laccolith", "lopolith", 
+        "dolerit", "diabase", "porphyry", "microgranite"]
+    pluttypes = vcat(["pluton", "batholith", "granit", "tonalit", "gabbro", "norite", "diorit", 
+        "monzonit", "syenit", "peridot", "dunit", "harzburg", "anorthosite", "mangerite", 
+        "charnockite", "pegmatite", "aplite", "trond", "essexite", "pyroxenite", "adamellite", 
+        "porphyry", "megacryst", "rapakivi", "bronzitite", "alaskite", "troctolite",], 
+        hypabyssaltypes)
     
-    igntypes = vcat(["igneous", "silicic ", "mafic", "felsic", "basite",],volctypes,pluttypes,hypabyssaltypes)
+    igntypes = vcat(["igneous", "silicic ", "mafic", "felsic", "basite",], volctypes, pluttypes)
 
     # Metamorphic
-    metasedtypes = ["para", "metased", "meta-sed", "schist", "quartzite", "marble", "skarn", "slate", "phyllite",]
-    metaigntypes = ["ortho", "metaign", "meta-ign", "serpentin", "amphibolit", "greenstone", "eclogite", "metabasite", "migma",]
-    lowgradetypes = ["slate", "phyllite", "serpentin", "greenstone", "greenschist", "zeolite", "gossan", "alter", "hydrothermal", 
-    "palagonite",]
-    highgradetypes = ["crystalline", "basement", "marble", "skarn", "blueschist", "gneiss", "amphibolit", "eclogite", "granulit", 
-    "hornfels", "granofels", "sanidinite", "migma", "enderbite", "anorthosite", "charnockite", "pyroxenite", "peridot", "dunit", 
-    "harzburg", "high grade metamorphic"]
-    
-    mettypes = vcat(["gneiss", "granulit", "hornfels", "granofels", "mylonit", "meta", "cataclasite", "melange", "gouge", "tecton", 
-    "calc silicate"], metasedtypes, metaigntypes, lowgradetypes, highgradetypes)
-
-    # Other
-    covertypes = ["cover", "unconsolidated", "quaternary", "lluv", "soil", "regolith", "laterite", "surficial deposits", "talus", 
-        "scree", "mass-wasting", "slide", "peat", "swamp", "marsh", "water", "ice", "glaci", "till", "loess", "gravel", "debris"]
+    metasedtypes = ["para", "metased", "meta-sed", "quartzite", "marble", "slate", "phyllite",]
+    metaigntypes = ["ortho", "metaign", "meta-ign", "serpentin", "amphibolit", "greenstone",
+        "eclogite", "metabasite",]
+    lowgradetypes = ["slate", "phyllite", "serpentin", "greenstone", "greenschist", "zeolite", 
+        "gossan", "alter", "hydrothermal", "palagonite",]
+    highgradetypes = ["crystalline", "basement", "marble", "skarn", "schist", "blueschist", 
+        "gneiss", "amphibolit", "eclogite", "granulit", "hornfels", "granofels", "sanidinite", 
+        "migma", "enderbite", "anorthosite", "charnockite", "pyroxenite", "peridot", "dunit", 
+        "harzburg", "high grade metamorphic"]
     cataclastictypes = ["mylonit", "cataclasite", "melange", "gouge", "tecton",]
+    
+    mettypes = vcat(["meta", "calc silicate",], metasedtypes, metaigntypes, lowgradetypes, 
+        highgradetypes, cataclastictypes)
 
-
-    # # Alternative sedimentary catagorizations to match EarthChem data
-    # # Sedimentary
-    # siliciclastictypes = ["sediment", "fluv", " clast", "siliciclast", "conglomerat", "gravel", 
-    #     "sand", "psamm", "arenit", "arkos", "silt", "mud", "marl", "clay", "shale", "wacke", 
-    #     "argillite", "argillaceous", "pelit", "pebble", "boulder", "diamict", "tillite", "
-    #     stream", "beach", "terrace", "marine deposits", "turbidite", "flysch",]
-    # carbtypes = ["caliche", "chalk", "carbonate", "limestone", "dolo", "travertine", "tavertine", 
-    #     "teravertine", "tufa",]
-    # chemtypes = ["chert", "banded iron",]
-    # evaporitetypes = ["evaporite", " salt", "salt flat", "gypsum",]
-    # coaltypes = ["coal", "anthracite",]
-
-    # sedtypes = vcat(["paleosol"], siliciclastictypes, carbtypes, chemtypes, evaporitetypes, coaltypes)
-
+    # Cover
+    covertypes = ["cover", "unconsolidated", "quaternary", "lluv", "soil", "regolith", 
+        "laterite", "surficial deposits", "talus", "scree", "mass-wasting", "slide", 
+        "peat", "swamp", "marsh", "water", "ice", "glaci", "till", "loess", "gravel", 
+        "debris"]
+    
     if major
         # Preallocate
         sed = falses(npoints)

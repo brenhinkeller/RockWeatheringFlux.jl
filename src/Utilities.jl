@@ -456,84 +456,51 @@ metasedimentary (`metased`), metaigenous (`metaign`), _or_ undifferentiated meta
 function match_earthchem(type; major=false)
     npoints = length(type)
 
+    # Preallocate
+    cats = (
+        alluvium = falses(npoints),
+        siliciclast = falses(npoints),
+        shale = falses(npoints),
+        carb = falses(npoints),
+        chert = falses(npoints),
+        evaporite = falses(npoints),
+        phosphorite = falses(npoints),
+        coal = falses(npoints),
+        volcaniclast = falses(npoints),
+        sed = falses(npoints),
+
+        volc = falses(npoints),
+        plut = falses(npoints),
+        ign = falses(npoints),
+
+        metased = falses(npoints),
+        metaign = falses(npoints),
+        met = falses(npoints),
+    )
+
+    # Codes for types *in the order they appear in cats*
+    codes = [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 1.0, 
+        3.1, 3.2, 3.0,
+        2.1, 2.3, 2.0, 
+    ]
+
+    # Find all types
+    for i in eachindex(codes)
+        cats[i][findall(==(codes[i]), type)] .= true
+    end
+    
+    # Assign all subtypes to parent type. Note alluvium is roughly equivilent to cover
+    cats.sed .= cats.sed .| cats.siliciclast .| cats.shale .| cats.carb .| cats.chert .| 
+        cats.evaporite .| cats.phosphorite .| cats.coal .| cats.volcaniclast
+    cats.ign .= cats.ign .| cats.volc .| cats.plut
+    cats.met .= cats.met .| cats.metased .| cats.metaign
+
+    # Redefine cats to only major if applicable
     if major
-        sed = vec(fill(false, npoints))
-        ign = vec(fill(false, npoints))
-        met = vec(fill(false, npoints))
-
-        for i in eachindex(type)
-            typecode = floor(type[i])
-            subtypecode = modf(type[i])[1]
-
-            if typecode==1
-            # Sedimentary
-                sed[i] = true
-
-            elseif typecode==2
-            # Metamorphic; metaseds are seds and metaigns are ign
-                if isapprox(subtypecode, 0)
-                    met[i] = true
-                elseif isapprox(subtypecode, 0.1)
-                    sed[i] = true
-                elseif isapprox(subtypecode, 0.3)
-                    ign[i] = true
-                else
-                    @warn "Unrecognized metamorphic code 2.$(round(subtypecode, digits=1))."
-                end
-
-            elseif typecode==3
-            # Igneous
-                ign[i] = true
-            end
-        end
-
-        return sed, ign, met
-
+        majorcats = (sed=cats.sed, ign=cats.ign, met=cats.met)
+        return majorcats
     else
-        sed = vec(fill(false, npoints))
-        ign = vec(fill(false, npoints))
-        met = vec(fill(false, npoints))
-        volc = vec(fill(false, npoints))
-        plut = vec(fill(false, npoints))
-        metased = vec(fill(false, npoints))
-        metaign = vec(fill(false, npoints))
-
-        for i in eachindex(type)
-            typecode = floor(type[i])
-            subtypecode = modf(type[i])[1]
-            
-            if typecode==1
-            # Sedimentary
-                sed[i] = true
-
-            elseif typecode==2
-            # Metamorphic
-                if isapprox(subtypecode, 0.1)
-                    metased[i] = true
-                elseif isapprox(subtypecode, 0.3)
-                    metaign[i] = true
-                elseif isapprox(subtypecode, 0.0)
-                    met[i] = true
-                else
-                    @warn "Unrecognized metamorphic code 2.$(round(subtypecode, digits=1))."
-                end
-
-            elseif typecode==3
-            # Igneous
-                if isapprox(subtypecode, 0.1)
-                    volc[i] = true
-                elseif isapprox(subtypecode, 0.2)
-                    plut[i] = true
-                elseif isapprox(subtypecode, 0.0)
-                    ign[i] = true
-                else
-                    @warn "Unrecognized igneous code 3.$(round(subtypecode, digits=1))."
-                end
-
-            end
-        end
-
-        return sed, ign, volc, plut, met, metased, metaign
+        return cats
     end
 
 end

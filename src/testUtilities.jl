@@ -31,10 +31,11 @@ include("Utilities.jl")
     @test count(cats.metaign) == length(findall(==(2.3), testset))
 
     # Major classifications
-    @test cats.sed == catsmj.sed
-    @test cats.ign == catsmj.ign
-    @test cats.met == catsmj.met
+    @test catsmj.sed == cats.sed .| cats.metased
+    @test catsmj.ign == cats.ign .| cats.metaign
+    @test catsmj.met == cats.met .& .!cats.metased .& .!cats.metaign
 
+    # Granular classifications
     @test count(cats.sed) == length(findall(==(1.0), testset)) + (count(cats.siliciclast) +
         count(cats.shale) + count(cats.carb) + count(cats.chert) + count(cats.evaporite) + 
         count(cats.phosphorite) + count(cats.coal) + count(cats.volcaniclast)

@@ -489,17 +489,21 @@ function match_earthchem(type; major=false)
         cats[i][findall(==(codes[i]), type)] .= true
     end
     
-    # Assign all subtypes to parent type. Note alluvium is roughly equivilent to cover
-    cats.sed .= cats.sed .| cats.siliciclast .| cats.shale .| cats.carb .| cats.chert .| 
-        cats.evaporite .| cats.phosphorite .| cats.coal .| cats.volcaniclast
-    cats.ign .= cats.ign .| cats.volc .| cats.plut
-    cats.met .= cats.met .| cats.metased .| cats.metaign
-
-    # Redefine cats to only major if applicable
+    # Assign all subtypes to parent type as appropriate. Alluvium is roughly equivilent to cover
     if major
+    # To match Macrostrat, metaseds are seds, metaigns are igns
+        cats.sed .= cats.sed .| cats.siliciclast .| cats.shale .| cats.carb .| cats.chert .| 
+            cats.evaporite .| cats.phosphorite .| cats.coal .| cats.volcaniclast .| cats.metased
+        cats.ign .= cats.ign .| cats.volc .| cats.plut .| cats.metaign
+
         majorcats = (sed=cats.sed, ign=cats.ign, met=cats.met)
         return majorcats
     else
+        cats.sed .= cats.sed .| cats.siliciclast .| cats.shale .| cats.carb .| cats.chert .| 
+            cats.evaporite .| cats.phosphorite .| cats.coal .| cats.volcaniclast
+        cats.ign .= cats.ign .| cats.volc .| cats.plut
+        cats.met .= cats.met .| cats.metased .| cats.metaign
+
         return cats
     end
 

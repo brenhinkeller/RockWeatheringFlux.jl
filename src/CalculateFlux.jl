@@ -80,7 +80,7 @@
     agemin = Array{Float64}(undef, npoints, 1)
 
     # Parse responses into preallocated arrays
-    for i = eachindex(rocktype)
+    for i in eachindex(rocktype)
         rocktype[i] = get_macrostrat_lith(responses[i])
         rockdescrip[i] = get_macrostrat_descrip(responses[i])
         rockname[i] = get_macrostrat_name(responses[i])
@@ -114,10 +114,10 @@
 
     # Parse into preallocated arrays
     for i = eachindex(authors)
-    authors[i] = get_macrostrat_ref_authors(responses[i])
-    years[i] =get_macrostrat_ref_year(responses[i])
-    titles[i] = get_macrostrat_ref_title(responses[i])
-    dois[i] = get_macrostrat_ref_doi(responses[i])
+        authors[i] = get_macrostrat_ref_authors(responses[i])
+        years[i] =get_macrostrat_ref_year(responses[i])
+        titles[i] = get_macrostrat_ref_title(responses[i])
+        dois[i] = get_macrostrat_ref_doi(responses[i])
     end
 
     # Write the references to a file
@@ -228,21 +228,24 @@
 
 
 ## --- Import and parse the bulk EarthChem data into a NamedTuple
-    bulk_file = matopen("data/bulk.mat")
-    bulk_dict = read(bulk_file, "bulk")
-    close(bulk_file)
+    earthchem_raw = matopen("data/bulk.mat")
+    earthchem_dict = read(earthchem_raw, "bulk")
+    close(earthchem_raw)
 
-    bulk = NamedTuple{Tuple(Symbol.(keys(bulk_dict)))}(values(bulk_dict))
+    earthchem = NamedTuple{Tuple(Symbol.(keys(bulk_dict)))}(values(earthchem_dict))
 
     # Match EarthChem Types to rock type names
-    bulksed, bulkign, bulkmet = match_earthchem(bulk.Type, major=true)
+    echem_cats = match_earthchem(earthchem.Type, major=true)
 
-    bulkcryst = bulkign .| bulkmet                            # Crystalline (ign and met where met excludes metaseds and metaigns)
-    bulk_not_matched = .!bulksed .& .!bulkign .& .!bulkmet    # Unmatched samples
-    bulk_matched = .!bulk_not_matched                         # All matched samples
+    # To match Macrostrat classification, crystalline rocks are ign and met 
+    # Note that met excludes metaseds and metaigns
+    echem_cryst = echem_cats.ign .| echem_cats.met
+
+    echem_not_matched = .!echem_cats.sed .& .!echem_cats.ign .& .!echem_cats.met     # Unmatched samples
+    echem_matched = .!echem_not_matched                                               # All matched samples
 
     # Print to terminal
-    @info "not matched = $(count(bulk_not_matched)) of $(length(bulk.Type)) total ($(round((count(bulk_not_matched))/(length(bulk.Type))*100, digits=2))%)\n"
+    @info "not matched = $(count(echem_not_matched)) of $(length(earthchem.Type)) total ($(round((count(echem_not_matched))/(length(earthchem.Type))*100, digits=2))%)\n"
 
 
 ## --- Find the average combined phosphorus content of each rock type
@@ -253,15 +256,11 @@
     # p_cryst = nanmean(bulk.P[bulkcryst]) * 1e-6
 
     # Calculate wt.% as only P2O5
-    pwt_sed = nanmean(bulk.P2O5[bulksed])
-    pwt_ign = nanmean(bulk.P2O5[bulkign])
-    pwt_met = nanmean(bulk.P2O5[bulkmet])
-    pwt_cryst = nanmean(bulk.P2O5[bulkcryst])
-
-    prel_sed = pwt_sed / (pwt_sed+pwt_ign+pwt_met) * 100
-    prel_ign = pwt_ign / (pwt_sed+pwt_ign+pwt_met) * 100
-    prel_met = pwt_met / (pwt_sed+pwt_ign+pwt_met) * 100
-    prel_cryst = pwt_cryst / (pwt_sed+pwt_ign+pwt_met) * 100
+    pwt_sed = nanmean(earthchem.P2O5[echem_cats.sed])
+    pwt_ign = nanmean(earthchem.P2O5[echem_cats.ign])
+    pwt_met = nanmean(earthchem.P2O5[echem_cats.met])
+    pwt_cryst = nanmean(earthchem.P2O5[echem_cryst])
+    pwt_total = nanmean(pwt_sed + pwt_ign + pwt_met)
 
     # Print to terminal
     @info "Average phosphorus content by rock type:
@@ -270,6 +269,14 @@
     met = $(round(pwt_met,digits=2)) wt.%
     cryst (ign + (met & ~sed)) = $(round(pwt_cryst,digits=2)) wt.%"
 
+    # Calculate what fraction of phosphorus is in each rock type
+    # Why do I do this? I don't think this is telling me anything
+    prel_sed = pwt_sed / (pwt_total) * 100
+    prel_ign = pwt_ign / (pwt_total) * 100
+    prel_met = pwt_met / (pwt_total) * 100
+    prel_cryst = pwt_cryst / (pwt_total) * 100
+    
+    # Print to terminal
     @info "Relative abundance of phosphorus by rock type:
     sed = $(round(prel_sed,digits=2))%
     ign = $(round(prel_ign,digits=2))%
@@ -305,6 +312,32 @@
 
 
 ## -- Calculate P content for a more granular rock type catagorization
+    # cats = match_rocktype(rocktype, rockname, rockdescrip, major=true)
+
+    # # Exclude suspected cover from the other three categories, just to be sure
+    # cats.sed .&= .! cats.cover .& .! cats.ign
+    # cats.ign .&= .! cats.cover
+
+    # # Metaseds / metaigns grouped with sed / ign
+    # cats.met .&= .! cats.cover .& .! cats.sed .& .! cats.ign
+    
+    # # Define crystalline rocks as igneous or non metased/ign metamorphic
+    # cryst = cats.ign .| cats.met                               
+
+    # # Figure out how many data points weren't matched
+    # known = cats.sed .| cats.ign .| cats.met
+    # matched = known .| cats.cover
+    # not_matched = .!matched
+    # multi_matched = (cats.sed .& cats.ign) .| (cats.sed .& cats.met) .| (cats.ign .& cats.met)
+    # total_known = count(known)
+
+    # # Relative abundance
+    # sed_area_frac = count(cats.sed) / total_known
+    # ign_area_frac = count(cats.ign) / total_known
+    # met_area_frac = count(cats.met) / total_known
+    # cryst_area_frac = count(cryst) / total_known
+
+
     # bulksed, bulkign, bulkmet, bulkvolc, bulkplut, bulkmetaign, bulkmetased = match_earthchem(bulk.Type, major=false)
 
     # pwt_sed = nanmean(bulk.P2O5[bulksed])

@@ -385,14 +385,13 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
 
             metased = falses(npoints),
             metaign = falses(npoints),
-            cataclastic = falses(npoints),
             met = falses(npoints),
 
             cover = falses(npoints),
         )
         typelist = [siliciclasttypes, shaletypes, carbtypes, cherttypes, evaporitetypes, 
             coaltypes, sedtypes, volctypes, pluttypes, igntypes, metasedtypes, metaigntypes, 
-            cataclastictypes, mettypes, covertypes
+            mettypes, covertypes
         ]
     end
 

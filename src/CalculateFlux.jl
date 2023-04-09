@@ -232,7 +232,7 @@
     earthchem_dict = read(earthchem_raw, "bulk")
     close(earthchem_raw)
 
-    earthchem = NamedTuple{Tuple(Symbol.(keys(bulk_dict)))}(values(earthchem_dict))
+    earthchem = NamedTuple{Tuple(Symbol.(keys(earthchem_dict)))}(values(earthchem_dict))
 
     # Match EarthChem Types to rock type names
     echem_cats = match_earthchem(earthchem.Type, major=true)
@@ -289,7 +289,7 @@
     const contl_area = 148940000 * 1000000    # Area of continents (m²)
     const crustal_density = 2750              # Average crustal density (kg/m³)
 
-    # Crustal areas (m^2)
+    # Crustal areas (m²)
     sed_area = contl_area * sed_area_frac
     ign_area = contl_area * ign_area_frac
     met_area = contl_area * met_area_frac
@@ -312,41 +312,112 @@
 
 
 ## -- Calculate P content for a more granular rock type catagorization
-    # cats = match_rocktype(rocktype, rockname, rockdescrip, major=true)
 
-    # # Exclude suspected cover from the other three categories, just to be sure
-    # cats.sed .&= .! cats.cover .& .! cats.ign
-    # cats.ign .&= .! cats.cover
+## -- Get macrostrat rock types
+    macro_cats = match_rocktype(rocktype, rockname, rockdescrip, major=false)
 
-    # # Metaseds / metaigns grouped with sed / ign
-    # cats.met .&= .! cats.cover .& .! cats.sed .& .! cats.ign
+## -- Get erosion (m/Myr) for each rock type in Macrostrat
+    macro_ersn = (
+        siliciclast = nanmean(rock_ersn[macro_cats.siliciclast]), 
+        shale = nanmean(rock_ersn[macro_cats.shale]), 
+        carb = nanmean(rock_ersn[macro_cats.carb]), 
+        chert = nanmean(rock_ersn[macro_cats.chert]), 
+        evaporite = nanmean(rock_ersn[macro_cats.evaporite]), 
+        coal = nanmean(rock_ersn[macro_cats.coal]), 
+        sed = nanmean(rock_ersn[macro_cats.sed]),
+
+        volc = nanmean(rock_ersn[macro_cats.volc]), 
+        plut = nanmean(rock_ersn[macro_cats.plut]), 
+        ign = nanmean(rock_ersn[macro_cats.ign]),
+
+        metased = nanmean(rock_ersn[macro_cats.metased]), 
+        metaign = nanmean(rock_ersn[macro_cats.metaign]), 
+        met = nanmean(rock_ersn[macro_cats.met]),
+    )
     
-    # # Define crystalline rocks as igneous or non metased/ign metamorphic
-    # cryst = cats.ign .| cats.met                               
 
-    # # Figure out how many data points weren't matched
-    # known = cats.sed .| cats.ign .| cats.met
-    # matched = known .| cats.cover
-    # not_matched = .!matched
-    # multi_matched = (cats.sed .& cats.ign) .| (cats.sed .& cats.met) .| (cats.ign .& cats.met)
-    # total_known = count(known)
+## -- Get crustal area for each rock type in Macrostrat
+    # Exclude suspected cover from the other three categories, just to be sure
+    macro_cats.sed .&= .! macro_cats.cover .& .! macro_cats.ign
+    macro_cats.ign .&= .! macro_cats.cover
 
-    # # Relative abundance
-    # sed_area_frac = count(cats.sed) / total_known
-    # ign_area_frac = count(cats.ign) / total_known
-    # met_area_frac = count(cats.met) / total_known
-    # cryst_area_frac = count(cryst) / total_known
+    # Metaseds / metaigns grouped with sed / ign
+    macro_cats.met .&= .! macro_cats.cover .& .! macro_cats.sed .& .! macro_cats.ign
+    
+    # Define crystalline rocks as igneous or non metased metamorphic
+    macro_cryst = macro_cats.ign .| macro_cats.met
+
+    # Figure out how many data points weren't matched
+    known_rocks = macro_cats.sed .| macro_cats.ign .| macro_cats.met
+    total_known = count(known_rocks)
+
+    matched = known .| macro_cats.cover
+    total_matched = count(matched)
+    not_matched = .!matched
+    multi_matched = ((macro_cats.sed .& macro_cats.ign) .| (macro_cats.sed .& macro_cats.met) 
+        .| (macro_cats.ign .& macro_cats.met)
+    )
+    
+    # Area (in m²) of each rock type. 
+    # Using all rocks including cover because continental area includes areas of cover?
+    crustal_area = (
+        siliciclast = count(macro_cats.siliciclast) / total_matched * contl_area, 
+        shale = count(macro_cats.shale) / total_matched * contl_area, 
+        carb = count(macro_cats.carb) / total_matched * contl_area, 
+        chert = count(macro_cats.chert) / total_matched * contl_area, 
+        evaporite = count(macro_cats.evaporite) / total_matched * contl_area, 
+        coal = count(macro_cats.coal) / total_matched * contl_area, 
+        sed = count(macro_cats.sed) / total_matched * contl_area,
+
+        volc = count(macro_cats.volc) / total_matched * contl_area, 
+        plut = count(macro_cats.plut) / total_matched * contl_area, 
+        ign = count(macro_cats.ign) / total_matched * contl_area,
+
+        metased = count(macro_cats.metased) / total_matched * contl_area, 
+        metaign = count(macro_cats.metaign) / total_matched * contl_area, 
+        met = count(macro_cats.met) / total_matched * contl_area,
+
+        cover = count(macro_cats.cover) / total_matched * contl_area,
+    )
 
 
-    # bulksed, bulkign, bulkmet, bulkvolc, bulkplut, bulkmetaign, bulkmetased = match_earthchem(bulk.Type, major=false)
+## -- Get average sed contributions from EarthChem data
+    echem_cats = match_earthchem(earthchem.Type, major=false)
 
-    # pwt_sed = nanmean(bulk.P2O5[bulksed])
-    # pwt_ign = nanmean(bulk.P2O5[bulkign])
-    # pwt_met = nanmean(bulk.P2O5[bulkmet])
+    p_wt = (
+        alluvium = nanmean(earthchem.P2O5[echem_cats.alluvium]), 
+        siliciclast = nanmean(earthchem.P2O5[echem_cats.siliciclast]), 
+        shale = nanmean(earthchem.P2O5[echem_cats.shale]), 
+        carb = nanmean(earthchem.P2O5[echem_cats.carb]), 
+        chert = nanmean(earthchem.P2O5[echem_cats.chert]), 
+        evaporite = nanmean(earthchem.P2O5[echem_cats.evaporite]), 
+        phosphorite = nanmean(earthchem.P2O5[echem_cats.phosphorite]), 
+        coal = nanmean(earthchem.P2O5[echem_cats.coal]), 
+        volcaniclast = nanmean(earthchem.P2O5[echem_cats.volcaniclast]), 
+        sed = nanmean(earthchem.P2O5[echem_cats.sed]),
 
-    # pwt_volc = nanmean(bulk.P2O5[bulkvolc])
-    # pwt_plut = nanmean(bulk.P2O5[bulkplut])
-    # pwt_metaign = nanmean(bulk.P2O5[bulkmetaign])
-    # pwt_metased = nanmean(bulk.P2O5[bulkmetased])
+        volc = nanmean(earthchem.P2O5[echem_cats.volc]), 
+        plut = nanmean(earthchem.P2O5[echem_cats.plut]), 
+        ign = nanmean(earthchem.P2O5[echem_cats.ign]),
+
+        metased = nanmean(earthchem.P2O5[echem_cats.metased]), 
+        metaign = nanmean(earthchem.P2O5[echem_cats.metaign]), 
+        met = nanmean(earthchem.P2O5[echem_cats.met]),
+    )
+
+    # Calculate P flux by source contributions in kg/yr
+    pflux_source = (
+        siliciclast = [0.0], shale = [0.0], carb = [0.0], chert = [0.0], evaporite = [0.0], 
+        coal = [0.0], sed = [0.0],
+
+        volc = [0.0], plut = [0.0], ign = [0.0],
+
+        metased = [0.0], metaign = [0.0], met = [0.0],
+    )
+
+    for i in eachindex(pflux_source)
+        pflux_source[i][1] = macro_ersn[i] * p_wt[i] * crustal_area[i] * crustal_density * 1e-6
+    end
+    pflux_global = pflux_source.sed + pflux_source.ign + pflux_source.met
   
 ## -- End of file

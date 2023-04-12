@@ -323,8 +323,7 @@
         volc = [0.0], plut = [0.0], ign = [0.0],
         metased = [0.0], metaign = [0.0], met = [0.0],
     )
-
-    for i in eachindex(pflux_source)
+    for i in eachindex(macro_ersn)
         macro_ersn[i][1] = nanmean(rock_ersn[macro_cats[i]])
     end
     
@@ -386,10 +385,9 @@
         volc = [0.0], plut = [0.0], ign = [0.0],
         metased = [0.0], metaign = [0.0], met = [0.0],
     )
-
     for i in eachindex(pflux_source)
-        pflux_source[i][1] = macro_ersn[i] * p_wt[i] * crustal_area[i] * crustal_density * 1e-6
+        pflux_source[i][1] = macro_ersn[i][1] * p_wt[i][1] * crustal_area[i][1] * crustal_density * 1e-6
     end
     pflux_global = pflux_source.sed + pflux_source.ign + pflux_source.met
-  
+    
 ## -- End of file

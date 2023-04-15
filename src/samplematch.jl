@@ -16,36 +16,36 @@
 
     # Filter ages younger than 0 or greater than the age of the earth
     invalid_age = vcat(findall(>(4000), earthchem.Age), findall(<(0), earthchem.Age))
-    earthchem.Age[invalid_age] .= NaN
+    chem.Age[invalid_age] .= NaN
 
     # Get rock types
-    cats_echem = match_earthchem(earthchem.Type, major=false)   
+    chem_cats = match_earthchem(earthchem.Type, major=false)   
 
 ## --- Load Earthchem metadata
     earthchem_raw = matopen("data/bulktext.mat")
     earthchem_dict = read(earthchem_raw, "bulktext")
     close(earthchem_raw)
-    text_echem_unparsed = NamedTuple{Tuple(Symbol.(keys(earthchem_dict)))}(values(earthchem_dict))
+    chemtext_unparsed = NamedTuple{Tuple(Symbol.(keys(earthchem_dict)))}(values(earthchem_dict))
     
     # Preallocate for parsing---make a NamedTuple with just the things we want
-    npoints = length(text_echem_unparsed.index["Composition"])
+    npoints = length(chemtext_unparsed.index["Composition"])
 
     # Ignoring sparse arrays for now because they make me sad
     # Correct indices for 0-index offset
-    composition_idx = Int.(text_echem_unparsed.index["Composition"] .+ 1)
-    reference_idx = Int.(text_echem_unparsed.index["Reference"] .+ 1)
-    rockname_idx = Int.(text_echem_unparsed.index["Rock_Name"] .+ 1)
-    source_idx = Int.(text_echem_unparsed.index["Source"] .+ 1)
-    type_idx = Int.(text_echem_unparsed.index["Type"] .+ 1)
-    material_idx = Int.(text_echem_unparsed.index["Material"] .+ 1)
+    composition_idx = Int.(chemtext_unparsed.index["Composition"] .+ 1)
+    reference_idx = Int.(chemtext_unparsed.index["Reference"] .+ 1)
+    rockname_idx = Int.(chemtext_unparsed.index["Rock_Name"] .+ 1)
+    source_idx = Int.(chemtext_unparsed.index["Source"] .+ 1)
+    type_idx = Int.(chemtext_unparsed.index["Type"] .+ 1)
+    material_idx = Int.(chemtext_unparsed.index["Material"] .+ 1)
 
     # Parse numeric codes in index into arrays
-    echem_composition = lowercase.(string.(text_echem_unparsed.Composition[composition_idx]))
-    echem_reference = lowercase.(string.(text_echem_unparsed.Reference[reference_idx]))
-    echem_rockname = lowercase.(string.(text_echem_unparsed.Rock_Name[rockname_idx]))
-    echem_source = lowercase.(string.(text_echem_unparsed.Source[source_idx]))
-    echem_type = lowercase.(string.(text_echem_unparsed.Type[type_idx]))
-    echem_material = lowercase.(string.(text_echem_unparsed.Material[material_idx]))
+    chem_composition = lowercase.(string.(chemtext_unparsed.Composition[composition_idx]))
+    chem_reference = lowercase.(string.(chemtext_unparsed.Reference[reference_idx]))
+    chem_rockname = lowercase.(string.(chemtext_unparsed.Rock_Name[rockname_idx]))
+    chem_source = lowercase.(string.(chemtext_unparsed.Source[source_idx]))
+    chem_type = lowercase.(string.(chemtext_unparsed.Type[type_idx]))
+    chem_material = lowercase.(string.(chemtext_unparsed.Material[material_idx]))
 
     
 ## --- Load Macrostrat data

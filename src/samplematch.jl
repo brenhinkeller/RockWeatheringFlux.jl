@@ -22,7 +22,6 @@
     close(earthchem_raw)
     text_echem_unparsed = NamedTuple{Tuple(Symbol.(keys(earthchem_dict)))}(values(earthchem_dict))
     
-
     # Preallocate for parsing---make a NamedTuple with just the things we want
     npoints = length(text_echem_unparsed.index["Composition"])
 
@@ -36,12 +35,12 @@
     material_idx = Int.(text_echem_unparsed.index["Material"] .+ 1)
 
     # Parse numeric codes in index into arrays
-    composition = lowercase.(string.(text_echem_unparsed.Composition[composition_idx]))
-    reference = lowercase.(string.(text_echem_unparsed.Reference[reference_idx]))
-    rockname = lowercase.(string.(text_echem_unparsed.Rock_Name[rockname_idx]))
-    source = lowercase.(string.(text_echem_unparsed.Source[source_idx]))
-    type = lowercase.(string.(text_echem_unparsed.Type[type_idx]))
-    material = lowercase.(string.(text_echem_unparsed.Material[material_idx]))
+    echem_composition = lowercase.(string.(text_echem_unparsed.Composition[composition_idx]))
+    echem_reference = lowercase.(string.(text_echem_unparsed.Reference[reference_idx]))
+    echem_rockname = lowercase.(string.(text_echem_unparsed.Rock_Name[rockname_idx]))
+    echem_source = lowercase.(string.(text_echem_unparsed.Source[source_idx]))
+    echem_type = lowercase.(string.(text_echem_unparsed.Type[type_idx]))
+    echem_material = lowercase.(string.(text_echem_unparsed.Material[material_idx]))
 
     
 ## --- Load Macrostrat data

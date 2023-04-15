@@ -14,7 +14,12 @@
     close(earthchem_raw)
     earthchem = NamedTuple{Tuple(Symbol.(keys(earthchem_dict)))}(values(earthchem_dict))
 
-    cats_echem = match_earthchem(earthchem.Type, major=false)   # Get rock types
+    # Filter ages younger than 0 or greater than the age of the earth
+    invalid_age = vcat(findall(>(4000), earthchem.Age), findall(<(0), earthchem.Age))
+    earthchem.Age[invalid_age] .= NaN
+
+    # Get rock types
+    cats_echem = match_earthchem(earthchem.Type, major=false)   
 
 ## --- Load Earthchem metadata
     earthchem_raw = matopen("data/bulktext.mat")
@@ -60,6 +65,7 @@
     rockcomments = Array{String}(undef, npoints, 1)
     agemax = Array{Float64}(undef, npoints, 1)
     agemin = Array{Float64}(undef, npoints, 1)
+    age = Array{Float64}(undef, npoints, 1)
 
     # Parse responses into preallocated arrays
     for i in eachindex(rocktype)
@@ -70,6 +76,25 @@
         rockcomments[i] = get_macrostrat_comments(responses[i])
         agemax[i] = get_macrostrat_max_age(responses[i])
         agemin[i] = get_macrostrat_min_age(responses[i])
+    end
+
+    # Age of each sample
+    for i in 1:npoints
+        age[i] = nanmean([agemax[i], agemin[i]])
+    end
+
+    # Filter ages younger than 0 or greater than the age of the earth
+    invalid_age = vcat(findall(>(4000), age), findall(<(0), age))
+    age[invalid_age] .= NaN
+
+    # Make sure age bounds are in the right order
+    for i in 1:npoints
+        if agemin[i] > agemax[i]
+            tempmax = agemin[i]
+            tempmin = agemax[i]
+            agemin[i] = tempmax
+            agemax[i] = tempmin
+        end
     end
 
     # Convert strings to lowercase so they can be matched to known names of rock types

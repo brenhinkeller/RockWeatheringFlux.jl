@@ -1,4 +1,5 @@
 .DS_Store
+data/
 dev/
 /*.nc
 /*.xls
@@ -9,6 +10,8 @@ dev/
 # Ignore large datafiles
 *.jld
 *.h5
+*.mat
+*.gz
 
 # Some intermediate julia file types to ignore
 *.jl.cov

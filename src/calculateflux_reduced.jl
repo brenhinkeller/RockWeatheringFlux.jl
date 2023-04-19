@@ -22,6 +22,7 @@
 ## --- Load pre-generated data
     @info "Loading pregenerated Macrostrat data. This may take up to 30 minutes on slow machines. Started $(Dates.format(now(), "HH:MM"))"
     retrive_file = load("data/pregenerated_responses.jld")
+    @info "Success! Parsing data..."
 
     responses = retrive_file["responses"]
     elevations = float.(retrive_file["elevations"])
@@ -123,10 +124,12 @@
 
 
 ## --- Load EarthChem data
+	@info "Loading EarthChem data..."
     earthchem_raw = matopen("data/bulk.mat")
     earthchem_dict = read(earthchem_raw, "bulk")
     close(earthchem_raw)
     earthchem = NamedTuple{Tuple(Symbol.(keys(earthchem_dict)))}(values(earthchem_dict))
+    @info "Success! Parsing data..."
     
 
 ## --- Get average sed contributions from EarthChem data

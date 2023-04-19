@@ -2,12 +2,9 @@
 
 ## --- Setup
     # External packages
-    using ProgressMeter: @showprogress
     using StatGeochem
     using DelimitedFiles
-    using Plots
     using Dates
-    # using LoopVectorization
 
     # File parsing packages
     using JLD
@@ -174,6 +171,6 @@
     for i in eachindex(pflux_source)
         pflux_source[i][1] = macro_ersn[i][1] * p_wt[i][1] * crustal_area[i][1] * crustal_density * 1e-6
     end
-    pflux_global = pflux_source.sed + pflux_source.ign + pflux_source.met
+    pflux_global = pflux_source.sed[1] + pflux_source.ign[1] + pflux_source.met[1]
 
 ## --- End of File

@@ -71,25 +71,43 @@
 ## --- Match the Burwell rocktype with our rock types
     macro_cats = match_rocktype(rocktype, rockname, rockdescrip, major=false)
 
-    # Exclude suspected cover from the other three categories, just to be sure
-    macro_cats.sed .&= .! macro_cats.cover .& .! macro_cats.ign
-    macro_cats.ign .&= .! macro_cats.cover
-
-    # Metaseds / metaigns grouped with sed / ign
-    macro_cats.met .&= .! macro_cats.cover .& .! macro_cats.sed .& .! macro_cats.ign
+    # Reduce likelihood of double matches
+    macro_cats.sed .&= .! macro_cats.cover .& .! macro_cats.ign		# Sed excludes cover and igns
+    macro_cats.ign .&= .! macro_cats.cover							# Ign excludes cover
+    macro_cats.met .&= .! macro_cats.cover							# Met excludes cover
     
     # Define crystalline rocks as igneous or non metased metamorphic
-    macro_cryst = macro_cats.ign .| macro_cats.met
+    macro_cryst = macro_cats.ign .| macro_cats.metaign .| macro_cats.met 
 
     # Figure out how many data points weren't matched
     known_rocks = macro_cats.sed .| macro_cats.ign .| macro_cats.met
     total_known = count(known_rocks)
 
-    matched = total_known .| macro_cats.cover
+    matched = known_rocks .| macro_cats.cover
     not_matched = .!matched
     multi_matched = ((macro_cats.sed .& macro_cats.ign) .| (macro_cats.sed .& macro_cats.met) 
         .| (macro_cats.ign .& macro_cats.met)
     )
+    
+    # Print to terminal
+    @info "Macrostrat parsing complete!
+    not matched = $(count(not_matched)), conflicting matches of major rocktypes = $(count(multi_matched))\n"
+
+
+## --- Calculate erosion rate at each coordinate point of interest
+	@info "Calculating slope and erosion at each point"
+	
+    # Load the slope variable from the SRTM15+ maxslope file
+    srtm15_slope = h5read("data/srtm15plus_maxslope.h5", "vars/slope")
+    srtm15_sf = h5read("data/srtm15plus_maxslope.h5", "vars/scalefactor")
+
+    # Get slope at each coordinate point
+    rockslope = avg_over_area(srtm15_slope, rocklat, rocklon, srtm15_sf, halfwidth=7)
+
+    # Calculate all erosion rates (mm/kyr)
+    rock_ersn = emmkyr.(rockslope)
+    
+    @info "Slope and erosion calculated successfully."
 
 
 ## --- Get erosion (m/Myr) for each rock type in Macrostrat

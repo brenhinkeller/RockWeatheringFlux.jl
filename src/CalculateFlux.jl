@@ -161,7 +161,7 @@
     cryst (ign + (met & ~sed)) = $(count(cryst)) ($(round(cryst_area_frac*100, digits=2))%)\n"
 
 
-## -- Write the data to .tsv files so we can access or export it
+## --- Write the data to .tsv files so we can access or export it
     writedlm("output/notmatched.tsv", hcat(rocklat[not_matched], rocklon[not_matched], 
         rocktype[not_matched], rockname[not_matched], rockdescrip[not_matched], rockstratname[not_matched], 
         rockcomments[not_matched]))
@@ -231,7 +231,6 @@
     earthchem_raw = matopen("data/bulk.mat")
     earthchem_dict = read(earthchem_raw, "bulk")
     close(earthchem_raw)
-
     earthchem = NamedTuple{Tuple(Symbol.(keys(earthchem_dict)))}(values(earthchem_dict))
 
     # Match EarthChem Types to rock type names
@@ -284,7 +283,7 @@
     cryst (ign + (met & ~sed)) = $(round(prel_cryst,digits=2))%\n"
 
 
-## -- Calculate what % of total eroded P comes from each rock type
+## --- Calculate what % of total eroded P comes from each rock type
     # Constants
     const contl_area = 148940000 * 1000000    # Area of continents (m²)
     const crustal_density = 2750              # Average crustal density (kg/m³)
@@ -311,12 +310,12 @@
     global = $(round(global_contrib, sigdigits=3))\n"
 
 
-## -- Calculate P content for a more granular rock type catagorization
+## --- Calculate P content for a more granular rock type catagorization
 
-## -- Get macrostrat rock types
+## --- Get macrostrat rock types
     macro_cats = match_rocktype(rocktype, rockname, rockdescrip, major=false)
 
-## -- Get erosion (m/Myr) for each rock type in Macrostrat
+## --- Get erosion (m/Myr) for each rock type in Macrostrat
     macro_ersn = (
         siliciclast = [0.0], shale = [0.0], carb = [0.0], chert = [0.0], evaporite = [0.0], 
             coal = [0.0], sed = [0.0],
@@ -328,7 +327,7 @@
     end
     
 
-## -- Get crustal area for each rock type in Macrostrat
+## --- Get crustal area for each rock type in Macrostrat
     # Exclude suspected cover from the other three categories, just to be sure
     macro_cats.sed .&= .! macro_cats.cover .& .! macro_cats.ign
     macro_cats.ign .&= .! macro_cats.cover
@@ -344,14 +343,13 @@
     total_known = count(known_rocks)
 
     matched = known .| macro_cats.cover
-    total_matched = count(matched)
     not_matched = .!matched
     multi_matched = ((macro_cats.sed .& macro_cats.ign) .| (macro_cats.sed .& macro_cats.met) 
         .| (macro_cats.ign .& macro_cats.met)
     )
     
     # Area (in m²) of each rock type. 
-    # Using all rocks including cover because continental area includes areas of cover?
+    # Using all rocks, assuming equal distribution of rock types under cover
     crustal_area = (
         siliciclast = [0.0], shale = [0.0], carb = [0.0], chert = [0.0], evaporite = [0.0], 
             coal = [0.0], sed = [0.0],
@@ -360,11 +358,11 @@
         cover = [0.0]
     )
     for i in eachindex(crustal_area)
-        crustal_area[i][1] = count(macro_cats[i]) / total_matched * contl_area
+        crustal_area[i][1] = count(macro_cats[i]) / total_known * contl_area
     end
 
 
-## -- Get average sed contributions from EarthChem data
+## --- Get average sed contributions from EarthChem data
     echem_cats = match_earthchem(earthchem.Type, major=false)
 
     p_wt = (
@@ -390,4 +388,4 @@
     end
     pflux_global = pflux_source.sed + pflux_source.ign + pflux_source.met
     
-## -- End of file
+## --- End of file

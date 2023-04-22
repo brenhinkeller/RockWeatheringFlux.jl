@@ -16,10 +16,20 @@
 
     # Filter ages younger than 0 or greater than the age of the earth
     invalid_age = vcat(findall(>(4000), earthchem.Age), findall(<(0), earthchem.Age))
-    chem.Age[invalid_age] .= NaN
+    earthchem.Age[invalid_age] .= NaN
 
     # Get rock types
-    chem_cats = match_earthchem(earthchem.Type, major=false)   
+    chem_cats = match_earthchem(earthchem.Type, major=false)
+
+
+## -- Calculate mean and standard deviation for major elements
+    # Major elements (from Faye and Ødegård 1975)
+    # Si, Al, Fe, Ti, Mg, Ca, Na, K, and Mn.
+
+    #=
+    For some elements X EarthChem will have X (ppm) and XₙOₘ (wt.%). For these elements, 
+    the two metrics are equivilent when accounting for units and the weight of oxygen.
+    =#
 
 ## --- Load Earthchem metadata
     earthchem_raw = matopen("data/bulktext.mat")
@@ -113,5 +123,34 @@
 
     # Match data to rock types
     macro_cats = match_rocktype(rocktype, rockname, rockdescrip, major=false)
+
+
+## --- For each sample, estimate the log likelihood that... what?
+    # All rocks must be the same rock type
+    for elem in eachindex(macro_cats)
+        # Cover is not present in earthchem data; skip it
+        if elem==:cover
+            continue
+        end
+        
+        # Get EarthChem samples of that rock type
+        chem_samples = chem_cats[elem]      # EarthChem
+        lat = rocklat[macro_cats[elem]]     # Latitude
+        lon = rocklon[macro_cats[elem]]     # Longitude
+        smpl_age = age[macro_cats[elem]]    # Age
+
+        for i in eachindex(lat)
+            # Distance from point of interest (σ = 1.8 arc degrees)
+            dist = arcdistance(lat[i], lon[i], earthchem.Latitude, earthchem.Longitude)
+            lh_dist = -(dist.^2)./(1.8^2)
+
+            # Age from point of interest (σ = 38 Ma)
+            # Age vs AgeEst? Gives more data...
+            age_diff = abs.(earthchem.AgeEst .- smpl_age[i])
+            lh_age = -(age_diff.^2)./(38^2)
+        end
+        
+        
+    end
 
 ### --- End of file

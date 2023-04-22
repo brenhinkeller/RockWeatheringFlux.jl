@@ -39,15 +39,19 @@
     )
 
     # Slope can be loaded from here instead of calculating everything again
-    save("data/OCTOPUS_basin_aveslope.jld","basin_srtm15plus_aveslope",basin_srtm15plus_aveslope,
+    # Renamed from OctopusSlopeRecalc.jld
+    save("data/OCTOPUS_basin_aveslope_new.jld","basin_srtm15plus_aveslope",basin_srtm15plus_aveslope,
         "basin_polygon_n",basin_polygon_n,"basin_polygon_lat",basin_polygon_lat,
         "basin_polygon_lon",basin_polygon_lon, "subbasins",subbasins
     )
 
+    # Alternatively, loading from this file is about 20x faster
+    # save("data/basin_srtm15plus_aveslope.jld","basin_srtm15plus_aveslope",basin_srtm15plus_aveslope)
+
 
 ## --- Alternatively, load pregenerated slope data for each basin
-    @info "Loading basin slope data"
-    basin_srtm15plus_aveslope =  load("data/OCTOPUS_basin_aveslope.jld")["basin_srtm15plus_aveslope"]
+    # @info "Loading basin slope data"
+    # basin_srtm15plus_aveslope_2 =  load("data/OCTOPUS_basin_aveslope.jld")["basin_srtm15plus_aveslope"]
 
 ## --- Fit raw erosion rate as a function of slope (m/km)
     @info "Fitting erosion / slope curve"

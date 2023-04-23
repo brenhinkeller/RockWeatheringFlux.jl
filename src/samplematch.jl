@@ -40,15 +40,74 @@
     material_idx = Int.(bulktext.index["Material"] .+ 1)
 
     # Parse numeric codes in index into arrays
-    chem_composition = lowercase.(string.(bulktext.Composition[composition_idx]))
-    chem_reference = lowercase.(string.(bulktext.Reference[reference_idx]))
-    chem_rockname = lowercase.(string.(bulktext.Rock_Name[rockname_idx]))
-    chem_source = lowercase.(string.(bulktext.Source[source_idx]))
-    chem_type = lowercase.(string.(bulktext.Type[type_idx]))
-    chem_material = lowercase.(string.(bulktext.Material[material_idx]))
+    bulk_composition = lowercase.(string.(bulktext.Composition[composition_idx]))
+    bulk_reference = lowercase.(string.(bulktext.Reference[reference_idx]))
+    bulk_rockname = lowercase.(string.(bulktext.Rock_Name[rockname_idx]))
+    bulk_source = lowercase.(string.(bulktext.Source[source_idx]))
+    bulk_type = lowercase.(string.(bulktext.Type[type_idx]))
+    bulk_material = lowercase.(string.(bulktext.Material[material_idx]))
+
+    # All relevant rock type identifiers
+    bulk_lith = bulk_type .* " " .* bulk_material .* " " .* bulk_rockname
+
+## --- To do:
+    #=
+    Quality control on the rock names--some very mafic granites in this dataset
+    Or honestly maybe just skip the rock names and just go on silica content? Idk
+    =#
 
 
+## --- Calculate mean and standard deviation of major element oxides for each rock type
+    # In the future, we will want to separate igneous rocks by silica content--this is fine for now
     
+    # Define major elements from Faye and Ødegård 1975
+
+    # Temporary data storage
+    geochem = Array{NamedTuple}(undef, length(bulk_cats), 1)
+    j = 1
+    for i in eachindex(bulk_cats)
+        type = bulk_cats[i]
+        elem = (
+            SiO2 = (m = nanmean(bulk.SiO2[type]), e = nanstd(bulk.SiO2[type])),
+            Al2O3 = (m = nanmean(bulk.Al2O3[type]), e = nanstd(bulk.Al2O3[type])),
+            Fe2O3T = (m = nanmean(bulk.Fe2O3T[type]), e = nanstd(bulk.Fe2O3T[type])),
+            TiO2 = (m = nanmean(bulk.TiO2[type]), e = nanstd(bulk.TiO2[type])),
+            MgO = (m = nanmean(bulk.MgO[type]), e = nanstd(bulk.MgO[type])),
+            CaO = (m = nanmean(bulk.CaO[type]), e = nanstd(bulk.CaO[type])),
+            Na2O = (m = nanmean(bulk.Na2O[type]), e = nanstd(bulk.Na2O[type])),
+            K2O = (m = nanmean(bulk.K2O[type]), e = nanstd(bulk.K2O[type])),
+            MnO = (m = nanmean(bulk.MnO[type]), e = nanstd(bulk.MnO[type]))
+        )
+
+        geochem[j] = elem
+        j += 1
+    end
+
+    # This is objectively a horrible way to get this data into the tuple
+    # This is also definately one option I have to store data!
+    # To do: load from a file?
+    avg_geochem = (
+        alluvium = geochem[1],
+        siliciclast = geochem[2],
+        shale = geochem[3],
+        carb = geochem[4],
+        chert = geochem[5],
+        evaporite = geochem[6],
+        phosphorite = geochem[7],
+        coal = geochem[8],
+        volcaniclast = geochem[9],
+        sed = geochem[10],
+
+        volc = geochem[11],
+        plut = geochem[12],
+        ign = geochem[13],
+
+        metased = geochem[14],
+        metaign = geochem[15],
+        met = geochem[16],
+    )
+
+
 ## --- Load Macrostrat data
     # Reduced size Macrostrat data file
     retrive_file = load("data/toy_responses.jld")
@@ -127,19 +186,6 @@
         # Get EarthChem samples of this rock type
         chem_samples = bulk_cats[elem]     # EarthChem
 
-        # Mean and standard devation of major element oxides for this rock type
-        major_oxides = (
-            SiO2 = (m = nanmean(bulk.SiO2[chem_samples]), e = nanstd(bulk.SiO2[chem_samples])),
-            Al2O3 = (m = nanmean(bulk.Al2O3[chem_samples]), e = nanstd(bulk.Al2O3[chem_samples])),
-            Fe2O3T = (m = nanmean(bulk.Fe2O3T[chem_samples]), e = nanstd(bulk.Fe2O3T[chem_samples])),
-            TiO2 = (m = nanmean(bulk.TiO2[chem_samples]), e = nanstd(bulk.TiO2[chem_samples])),
-            MgO = (m = nanmean(bulk.MgO[chem_samples]), e = nanstd(bulk.MgO[chem_samples])),
-            CaO = (m = nanmean(bulk.CaO[chem_samples]), e = nanstd(bulk.CaO[chem_samples])),
-            Na2O = (m = nanmean(bulk.Na2O[chem_samples]), e = nanstd(bulk.Na2O[chem_samples])),
-            K2O = (m = nanmean(bulk.K2O[chem_samples]), e = nanstd(bulk.K2O[chem_samples])),
-            MnO = (m = nanmean(bulk.MnO[chem_samples]), e = nanstd(bulk.MnO[chem_samples]))
-        )
-
         # Get Macrostrat samples of that rock type
         lat = rocklat[macro_cats[elem]]     # Latitude
         lon = rocklon[macro_cats[elem]]     # Longitude
@@ -156,7 +202,7 @@
             lh_age = -(age_diff.^2)./(38^2)
 
             # Geochemical difference from point of interest
-            # Assign a likely 
+            # Estimate major element composition based on known Macrostrat rock type
         end
         
         

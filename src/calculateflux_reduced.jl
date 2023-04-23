@@ -140,15 +140,15 @@
 
 ## --- Load EarthChem data
 	@info "Loading EarthChem data..."
-    earthchem_raw = matopen("data/bulk.mat")
-    earthchem_dict = read(earthchem_raw, "bulk")
-    close(earthchem_raw)
-    earthchem = NamedTuple{Tuple(Symbol.(keys(earthchem_dict)))}(values(earthchem_dict))
+    bulk_raw = matopen("data/bulk.mat")
+    bulk_dict = read(bulk_raw, "bulk")
+    close(bulk_raw)
+    bulk = NamedTuple{Tuple(Symbol.(keys(bulk_dict)))}(values(bulk_dict))
     @info "Success! Parsing data..."
     
 
 ## --- Get average sed contributions from EarthChem data
-    echem_cats = match_earthchem(earthchem.Type, major=false)
+    bulk_cats = match_earthchem(bulk.Type, major=false)
 
     p_wt = (
         alluvium = [0.0], siliciclast = [0.0], shale = [0.0], carb = [0.0], chert = [0.0], 
@@ -158,7 +158,7 @@
         metased = [0.0], metaign = [0.0], met = [0.0],
     )
     for i in eachindex(p_wt)
-        p_wt[i][1] = nanmean(earthchem.P2O5[echem_cats[i]]) 
+        p_wt[i][1] = nanmean(bulk.P2O5[bulk_cats[i]]) 
     end
 
     # Calculate P flux by source contributions in kg/yr

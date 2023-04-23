@@ -6,47 +6,47 @@
 
     # Local utilities
     include("Utilities.jl")         # Depending on REPL or script, only one will fail
-    include("src/Utilities.jl")     # Failure doesn't do anything so just run both every time
 
 
 ## --- Load Earthchem bulk geochemical data
-    earthchem_raw = matopen("data/bulk.mat")
-    earthchem_dict = read(earthchem_raw, "bulk")
-    close(earthchem_raw)
-    earthchem = NamedTuple{Tuple(Symbol.(keys(earthchem_dict)))}(values(earthchem_dict))
+    bulk_raw = matopen("data/bulk.mat")
+    bulk_dict = read(bulk_raw, "bulk")
+    close(bulk_raw)
+    bulk = NamedTuple{Tuple(Symbol.(keys(bulk_dict)))}(values(bulk_dict))
 
     # Filter ages younger than 0 or greater than the age of the earth
-    invalid_age = vcat(findall(>(4000), earthchem.Age), findall(<(0), earthchem.Age))
-    earthchem.Age[invalid_age] .= NaN
+    invalid_age = vcat(findall(>(4000), bulk.Age), findall(<(0), bulk.Age))
+    bulk.Age[invalid_age] .= NaN
 
     # Get rock types
-    echem_cats = match_earthchem(earthchem.Type, major=false)
+    bulk_cats = match_earthchem(bulk.Type, major=false)
 
 ## --- Load Earthchem metadata
-    earthchem_raw = matopen("data/bulktext.mat")
-    earthchem_dict = read(earthchem_raw, "bulktext")
-    close(earthchem_raw)
-    chemtext_unparsed = NamedTuple{Tuple(Symbol.(keys(earthchem_dict)))}(values(earthchem_dict))
+    bulktext_raw = matopen("data/bulktext.mat")
+    bulktext_dict = read(bulktext_raw, "bulktext")
+    close(bulktext_raw)
+    bulktext = NamedTuple{Tuple(Symbol.(keys(bulktext_dict)))}(values(bulktext_dict))
     
     # Preallocate for parsing---make a NamedTuple with just the things we want
-    npoints = length(chemtext_unparsed.index["Composition"])
+    npoints = length(bulktext.index["Composition"])
 
     # Ignoring sparse arrays for now because they make me sad
     # Correct indices for 0-index offset
-    composition_idx = Int.(chemtext_unparsed.index["Composition"] .+ 1)
-    reference_idx = Int.(chemtext_unparsed.index["Reference"] .+ 1)
-    rockname_idx = Int.(chemtext_unparsed.index["Rock_Name"] .+ 1)
-    source_idx = Int.(chemtext_unparsed.index["Source"] .+ 1)
-    type_idx = Int.(chemtext_unparsed.index["Type"] .+ 1)
-    material_idx = Int.(chemtext_unparsed.index["Material"] .+ 1)
+    composition_idx = Int.(bulktext.index["Composition"] .+ 1)
+    reference_idx = Int.(bulktext.index["Reference"] .+ 1)
+    rockname_idx = Int.(bulktext.index["Rock_Name"] .+ 1)
+    source_idx = Int.(bulktext.index["Source"] .+ 1)
+    type_idx = Int.(bulktext.index["Type"] .+ 1)
+    material_idx = Int.(bulktext.index["Material"] .+ 1)
 
     # Parse numeric codes in index into arrays
-    chem_composition = lowercase.(string.(chemtext_unparsed.Composition[composition_idx]))
-    chem_reference = lowercase.(string.(chemtext_unparsed.Reference[reference_idx]))
-    chem_rockname = lowercase.(string.(chemtext_unparsed.Rock_Name[rockname_idx]))
-    chem_source = lowercase.(string.(chemtext_unparsed.Source[source_idx]))
-    chem_type = lowercase.(string.(chemtext_unparsed.Type[type_idx]))
-    chem_material = lowercase.(string.(chemtext_unparsed.Material[material_idx]))
+    chem_composition = lowercase.(string.(bulktext.Composition[composition_idx]))
+    chem_reference = lowercase.(string.(bulktext.Reference[reference_idx]))
+    chem_rockname = lowercase.(string.(bulktext.Rock_Name[rockname_idx]))
+    chem_source = lowercase.(string.(bulktext.Source[source_idx]))
+    chem_type = lowercase.(string.(bulktext.Type[type_idx]))
+    chem_material = lowercase.(string.(bulktext.Material[material_idx]))
+
 
     
 ## --- Load Macrostrat data
@@ -117,15 +117,28 @@
 
 
 ## --- For each sample, estimate the log likelihood that... what?
-    # All rocks must be the same rock type
+    # Only compare rocks of the same rock type
     for elem in eachindex(macro_cats)
         # Cover is not present in earthchem data; skip it
         if elem==:cover
             continue
         end
         
-        # Get EarthChem samples of that rock type
-        chem_samples = echem_cats[elem]      # EarthChem
+        # Get EarthChem samples of this rock type
+        chem_samples = bulk_cats[elem]     # EarthChem
+
+        # Mean and standard devation of major element oxides for this rock type
+        major_oxides = (
+            SiO2 = (m = nanmean(bulk.SiO2[chem_samples]), e = nanstd(bulk.SiO2[chem_samples])),
+            Al2O3 = (m = nanmean(bulk.Al2O3[chem_samples]), e = nanstd(bulk.Al2O3[chem_samples])),
+            Fe2O3T = (m = nanmean(bulk.Fe2O3T[chem_samples]), e = nanstd(bulk.Fe2O3T[chem_samples])),
+            TiO2 = (m = nanmean(bulk.TiO2[chem_samples]), e = nanstd(bulk.TiO2[chem_samples])),
+            MgO = (m = nanmean(bulk.MgO[chem_samples]), e = nanstd(bulk.MgO[chem_samples])),
+            CaO = (m = nanmean(bulk.CaO[chem_samples]), e = nanstd(bulk.CaO[chem_samples])),
+            Na2O = (m = nanmean(bulk.Na2O[chem_samples]), e = nanstd(bulk.Na2O[chem_samples])),
+            K2O = (m = nanmean(bulk.K2O[chem_samples]), e = nanstd(bulk.K2O[chem_samples])),
+            MnO = (m = nanmean(bulk.MnO[chem_samples]), e = nanstd(bulk.MnO[chem_samples]))
+        )
 
         # Get Macrostrat samples of that rock type
         lat = rocklat[macro_cats[elem]]     # Latitude
@@ -134,15 +147,16 @@
 
         for i in eachindex(lat)
             # Distance from point of interest (σ = 1.8 arc degrees)
-            dist = arcdistance(lat[i], lon[i], earthchem.Latitude, earthchem.Longitude)
+            dist = arcdistance(lat[i], lon[i], bulk.Latitude, bulk.Longitude)
             lh_dist = -(dist.^2)./(1.8^2)
 
             # Age from point of interest (σ = 38 Ma)
             # Age vs AgeEst? Latter gives more data...
-            age_diff = abs.(earthchem.AgeEst .- smpl_age[i])
+            age_diff = abs.(bulk.AgeEst .- smpl_age[i])
             lh_age = -(age_diff.^2)./(38^2)
 
             # Geochemical difference from point of interest
+            # Assign a likely 
         end
         
         

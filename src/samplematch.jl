@@ -3,6 +3,7 @@
     using MAT
     using JLD
     using StatGeochem
+    using ProgressMeter
 
     # Local utilities
     include("Utilities.jl")         # Depending on REPL or script, only one will fail
@@ -64,8 +65,7 @@
 
     # Temporary data storage
     geochem = Array{NamedTuple}(undef, length(bulk_cats), 1)
-    j = 1
-    for i in eachindex(bulk_cats)
+    for i = 1:length(bulk_cats)
         type = bulk_cats[i]
         elem = (
             SiO2 = (m = nanmean(bulk.SiO2[type]), e = nanstd(bulk.SiO2[type])),
@@ -79,8 +79,7 @@
             MnO = (m = nanmean(bulk.MnO[type]), e = nanstd(bulk.MnO[type]))
         )
 
-        geochem[j] = elem
-        j += 1
+        geochem[i] = elem
     end
 
     # This is objectively a horrible way to get this data into the tuple
@@ -177,7 +176,8 @@
 
 ## --- For each sample, estimate the log likelihood that... what?
     # Only compare rocks of the same rock type
-    for elem in eachindex(macro_cats)
+    @showprogress 1 "Estimating likelihoods for each sample" for elem in eachindex(macro_cats)
+
         # Cover is not present in earthchem data; skip it
         if elem==:cover
             continue
@@ -204,7 +204,6 @@
             # Geochemical difference from point of interest
             # Estimate major element composition based on known Macrostrat rock type
         end
-        
         
     end
 

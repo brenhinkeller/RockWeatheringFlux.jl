@@ -174,37 +174,64 @@
     macro_cats = match_rocktype(rocktype, rockname, rockdescrip, major=false)
 
 
-## --- For each sample, estimate the log likelihood that... what?
-    # Only compare rocks of the same rock type
-    @showprogress 1 "Estimating likelihoods for each sample" for elem in eachindex(macro_cats)
+## --- For each Macrostrat sample, estimate the log likelihood that each EarthChem sample
+#      accurately represents that sample in space, time, and geochemistry
+# TO DO: likelihood vs log likelihood? Is this already log likelihood?
 
+    # Only compare rocks of the same rock type
+    @showprogress 1 "Estimating likelihoods for each sample" for type in eachindex(macro_cats)
         # Cover is not present in earthchem data; skip it
-        if elem==:cover
+        if type==:cover
             continue
         end
         
-        # Get EarthChem samples of this rock type
-        chem_samples = bulk_cats[elem]     # EarthChem
+        # Get samples and data of this rock type
+        # TO DO: is it more memory efficient to not assign these to be variables and just index directly?
+        chem_samples = bulk_cats[type]          # EarthChem BitVector
+        geochem_data = avg_geochem[type]        # Major element averages
+        lat = rocklat[macro_cats[type]]         # Macrostrat latitude
+        lon = rocklon[macro_cats[type]]         # Macrostrat longitude
+        sample_age = age[macro_cats[type]]      # Macrostrat age
 
-        # Get Macrostrat samples of that rock type
-        lat = rocklat[macro_cats[elem]]     # Latitude
-        lon = rocklon[macro_cats[elem]]     # Longitude
-        smpl_age = age[macro_cats[elem]]    # Age
-
+        # For each Macrostrat sample, calculate
         for i in eachindex(lat)
-            # Distance from point of interest (σ = 1.8 arc degrees)
-            dist = arcdistance(lat[i], lon[i], bulk.Latitude, bulk.Longitude)
+            # Distance (σ = 1.8 arc degrees)
+            dist = arcdistance(lat[i], lon[i], bulk.Latitude[chem_samples], bulk.Longitude[chem_samples])
             lh_dist = -(dist.^2)./(1.8^2)
 
-            # Age from point of interest (σ = 38 Ma)
-            # Age vs AgeEst? Latter gives more data...
-            age_diff = abs.(bulk.AgeEst .- smpl_age[i])
+            # Age (σ = 38 Ma)
+            # TO DO: AgeEst vs Age? Maybe recalculate AgeEst?
+            age_diff = abs.(bulk.AgeEst[chem_samples] .- sample_age[i])
             lh_age = -(age_diff.^2)./(38^2)
 
-            # Geochemical difference from point of interest
-            # Estimate major element composition based on known Macrostrat rock type
+            # Geochemistry
+            # TO DO: only look at ones that are close in age and space
+            # TO DO: replace NaNs with 0s
+            lh_geochem = zeros(Float64, count(chem_samples))
+            for elem in eachindex(geochem_data)
+                # Get all EarthChem samples for that element and this rock type
+                # TO DO: memory efficiency of assigning this to a variable vs. straight indexing in?
+                bulk_geochem = bulk[elem][chem_samples]
+
+                # Assume Macrostrat sample is the average geochemistry for that rock type
+                # TO DO: More granular estimate than just by rock type
+                geochem_diff = abs.(bulk_geochem .- geochem_data[elem].m)
+                
+                # Calculate likelihood for that element and add to the other likelihoods
+                lh_elem = -(geochem_diff.^2)./(geochem_data[elem].e^2)
+                lh_geochem .+= lh_elem
+            end
+
+            # Calculate total likelihood for each EarthChem sample
+            # NOTE: this won't work for most samples until I fix the NaN / 0 issue
+            lh_total = lh_dist .+ lh_age .+ lh_geochem
+
+            # Get the index of the most likely EarthChem sample
+            # TO DO: the most likely sample has the smallest likelihood? because if the 
+                # difference is larger than the total likelihood value is larger...
+            # TO DO: take the average of some arbitrary percentile
+            (val, idx) = findmin(abs.(lh_total[findall(!isnan, lh_total)]))
         end
-        
     end
 
 ### --- End of file

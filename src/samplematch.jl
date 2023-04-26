@@ -15,9 +15,6 @@
     close(bulk_raw)
     bulk = NamedTuple{Tuple(Symbol.(keys(bulk_dict)))}(values(bulk_dict))
 
-    # Make a list of indices so we can get back to the larger list when we filter data
-    bulk_idxs = collect(1:length(bulk.Type))
-
     # Filter ages younger than 0 or greater than the age of the earth
     invalid_age = vcat(findall(>(4000), bulk.Age), findall(<(0), bulk.Age))
     bulk.Age[invalid_age] .= NaN
@@ -30,9 +27,6 @@
     bulktext_dict = read(bulktext_raw, "bulktext")
     close(bulktext_raw)
     bulktext = NamedTuple{Tuple(Symbol.(keys(bulktext_dict)))}(values(bulktext_dict))
-    
-    # Preallocate for parsing---make a NamedTuple with just the things we want
-    npoints = length(bulktext.index["Composition"])
 
     # Ignoring sparse arrays for now because they make me sad
     # Correct indices for 0-index offset
@@ -44,6 +38,7 @@
     material_idx = Int.(bulktext.index["Material"] .+ 1)
 
     # Parse numeric codes in index into arrays
+    # TO DO: NamedTuple?
     bulk_composition = lowercase.(string.(bulktext.Composition[composition_idx]))
     bulk_reference = lowercase.(string.(bulktext.Reference[reference_idx]))
     bulk_rockname = lowercase.(string.(bulktext.Rock_Name[rockname_idx]))
@@ -182,33 +177,38 @@
 # TO DO: likelihood vs log likelihood? Is this already log likelihood?
 # TO DO: NaNs with 0 for age and location too?
 
+    # All EarthChem indices so we can get back to the full list when we filter data
+    bulk_idxs = collect(1:length(bulk.Type))
+
+    # Preallocate for indices, subtract 1 because we're ignoring cover
+    matches = Array{Array}(undef, length(macro_cats) - 1, 1)
+
     # Only compare rocks of the same rock type
-    @showprogress 0.5 "Matching lithographic / geochemical samples..." for type in eachindex(macro_cats)
-        # Cover is not present in earthchem data; skip it
-        if type==:cover
-            continue
-        end
+    @showprogress 0.5 "Matching lithographic / geochemical samples..." for i in eachindex(macro_cats)
+        # Cover is not in EarthChem data; skip it
+        if type==:cover continue end
         
         # Get samples and data of this rock type
         # TO DO: is it more memory efficient to not assign these to be variables and just index directly?
-        chem_samples = bulk_cats[type]          # EarthChem BitVector
-        geochem_data = avg_geochem[type]        # Major element averages
-        lat = rocklat[macro_cats[type]]         # Macrostrat latitude
-        lon = rocklon[macro_cats[type]]         # Macrostrat longitude
-        sample_age = age[macro_cats[type]]      # Macrostrat age
-
-        # Preallocate array of indices for most likely samples in bulk for each Macrostrat sample of this rock type
-        indices = Array{Int64}(undef, length(lat), 1)
+        chem_samples = bulk_cats[type]              # EarthChem BitVector
+        sample_idxs = bulk_idxs[bulk_cats[type]]    # Indices of EarthChem samples
+        geochem_data = avg_geochem[type]            # Major element averages
+        lat = rocklat[macro_cats[type]]             # Macrostrat latitude
+        lon = rocklon[macro_cats[type]]             # Macrostrat longitude
+        sample_age = age[macro_cats[type]]          # Macrostrat age
+        
+        # Preallocate array of index of most likely EarthChem sample for each Macrostrat sample
+        matched_sample = Array{Int64}(undef, length(lat), 1)
 
         # For each Macrostrat sample, calculate
-        for i in eachindex(lat)
+        for j in eachindex(lat)
             # Distance (σ = 1.8 arc degrees)
-            dist = arcdistance(lat[i], lon[i], bulk.Latitude[chem_samples], bulk.Longitude[chem_samples])
+            dist = arcdistance(lat[j], lon[j], bulk.Latitude[chem_samples], bulk.Longitude[chem_samples])
             lh_dist = -(dist.^2)./(1.8^2)
 
             # Age (σ = 38 Ma)
             # TO DO: AgeEst vs Age? Maybe recalculate AgeEst?
-            age_diff = abs.(bulk.AgeEst[chem_samples] .- sample_age[i])
+            age_diff = abs.(bulk.AgeEst[chem_samples] .- sample_age[j])
             lh_age = -(age_diff.^2)./(38^2)
 
             # Geochemistry
@@ -240,16 +240,10 @@
                 # difference is larger than the total likelihood value is larger...
             # TO DO: take the average of some arbitrary percentile
             (val, idx) = findmin(abs.(lh_total[findall(!isnan, lh_total)]))
-
-            # TO DO: find the index of the sample in bulk
-                # 1. find the index of the sample in lh_total
-                    # currently in a filtered verison of lh_total without NaNs
-                # 2. find the index of the sample in bulk
-                    # lh_total is the same length as bulk filtered for rock type
-                
-                # will probably need to use the findall function?
-
+            matched_sample[j] = sample_idxs[findall(!isnan, lh_total)][idx]
         end
+        
+        # matches[i] = matched_samples
     end
 
 ### --- End of file

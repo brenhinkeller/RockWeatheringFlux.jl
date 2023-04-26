@@ -180,11 +180,12 @@
     # All EarthChem indices so we can get back to the full list when we filter data
     bulk_idxs = collect(1:length(bulk.Type))
 
-    # Preallocate for indices, subtract 1 because we're ignoring cover
-    matches = Array{Array}(undef, length(macro_cats) - 1, 1)
+    # Preallocate to store indices
+    matches = Dict{Symbol, Matrix{Int64}}()
 
     # Only compare rocks of the same rock type
-    @showprogress 0.5 "Matching lithographic / geochemical samples..." for i in eachindex(macro_cats)
+    # TO DO: better progress bar?
+    @showprogress 0.5 "Matching lithographic / geochemical samples..." for type in eachindex(macro_cats)
         # Cover is not in EarthChem data; skip it
         if type==:cover continue end
         
@@ -242,8 +243,9 @@
             (val, idx) = findmin(abs.(lh_total[findall(!isnan, lh_total)]))
             matched_sample[j] = sample_idxs[findall(!isnan, lh_total)][idx]
         end
-        
-        # matches[i] = matched_samples
+
+        # Add the list ot matches 
+        setindex!(matches, matched_sample, type)
     end
 
 ### --- End of file

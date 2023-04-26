@@ -15,6 +15,9 @@
     close(bulk_raw)
     bulk = NamedTuple{Tuple(Symbol.(keys(bulk_dict)))}(values(bulk_dict))
 
+    # Make a list of indices so we can get back to the larger list when we filter data
+    bulk_idxs = collect(1:length(bulk.Type))
+
     # Filter ages younger than 0 or greater than the age of the earth
     invalid_age = vcat(findall(>(4000), bulk.Age), findall(<(0), bulk.Age))
     bulk.Age[invalid_age] .= NaN
@@ -177,9 +180,10 @@
 ## --- For each Macrostrat sample, estimate the log likelihood that each EarthChem sample
 #      accurately represents that sample in space, time, and geochemistry
 # TO DO: likelihood vs log likelihood? Is this already log likelihood?
+# TO DO: NaNs with 0 for age and location too?
 
     # Only compare rocks of the same rock type
-    @showprogress 1 "Estimating likelihoods for each sample" for type in eachindex(macro_cats)
+    @showprogress 0.5 "Matching lithographic / geochemical samples..." for type in eachindex(macro_cats)
         # Cover is not present in earthchem data; skip it
         if type==:cover
             continue
@@ -192,6 +196,9 @@
         lat = rocklat[macro_cats[type]]         # Macrostrat latitude
         lon = rocklon[macro_cats[type]]         # Macrostrat longitude
         sample_age = age[macro_cats[type]]      # Macrostrat age
+
+        # Preallocate array of indices for most likely samples in bulk for each Macrostrat sample of this rock type
+        indices = Array{Int64}(undef, length(lat), 1)
 
         # For each Macrostrat sample, calculate
         for i in eachindex(lat)
@@ -206,12 +213,12 @@
 
             # Geochemistry
             # TO DO: only look at ones that are close in age and space
-            # TO DO: replace NaNs with 0s
             lh_geochem = zeros(Float64, count(chem_samples))
             for elem in eachindex(geochem_data)
                 # Get all EarthChem samples for that element and this rock type
+                # Replace NaNs with 0
                 # TO DO: memory efficiency of assigning this to a variable vs. straight indexing in?
-                bulk_geochem = bulk[elem][chem_samples]
+                bulk_geochem = zeronan!(bulk[elem][chem_samples])
 
                 # Assume Macrostrat sample is the average geochemistry for that rock type
                 # TO DO: More granular estimate than just by rock type
@@ -223,14 +230,25 @@
             end
 
             # Calculate total likelihood for each EarthChem sample
-            # NOTE: this won't work for most samples until I fix the NaN / 0 issue
-            lh_total = lh_dist .+ lh_age .+ lh_geochem
+            # This has to be added in steps because nanadd can only do one array at a time
+                # TO DO: PR that?
+            lh_total = nanadd(lh_dist, lh_age)
+            lh_total = nanadd(lh_total, lh_geochem)
 
             # Get the index of the most likely EarthChem sample
             # TO DO: the most likely sample has the smallest likelihood? because if the 
                 # difference is larger than the total likelihood value is larger...
             # TO DO: take the average of some arbitrary percentile
             (val, idx) = findmin(abs.(lh_total[findall(!isnan, lh_total)]))
+
+            # TO DO: find the index of the sample in bulk
+                # 1. find the index of the sample in lh_total
+                    # currently in a filtered verison of lh_total without NaNs
+                # 2. find the index of the sample in bulk
+                    # lh_total is the same length as bulk filtered for rock type
+                
+                # will probably need to use the findall function?
+
         end
     end
 

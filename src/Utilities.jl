@@ -544,7 +544,7 @@ end
         )
 
         # This is actually approx. 15ms slower than manually assigning things element by element...
-        return NamedTuple{geochemkeys}(geochem_tuples)
+        return NamedTuple{geochemkeys}(vals)
     end
 
 

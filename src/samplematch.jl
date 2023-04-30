@@ -6,10 +6,11 @@
     using ProgressMeter
 
     # Local utilities
-    include("src/Utilities.jl")
+    include("Utilities.jl")
 
 
 ## --- Load Earthchem bulk geochemical data
+    @info "Loading EarthChem bulk data"
     bulk_raw = matopen("data/bulk.mat")
     bulk_dict = read(bulk_raw, "bulk")
     close(bulk_raw)
@@ -28,6 +29,7 @@
     geochem = major_elements(bulk, bulk_cats)
 
 ## --- Load Earthchem metadata
+    @info "Loading EarthChem sample metadata"
     bulktext_raw = matopen("data/bulktext.mat")
     bulktext_dict = read(bulktext_raw, "bulktext")
     close(bulktext_raw)
@@ -56,6 +58,7 @@
 
 
 ## --- Load Macrostrat data
+    @info "Loading Macrostrat lithologic data"
     # Reduced size Macrostrat data file
     retrive_file = load("data/toy_responses.jld")
     responses = retrive_file["responses"]
@@ -126,6 +129,7 @@
 #      accurately represents that sample in space, time, and geochemistry
 # TO DO: likelihood vs log likelihood? Is this already log likelihood?
 # TO DO: NaNs with 0 for age and location too?
+    @info "Matching samples"
 
     # All EarthChem indices so we can get back to the full list when we filter data
     bulk_idxs = collect(1:length(bulk.Type))

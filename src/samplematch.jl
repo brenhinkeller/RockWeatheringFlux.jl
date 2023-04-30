@@ -6,7 +6,7 @@
     using ProgressMeter
 
     # Local utilities
-    include("Utilities.jl")         # Depending on REPL or script, only one will fail
+    include("src/Utilities.jl")
 
 
 ## --- Load Earthchem bulk geochemical data
@@ -21,6 +21,11 @@
 
     # Get rock types
     bulk_cats = match_earthchem(bulk.Type, major=false)
+
+    # Calculate mean and standard deviation of major element oxides for each rock type
+    # TO DO: quality control on bulk rock names: why are there granites with 50% silica?
+    # TO DO: separate igneous rocks by silica content
+    geochem = major_elements(bulk, bulk_cats)
 
 ## --- Load Earthchem metadata
     bulktext_raw = matopen("data/bulktext.mat")
@@ -48,61 +53,6 @@
 
     # All relevant rock type identifiers
     bulk_lith = bulk_type .* " " .* bulk_material .* " " .* bulk_rockname
-
-## --- To do:
-    #=
-    Quality control on the rock names--some very mafic granites in this dataset
-    Or honestly maybe just skip the rock names and just go on silica content? Idk
-    =#
-
-
-## --- Calculate mean and standard deviation of major element oxides for each rock type
-    # In the future, we will want to separate igneous rocks by silica content--this is fine for now
-    
-    # Define major elements from Faye and Ødegård 1975
-
-    # Temporary data storage
-    geochem = Array{NamedTuple}(undef, length(bulk_cats), 1)
-    for i = 1:length(bulk_cats)
-        type = bulk_cats[i]
-        elem = (
-            SiO2 = (m = nanmean(bulk.SiO2[type]), e = nanstd(bulk.SiO2[type])),
-            Al2O3 = (m = nanmean(bulk.Al2O3[type]), e = nanstd(bulk.Al2O3[type])),
-            Fe2O3T = (m = nanmean(bulk.Fe2O3T[type]), e = nanstd(bulk.Fe2O3T[type])),
-            TiO2 = (m = nanmean(bulk.TiO2[type]), e = nanstd(bulk.TiO2[type])),
-            MgO = (m = nanmean(bulk.MgO[type]), e = nanstd(bulk.MgO[type])),
-            CaO = (m = nanmean(bulk.CaO[type]), e = nanstd(bulk.CaO[type])),
-            Na2O = (m = nanmean(bulk.Na2O[type]), e = nanstd(bulk.Na2O[type])),
-            K2O = (m = nanmean(bulk.K2O[type]), e = nanstd(bulk.K2O[type])),
-            MnO = (m = nanmean(bulk.MnO[type]), e = nanstd(bulk.MnO[type]))
-        )
-
-        geochem[i] = elem
-    end
-
-    # This is objectively a horrible way to get this data into the tuple
-    # This is also definately one option I have to store data!
-    # To do: load from a file?
-    avg_geochem = (
-        alluvium = geochem[1],
-        siliciclast = geochem[2],
-        shale = geochem[3],
-        carb = geochem[4],
-        chert = geochem[5],
-        evaporite = geochem[6],
-        phosphorite = geochem[7],
-        coal = geochem[8],
-        volcaniclast = geochem[9],
-        sed = geochem[10],
-
-        volc = geochem[11],
-        plut = geochem[12],
-        ign = geochem[13],
-
-        metased = geochem[14],
-        metaign = geochem[15],
-        met = geochem[16],
-    )
 
 
 ## --- Load Macrostrat data
@@ -186,6 +136,7 @@
     # Only compare rocks of the same rock type
     # TO DO: better progress bar?
     @showprogress 0.5 "Matching lithographic / geochemical samples..." for type in eachindex(macro_cats)
+        
         # Cover is not in EarthChem data; skip it
         if type==:cover continue end
         
@@ -193,7 +144,7 @@
         # TO DO: is it more memory efficient to not assign these to be variables and just index directly?
         chem_samples = bulk_cats[type]              # EarthChem BitVector
         sample_idxs = bulk_idxs[bulk_cats[type]]    # Indices of EarthChem samples
-        geochem_data = avg_geochem[type]            # Major element averages
+        geochem_data = geochem[type]            # Major element averages
         lat = rocklat[macro_cats[type]]             # Macrostrat latitude
         lon = rocklon[macro_cats[type]]             # Macrostrat longitude
         sample_age = age[macro_cats[type]]          # Macrostrat age
@@ -237,15 +188,35 @@
             lh_total = nanadd(lh_total, lh_geochem)
 
             # Get the index of the most likely EarthChem sample
-            # TO DO: the most likely sample has the smallest likelihood? because if the 
-                # difference is larger than the total likelihood value is larger...
+            # TO DO: the most likely sample has the largest likelihood? because if the 
+                # difference is larger than the total likelihood value is more negative...
             # TO DO: take the average of some arbitrary percentile
-            (val, idx) = findmin(abs.(lh_total[findall(!isnan, lh_total)]))
+            (val, idx) = findmax(abs.(lh_total[findall(!isnan, lh_total)]))
             matched_sample[j] = sample_idxs[findall(!isnan, lh_total)][idx]
         end
 
-        # Add the list ot matches 
+        # Add the list of matches 
+        # NOTE: no chert matches because Macrostrat data does not have chert
         setindex!(matches, matched_sample, type)
     end
 
 ### --- End of file
+
+
+#=
+Test a subset of potential matches
+
+s = matches[:ign][1]
+i = findfirst(macro_cats.ign)
+
+println("
+    $(rocktype[i]) 
+    $(rockdescrip[i]) 
+    $(rockname[i]) 
+    $(rockstratname[i]) 
+    $(rockcomments[i]) 
+    $(age[i])"
+)
+bulk_lith[s]
+bulk.AgeEst[s]
+=#

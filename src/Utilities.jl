@@ -509,6 +509,43 @@ function match_earthchem(type; major=false)
 end
 
 
+## --- Functions for matching samples
+    """
+    ```julia
+    major_elements(bulk, bulk_cats)
+    ```
+    Compute mean and standard deviation of major elements in `bulk` for each rock type.
+
+    Major elements are defined based on Faye and Ødegård 1975 
+    (https://www.ngu.no/filearchive/NGUPublikasjoner/NGUnr_322_Bulletin_35_Faye_35_53.pdf)
+    """
+    function major_elements(bulk, bulk_cats)
+        vals = Array{NamedTuple}(undef, length(bulk_cats), 1)
+        for i = 1:length(bulk_cats)
+            elem = (
+                SiO2 = (m = nanmean(bulk.SiO2[bulk_cats[i]]), e = nanstd(bulk.SiO2[bulk_cats[i]])),
+                Al2O3 = (m = nanmean(bulk.Al2O3[bulk_cats[i]]), e = nanstd(bulk.Al2O3[bulk_cats[i]])),
+                Fe2O3T = (m = nanmean(bulk.Fe2O3T[bulk_cats[i]]), e = nanstd(bulk.Fe2O3T[bulk_cats[i]])),
+                TiO2 = (m = nanmean(bulk.TiO2[bulk_cats[i]]), e = nanstd(bulk.TiO2[bulk_cats[i]])),
+                MgO = (m = nanmean(bulk.MgO[bulk_cats[i]]), e = nanstd(bulk.MgO[bulk_cats[i]])),
+                CaO = (m = nanmean(bulk.CaO[bulk_cats[i]]), e = nanstd(bulk.CaO[bulk_cats[i]])),
+                Na2O = (m = nanmean(bulk.Na2O[bulk_cats[i]]), e = nanstd(bulk.Na2O[bulk_cats[i]])),
+                K2O = (m = nanmean(bulk.K2O[bulk_cats[i]]), e = nanstd(bulk.K2O[bulk_cats[i]])),
+                MnO = (m = nanmean(bulk.MnO[bulk_cats[i]]), e = nanstd(bulk.MnO[bulk_cats[i]]))
+            )
+            vals[i] = elem
+        end
+
+        geochemkeys = (
+            :alluvium, :siliciclast, :shale, :carb, :chert, :evaporite, :phosphorite, :coal, 
+                :volcaniclast, :sed,
+            :volc, :plut, :ign,
+            :metased, :metaign, :met
+        )
+
+        # This is actually approx. 15ms slower than manually assigning things element by element...
+        return NamedTuple{geochemkeys}(geochem_tuples)
+    end
 
 
 

@@ -18,8 +18,9 @@
     bulk = NamedTuple{Tuple(Symbol.(keys(bulk_dict)))}(values(bulk_dict))
 
     # Filter ages younger than 0 or greater than the age of the earth
-    invalid_age = vcat(findall(>(4000), bulk.Age), findall(<(0), bulk.Age))
-    bulk.Age[invalid_age] .= NaN
+    # TO DO: see if I should redo AgeEst... otherwise I'm not using Age
+    # invalid_age = vcat(findall(>(4000), bulk.Age), findall(<(0), bulk.Age))
+    # bulk.Age[invalid_age] .= NaN
 
     # Get rock types
     bulk_cats = match_earthchem(bulk.Type, major=false)
@@ -28,6 +29,17 @@
     # TO DO: quality control on bulk rock names: why are there granites with 50% silica?
     # TO DO: separate igneous rocks by silica content
     @time geochem = major_elements(bulk, bulk_cats)
+
+    # Reduce bulk to only the data we need
+    reduced_bulk = Array{Array}(undef, length(first(geochem)) + 3, 1)
+    geochemkeys = keys(first(geochem))
+    for i in 1:length(geochemkeys)
+        reduced_bulk[i] = bulk[geochemkeys[i]]
+    end
+    reduced_bulk[end-2] = bulk.Latitude
+    reduced_bulk[end-1] = bulk.Longitude
+    reduced_bulk[end] = bulk.AgeEst
+    bulk = NamedTuple{(geochemkeys..., :Latitude, :Longitude, :AgeEst)}(reduced_bulk)    
 
 ## --- Load Earthchem metadata
     @info "Loading EarthChem sample metadata"
@@ -74,42 +86,39 @@
 #      accurately represents that sample in space, time, and geochemistry
 # TO DO: likelihood vs log likelihood? Is this already log likelihood?
 # TO DO: NaN -> for missing age and location isn't good, but some equivilent?
+# TO DO: send samples through in chunks isntead of by rock type
     @info "Matching samples"
-    bulk_idxs = collect(1:length(bulk.Type))
+    bulk_idxs = collect(1:length(bulk.SiO2))
     matches = Dict{Symbol, Matrix{Int64}}()
     #@time @showprogress "Matching lithographic / geochemical samples..." for type in eachindex(macro_cats)
-    @time for type in eachindex(macro_cats)
-        @info "Matching $type"
-        
+    @time for type in eachindex(macro_cats)        
         # Cover is not in EarthChem data; skip it
-        if type==:cover
-            @warn "Skip $type (expect:cover)"
-            continue 
-        end
+        if type==:cover continue end
 
-        # TEMP - skip if known to cause SigKill
+        @info "Matching $type"
+
+        # If going to crash: don't
         if type==:sed
-            @warn "Skip $type to avoid SigKill (expect: sed)"
+            @warn "Skipping $type to avoid SigKill"
             continue
         end
 
         # Get intermediate variables for the rock type we're looking at
-        chem_samples = bulk_cats[type]              # EarthChem BitVector
+        chem_samples = bulk_cats[type]                      # EarthChem BitVector
 
-        lat = rocklat[macro_cats[type]]             # Macrostrat latitude
-        lon = rocklon[macro_cats[type]]             # Macrostrat longitude
+        lat = rocklat[macro_cats[type]]                     # Macrostrat latitude
+        lon = rocklon[macro_cats[type]]                     # Macrostrat longitude
         bulklat = bulk.Latitude[chem_samples]       # EarthChem latitudes
         bulklon = bulk.Longitude[chem_samples]      # EarthChem longitudes
 
-        sample_age = age[macro_cats[type]]          # Macrostrat age
-        bulkage = bulk.AgeEst[chem_samples]         # EarthChem age     # TO DO: AgeEst vs Age? Maybe recalculate AgeEst?
+        sample_age = age[macro_cats[type]]                  # Macrostrat age
+        bulkage = bulk.AgeEst[chem_samples]         # EarthChem age
 
-        sample_idxs = bulk_idxs[chem_samples]       # Indices of EarthChem samples
-        geochem_data = geochem[type]                # Major element compositions
+        sample_idxs = bulk_idxs[chem_samples]               # Indices of EarthChem samples
+        geochem_data = geochem[type]                        # Major element compositions
         
         # Earthchem samples for only major elements for this rock type
         bulkgeochem = Array{Array}(undef, length(geochem_data), 1)
-        geochemkeys = keys(geochem_data)
         for i in 1:length(geochemkeys)
             bulkgeochem[i] = bulk[geochemkeys[i]][chem_samples] 
         end

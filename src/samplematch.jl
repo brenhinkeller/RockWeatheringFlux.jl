@@ -80,8 +80,18 @@
     #@time @showprogress "Matching lithographic / geochemical samples..." for type in eachindex(macro_cats)
     @time for type in eachindex(macro_cats)
         @info "Matching $type"
+        
         # Cover is not in EarthChem data; skip it
-        if type==:cover continue end
+        if type==:cover
+            @warn "Skip $type (expect:cover)"
+            continue 
+        end
+
+        # TEMP - skip if known to cause SigKill
+        if type==:sed
+            @warn "Skip $type to avoid SigKill (expect: sed)"
+            continue
+        end
 
         # Get intermediate variables for the rock type we're looking at
         chem_samples = bulk_cats[type]              # EarthChem BitVector

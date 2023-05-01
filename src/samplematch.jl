@@ -4,6 +4,7 @@
     using JLD
     using StatGeochem
     using ProgressMeter
+    using StatsBase
 
     # Local utilities
     include("Utilities.jl")
@@ -180,15 +181,27 @@ matches = Dict{Symbol, Matrix{Int64}}()
     # Cover is not in EarthChem data; skip it
     if type==:cover continue end
 
-    # Get intermediate variables
+    # Get intermediate variables for the rock type we're looking at
     chem_samples = bulk_cats[type]              # EarthChem BitVector
-    sample_idxs = bulk_idxs[chem_samples]       # Indices of EarthChem samples for this rock type
-    geochem_data = geochem[type]                # Major element compositions for this rock type
+
     lat = rocklat[macro_cats[type]]             # Macrostrat latitude
     lon = rocklon[macro_cats[type]]             # Macrostrat longitude
     bulklat = bulk.Latitude[chem_samples]       # EarthChem latitudes
     bulklon = bulk.Longitude[chem_samples]      # EarthChem longitudes
+
     sample_age = age[macro_cats[type]]          # Macrostrat age
+    bulkage = bulk.AgeEst[chem_samples]         # EarthChem age     # TO DO: AgeEst vs Age? Maybe recalculate AgeEst?
+
+    sample_idxs = bulk_idxs[chem_samples]       # Indices of EarthChem samples
+    geochem_data = geochem[type]                # Major element compositions
+    
+    # Earthchem samples for only major elements for this rock type
+    bulkgeochem = Array{Array}(undef, length(geochem_data), 1)
+    geochemkeys = keys(geochem_data)
+    for i in 1:length(geochemkeys)
+        bulkgeochem[i] = bulk[geochemkeys[i]][chem_samples] 
+    end
+    bulkgeochem = NamedTuple{geochemkeys}(bulkgeochem)           
 
     # Preallocate
     # matched_sample = Array{Int64}(undef, length(lat), 1)

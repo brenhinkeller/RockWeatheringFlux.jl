@@ -73,88 +73,42 @@
 ## --- For each Macrostrat sample, estimate the log likelihood that each EarthChem sample
 #      accurately represents that sample in space, time, and geochemistry
 # TO DO: likelihood vs log likelihood? Is this already log likelihood?
-# TO DO: NaNs with 0 for age and location too?
+# TO DO: NaN -> for missing age and location isn't good, but some equivilent?
     @info "Matching samples"
+    bulk_idxs = collect(1:length(bulk.Type))
+    matches = Dict{Symbol, Matrix{Int64}}()
+    #@time @showprogress "Matching lithographic / geochemical samples..." for type in eachindex(macro_cats)
+    @time for type in eachindex(macro_cats)
+        @info "Matching $type"
+        # Cover is not in EarthChem data; skip it
+        if type==:cover continue end
 
-    # All EarthChem indices so we can get back to the full list when we filter data
-#     bulk_idxs = collect(1:length(bulk.Type))
+        # Get intermediate variables for the rock type we're looking at
+        chem_samples = bulk_cats[type]              # EarthChem BitVector
 
-#     # Preallocate to store indices
-#     matches = Dict{Symbol, Matrix{Int64}}()
+        lat = rocklat[macro_cats[type]]             # Macrostrat latitude
+        lon = rocklon[macro_cats[type]]             # Macrostrat longitude
+        bulklat = bulk.Latitude[chem_samples]       # EarthChem latitudes
+        bulklon = bulk.Longitude[chem_samples]      # EarthChem longitudes
 
-#     # pls_less_memory(bulk_cats, bulk_idxs, geochem, rocklat, rocklon, age, macro_cats, matches)
+        sample_age = age[macro_cats[type]]          # Macrostrat age
+        bulkage = bulk.AgeEst[chem_samples]         # EarthChem age     # TO DO: AgeEst vs Age? Maybe recalculate AgeEst?
 
-#     # Only compare rocks of the same rock type
-#     # TO DO: better progress bar?
-#     @time @showprogress 0.5 "Matching lithographic / geochemical samples..." for type in eachindex(macro_cats)
+        sample_idxs = bulk_idxs[chem_samples]       # Indices of EarthChem samples
+        geochem_data = geochem[type]                # Major element compositions
         
-#     # Cover is not in EarthChem data; skip it
-#     if type==:cover continue end
-    
-#     # Get samples and data of this rock type
-#     # Roughly 100k fewer allocations to have these intermediate variables
-#     # chem_samples = bulk_cats[type]              # EarthChem BitVector
-#     # sample_idxs = bulk_idxs[chem_samples]       # Indices of EarthChem samples for this rock type
-#     # geochem_data = geochem[type]                # Major element compositions for this rock type
-#     # lat = rocklat[macro_cats[type]]             # Macrostrat latitude
-#     # lon = rocklon[macro_cats[type]]             # Macrostrat longitude
-#     # sample_age = age[macro_cats[type]]          # Macrostrat age
+        # Earthchem samples for only major elements for this rock type
+        bulkgeochem = Array{Array}(undef, length(geochem_data), 1)
+        geochemkeys = keys(geochem_data)
+        for i in 1:length(geochemkeys)
+            bulkgeochem[i] = bulk[geochemkeys[i]][chem_samples] 
+        end
+        bulkgeochem = NamedTuple{geochemkeys}(bulkgeochem)           
 
-#     matched_sample = likelihood(bulk_cats, bulk_idxs, macro_cats, type)
-    
-#     # Preallocate array of index of most likely EarthChem sample for each Macrostrat sample
-#     # matched_sample = Array{Int64}(undef, length(lat), 1)
-
-#     # # For each Macrostrat sample, calculate
-#     # for j in eachindex(lat)
-#     #     # Distance (σ = 1.8 arc degrees)
-#     #     dist = arcdistance(lat[j], lon[j], bulk.Latitude[chem_samples], bulk.Longitude[chem_samples])
-#     #     lh_dist = -(dist.^2)./(1.8^2)
-
-#     #     # Age (σ = 38 Ma)
-#     #     # TO DO: AgeEst vs Age? Maybe recalculate AgeEst?
-#     #     age_diff = abs.(bulk.AgeEst[chem_samples] .- sample_age[j])
-#     #     lh_age = -(age_diff.^2)./(38^2)
-
-#     #     # Geochemistry
-#     #     # TO DO: only look at ones that are close in age and space
-#     #     lh_geochem = zeros(Float64, count(chem_samples))
-#     #     for elem in eachindex(geochem_data)
-#     #         # Get all EarthChem samples for that element and this rock type
-#     #         # Replace NaNs with 0
-#     #         bulk_geochem = zeronan!(bulk[elem][chem_samples])
-
-#     #         # Assume Macrostrat sample is the average geochemistry for that rock type
-#     #         # TO DO: More granular estimate than just by rock type
-#     #         geochem_diff = abs.(bulk_geochem .- geochem_data[elem].m)
-            
-#     #         # Calculate likelihood for that element and add to the other likelihoods
-#     #         lh_elem = -(geochem_diff.^2)./(geochem_data[elem].e^2)
-#     #         lh_geochem .+= lh_elem
-#     #     end
-
-#     #     # lh_geochem = geochem_likelihood(bulk_cats, type, geochem)
-
-#     #     # Calculate total likelihood for each EarthChem sample
-#     #     # This has to be added in steps because nanadd can only do one array at a time
-#     #     lh_total = nanadd(lh_dist, lh_age)
-#     #     lh_total = nanadd(lh_total, lh_geochem)
-
-#     #     # Get the index of the most likely EarthChem sample
-#     #     # TO DO: the most likely sample has the largest likelihood? because if the 
-#     #         # difference is larger than the total likelihood value is more negative...
-#     #     # TO DO: take the average of some arbitrary percentile
-#     #     (val, idx) = findmax(abs.(lh_total[findall(!isnan, lh_total)]))
-#     #     matched_sample[j] = sample_idxs[findall(!isnan, lh_total)][idx]  # Replaced sample_idxs here, check for bugs
-#     # end
-
-#     # Add the list of matches 
-#     # NOTE: no chert matches because Macrostrat data does not have chert
-#     setindex!(matches, matched_sample, type)
-# end
-
-### --- End of file
-
+        # Find most likely sample
+        matched_sample = likelihood(lat, lon, bulklat, bulklon, sample_idxs, sample_age, bulkage, geochem_data, bulkgeochem)
+        setindex!(matches, matched_sample, type)
+    end
 
 #=
 Test a subset of potential matches
@@ -174,42 +128,4 @@ bulk_lith[s]
 bulk.AgeEst[s]
 =#
 
-## -- reduced loop
-bulk_idxs = collect(1:length(bulk.Type))
-matches = Dict{Symbol, Matrix{Int64}}()
-@time @showprogress "Matching lithographic / geochemical samples..." for type in eachindex(macro_cats)
-    # Cover is not in EarthChem data; skip it
-    if type==:cover continue end
-
-    # Get intermediate variables for the rock type we're looking at
-    chem_samples = bulk_cats[type]              # EarthChem BitVector
-
-    lat = rocklat[macro_cats[type]]             # Macrostrat latitude
-    lon = rocklon[macro_cats[type]]             # Macrostrat longitude
-    bulklat = bulk.Latitude[chem_samples]       # EarthChem latitudes
-    bulklon = bulk.Longitude[chem_samples]      # EarthChem longitudes
-
-    sample_age = age[macro_cats[type]]          # Macrostrat age
-    bulkage = bulk.AgeEst[chem_samples]         # EarthChem age     # TO DO: AgeEst vs Age? Maybe recalculate AgeEst?
-
-    sample_idxs = bulk_idxs[chem_samples]       # Indices of EarthChem samples
-    geochem_data = geochem[type]                # Major element compositions
-    
-    # Earthchem samples for only major elements for this rock type
-    bulkgeochem = Array{Array}(undef, length(geochem_data), 1)
-    geochemkeys = keys(geochem_data)
-    for i in 1:length(geochemkeys)
-        bulkgeochem[i] = bulk[geochemkeys[i]][chem_samples] 
-    end
-    bulkgeochem = NamedTuple{geochemkeys}(bulkgeochem)           
-
-    # Preallocate
-    # matched_sample = Array{Int64}(undef, length(lat), 1)
-
-    # Find most likely sample
-    matched_sample = likelihood(chem_samples, sample_idxs, geochem_data, lat, lon, sample_age, bulklat, bulklon)
-    
-    setindex!(matches, matched_sample, type)
-end
-
-
+## --- EOF

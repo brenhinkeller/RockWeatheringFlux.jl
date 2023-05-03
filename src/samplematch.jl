@@ -93,7 +93,8 @@
         # Cover is not in EarthChem data; skip it
         if type==:cover continue end
 
-        @info "Matching $type"
+		# Temporary output
+        println("$type")
 
         # If going to crash: don't
         if type==:sed
@@ -101,31 +102,32 @@
             continue
         end
 
+		# NOTE: doing this in a function is (only slightly) worse actually
         # Get intermediate variables for the rock type we're looking at
-        chem_samples = bulk_cats[type]                      # EarthChem BitVector
+        bulksamples = bulk_cats[type]                      # EarthChem BitVector
 
-        lat = macrostrat.rocklat[macro_cats[type]]          # Macrostrat latitude
-        lon = macrostrat.rocklon[macro_cats[type]]          # Macrostrat longitude
-        bulklat = bulk.Latitude[chem_samples]               # EarthChem latitudes
-        bulklon = bulk.Longitude[chem_samples]              # EarthChem longitudes
+        lat = macrostrat.rocklat[macro_cats[type]]         # Macrostrat latitude
+        lon = macrostrat.rocklon[macro_cats[type]]         # Macrostrat longitude
+        bulklat = bulk.Latitude[bulksamples]               # EarthChem latitudes
+        bulklon = bulk.Longitude[bulksamples]              # EarthChem longitudes
 
         sampleage = macrostrat.age[macro_cats[type]]       # Macrostrat age
-        bulkage = bulk.AgeEst[chem_samples]                 # EarthChem age
+        bulkage = bulk.AgeEst[bulksamples]                 # EarthChem age
 
-        sampleidx = bulk_idxs[chem_samples]               # Indices of EarthChem samples
-        geochem_data = geochem[type]                        # Major element compositions
+        sampleidx = bulk_idxs[bulksamples]                 # Indices of EarthChem samples
+        geochemdata = geochem[type]                        # Major element compositions
         
         # Earthchem samples for only major elements for this rock type
-        bulkgeochem = Array{Array}(undef, length(geochem_data), 1)
+        bulkgeochem = Array{Array}(undef, length(geochemdata), 1)
         for i in 1:length(geochemkeys)
-            bulkgeochem[i] = bulk[geochemkeys[i]][chem_samples] 
+            bulkgeochem[i] = bulk[geochemkeys[i]][bulksamples] 
         end
         bulkgeochem = NamedTuple{geochemkeys}(bulkgeochem)           
 
         # Find most likely sample
         # TO DO: pass argument as a tuple?
         # TO DO: is there any way to do fewer than ~8M computations per sample?
-        matched_sample = likelihood(lat, lon, bulklat, bulklon, sampleidx, sampleage, bulkage, geochem_data, bulkgeochem)
+        matched_sample = likelihood(lat, lon, bulklat, bulklon, sampleidx, sampleage, bulkage, geochemdata, bulkgeochem)
         setindex!(matches, matched_sample, type)
     end
 

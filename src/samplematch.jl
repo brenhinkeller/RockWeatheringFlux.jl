@@ -84,24 +84,32 @@
 #      accurately represents that sample in space, time, and geochemistry
 # TO DO: likelihood vs log likelihood? Is this already log likelihood?
 # TO DO: NaN -> for missing age and location isn't good, but some equivilent?
-# TO DO: send samples through in chunks isntead of by rock type
+
+# IT RUNS IT RUNS IT RUNS IT RUNS
+# AND it ran TWICE
+# after compilation: 27.420210 seconds (500.09 k allocations: 49.397 GiB, 34.36% gc time, 0.64% compilation time)
 	
     @info "Matching samples"
     bulk_idxs = collect(1:length(bulk.SiO2))
-    matches = Dict{Symbol, Matrix{Int64}}()
+    matches = Dict{Symbol, Array{Int64}}(
+    	:siliciclast => Array{Int64}(undef, count(macro_cats.siliciclast), 1),
+    	:shale => Array{Int64}(undef, count(macro_cats.shale), 1),
+    	:carb => Array{Int64}(undef, count(macro_cats.carb), 1),
+    	:chert => Array{Int64}(undef, count(macro_cats.chert), 1),
+    	:evaporite => Array{Int64}(undef, count(macro_cats.evaporite), 1),
+    	:coal => Array{Int64}(undef, count(macro_cats.coal), 1),
+    	:sed => Array{Int64}(undef, count(macro_cats.sed), 1),
+    	:volc => Array{Int64}(undef, count(macro_cats.volc), 1),
+    	:plut => Array{Int64}(undef, count(macro_cats.plut), 1),
+    	:ign => Array{Int64}(undef, count(macro_cats.ign), 1),
+    	:metased => Array{Int64}(undef, count(macro_cats.metased), 1),
+    	:metaign => Array{Int64}(undef, count(macro_cats.metaign), 1),
+    	:met => Array{Int64}(undef, count(macro_cats.met), 1)
+    )
     #@time @showprogress "Matching lithographic / geochemical samples..." for type in eachindex(macro_cats)
     @time for type in eachindex(macro_cats)        
         # Cover is not in EarthChem data; skip it
         if type==:cover continue end
-        
-        # If going to crash: don't
-        if type==:sed
-            @warn "Skipping $type to avoid SigKill"
-            continue
-        end
-        
-        # Temporary output
-        println("$type")
         
         # NOTE: doing int vars in a function is (slightly) worse than this
         # Intermediate Earthchem variables (unaffected by chunking)
@@ -128,12 +136,13 @@
 			continue
 		end
         
+        # Find most likely Earthchem sample in chunks of at most 100 Macrostrat samples
 		for i in 1:length(chunks[1:end-1])
 			# Get chunks
 			j = chunks[i]
         	k = chunks[i+1]-1
 
-		    # Get intermediate variables for the rock type we're looking at
+		    # Intermediate Macrostrat variables for this chunk
 		    lat = macrostrat.rocklat[macro_cats[type]]         # Macrostrat latitude
 		    lon = macrostrat.rocklon[macro_cats[type]]         # Macrostrat longitude
 		    sampleage = macrostrat.age[macro_cats[type]]       # Macrostrat age
@@ -141,14 +150,10 @@
 		    # Find most likely sample
 		    # TO DO: pass argument as a tuple?
 		    # TO DO: is there any way to do fewer than ~several M computations per sample?
-		    # matched_sample = likelihood(lat, lon, bulklat, bulklon, sampleidx, sampleage, bulkage, geochemdata, bulkgeochem)
-		    # setindex!(matches, matched_sample, type)
-		    
-		    # Find most likely Earthchem sample in chunks of at most 100 Macrostrat samples
-        
-        	
         	matched_sample = likelihood(lat[j:k], lon[j:k], bulklat, bulklon, sampleidx,
         		sampleage, bulkage, geochemdata, bulkgeochem)
+        	matches[type][j:k] .= matched_sample
+        	GC.gc()		# Needed to stop SigKill
         end
     end
 

@@ -549,13 +549,13 @@ end
 
 
 ## --- Find likelihoods
-    function likelihood(lat, lon, bulklat, bulklon, sample_idxs, sample_age, bulkage, geochem_data, bulkgeochem)
+    function likelihood(lat, lon, bulklat, bulklon, sampleidxs, sampleage, bulkage, geochemdata, bulkgeochem)
         matched_sample = Array{Int64}(undef, length(lat), 1)
 
         # Find most likely EarthChem sample for each Macrostrat sample
         @time for i in eachindex(lat)
             # Age (σ = 38 Ma)
-            age_diff = abs.(bulkage .- sample_age[i])
+            age_diff = abs.(bulkage .- sampleage[i])
             lh_age = -(age_diff.^2)./(38^2)
 
             # Distance (σ = 1.8 arc degrees)
@@ -570,21 +570,21 @@ end
 
             # Find most geochemically similar rock from this reduced data set
             lh_geochem = zeros(Float64, length(lh_total))
-            for elem in eachindex(geochem_data)
+            for elem in eachindex(geochemdata)
                 # Get reduced EarthChem data for this element and this rock type
                 reduced_bulkgeochem = bulkgeochem[elem][reduced_idx]
 
                 # NaN -> 0 means missing data is not excluded, but it is penalized
                 geochem_elem = zeronan!(reduced_bulkgeochem)
 
-                # Geochemical distance (σ = geochem_data[elem].e)
-                geochem_diff = abs.(geochem_elem .- geochem_data[elem].m)
-                lh_geochem .+= -(geochem_diff.^2)./(geochem_data[elem].e^2)
+                # Geochemical distance (σ = geochemdata[elem].e)
+                geochem_diff = abs.(geochem_elem .- geochemdata[elem].m)
+                lh_geochem .+= -(geochem_diff.^2)./(geochemdata[elem].e^2)
             end
 
             # Find least negative / most likely
             (val, idx) = findmax((lh_total[findall(!isnan, lh_total)]))
-            matched_sample[i] = sample_idxs[reduced_idx][findall(!isnan, lh_total)][idx]
+            matched_sample[i] = sampleidxs[reduced_idx][findall(!isnan, lh_total)][idx]
         end
 
         return matched_sample

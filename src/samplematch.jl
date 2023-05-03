@@ -109,10 +109,10 @@
         bulklat = bulk.Latitude[chem_samples]               # EarthChem latitudes
         bulklon = bulk.Longitude[chem_samples]              # EarthChem longitudes
 
-        sample_age = macrostrat.age[macro_cats[type]]       # Macrostrat age
+        sampleage = macrostrat.age[macro_cats[type]]       # Macrostrat age
         bulkage = bulk.AgeEst[chem_samples]                 # EarthChem age
 
-        sample_idxs = bulk_idxs[chem_samples]               # Indices of EarthChem samples
+        sampleidx = bulk_idxs[chem_samples]               # Indices of EarthChem samples
         geochem_data = geochem[type]                        # Major element compositions
         
         # Earthchem samples for only major elements for this rock type
@@ -125,7 +125,7 @@
         # Find most likely sample
         # TO DO: pass argument as a tuple?
         # TO DO: is there any way to do fewer than ~8M computations per sample?
-        matched_sample = likelihood(lat, lon, bulklat, bulklon, sample_idxs, sample_age, bulkage, geochem_data, bulkgeochem)
+        matched_sample = likelihood(lat, lon, bulklat, bulklon, sampleidx, sampleage, bulkage, geochem_data, bulkgeochem)
         setindex!(matches, matched_sample, type)
     end
 

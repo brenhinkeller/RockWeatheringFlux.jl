@@ -551,9 +551,12 @@ end
 ## --- Find likelihoods
     function likelihood(lat, lon, bulklat, bulklon, sampleidxs, sampleage, bulkage, geochemdata, bulkgeochem)
         matched_sample = Array{Int64}(undef, length(lat), 1)
+        # TO DO: preallocate arrays e.g. lh_age etc.
+        # TO DO: reuse variable names, reduce allocations
+        # TO DO: likelihood for one variable instead of a chunk?
 
         # Find most likely EarthChem sample for each Macrostrat sample
-        @time for i in eachindex(lat)
+        for i in eachindex(lat)
             # Age (σ = 38 Ma)
             age_diff = abs.(bulkage .- sampleage[i])
             lh_age = -(age_diff.^2)./(38^2)

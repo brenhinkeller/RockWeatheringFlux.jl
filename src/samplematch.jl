@@ -33,14 +33,14 @@
     # Reduce bulk to only the data we need
     # I don't know that this actually makes a difference though? Since we pass variables by reference...
     # Although unreduced is ~1.6 GB so maybe it matters for overall memory space
-    reduced_bulk = Array{Array}(undef, length(first(geochem)) + 3, 1)
+    reduced_bulk = Array{Array{Float64}}(undef, length(first(geochem)) + 3, 1)
     geochemkeys = keys(first(geochem))
     for i in 1:length(geochemkeys)
         reduced_bulk[i] = bulk[geochemkeys[i]]
     end
     reduced_bulk[end-2] = bulk.Latitude
     reduced_bulk[end-1] = bulk.Longitude
-    reduced_bulk[end] = bulk.AgeEst
+    reduced_bulk[end] = bulk.AgeEst     # TO DO: replace or recalculate AgeEst?
     bulk = NamedTuple{(geochemkeys..., :Latitude, :Longitude, :AgeEst)}(reduced_bulk)    
 
 ## --- Load Earthchem metadata
@@ -74,7 +74,8 @@
 
 ## --- Load Macrostrat data
     @info "Loading Macrostrat lithologic data"
-    macrostrat = importdataset("data/toy_responses.tsv", '\t', importas=:Tuple)     # Reduced size file
+    # macrostrat = importdataset("data/toy_responses.tsv", '\t', importas=:Tuple)     # Reduced size file
+    macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
 
     # Match data to rock types
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip, major=false)
@@ -82,35 +83,31 @@
 
 ## --- For each Macrostrat sample, estimate the log likelihood that each EarthChem sample
 #      accurately represents that sample in space, time, and geochemistry
-# TO DO: likelihood vs log likelihood? Is this already log likelihood?
 # TO DO: NaN -> for missing age and location isn't good, but some equivilent?
+    # age - pick negative sample age
 
 # IT RUNS IT RUNS IT RUNS IT RUNS
 # AND it ran TWICE
 # after compilation: 27.420210 seconds (500.09 k allocations: 49.397 GiB, 34.36% gc time, 0.64% compilation time)
+# for whole dataset: 2665.943094 seconds (21.03 M allocations: 5.028 TiB, 25.16% gc time, 0.42% compilation time)
+# whole dataset after comp: 2949.712072 seconds (14.43 M allocations: 5.028 TiB, 27.21% gc time, 0.01% compilation time)
+
+# TO DO: add views
+
+
+    # Compute sed, ign, and met, and then filter out subtypes later!
+    # only major types: 1518.174307 seconds (9.26 M allocations: 3.886 TiB, 24.87% gc time, 0.02% compilation time)
 	
     @info "Matching samples"
     bulk_idxs = collect(1:length(bulk.SiO2))
+    # TO DO: NamedTuple instead of a Dict?
     matches = Dict{Symbol, Array{Int64}}(
-    	:siliciclast => Array{Int64}(undef, count(macro_cats.siliciclast), 1),
-    	:shale => Array{Int64}(undef, count(macro_cats.shale), 1),
-    	:carb => Array{Int64}(undef, count(macro_cats.carb), 1),
-    	:chert => Array{Int64}(undef, count(macro_cats.chert), 1),
-    	:evaporite => Array{Int64}(undef, count(macro_cats.evaporite), 1),
-    	:coal => Array{Int64}(undef, count(macro_cats.coal), 1),
     	:sed => Array{Int64}(undef, count(macro_cats.sed), 1),
-    	:volc => Array{Int64}(undef, count(macro_cats.volc), 1),
-    	:plut => Array{Int64}(undef, count(macro_cats.plut), 1),
     	:ign => Array{Int64}(undef, count(macro_cats.ign), 1),
-    	:metased => Array{Int64}(undef, count(macro_cats.metased), 1),
-    	:metaign => Array{Int64}(undef, count(macro_cats.metaign), 1),
     	:met => Array{Int64}(undef, count(macro_cats.met), 1)
     )
     #@time @showprogress "Matching lithographic / geochemical samples..." for type in eachindex(macro_cats)
-    @time for type in eachindex(macro_cats)        
-        # Cover is not in EarthChem data; skip it
-        if type==:cover continue end
-        
+    @time for type in eachindex(matches)                
         # NOTE: doing int vars in a function is (slightly) worse than this
         # Intermediate Earthchem variables (unaffected by chunking)
         bulksamples = bulk_cats[type]                      # EarthChem BitVector

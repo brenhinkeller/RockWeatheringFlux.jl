@@ -131,7 +131,7 @@
 		# Get start and end coordinates for sample chunks
 		len = count(macro_cats[type]) 
 		if len != 0
-			chunks = vcat(collect(1:50:len), len)
+			chunks = vcat(collect(1:50:len), len+1)
 		else
 			continue
 		end

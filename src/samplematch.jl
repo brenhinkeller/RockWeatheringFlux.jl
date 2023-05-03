@@ -31,6 +31,8 @@
     @time geochem = major_elements(bulk, bulk_cats)
 
     # Reduce bulk to only the data we need
+    # I don't know that this actually makes a difference though? Since we pass variables by reference...
+    # Although unreduced is ~1.6 GB so maybe it matters for overall memory space
     reduced_bulk = Array{Array}(undef, length(first(geochem)) + 3, 1)
     geochemkeys = keys(first(geochem))
     for i in 1:length(geochemkeys)
@@ -72,11 +74,7 @@
 
 ## --- Load Macrostrat data
     @info "Loading Macrostrat lithologic data"
-    # Reduced size Macrostrat data file
-    macrostrat = importdataset("data/toy_responses.tsv", '\t', importas=:Tuple)
-    rocklat = macrostrat.rocklat
-    rocklon = macrostrat.rocklon
-    age = macrostrat.age
+    macrostrat = importdataset("data/toy_responses.tsv", '\t', importas=:Tuple)     # Reduced size file
 
     # Match data to rock types
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip, major=false)
@@ -106,13 +104,13 @@
         # Get intermediate variables for the rock type we're looking at
         chem_samples = bulk_cats[type]                      # EarthChem BitVector
 
-        lat = rocklat[macro_cats[type]]                     # Macrostrat latitude
-        lon = rocklon[macro_cats[type]]                     # Macrostrat longitude
-        bulklat = bulk.Latitude[chem_samples]       # EarthChem latitudes
-        bulklon = bulk.Longitude[chem_samples]      # EarthChem longitudes
+        lat = macrostrat.rocklat[macro_cats[type]]          # Macrostrat latitude
+        lon = macrostrat.rocklon[macro_cats[type]]          # Macrostrat longitude
+        bulklat = bulk.Latitude[chem_samples]               # EarthChem latitudes
+        bulklon = bulk.Longitude[chem_samples]              # EarthChem longitudes
 
-        sample_age = age[macro_cats[type]]                  # Macrostrat age
-        bulkage = bulk.AgeEst[chem_samples]         # EarthChem age
+        sample_age = macrostrat.age[macro_cats[type]]       # Macrostrat age
+        bulkage = bulk.AgeEst[chem_samples]                 # EarthChem age
 
         sample_idxs = bulk_idxs[chem_samples]               # Indices of EarthChem samples
         geochem_data = geochem[type]                        # Major element compositions
@@ -125,6 +123,8 @@
         bulkgeochem = NamedTuple{geochemkeys}(bulkgeochem)           
 
         # Find most likely sample
+        # TO DO: pass argument as a tuple?
+        # TO DO: is there any way to do fewer than ~8M computations per sample?
         matched_sample = likelihood(lat, lon, bulklat, bulklon, sample_idxs, sample_age, bulkage, geochem_data, bulkgeochem)
         setindex!(matches, matched_sample, type)
     end

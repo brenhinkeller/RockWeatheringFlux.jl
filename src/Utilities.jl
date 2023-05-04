@@ -586,11 +586,28 @@ end
             end
 
             # Find least negative / most likely
-            (val, idx) = findmax((lh_total[findall(!isnan, lh_total)]))
-            matched_sample[i] = sampleidxs[reduced_idx][findall(!isnan, lh_total)][idx]
+            # (val, idx) = findmax((lh_total[findall(!isnan, lh_total)]))
+            # matched_sample[i] = sampleidxs[reduced_idx][findall(!isnan, lh_total)][idx]
+
+            # Select a sample, weighted based on likelihood
+            matched_sample[i] = rand_prop_liklihood(lh_total)
         end
 
         return matched_sample
+    end
+
+## --- Randomly select a sample, weighted based on likelihood
+    function rand_prop_liklihood(ll)
+        sum_likelihoods = sum(exp, ll)
+        r = rand()*sum_likelihoods
+        s = zero(typeof(sum_likelihoods))
+        @inbounds for i in eachindex(ll)
+            s += exp(ll[i])
+            if s > r
+                return i
+            end
+        end
+        return lastindex(ll)
     end
 
 

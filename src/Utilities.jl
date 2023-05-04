@@ -550,24 +550,31 @@ end
 
 ## --- Find likelihoods
     function likelihood(lat, lon, bulklat, bulklon, sampleidxs, sampleage, bulkage, geochemdata, bulkgeochem)
-        matched_sample = Array{Int64}(undef, length(lat), 1)
-        # TO DO: preallocate arrays e.g. lh_age etc.
         # TO DO: reuse variable names, reduce allocations
         # TO DO: likelihood for one variable instead of a chunk?
+        # TO DO: for missing ages / locations, penalize but do not exclude. age - negative sample age?
+
+        # Preallocate
+        matched_sample = Array{Int64}(undef, length(lat), 1)
+        lh_age = Array{Float64}(undef, length(bulklat), 1)
+        lh_dist = Array{Float64}(undef, length(bulklat), 1)
 
         # Find most likely EarthChem sample for each Macrostrat sample
         for i in eachindex(lat)
+            # Preallocate
+            lh_total = Array{Float64}(undef, length(bulklat), 1)
+
             # Age (σ = 38 Ma)
             age_diff = abs.(bulkage .- sampleage[i])
-            lh_age = -(age_diff.^2)./(38^2)
+            lh_age .= -(age_diff.^2)./(38^2)
 
             # Distance (σ = 1.8 arc degrees)
             dist = arcdistance(lat[i], lon[i], bulklat, bulklon)
-            lh_dist = -(dist.^2)./(1.8^2)
+            lh_dist .= -(dist.^2)./(1.8^2)
 
             # Find current likelihoods, only look at geochemical data if the samples are close
-            lh_total = nanadd.(lh_dist, lh_age)
-            reduced = percentile(lh_total, 25)
+            lh_total .= nanadd.(lh_dist, lh_age)
+            reduced = percentile(vec(lh_total), 25)
             reduced_idx = findall(>=(reduced), lh_total)
             lh_total = lh_total[reduced_idx]
 
@@ -584,10 +591,6 @@ end
                 geochem_diff = abs.(geochem_elem .- geochemdata[elem].m)
                 lh_geochem .+= -(geochem_diff.^2)./(geochemdata[elem].e^2)
             end
-
-            # Find least negative / most likely
-            # (val, idx) = findmax((lh_total[findall(!isnan, lh_total)]))
-            # matched_sample[i] = sampleidxs[reduced_idx][findall(!isnan, lh_total)][idx]
 
             # Select a sample, weighted based on likelihood
             matched_sample[i] = rand_prop_liklihood(lh_total)

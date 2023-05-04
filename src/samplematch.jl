@@ -88,10 +88,14 @@
 # TO DO: NaN -> for missing age and location isn't good, but some equivilent?
     # age - pick negative sample age
 
+# views: 19.881672 seconds (1.82 M allocations: 35.402 GiB, 27.09% gc time, 2.11% compilation time)
+# not:   24.634141 seconds (6.79 M allocations: 35.645 GiB, 18.63% gc time, 32.48% compilation time) - FIRST RUN
+
+# first run no views: 30.999972 seconds (7.16 M allocations: 35.664 GiB, 27.01% gc time, 26.28% compilation time)
+# first run w/ views: 33.637817 seconds (7.17 M allocations: 35.665 GiB, 25.97% gc time, 24.22% compilation time)
+
 
 # NOTE: random sample selection means this is hitting kill again... but it doesn't allocate?
-# TO DO: add views
-    # Compute sed, ign, and met, and then filter out subtypes later!
     # full data: 1518.174307 seconds (9.26 M allocations: 3.886 TiB, 24.87% gc time, 0.02% compilation time)
     # toy data: 
 	
@@ -110,10 +114,10 @@
         # NOTE: doing int vars in a function is (slightly) worse than this
         # Intermediate Earthchem variables (unaffected by chunking)
         bulksamples = bulk_cats[type]                      # EarthChem BitVector
-        bulklat = bulk.Latitude[bulksamples]               # EarthChem latitudes
-		bulklon = bulk.Longitude[bulksamples]              # EarthChem longitudes
-        bulkage = bulk.Age[bulksamples]                    # EarthChem age
-	    sampleidx = bulk_idxs[bulksamples]                 # Indices of EarthChem samples
+        @views bulklat = bulk.Latitude[bulksamples]        # EarthChem latitudes
+		@views bulklon = bulk.Longitude[bulksamples]       # EarthChem longitudes
+        @views bulkage = bulk.Age[bulksamples]             # EarthChem age
+	    @views sampleidx = bulk_idxs[bulksamples]          # Indices of EarthChem samples
 	    
 	    geochemdata = geochem[type]                        # Major element compositions
 	    
@@ -127,7 +131,7 @@
 		# Get start and end coordinates for sample chunks
 		len = count(macro_cats[type]) 
 		if len != 0
-			chunks = vcat(collect(1:50:len), len+1)
+			chunks = vcat(collect(1:25:len), len+1)
 		else
 			continue
 		end
@@ -139,9 +143,9 @@
         	k = chunks[i+1]-1
 
 		    # Intermediate Macrostrat variables for this chunk
-		    lat = macrostrat.rocklat[macro_cats[type]]         # Macrostrat latitude
-		    lon = macrostrat.rocklon[macro_cats[type]]         # Macrostrat longitude
-		    sampleage = macrostrat.age[macro_cats[type]]       # Macrostrat age
+		    @views lat = macrostrat.rocklat[macro_cats[type]]         # Macrostrat latitude
+		    @views lon = macrostrat.rocklon[macro_cats[type]]         # Macrostrat longitude
+		    @views sampleage = macrostrat.age[macro_cats[type]]       # Macrostrat age
 
             # for n in j:k 
             #     matched_sample = likelihood(lat[n], lon[n], bulklat, bulklon, sampleidx[n],

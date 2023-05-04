@@ -5,6 +5,7 @@
     using StatGeochem
     using ProgressMeter
     using StatsBase
+    using DelimitedFiles
 
     # Local utilities
     include("Utilities.jl")
@@ -33,15 +34,16 @@
     # Reduce bulk to only the data we need
     # I don't know that this actually makes a difference though? Since we pass variables by reference...
     # Although unreduced is ~1.6 GB so maybe it matters for overall memory space
-    reduced_bulk = Array{Array{Float64}}(undef, length(first(geochem)) + 3, 1)
+    reduced_bulk = Array{Array{Float64}}(undef, length(first(geochem)) + 4, 1)
     geochemkeys = keys(first(geochem))
     for i in 1:length(geochemkeys)
         reduced_bulk[i] = bulk[geochemkeys[i]]
     end
+    reduced_bulk[end-3] = bulk.P2O5
     reduced_bulk[end-2] = bulk.Latitude
     reduced_bulk[end-1] = bulk.Longitude
     reduced_bulk[end] = bulk.AgeEst     # TO DO: replace or recalculate AgeEst?
-    bulk = NamedTuple{(geochemkeys..., :Latitude, :Longitude, :AgeEst)}(reduced_bulk)    
+    bulk = NamedTuple{(geochemkeys..., :P2O5, :Latitude, :Longitude, :Age)}(reduced_bulk)    
 
 ## --- Load Earthchem metadata
     @info "Loading EarthChem sample metadata"
@@ -74,8 +76,8 @@
 
 ## --- Load Macrostrat data
     @info "Loading Macrostrat lithologic data"
-    # macrostrat = importdataset("data/toy_responses.tsv", '\t', importas=:Tuple)     # Reduced size file
-    macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
+    macrostrat = importdataset("data/toy_responses.tsv", '\t', importas=:Tuple)     # Reduced size file
+    # macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
 
     # Match data to rock types
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip, major=false)
@@ -86,17 +88,12 @@
 # TO DO: NaN -> for missing age and location isn't good, but some equivilent?
     # age - pick negative sample age
 
-# IT RUNS IT RUNS IT RUNS IT RUNS
-# AND it ran TWICE
-# after compilation: 27.420210 seconds (500.09 k allocations: 49.397 GiB, 34.36% gc time, 0.64% compilation time)
-# for whole dataset: 2665.943094 seconds (21.03 M allocations: 5.028 TiB, 25.16% gc time, 0.42% compilation time)
-# whole dataset after comp: 2949.712072 seconds (14.43 M allocations: 5.028 TiB, 27.21% gc time, 0.01% compilation time)
 
+# NOTE: random sample selection means this is hitting kill again... but it doesn't allocate?
 # TO DO: add views
-
-
     # Compute sed, ign, and met, and then filter out subtypes later!
-    # only major types: 1518.174307 seconds (9.26 M allocations: 3.886 TiB, 24.87% gc time, 0.02% compilation time)
+    # full data: 1518.174307 seconds (9.26 M allocations: 3.886 TiB, 24.87% gc time, 0.02% compilation time)
+    # toy data: 
 	
     @info "Matching samples"
     bulk_idxs = collect(1:length(bulk.SiO2))
@@ -107,13 +104,15 @@
     	:met => Array{Int64}(undef, count(macro_cats.met), 1)
     )
     #@time @showprogress "Matching lithographic / geochemical samples..." for type in eachindex(macro_cats)
-    @time for type in eachindex(matches)                
+    @time for type in eachindex(matches)
+        @info "Matching samples for $type"
+
         # NOTE: doing int vars in a function is (slightly) worse than this
         # Intermediate Earthchem variables (unaffected by chunking)
         bulksamples = bulk_cats[type]                      # EarthChem BitVector
         bulklat = bulk.Latitude[bulksamples]               # EarthChem latitudes
 		bulklon = bulk.Longitude[bulksamples]              # EarthChem longitudes
-        bulkage = bulk.AgeEst[bulksamples]                 # EarthChem age
+        bulkage = bulk.Age[bulksamples]                    # EarthChem age
 	    sampleidx = bulk_idxs[bulksamples]                 # Indices of EarthChem samples
 	    
 	    geochemdata = geochem[type]                        # Major element compositions
@@ -144,6 +143,11 @@
 		    lon = macrostrat.rocklon[macro_cats[type]]         # Macrostrat longitude
 		    sampleage = macrostrat.age[macro_cats[type]]       # Macrostrat age
 
+            # for n in j:k 
+            #     matched_sample = likelihood(lat[n], lon[n], bulklat, bulklon, sampleidx[n],
+        	# 	sampleage, bulkage, geochemdata, bulkgeochem)
+            # end
+
 		    # Find most likely sample
 		    # TO DO: pass argument as a tuple?
 		    # TO DO: is there any way to do fewer than ~several M computations per sample?
@@ -154,22 +158,35 @@
         end
     end
 
-#=
-Test a subset of potential matches
 
-s = matches[:ign][1]
-i = findfirst(macro_cats.ign)
+## --- Separate data by rock type
+    # Create one long array of all indices
+    # Note that because not all rocks in Macrostrat were matched, not all will have data
+    allmatches = zeros(Int64, length(macro_cats.ign))
+    allmatches[macro_cats.sed] .= matches[:sed]
+    allmatches[macro_cats.ign] .= matches[:ign]
+    allmatches[macro_cats.met] .= matches[:met]
 
-println("
-    $(rocktype[i]) 
-    $(rockdescrip[i]) 
-    $(rockname[i]) 
-    $(rockstratname[i]) 
-    $(rockcomments[i]) 
-    $(age[i])"
-)
-bulk_lith[s]
-bulk.AgeEst[s]
-=#
+    # Write data to a file
+    writedlm("output/matched_bulkidx.tsv", vcat("bulkidx", allmatches),"\t")
+
+    # Separate into subtypes
+    allmatches = (
+        siliciclast = allmatches[macro_cats.siliciclast],
+        shale = allmatches[macro_cats.shale],
+        carb = allmatches[macro_cats.carb],
+        chert = allmatches[macro_cats.chert],
+        evaporite = allmatches[macro_cats.evaporite],
+        coal = allmatches[macro_cats.coal],
+        sed = allmatches[macro_cats.sed],
+
+        volc = allmatches[macro_cats.volc],
+        plut = allmatches[macro_cats.plut],
+        ign = allmatches[macro_cats.ign],
+
+        metased = allmatches[macro_cats.metased],
+        metaign = allmatches[macro_cats.metaign],
+        met = allmatches[macro_cats.met],
+    )
 
 ## --- EOF

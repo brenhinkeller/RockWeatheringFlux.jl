@@ -77,6 +77,10 @@ function llage1(bulkage::Vector, sampleage::Number,
 
     @. ll_total = ll_age + ll_dist
 
+    bulktop = percentile(vec(ll_total), 25)
+    reduced_idx = findall(>=(bulktop), ll_total)
+    ll_total = ll_total[reduced_idx]
+
     matched_sample = rand_prop_liklihood(ll_total)
     return matched_sample
 end
@@ -95,9 +99,7 @@ function llage2(bulkage::Vector, sampleage::Number,
         if isnan(bulkage[i])
             bulkage[i] = -sampleage
         end
-    end
-        
-    @inbounds for i in 1:npoints
+
         # Assume if one coordinate is missing, so is the other one
         if isnan(bulklat[i])
             bulklat[i] = -lat
@@ -114,6 +116,15 @@ function llage2(bulkage::Vector, sampleage::Number,
     end
 
     @. ll_total = ll_age + ll_dist
+
+    # Reduce likelihoods to top quartile (75th percentile)
+    bulktop = percentile(vec(ll_total), 75)
+    @inbounds for i in 1:npoints
+        if ll_total[i] < bulktop
+            ll_total[i] = NaN
+        end
+    end
+    
 
     matched_sample = rand_prop_liklihood(ll_total)
     return matched_sample
@@ -146,4 +157,5 @@ Things that DID work
     looping through bulk one at a time instead of chunks (V2) 860f8d8d2fb011c753046ba0a89ef0f5fe23c891
     @inbounds and rm temp variables (I think?) (V2) a140d88d17a5fc9ff24c94c4f9e6545c8a0aeae2
     @turbo (3x speedup) d144f06055c2f5cc45503b4af47187270981fd42
+    remove NaNs 3b6270780eb6a162312346c4a92b4cf7e28fbd79
 =#

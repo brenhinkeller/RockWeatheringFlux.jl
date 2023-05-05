@@ -46,7 +46,8 @@ function ll2(lat::Number, lon::Number, bulklat, bulklon, sampleidxs, sampleage::
 end
 
 function llage1(bulkage::Vector, sampleage::Number,
-        bulklat::Vector, bulklon::Vector, lat::Number, lon::Number
+        bulklat::Vector, bulklon::Vector, samplelat::Number, samplelon::Number,
+        bulkgeochem::NamedTuple, samplegeochem::NamedTuple
     )
     # Preallocate
     npoints = length(bulkage)
@@ -62,17 +63,18 @@ function llage1(bulkage::Vector, sampleage::Number,
 
         # Assume if one coordinate is missing, so is the other one
         if isnan(bulklat[i])
-            bulklat[i] = -lat
-            bulklon[i] = -lon
+            bulklat[i] = -samplelat
+            bulklon[i] = -samplelon
         end
     end
 
+    # Spatiotemporal log-likelihoods
     @turbo for i in 1:npoints
         # Age (σ = 38 Ma)
         ll_age[i] = -((bulkage[i] - sampleage)^2)/(38^2)
 
         # Distance (σ = 1.8 arc degrees)
-        ll_dist[i] = -((haversine(lat, lon, bulklat[i], bulklon[i]))^2)/(1.8^2)
+        ll_dist[i] = -((haversine(samplelat, samplelon, bulklat[i], bulklon[i]))^2)/(1.8^2)
     end
 
     @. ll_total = ll_age + ll_dist
@@ -81,12 +83,20 @@ function llage1(bulkage::Vector, sampleage::Number,
     reduced_idx = findall(>=(bulktop), ll_total)
     ll_total = ll_total[reduced_idx]
 
+    # Geochemical log-likelihoods
+    for elem in eachindex(bulkgeochem)
+        @turbo for i in 1:length(ll_total)
+            ll_total[i] += -((bulkgeochem[elem][i] - geochemdata[elem].m)^2)/(geochemdata[elem].e^2)
+        end
+    end
+
     matched_sample = rand_prop_liklihood(ll_total)
     return matched_sample
 end
 
 function llage2(bulkage::Vector, sampleage::Number,
-        bulklat::Vector, bulklon::Vector, lat::Number, lon::Number
+        bulklat::Vector, bulklon::Vector, samplelat::Number, samplelon::Number,
+        bulkgeochem::NamedTuple, samplegeochem::NamedTuple
     )
     # Preallocate
     npoints = length(bulkage)
@@ -102,8 +112,8 @@ function llage2(bulkage::Vector, sampleage::Number,
 
         # Assume if one coordinate is missing, so is the other one
         if isnan(bulklat[i])
-            bulklat[i] = -lat
-            bulklon[i] = -lon
+            bulklat[i] = -samplelat
+            bulklon[i] = -samplelon
         end
     end
 
@@ -112,7 +122,7 @@ function llage2(bulkage::Vector, sampleage::Number,
         ll_age[i] = -((bulkage[i] - sampleage)^2)/(38^2)
 
         # Distance (σ = 1.8 arc degrees)
-        ll_dist[i] = -((haversine(lat, lon, bulklat[i], bulklon[i]))^2)/(1.8^2)
+        ll_dist[i] = -((haversine(samplelat, samplelon, bulklat[i], bulklon[i]))^2)/(1.8^2)
     end
 
     @. ll_total = ll_age + ll_dist
@@ -125,17 +135,27 @@ function llage2(bulkage::Vector, sampleage::Number,
         end
     end
     
+    # Geochemical log-likelihoods
+    for elem in eachindex(bulkgeochem)
+        @turbo for i in 1:npoints
+            ll_total[i] += -((bulkgeochem[elem][i] - geochemdata[elem].m)^2)/(geochemdata[elem].e^2)
+        end
+    end
 
     matched_sample = rand_prop_liklihood(ll_total)
     return matched_sample
 end
 
-llage1(bulkage, sampleage, bulklat, bulklon, lat, lon)
-llage2(bulkage, sampleage, bulklat, bulklon, lat, lon)
+@warn "When testing in global scope, running llage1 may cause segfaults"
+llage1(bulkage, sampleage, bulklat, bulklon, lat, lon, bulkgeochem, geochemdata)
+llage2(bulkage, sampleage, bulklat, bulklon, lat, lon, bulkgeochem, geochemdata)
 
+samplelat = lat
+samplelon = lon
+samplegeochem = geochemdata
 
-# @benchmark llage1($bulkage, $sampleage, $bulklat, $bulklon, $lat, $lon)
-# @benchmark llage2($bulkage, $sampleage, $bulklat, $bulklon, $lat, $lon)
+# @benchmark llage1($bulkage, $sampleage, $bulklat, $bulklon, $lat, $lon, $bulkgeochem, $geochemdata)
+# @benchmark llage2($bulkage, $sampleage, $bulklat, $bulklon, $lat, $lon, $bulkgeochem, $geochemdata)
 
 #=
 to try:
@@ -158,4 +178,5 @@ Things that DID work
     @inbounds and rm temp variables (I think?) (V2) a140d88d17a5fc9ff24c94c4f9e6545c8a0aeae2
     @turbo (3x speedup) d144f06055c2f5cc45503b4af47187270981fd42
     remove NaNs 3b6270780eb6a162312346c4a92b4cf7e28fbd79
+    replace too low LLs with NaN 89010d08bf630c11a998b5dc2b95d5a588b772b7
 =#

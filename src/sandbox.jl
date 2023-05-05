@@ -64,25 +64,6 @@ function llage1(bulkage::Vector, sampleage::Number,
     return matched_sample
 end
 
-function llage1a(bulkage::Vector, sampleage::Number,
-        bulklat::Vector, bulklon::Vector, lat::Number, lon::Number
-    )
-    # Preallocate
-    npoints = length(bulkage)
-    lh_age = Array{Float64}(undef, npoints, 1)
-    lh_dist = Array{Float64}(undef, npoints, 1)
-    dist = Array{Float64}(undef, npoints, 1)
-
-    # Age (σ = 38 Ma)
-    @. lh_age = -((bulkage .- sampleage)^2)/(38^2)
-
-    # Distance (σ = 1.8 arc degrees)
-    dist .= arcdistance(lat, lon, bulklat, bulklon)
-    lh_dist .= -(dist.^2)./(1.8^2)
-
-    matched_sample = rand_prop_liklihood(lh_age)
-    return matched_sample
-end
 
 function llage2(bulkage::Vector, sampleage::Number,
         bulklat::Vector, bulklon::Vector, lat::Number, lon::Number
@@ -114,6 +95,35 @@ function llage2(bulkage::Vector, sampleage::Number,
     return matched_sample
 end
 
+function llage2a(bulkage::Vector, sampleage::Number,
+    bulklat::Vector, bulklon::Vector, lat::Number, lon::Number
+)
+# Preallocate
+npoints = length(bulkage)
+lh_age = Array{Float64}(undef, npoints, 1)
+lh_dist = Array{Float64}(undef, npoints, 1)
+
+chunks = vcat(collect(1:5:npoints), npoints+1)
+
+for i in 1:length(chunks[1:end-1])
+    j = chunks[i]
+    k = chunks[i+1]-1
+    @views agechunk = bulkage[j:k]
+    @views latchunk = bulklat[j:k]
+    @views lonchunk = bulklon[j:k]
+    
+    # Age (σ = 38 Ma)
+    # age_diff = agechunk .- sampleage
+    @. lh_age[j:k] = -((agechunk .- sampleage)^2)/(38^2)
+
+    # Distance (σ = 1.8 arc degrees)
+    dist = arcdistance(lat, lon, latchunk, lonchunk)
+    @. lh_dist[j:k] = -(dist^2)/(1.8^2)
+end
+
+matched_sample = rand_prop_liklihood(lh_age)
+return matched_sample
+end
 
 @info "Version 1"
 @timev llage1(bulkage, sampleage, bulklat, bulklon, lat, lon)
@@ -131,7 +141,8 @@ to try:
     smaller chunks
 =#
 
+# git log -1 --pretty=format:"%s, %H"
 #=
 Tried and didn't work:
-    
+    Preallocating distance array in V1 cfda79de984a7d4a83332608e2b4dfc71a032cfb
 =#

@@ -50,17 +50,20 @@ function llage1(bulkage::Vector, sampleage::Number,
     )
     # Preallocate
     npoints = length(bulkage)
-    lh_age = Array{Float64}(undef, npoints, 1)
-    lh_dist = Array{Float64}(undef, npoints, 1)
+    ll_age = Array{Float64}(undef, npoints, 1)
+    ll_dist = Array{Float64}(undef, npoints, 1)
+    ll_total = Array{Float64}(undef, npoints, 1)
 
     # Age (σ = 38 Ma)
-    @. lh_age = -((bulkage .- sampleage)^2)/(38^2)
+    @. ll_age = -((bulkage .- sampleage)^2)/(38^2)
 
     # Distance (σ = 1.8 arc degrees)
     dist = arcdistance(lat, lon, bulklat, bulklon)
-    lh_dist .= -(dist.^2)./(1.8^2)
+    ll_dist .= -(dist.^2)./(1.8^2)
 
-    matched_sample = rand_prop_liklihood(lh_age)
+    @. ll_total = ll_age + ll_dist
+
+    matched_sample = rand_prop_liklihood(ll_total)
     return matched_sample
 end
 
@@ -69,20 +72,48 @@ function llage2(bulkage::Vector, sampleage::Number,
     )
     # Preallocate
     npoints = length(bulkage)
-    lh_age = Array{Float64}(undef, npoints, 1)
-    lh_dist = Array{Float64}(undef, npoints, 1)
+    ll_age = Array{Float64}(undef, npoints, 1)
+    ll_dist = Array{Float64}(undef, npoints, 1)
+    ll_total = Array{Float64}(undef, npoints, 1)
 
     @inbounds for i in 1:npoints
         # Age (σ = 38 Ma)
-        lh_age[i] = -((bulkage[i] .- sampleage)^2)/(38^2)
+        ll_age[i] = -((bulkage[i] .- sampleage)^2)/(38^2)
 
         # Distance (σ = 1.8 arc degrees)
         # Same number of allocs as not allocating dist
         dist = haversine(lat, lon, bulklat[i], bulklon[i])
-        lh_dist[i] = -(dist^2)/(1.8^2)
+        ll_dist[i] = -(dist^2)/(1.8^2)
+
+        ll_total[i] = ll_age[i] + ll_dist[i]
     end
 
-    matched_sample = rand_prop_liklihood(lh_age)
+    matched_sample = rand_prop_liklihood(ll_total)
+    return matched_sample
+end
+
+function llage2a(bulkage::Vector, sampleage::Number,
+        bulklat::Vector, bulklon::Vector, lat::Number, lon::Number
+    )
+    # Preallocate
+    npoints = length(bulkage)
+    ll_age = Array{Float64}(undef, npoints, 1)
+    ll_dist = Array{Float64}(undef, npoints, 1)
+    ll_total = Array{Float64}(undef, npoints, 1)
+
+    @inbounds for i in 1:npoints
+        # Age (σ = 38 Ma)
+        ll_age[i] = -((bulkage[i] .- sampleage)^2)/(38^2)
+
+        # Distance (σ = 1.8 arc degrees)
+        # Same number of allocs as not allocating dist
+        dist = haversine(lat, lon, bulklat[i], bulklon[i])
+        ll_dist[i] = -(dist^2)/(1.8^2)
+    end
+
+    @. ll_total = ll_age + ll_dist
+
+    matched_sample = rand_prop_liklihood(ll_total)
     return matched_sample
 end
 
@@ -97,6 +128,7 @@ end
 
 #=
 to try:
+    CURRENT PROJECT: reduce lh_total size. test (for V2) if I can directly assign things to lh_total without the age and dist intermeds
     two chunk loops instead of 1
     allocating the correct size in the array
 =#
@@ -110,11 +142,6 @@ Tried and didn't work:
 
 #=
 Things that DID work
-    looping through bulk one at a time instead of chunks 860f8d8d2fb011c753046ba0a89ef0f5fe23c891
-=#
-
-#=
-No apparent change
-    getting rid of @views in V2, but it should use fewer allocs?
-
+    looping through bulk one at a time instead of chunks (V2) 860f8d8d2fb011c753046ba0a89ef0f5fe23c891
+    @inbounds and rm temp variables (V2) a140d88d17a5fc9ff24c94c4f9e6545c8a0aeae2
 =#

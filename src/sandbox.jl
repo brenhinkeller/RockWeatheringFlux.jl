@@ -63,6 +63,10 @@ function llage1(bulkage::Vector, sampleage::Number,
 
     @. ll_total = ll_age + ll_dist
 
+    # reduced = percentile(vec(ll_total), 25)
+    # reduced_idx = findall(>=(reduced), ll_total)
+    # ll_total = ll_total[reduced_idx]
+
     matched_sample = rand_prop_liklihood(ll_total)
     return matched_sample
 end
@@ -78,15 +82,15 @@ function llage2(bulkage::Vector, sampleage::Number,
 
     @inbounds for i in 1:npoints
         # Age (σ = 38 Ma)
-        ll_age[i] = -((bulkage[i] .- sampleage)^2)/(38^2)
+        ll_age[i] = -((bulkage[i] - sampleage)^2)/(38^2)
 
         # Distance (σ = 1.8 arc degrees)
         # Same number of allocs as not allocating dist
         dist = haversine(lat, lon, bulklat[i], bulklon[i])
         ll_dist[i] = -(dist^2)/(1.8^2)
-
-        ll_total[i] = ll_age[i] + ll_dist[i]
     end
+
+    @. ll_total = ll_age + ll_dist
 
     matched_sample = rand_prop_liklihood(ll_total)
     return matched_sample
@@ -101,14 +105,13 @@ function llage2a(bulkage::Vector, sampleage::Number,
     ll_dist = Array{Float64}(undef, npoints, 1)
     ll_total = Array{Float64}(undef, npoints, 1)
 
-    @inbounds for i in 1:npoints
+    @turbo for i in 1:npoints
         # Age (σ = 38 Ma)
-        ll_age[i] = -((bulkage[i] .- sampleage)^2)/(38^2)
+        ll_age[i] = -((bulkage[i] - sampleage)^2)/(38^2)
 
         # Distance (σ = 1.8 arc degrees)
-        # Same number of allocs as not allocating dist
-        dist = haversine(lat, lon, bulklat[i], bulklon[i])
-        ll_dist[i] = -(dist^2)/(1.8^2)
+        # Same number of allocs as allocating dist
+        ll_dist[i] = -((haversine(lat, lon, bulklat[i], bulklon[i]))^2)/(1.8^2)
     end
 
     @. ll_total = ll_age + ll_dist
@@ -123,12 +126,15 @@ end
 @info "Version 2"
 @timev llage2(bulkage, sampleage, bulklat, bulklon, lat, lon)
 
+llage2a(bulkage, sampleage, bulklat, bulklon, lat, lon)
+
 # @benchmark llage1($bulkage, $sampleage, $bulklat, $bulklon, $lat, $lon)
 # @benchmark llage2($bulkage, $sampleage, $bulklat, $bulklon, $lat, $lon)
 
 #=
 to try:
-    CURRENT PROJECT: reduce lh_total size. test (for V2) if I can directly assign things to lh_total without the age and dist intermeds
+    NEW current project don't remove missing data, just penalize
+    reduce lh_total size. test (for V2) if I can directly assign things to lh_total without the age and dist intermeds
     two chunk loops instead of 1
     allocating the correct size in the array
 =#
@@ -143,5 +149,5 @@ Tried and didn't work:
 #=
 Things that DID work
     looping through bulk one at a time instead of chunks (V2) 860f8d8d2fb011c753046ba0a89ef0f5fe23c891
-    @inbounds and rm temp variables (V2) a140d88d17a5fc9ff24c94c4f9e6545c8a0aeae2
+    @inbounds and rm temp variables (I think?) (V2) a140d88d17a5fc9ff24c94c4f9e6545c8a0aeae2
 =#

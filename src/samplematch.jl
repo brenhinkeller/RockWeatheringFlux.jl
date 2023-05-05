@@ -6,6 +6,13 @@
     using ProgressMeter
     using StatsBase
     using DelimitedFiles
+    using StaticArrays
+    using LoopVectorization
+
+    # Profiling
+    using Profile
+    using PProf
+    using BenchmarkTools
 
     # Local utilities
     include("Utilities.jl")
@@ -91,6 +98,8 @@
 # NOTE: random sample selection means this is hitting kill again... but it doesn't allocate?
     # full data: 1518.174307 seconds (9.26 M allocations: 3.886 TiB, 24.87% gc time, 0.02% compilation time)
     # toy data: 
+
+# New algorithm: 3.047785 seconds (41.68 k allocations: 2.367 GiB, 1.05% gc time, 0.68% compilation time)
 	
 ## --- Find matching Earthchem sample for each Macrostrat sample
     bulk_idxs = collect(1:length(bulk.SiO2))
@@ -100,20 +109,16 @@
     	:ign => Array{Int64}(undef, count(macro_cats.ign), 1),
     	:met => Array{Int64}(undef, count(macro_cats.met), 1)
     )
-    println("allocated matches")
     
     @timev for type in eachindex(matches)
         @info "Matching samples for $type"
-
-        # NOTE: doing int vars in a function is (slightly) worse than this
-        # Intermediate Earthchem variables (unaffected by chunking)
-        bulksamples = bulk_cats[type]                      # EarthChem BitVector
-        bulklat = bulk.Latitude[bulksamples]        # EarthChem latitudes
-		bulklon = bulk.Longitude[bulksamples]       # EarthChem longitudes
-        bulkage = bulk.Age[bulksamples]             # EarthChem age
-	    sampleidx = bulk_idxs[bulksamples]          # Indices of EarthChem samples
-	    
-	    geochemdata = geochem[type]                        # Major element compositions
+        # Intermediate Earthchem variables
+        bulksamples = bulk_cats[type]                   # EarthChem BitVector
+        bulklat = bulk.Latitude[bulksamples]            # EarthChem latitudes
+		bulklon = bulk.Longitude[bulksamples]           # EarthChem longitudes
+        bulkage = bulk.Age[bulksamples]                 # EarthChem age
+	    sampleidx = bulk_idxs[bulksamples]              # Indices of EarthChem samples
+	    geochemdata = geochem[type]                     # Major element compositions
 	    
 	    # Earthchem samples for only major elements for this rock type
         bulkgeochem = Array{Array}(undef, length(geochemdata), 1)
@@ -127,40 +132,8 @@
         lon = macrostrat.rocklon[macro_cats[type]]         # Macrostrat longitude
         sampleage = macrostrat.age[macro_cats[type]]       # Macrostrat age
 
-            
-
-		    
-		# Get start and end coordinates for sample chunks
-		# len = count(macro_cats[type]) 
-		# if len != 0
-		# 	chunks = vcat(collect(1:10:len), len+1)
-		# else
-		# 	continue
-		# end
-        
-        # # Find most likely Earthchem sample in chunks of at most 100 Macrostrat samples
-		# for i in 1:length(chunks[1:end-1])
-		# 	# Get chunks
-		# 	j = chunks[i]
-        # 	k = chunks[i+1]-1
-        #     println("start idx $j, end idx $k")
-
-		#     # Intermediate Macrostrat variables for this chunk
-		#     lat = macrostrat.rocklat[macro_cats[type]][j:k]         # Macrostrat latitude
-		#     lon = macrostrat.rocklon[macro_cats[type]][j:k]         # Macrostrat longitude
-		#     sampleage = macrostrat.age[macro_cats[type]][j:k]       # Macrostrat age
-
-        #     # for n in j:k 
-        #     #     matched_sample = likelihood(lat[n], lon[n], bulklat, bulklon, sampleidx, sampleage[n], bulkage, geochemdata, bulkgeochem)
-        #     # end
-
-		#     # Find most likely sample
-		#     # TO DO: pass argument as a tuple?
-        #     println("here")
-        # 	@timev matched_sample = likelihood(lat[j:k], lon[j:k], bulklat, bulklon, sampleidx,
-        # 		sampleage, bulkage, geochemdata, bulkgeochem)
-        # 	matches[type][j:k] .= matched_sample
-        # 	GC.gc()		# Needed to stop SigKill
+        @inbounds for i in eachindex(lat)
+            matches[type][i] = likelihood(bulkage, sampleage[i], bulklat, bulklon, lat[i], lon[i], bulkgeochem, geochemdata)
         end
     end
 

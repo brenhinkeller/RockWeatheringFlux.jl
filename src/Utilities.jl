@@ -549,53 +549,47 @@ end
 
 
 ## --- Find likelihoods
-    function likelihood(lat, lon, bulklat, bulklon, sampleidxs, sampleage, bulkage, geochemdata, bulkgeochem)
-        # TO DO: reuse variable names, reduce allocations
-        # TO DO: likelihood for one variable instead of a chunk?
-        # TO DO: for missing ages / locations, penalize but do not exclude. age - negative sample age?
-
+    function likelihood(bulkage::Vector, sampleage::Number,
+            bulklat::Vector, bulklon::Vector, samplelat::Number, samplelon::Number,
+            bulkgeochem::NamedTuple, samplegeochem::NamedTuple
+        )
         # Preallocate
-        matched_sample = Array{Int64}(undef, length(lat), 1)
-        lh_age = Array{Float64}(undef, length(bulklat), 1)
-        lh_dist = Array{Float64}(undef, length(bulklat), 1)
+        npoints = length(bulkage)
+        ll_age = Array{Float64}(undef, npoints, 1)
+        ll_dist = Array{Float64}(undef, npoints, 1)
+        ll_total = Array{Float64}(undef, npoints, 1)
 
-        # Find most likely EarthChem sample for each Macrostrat sample
-        for i in eachindex(lat)
-            # Preallocate
-            lh_total = Array{Float64}(undef, length(bulklat), 1)
-
-            # Age (σ = 38 Ma)
-            age_diff = abs.(bulkage .- sampleage[i])
-            lh_age .= -(age_diff.^2)./(38^2)
-
-            # Distance (σ = 1.8 arc degrees)
-            dist = arcdistance(lat[i], lon[i], bulklat, bulklon)
-            lh_dist .= -(dist.^2)./(1.8^2)
-
-            # Find current likelihoods, only look at geochemical data if the samples are close
-            lh_total .= nanadd.(lh_dist, lh_age)
-            reduced = percentile(vec(lh_total), 25)
-            reduced_idx = findall(>=(reduced), lh_total)
-            lh_total = lh_total[reduced_idx]
-
-            # Find most geochemically similar rock from this reduced data set
-            lh_geochem = zeros(Float64, length(lh_total))
-            for elem in eachindex(geochemdata)
-                # Get reduced EarthChem data for this element and this rock type
-                reduced_bulkgeochem = bulkgeochem[elem][reduced_idx]
-
-                # NaN -> 0 means missing data is not excluded, but it is penalized
-                geochem_elem = zeronan!(reduced_bulkgeochem)
-
-                # Geochemical distance (σ = geochemdata[elem].e)
-                geochem_diff = abs.(geochem_elem .- geochemdata[elem].m)
-                lh_geochem .+= -(geochem_diff.^2)./(geochemdata[elem].e^2)
+        # Replace missing values: this will penalize but not exclude missing data
+        @inbounds for i in 1:npoints
+            if isnan(bulkage[i])
+                bulkage[i] = -sampleage
             end
 
-            # Select a sample, weighted based on likelihood
-            matched_sample[i] = rand_prop_liklihood(lh_total)
+            # Assume if one coordinate is missing, so is the other one
+            if isnan(bulklat[i])
+                bulklat[i] = -samplelat
+                bulklon[i] = -samplelon
+            end
         end
 
+        @turbo for i in 1:npoints
+            # Age (σ = 38 Ma)
+            ll_age[i] = -((bulkage[i] - sampleage)^2)/(38^2)
+
+            # Distance (σ = 1.8 arc degrees)
+            ll_dist[i] = -((haversine(samplelat, samplelon, bulklat[i], bulklon[i]))^2)/(1.8^2)
+        end
+
+        @. ll_total = ll_age + ll_dist
+        
+        # Geochemical log-likelihoods
+        for elem in eachindex(bulkgeochem)
+            @turbo for i in 1:npoints
+                ll_total[i] += -((bulkgeochem[elem][i] - samplegeochem[elem].m)^2)/(samplegeochem[elem].e^2)
+            end
+        end
+
+        matched_sample = rand_prop_liklihood(ll_total)
         return matched_sample
     end
 

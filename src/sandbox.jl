@@ -64,6 +64,26 @@ function llage1(bulkage::Vector, sampleage::Number,
     return matched_sample
 end
 
+function llage1a(bulkage::Vector, sampleage::Number,
+        bulklat::Vector, bulklon::Vector, lat::Number, lon::Number
+    )
+    # Preallocate
+    npoints = length(bulkage)
+    lh_age = Array{Float64}(undef, npoints, 1)
+    lh_dist = Array{Float64}(undef, npoints, 1)
+    dist = Array{Float64}(undef, npoints, 1)
+
+    # Age (σ = 38 Ma)
+    @. lh_age = -((bulkage .- sampleage)^2)/(38^2)
+
+    # Distance (σ = 1.8 arc degrees)
+    dist .= arcdistance(lat, lon, bulklat, bulklon)
+    lh_dist .= -(dist.^2)./(1.8^2)
+
+    matched_sample = rand_prop_liklihood(lh_age)
+    return matched_sample
+end
+
 function llage2(bulkage::Vector, sampleage::Number,
         bulklat::Vector, bulklon::Vector, lat::Number, lon::Number
     )
@@ -94,15 +114,24 @@ function llage2(bulkage::Vector, sampleage::Number,
     return matched_sample
 end
 
+
 @info "Version 1"
 @timev llage1(bulkage, sampleage, bulklat, bulklon, lat, lon)
 
 @info "Version 2"
 @timev llage2(bulkage, sampleage, bulklat, bulklon, lat, lon)
 
+# @benchmark llage1($bulkage, $sampleage, $bulklat, $bulklon, $lat, $lon)
+# @benchmark llage2($bulkage, $sampleage, $bulklat, $bulklon, $lat, $lon)
+
 #=
 to try:
     two chunk loops instead of 1
     allocating the correct size in the array
     smaller chunks
+=#
+
+#=
+Tried and didn't work:
+    
 =#

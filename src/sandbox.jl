@@ -1,3 +1,5 @@
+# include("intermed.jl")
+
 function ll2(lat::Number, lon::Number, bulklat, bulklon, sampleidxs, sampleage::Number, bulkage, geochemdata, bulkgeochem)
     # TO DO: reuse variable names, reduce allocations
     # TO DO: for missing ages / locations, penalize but do not exclude. age - negative sample age?
@@ -43,24 +45,32 @@ function ll2(lat::Number, lon::Number, bulklat, bulklon, sampleidxs, sampleage::
     return matched_sample
 end
 
-function llage1(bulkage::Vector, sampleage::Number)
+function llage1(bulkage::Vector, sampleage::Number,
+        bulklat::Vector, bulklon::Vector, lat::Number, lon::Number
+    )
     # Preallocate
     npoints = length(bulkage)
     lh_age = Array{Float64}(undef, npoints, 1)
+    lh_dist = Array{Float64}(undef, npoints, 1)
 
     # Age (σ = 38 Ma)
-    @. age_diff = bulkage - sampleage
-    @. lh_age = -(age_diff^2)/(38^2)
+    @. lh_age = -((bulkage .- sampleage)^2)/(38^2)
+
+    # Distance (σ = 1.8 arc degrees)
+    dist = arcdistance(lat, lon, bulklat, bulklon)
+    lh_dist .= -(dist.^2)./(1.8^2)
 
     matched_sample = rand_prop_liklihood(lh_age)
     return matched_sample
 end
 
-function llage2(bulkage::Vector, sampleage::Number)
+function llage2(bulkage::Vector, sampleage::Number,
+        bulklat::Vector, bulklon::Vector, lat::Number, lon::Number
+    )
     # Preallocate
     npoints = length(bulkage)
     lh_age = Array{Float64}(undef, npoints, 1)
-    lh_age = Array{Float64}(undef, npoints, 1)
+    lh_dist = Array{Float64}(undef, npoints, 1)
 
     chunks = vcat(collect(1:50:npoints), npoints+1)
 
@@ -68,15 +78,31 @@ function llage2(bulkage::Vector, sampleage::Number)
         j = chunks[i]
         k = chunks[i+1]-1
         @views agechunk = bulkage[j:k]
+        @views latchunk = bulklat[j:k]
+        @views lonchunk = bulklon[j:k]
         
         # Age (σ = 38 Ma)
         # age_diff = agechunk .- sampleage
         @. lh_age[j:k] = -((agechunk .- sampleage)^2)/(38^2)
+
+        # Distance (σ = 1.8 arc degrees)
+        dist = arcdistance(lat, lon, latchunk, lonchunk)
+        @. lh_dist[j:k] = -(dist^2)/(1.8^2)
     end
 
     matched_sample = rand_prop_liklihood(lh_age)
     return matched_sample
 end
 
-llage1(bulkage, sampleage)
-llage2(bulkage, sampleage)
+@info "Version 1"
+@timev llage1(bulkage, sampleage, bulklat, bulklon, lat, lon)
+
+@info "Version 2"
+@timev llage2(bulkage, sampleage, bulklat, bulklon, lat, lon)
+
+#=
+to try:
+    two chunk loops instead of 1
+    allocating the correct size in the array
+    smaller chunks
+=#

@@ -96,33 +96,30 @@ function llage2(bulkage::Vector, sampleage::Number,
 end
 
 function llage2a(bulkage::Vector, sampleage::Number,
-    bulklat::Vector, bulklon::Vector, lat::Number, lon::Number
-)
-# Preallocate
-npoints = length(bulkage)
-lh_age = Array{Float64}(undef, npoints, 1)
-lh_dist = Array{Float64}(undef, npoints, 1)
+        bulklat::Vector, bulklon::Vector, lat::Number, lon::Number
+    )
+    # Preallocate
+    npoints = length(bulkage)
+    lh_age = Array{Float64}(undef, npoints, 1)
+    lh_dist = Array{Float64}(undef, npoints, 1)
 
-chunks = vcat(collect(1:5:npoints), npoints+1)
+    for i in 1:npoints
+        @views agechunk = bulkage[i]
+        @views latchunk = bulklat[i]
+        @views lonchunk = bulklon[i]
+        
+        # Age (σ = 38 Ma)
+        # age_diff = agechunk .- sampleage
+        lh_age[i] = -((agechunk .- sampleage)^2)/(38^2)
 
-for i in 1:length(chunks[1:end-1])
-    j = chunks[i]
-    k = chunks[i+1]-1
-    @views agechunk = bulkage[j:k]
-    @views latchunk = bulklat[j:k]
-    @views lonchunk = bulklon[j:k]
-    
-    # Age (σ = 38 Ma)
-    # age_diff = agechunk .- sampleage
-    @. lh_age[j:k] = -((agechunk .- sampleage)^2)/(38^2)
+        # Distance (σ = 1.8 arc degrees)
+        # Same number of allocatioins as not allocating dist
+        dist = haversine(lat, lon, latchunk, lonchunk)
+        lh_dist[i] = -(dist^2)/(1.8^2)
+    end
 
-    # Distance (σ = 1.8 arc degrees)
-    dist = arcdistance(lat, lon, latchunk, lonchunk)
-    @. lh_dist[j:k] = -(dist^2)/(1.8^2)
-end
-
-matched_sample = rand_prop_liklihood(lh_age)
-return matched_sample
+    matched_sample = rand_prop_liklihood(lh_age)
+    return matched_sample
 end
 
 @info "Version 1"
@@ -145,4 +142,10 @@ to try:
 #=
 Tried and didn't work:
     Preallocating distance array in V1 cfda79de984a7d4a83332608e2b4dfc71a032cfb
+    Use smaller chunk size in V2 2b75bdc3b4afb97066f0849c79578ac4673f8d12
+=#
+
+#=
+Things that DID work
+    looping through bulk one at a time instead of chunks
 =#

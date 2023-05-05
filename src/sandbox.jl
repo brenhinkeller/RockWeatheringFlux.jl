@@ -68,7 +68,6 @@ function llage1(bulkage::Vector, sampleage::Number,
         end
     end
 
-    # Spatiotemporal log-likelihoods
     @turbo for i in 1:npoints
         # Age (σ = 38 Ma)
         ll_age[i] = -((bulkage[i] - sampleage)^2)/(38^2)
@@ -79,13 +78,17 @@ function llage1(bulkage::Vector, sampleage::Number,
 
     @. ll_total = ll_age + ll_dist
 
-    bulktop = percentile(vec(ll_total), 25)
-    reduced_idx = findall(>=(bulktop), ll_total)
-    ll_total = ll_total[reduced_idx]
-
+    # Reduce likelihoods to top quartile (75th percentile)
+    bulktop = percentile(vec(ll_total), 75)
+    @inbounds for i in 1:npoints
+        if ll_total[i] < bulktop
+            ll_total[i] = NaN
+        end
+    end
+    
     # Geochemical log-likelihoods
     for elem in eachindex(bulkgeochem)
-        @turbo for i in 1:length(ll_total)
+        @turbo for i in 1:npoints
             ll_total[i] += -((bulkgeochem[elem][i] - geochemdata[elem].m)^2)/(geochemdata[elem].e^2)
         end
     end
@@ -126,14 +129,6 @@ function llage2(bulkage::Vector, sampleage::Number,
     end
 
     @. ll_total = ll_age + ll_dist
-
-    # Reduce likelihoods to top quartile (75th percentile)
-    bulktop = percentile(vec(ll_total), 75)
-    @inbounds for i in 1:npoints
-        if ll_total[i] < bulktop
-            ll_total[i] = NaN
-        end
-    end
     
     # Geochemical log-likelihoods
     for elem in eachindex(bulkgeochem)
@@ -146,7 +141,6 @@ function llage2(bulkage::Vector, sampleage::Number,
     return matched_sample
 end
 
-@warn "When testing in global scope, running llage1 may cause segfaults"
 llage1(bulkage, sampleage, bulklat, bulklon, lat, lon, bulkgeochem, geochemdata)
 llage2(bulkage, sampleage, bulklat, bulklon, lat, lon, bulkgeochem, geochemdata)
 

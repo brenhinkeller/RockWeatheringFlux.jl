@@ -54,6 +54,19 @@ function llage1(bulkage::Vector, sampleage::Number,
     ll_dist = Array{Float64}(undef, npoints, 1)
     ll_total = Array{Float64}(undef, npoints, 1)
 
+    # Replace missing values: this will penalize but not exclude missing data
+    @inbounds for i in 1:npoints
+        if isnan(bulkage[i])
+            bulkage[i] = -sampleage
+        end
+
+        # Assume if one coordinate is missing, so is the other one
+        if isnan(bulklat[i])
+            bulklat[i] = -lat
+            bulklon[i] = -lon
+        end
+    end
+
     @turbo for i in 1:npoints
         # Age (σ = 38 Ma)
         ll_age[i] = -((bulkage[i] - sampleage)^2)/(38^2)
@@ -77,6 +90,21 @@ function llage2(bulkage::Vector, sampleage::Number,
     ll_dist = Array{Float64}(undef, npoints, 1)
     ll_total = Array{Float64}(undef, npoints, 1)
 
+    # Replace missing values: this will penalize but not exclude missing data
+    @inbounds for i in 1:npoints
+        if isnan(bulkage[i])
+            bulkage[i] = -sampleage
+        end
+    end
+        
+    @inbounds for i in 1:npoints
+        # Assume if one coordinate is missing, so is the other one
+        if isnan(bulklat[i])
+            bulklat[i] = -lat
+            bulklon[i] = -lon
+        end
+    end
+
     @turbo for i in 1:npoints
         # Age (σ = 38 Ma)
         ll_age[i] = -((bulkage[i] - sampleage)^2)/(38^2)
@@ -91,13 +119,9 @@ function llage2(bulkage::Vector, sampleage::Number,
     return matched_sample
 end
 
-@info "Version 1"
-@timev llage1(bulkage, sampleage, bulklat, bulklon, lat, lon)
+llage1(bulkage, sampleage, bulklat, bulklon, lat, lon)
+llage2(bulkage, sampleage, bulklat, bulklon, lat, lon)
 
-@info "Version 2"
-@timev llage2(bulkage, sampleage, bulklat, bulklon, lat, lon)
-
-llage2a(bulkage, sampleage, bulklat, bulklon, lat, lon)
 
 # @benchmark llage1($bulkage, $sampleage, $bulklat, $bulklon, $lat, $lon)
 # @benchmark llage2($bulkage, $sampleage, $bulklat, $bulklon, $lat, $lon)

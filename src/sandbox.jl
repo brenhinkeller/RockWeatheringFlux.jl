@@ -64,7 +64,6 @@ function llage1(bulkage::Vector, sampleage::Number,
     return matched_sample
 end
 
-
 function llage2(bulkage::Vector, sampleage::Number,
         bulklat::Vector, bulklon::Vector, lat::Number, lon::Number
     )
@@ -73,48 +72,13 @@ function llage2(bulkage::Vector, sampleage::Number,
     lh_age = Array{Float64}(undef, npoints, 1)
     lh_dist = Array{Float64}(undef, npoints, 1)
 
-    chunks = vcat(collect(1:50:npoints), npoints+1)
-
-    for i in 1:length(chunks[1:end-1])
-        j = chunks[i]
-        k = chunks[i+1]-1
-        @views agechunk = bulkage[j:k]
-        @views latchunk = bulklat[j:k]
-        @views lonchunk = bulklon[j:k]
-        
+    @inbounds for i in 1:npoints
         # Age (σ = 38 Ma)
-        # age_diff = agechunk .- sampleage
-        @. lh_age[j:k] = -((agechunk .- sampleage)^2)/(38^2)
+        lh_age[i] = -((bulkage[i] .- sampleage)^2)/(38^2)
 
         # Distance (σ = 1.8 arc degrees)
-        dist = arcdistance(lat, lon, latchunk, lonchunk)
-        @. lh_dist[j:k] = -(dist^2)/(1.8^2)
-    end
-
-    matched_sample = rand_prop_liklihood(lh_age)
-    return matched_sample
-end
-
-function llage2a(bulkage::Vector, sampleage::Number,
-        bulklat::Vector, bulklon::Vector, lat::Number, lon::Number
-    )
-    # Preallocate
-    npoints = length(bulkage)
-    lh_age = Array{Float64}(undef, npoints, 1)
-    lh_dist = Array{Float64}(undef, npoints, 1)
-
-    for i in 1:npoints
-        @views agechunk = bulkage[i]
-        @views latchunk = bulklat[i]
-        @views lonchunk = bulklon[i]
-        
-        # Age (σ = 38 Ma)
-        # age_diff = agechunk .- sampleage
-        lh_age[i] = -((agechunk .- sampleage)^2)/(38^2)
-
-        # Distance (σ = 1.8 arc degrees)
-        # Same number of allocatioins as not allocating dist
-        dist = haversine(lat, lon, latchunk, lonchunk)
+        # Same number of allocs as not allocating dist
+        dist = haversine(lat, lon, bulklat[i], bulklon[i])
         lh_dist[i] = -(dist^2)/(1.8^2)
     end
 
@@ -135,7 +99,6 @@ end
 to try:
     two chunk loops instead of 1
     allocating the correct size in the array
-    smaller chunks
 =#
 
 # git log -1 --pretty=format:"%s, %H"
@@ -147,5 +110,11 @@ Tried and didn't work:
 
 #=
 Things that DID work
-    looping through bulk one at a time instead of chunks
+    looping through bulk one at a time instead of chunks 860f8d8d2fb011c753046ba0a89ef0f5fe23c891
+=#
+
+#=
+No apparent change
+    getting rid of @views in V2, but it should use fewer allocs?
+
 =#

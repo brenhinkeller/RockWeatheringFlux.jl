@@ -402,6 +402,8 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
         end
     end
 
+    println("finished major lithology")
+
     # Check the rest of rocktype
     not_matched = .~(cats.sed .| cats.ign .| cats.met .| cats.cover)
     for j in eachindex(typelist)
@@ -409,6 +411,8 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
             cats[j][not_matched].|= containsi.(rocktype[not_matched], typelist[j][i])
         end
     end
+
+    println("finished rest of rocktype")
 
     # Then rockname
     not_matched = .~(cats.sed .| cats.ign .| cats.met .| cats.cover)
@@ -418,6 +422,8 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
         end
     end
 
+    println("finished rockname")
+
     # Then rockdescrip
     not_matched = .~(cats.sed .| cats.ign .| cats.met .| cats.cover)
     for j in eachindex(typelist)
@@ -425,6 +431,8 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
             cats[j][not_matched].|= containsi.(rockdescrip[not_matched], typelist[j][i])
         end
     end
+
+    println("finished rock descrip")
 
     return cats
 end
@@ -512,26 +520,26 @@ end
 ## --- Functions for matching samples
     """
     ```julia
-    major_elements(bulk, bulk_cats)
+    major_elements(bulk, bulk_filter)
     ```
     Compute mean and standard deviation of major elements in `bulk` for each rock type.
 
     Major elements are defined based on Faye and Ødegård 1975 
     (https://www.ngu.no/filearchive/NGUPublikasjoner/NGUnr_322_Bulletin_35_Faye_35_53.pdf)
     """
-    function major_elements(bulk, bulk_cats)
-        vals = Array{NamedTuple}(undef, length(bulk_cats), 1)
-        for i = 1:length(bulk_cats)
+    function major_elements(bulk, bulk_filter)
+        vals = Array{NamedTuple}(undef, length(bulk_filter), 1)
+        for i = 1:length(bulk_filter)
             elem = (
-                SiO2 = (m = nanmean(bulk.SiO2[bulk_cats[i]]), e = nanstd(bulk.SiO2[bulk_cats[i]])),
-                Al2O3 = (m = nanmean(bulk.Al2O3[bulk_cats[i]]), e = nanstd(bulk.Al2O3[bulk_cats[i]])),
-                Fe2O3T = (m = nanmean(bulk.Fe2O3T[bulk_cats[i]]), e = nanstd(bulk.Fe2O3T[bulk_cats[i]])),
-                TiO2 = (m = nanmean(bulk.TiO2[bulk_cats[i]]), e = nanstd(bulk.TiO2[bulk_cats[i]])),
-                MgO = (m = nanmean(bulk.MgO[bulk_cats[i]]), e = nanstd(bulk.MgO[bulk_cats[i]])),
-                CaO = (m = nanmean(bulk.CaO[bulk_cats[i]]), e = nanstd(bulk.CaO[bulk_cats[i]])),
-                Na2O = (m = nanmean(bulk.Na2O[bulk_cats[i]]), e = nanstd(bulk.Na2O[bulk_cats[i]])),
-                K2O = (m = nanmean(bulk.K2O[bulk_cats[i]]), e = nanstd(bulk.K2O[bulk_cats[i]])),
-                MnO = (m = nanmean(bulk.MnO[bulk_cats[i]]), e = nanstd(bulk.MnO[bulk_cats[i]]))
+                SiO2 = (m = nanmean(bulk.SiO2[bulk_filter[i]]), e = nanstd(bulk.SiO2[bulk_filter[i]])),
+                Al2O3 = (m = nanmean(bulk.Al2O3[bulk_filter[i]]), e = nanstd(bulk.Al2O3[bulk_filter[i]])),
+                Fe2O3T = (m = nanmean(bulk.Fe2O3T[bulk_filter[i]]), e = nanstd(bulk.Fe2O3T[bulk_filter[i]])),
+                TiO2 = (m = nanmean(bulk.TiO2[bulk_filter[i]]), e = nanstd(bulk.TiO2[bulk_filter[i]])),
+                MgO = (m = nanmean(bulk.MgO[bulk_filter[i]]), e = nanstd(bulk.MgO[bulk_filter[i]])),
+                CaO = (m = nanmean(bulk.CaO[bulk_filter[i]]), e = nanstd(bulk.CaO[bulk_filter[i]])),
+                Na2O = (m = nanmean(bulk.Na2O[bulk_filter[i]]), e = nanstd(bulk.Na2O[bulk_filter[i]])),
+                K2O = (m = nanmean(bulk.K2O[bulk_filter[i]]), e = nanstd(bulk.K2O[bulk_filter[i]])),
+                MnO = (m = nanmean(bulk.MnO[bulk_filter[i]]), e = nanstd(bulk.MnO[bulk_filter[i]]))
             )
             vals[i] = elem
         end
@@ -545,6 +553,86 @@ end
 
         # This is actually approx. 15ms slower than manually assigning things element by element...
         return NamedTuple{geochemkeys}(vals)
+    end
+
+    function major_elements(bulk, bulk_filter::BitVector)
+        elem = (
+            SiO2 = (m = nanmean(bulk.SiO2[bulk_filter]), e = nanstd(bulk.SiO2[bulk_filter])),
+            Al2O3 = (m = nanmean(bulk.Al2O3[bulk_filter]), e = nanstd(bulk.Al2O3[bulk_filter])),
+            Fe2O3T = (m = nanmean(bulk.Fe2O3T[bulk_filter]), e = nanstd(bulk.Fe2O3T[bulk_filter])),
+            TiO2 = (m = nanmean(bulk.TiO2[bulk_filter]), e = nanstd(bulk.TiO2[bulk_filter])),
+            MgO = (m = nanmean(bulk.MgO[bulk_filter]), e = nanstd(bulk.MgO[bulk_filter])),
+            CaO = (m = nanmean(bulk.CaO[bulk_filter]), e = nanstd(bulk.CaO[bulk_filter])),
+            Na2O = (m = nanmean(bulk.Na2O[bulk_filter]), e = nanstd(bulk.Na2O[bulk_filter])),
+            K2O = (m = nanmean(bulk.K2O[bulk_filter]), e = nanstd(bulk.K2O[bulk_filter])),
+            MnO = (m = nanmean(bulk.MnO[bulk_filter]), e = nanstd(bulk.MnO[bulk_filter]))
+        )
+
+        return elem
+    end
+
+
+## --- Find all EarthChem samples matching a Macrostrat sample
+    """
+    ```julia
+    find_earthchem(rocktype::String, rockname::String, rockdescrip::String, 
+        bulksamples::BitVector, bulk_rockname
+    )
+    ```
+
+    For a single macrostrat sample, find all possible matching EarthChem samples.
+
+    NOTE: still in development
+    """
+    function find_earthchem(rocktype::String, rockname::String, rockdescrip::String, 
+            bulksamples::BitVector, bulk_rockname
+        )
+        # Get list of potential rock names from bulk, remove empty strings
+        rocknamelist = unique(bulk_rockname[bulksamples])
+        t = findall(!=(""), rocknamelist)
+        rocknamelist = rocknamelist[t]
+
+        npoints = length(rocknamelist)
+        found = falses(npoints)
+
+        # Get list of matches from the sample. Check major lithology first
+        for i in eachindex(rocknamelist)
+            found[i] |= (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], rocknamelist[i]) : false)
+        end
+
+        # If no matches, try the rest of rocktype
+        if count(found)==0
+            for i in eachindex(rocknamelist)
+                found[i] |= containsi.(rocktype, rocknamelist[i])
+            end
+
+            # If still no matches, try rockname
+            if count(found)==0
+                for i in eachindex(rocknamelist)
+                    found[i] |= containsi.(rockname, rocknamelist[i])
+                end
+
+                # Then rock descrip...
+                if count(found)==0
+                    for i in eachindex(rocknamelist)
+                        found[i] |= containsi.(rockdescrip, rocknamelist[i])
+                    end
+
+                    if count(found)==0
+                        @warn "No EarthChem matches found"
+                    end
+                end
+            end
+        end
+
+        # Get all EarthChem samples that match the rock name
+        earthchem_matches = falses(length(bulksamples))
+        to_find = rocknamelist[found]
+        for i in eachindex(to_find)
+            earthchem_matches .|= containsi.(bulk_rockname, to_find[i])
+        end
+
+        return earthchem_matches
     end
 
 

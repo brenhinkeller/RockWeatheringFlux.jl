@@ -1,4 +1,5 @@
 ## --- Match Macrostrat samples to the most likely EarthChem sample
+    # The thing to do here is probably to have nothing happen in global scope
     # Packages
     using MAT
     using JLD
@@ -34,15 +35,12 @@
     bulk_cats = match_earthchem(bulk.Type, major=false)
 
     # Calculate mean and standard deviation of major element oxides for each rock type
-    # TO DO: quality control on bulk rock names: why are there granites with 50% silica?
-    # TO DO: separate igneous rocks by silica content
-    @time geochem = major_elements(bulk, bulk_cats)
+    # this method is now deprecated in favor of a more rock-specific method
+    # @time geochem = major_elements(bulk, bulk_cats)
+    geochemkeys = (:SiO2, :Al2O3, :Fe2O3T, :TiO2, :MgO, :CaO, :Na2O, :K2O, :MnO)
 
     # Reduce bulk to only the data we need
-    # I don't know that this actually makes a difference though? Since we pass variables by reference...
-    # Although unreduced is ~1.6 GB so maybe it matters for overall memory space
-    reduced_bulk = Array{Array{Float64}}(undef, length(first(geochem)) + 4, 1)
-    geochemkeys = keys(first(geochem))
+    reduced_bulk = Array{Array{Float64}}(undef, length(geochemkeys) + 4, 1)
     for i in 1:length(geochemkeys)
         reduced_bulk[i] = bulk[geochemkeys[i]]
     end
@@ -63,23 +61,23 @@
     # Ignoring sparse arrays for now because they make me sad
     # Correct indices for 0-index offset
     composition_idx = Int.(bulktext.index["Composition"] .+ 1)
-    reference_idx = Int.(bulktext.index["Reference"] .+ 1)
+    # reference_idx = Int.(bulktext.index["Reference"] .+ 1)
     rockname_idx = Int.(bulktext.index["Rock_Name"] .+ 1)
-    source_idx = Int.(bulktext.index["Source"] .+ 1)
+    # source_idx = Int.(bulktext.index["Source"] .+ 1)
     type_idx = Int.(bulktext.index["Type"] .+ 1)
     material_idx = Int.(bulktext.index["Material"] .+ 1)
 
     # Parse numeric codes in index into arrays
     # TO DO: NamedTuple?
     bulk_composition = lowercase.(string.(bulktext.Composition[composition_idx]))
-    bulk_reference = lowercase.(string.(bulktext.Reference[reference_idx]))
+    # bulk_reference = lowercase.(string.(bulktext.Reference[reference_idx]))
     bulk_rockname = lowercase.(string.(bulktext.Rock_Name[rockname_idx]))
-    bulk_source = lowercase.(string.(bulktext.Source[source_idx]))
+    # bulk_source = lowercase.(string.(bulktext.Source[source_idx]))
     bulk_type = lowercase.(string.(bulktext.Type[type_idx]))
     bulk_material = lowercase.(string.(bulktext.Material[material_idx]))
 
     # All relevant rock type identifiers
-    bulk_lith = bulk_type .* " " .* bulk_material .* " " .* bulk_rockname
+    # bulk_lith = bulk_type .* " " .* bulk_material .* " " .* bulk_rockname
 
 
 ## --- Load Macrostrat data
@@ -90,18 +88,16 @@
     # Match data to rock types
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip, major=false)
 
+#=
+    Runtime stats using 500 sample test data set, 3 rock types
 
-# first run no views: 30.999972 seconds (7.16 M allocations: 35.664 GiB, 27.01% gc time, 26.28% compilation time)
-# first run w/ views: 33.637817 seconds (7.17 M allocations: 35.665 GiB, 25.97% gc time, 24.22% compilation time)
-# first run prealloc: 29.015842 seconds (7.79 M allocations: 34.776 GiB, 17.63% gc time, 28.48% compilation time) - prealloc in likelihood
-
-# NOTE: random sample selection means this is hitting kill again... but it doesn't allocate?
-    # full data: 1518.174307 seconds (9.26 M allocations: 3.886 TiB, 24.87% gc time, 0.02% compilation time)
-    # toy data: 
-
-# New algorithm: 3.047785 seconds (41.68 k allocations: 2.367 GiB, 1.05% gc time, 0.68% compilation time)
+    Old (first): 30.999972 seconds (7.16 M allocations: 35.664 GiB, 27.01% gc time, 26.28% compilation time)
+    New (first): 17.308868 seconds (7.37 M allocations: 2.731 GiB, 71.28% compilation time)
+    New (secnd): 5.720018 seconds (145.55 k allocations: 2.372 GiB, 15.38% gc time, 2.19% compilation time)
+=#
 	
 ## --- Find matching Earthchem sample for each Macrostrat sample
+    @info "Matching EarthChem and Macrostrat samples"
     bulk_idxs = collect(1:length(bulk.SiO2))
     # TO DO: NamedTuple instead of a Dict?
     matches = Dict{Symbol, Array{Int64}}(
@@ -111,28 +107,36 @@
     )
     
     @timev for type in eachindex(matches)
-        @info "Matching samples for $type"
+        @info "Matching $type samples"      # TO DO: replace with progress bar
         # Intermediate Earthchem variables
         bulksamples = bulk_cats[type]                   # EarthChem BitVector
         bulklat = bulk.Latitude[bulksamples]            # EarthChem latitudes
 		bulklon = bulk.Longitude[bulksamples]           # EarthChem longitudes
         bulkage = bulk.Age[bulksamples]                 # EarthChem age
 	    sampleidx = bulk_idxs[bulksamples]              # Indices of EarthChem samples
-	    geochemdata = geochem[type]                     # Major element compositions
+        bulkname = bulk_rockname[bulksamples]           # Rock names
+        bulktype = bulk_type[bulksamples]               # 
+        bulkmaterial = bulk_material[bulksamples] 
+	    # geochemdata = geochem[type]                     # Major element compositions
 	    
 	    # Earthchem samples for only major elements for this rock type
-        bulkgeochem = Array{Array}(undef, length(geochemdata), 1)
+        bulkgeochem = Array{Array}(undef, length(geochemkeys), 1)
         for i in 1:length(geochemkeys)
             bulkgeochem[i] = zeronan!(bulk[geochemkeys[i]][bulksamples])
         end
         bulkgeochem = NamedTuple{geochemkeys}(bulkgeochem)
 
         # Macrostrat samples
-        lat = macrostrat.rocklat[macro_cats[type]]         # Macrostrat latitude
-        lon = macrostrat.rocklon[macro_cats[type]]         # Macrostrat longitude
-        sampleage = macrostrat.age[macro_cats[type]]       # Macrostrat age
+        lat = macrostrat.rocklat[macro_cats[type]]                 # Macrostrat latitude
+        lon = macrostrat.rocklon[macro_cats[type]]                 # Macrostrat longitude
+        sampleage = macrostrat.age[macro_cats[type]]               # Macrostrat age
+        rocktype = macrostrat.rocktype[macro_cats[type]]           # Sample rock type
+        rockname = macrostrat.rockname[macro_cats[type]]           # Sample name
+        rockdescrip = macrostrat.rockdescrip[macro_cats[type]]     # Sample description
 
         @inbounds for i in eachindex(lat)
+            geochemfilter = find_earthchem(rocktype[i], rockname[i], rockdescrip[i], bulkname, bulktype, bulkmaterial)
+            geochemdata = major_elements(bulk, bulksamples, geochemfilter)
             matches[type][i] = likelihood(bulkage, sampleage[i], bulklat, bulklon, lat[i], lon[i], bulkgeochem, geochemdata)
         end
     end
@@ -147,7 +151,7 @@
     allmatches[macro_cats.met] .= matches[:met]
 
     # Write data to a file
-    writedlm("output/matched_bulkidx.tsv", vcat("bulkidx", allmatches),"\t")
+    writedlm("output/matched_bulkidx_toy.tsv", vcat("bulkidx", allmatches),"\t")
 
     # Separate into subtypes
     allmatches = (

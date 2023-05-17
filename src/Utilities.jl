@@ -555,17 +555,26 @@ end
         return NamedTuple{geochemkeys}(vals)
     end
 
-    function major_elements(bulk, bulk_filter::BitVector)
+    function major_elements(bulk, bulksamples::BitVector, bulk_filter::BitVector)
         elem = (
-            SiO2 = (m = nanmean(bulk.SiO2[bulk_filter]), e = nanstd(bulk.SiO2[bulk_filter])),
-            Al2O3 = (m = nanmean(bulk.Al2O3[bulk_filter]), e = nanstd(bulk.Al2O3[bulk_filter])),
-            Fe2O3T = (m = nanmean(bulk.Fe2O3T[bulk_filter]), e = nanstd(bulk.Fe2O3T[bulk_filter])),
-            TiO2 = (m = nanmean(bulk.TiO2[bulk_filter]), e = nanstd(bulk.TiO2[bulk_filter])),
-            MgO = (m = nanmean(bulk.MgO[bulk_filter]), e = nanstd(bulk.MgO[bulk_filter])),
-            CaO = (m = nanmean(bulk.CaO[bulk_filter]), e = nanstd(bulk.CaO[bulk_filter])),
-            Na2O = (m = nanmean(bulk.Na2O[bulk_filter]), e = nanstd(bulk.Na2O[bulk_filter])),
-            K2O = (m = nanmean(bulk.K2O[bulk_filter]), e = nanstd(bulk.K2O[bulk_filter])),
-            MnO = (m = nanmean(bulk.MnO[bulk_filter]), e = nanstd(bulk.MnO[bulk_filter]))
+            SiO2 = (m = nanmean(bulk.SiO2[bulksamples][bulk_filter]), 
+                e = nanstd(bulk.SiO2[bulksamples][bulk_filter])),
+            Al2O3 = (m = nanmean(bulk.Al2O3[bulksamples][bulk_filter]), 
+                e = nanstd(bulk.Al2O3[bulksamples][bulk_filter])),
+            Fe2O3T = (m = nanmean(bulk.Fe2O3T[bulksamples][bulk_filter]), 
+                e = nanstd(bulk.Fe2O3T[bulksamples][bulk_filter])),
+            TiO2 = (m = nanmean(bulk.TiO2[bulksamples][bulk_filter]), 
+                e = nanstd(bulk.TiO2[bulksamples][bulk_filter])),
+            MgO = (m = nanmean(bulk.MgO[bulksamples][bulk_filter]), 
+                e = nanstd(bulk.MgO[bulksamples][bulk_filter])),
+            CaO = (m = nanmean(bulk.CaO[bulksamples][bulk_filter]), 
+                e = nanstd(bulk.CaO[bulksamples][bulk_filter])),
+            Na2O = (m = nanmean(bulk.Na2O[bulksamples][bulk_filter]), 
+                e = nanstd(bulk.Na2O[bulksamples][bulk_filter])),
+            K2O = (m = nanmean(bulk.K2O[bulksamples][bulk_filter]), 
+                e = nanstd(bulk.K2O[bulksamples][bulk_filter])),
+            MnO = (m = nanmean(bulk.MnO[bulksamples][bulk_filter]), 
+                e = nanstd(bulk.MnO[bulksamples][bulk_filter]))
         )
 
         return elem
@@ -581,19 +590,73 @@ end
     ```
 
     For a single macrostrat sample, find all possible matching EarthChem samples.
-
-    NOTE: still in development
     """
-    function find_earthchem(rocktype::String, rockname::String, rockdescrip::String, 
-            bulksamples::BitVector, bulk_rockname
-        )
-        # Get list of potential rock names from bulk, remove empty strings
-        rocknamelist = unique(bulk_rockname[bulksamples])
-        t = findall(!=(""), rocknamelist)
-        rocknamelist = rocknamelist[t]
+    function find_earthchem(rocktype::String, rockname::String, rockdescrip::String, bulkrockname, bulkrocktype, bulkmaterial)
+        # Check for matches in rock name
+        rocknamelist = unique(bulkrockname)
+        found = check_matches(rocktype, rockname, rockdescrip, rocknamelist)
 
-        npoints = length(rocknamelist)
-        found = falses(npoints)
+        if count(found)!=0
+        # If samples were found, get all EarthChem samples that match the rock name
+            earthchem_matches = falses(length(bulkrockname))
+            to_find = rocknamelist[found]
+            t = findall(!=(""), to_find)
+            to_find = to_find[t]
+
+            for i in eachindex(to_find)
+                earthchem_matches .|= containsi.(bulkrockname, to_find[i])
+            end
+
+            return earthchem_matches
+        
+        else
+        # If no samples were found, check material
+            rocknamelist = unique(bulkmaterial)
+            found = check_matches(rocktype, rockname, rockdescrip, rocknamelist)
+
+            if count(found)!=0
+            # Process and return
+                earthchem_matches = falses(length(bulkmaterial))
+                to_find = rocknamelist[found]
+                t = findall(!=(""), to_find)
+                to_find = to_find[t]
+
+                for i in eachindex(to_find)
+                    earthchem_matches .|= containsi.(bulkmaterial, to_find[i])
+                end
+
+                return earthchem_matches
+
+            else
+            # If still none, check type
+                rocknamelist = unique(bulkrocktype)
+                found = check_matches(rocktype, rockname, rockdescrip, rocknamelist)
+
+                if count(found)!=0
+                    earthchem_matches = falses(length(bulkrocktype))
+                    to_find = rocknamelist[found]
+                    t = findall(!=(""), to_find)
+                    to_find = to_find[t]
+
+                    for i in eachindex(to_find)
+                        earthchem_matches .|= containsi.(bulkrocktype, to_find[i])
+                    end
+
+                    return earthchem_matches
+
+                else
+                    @warn "No matching EarthChem samples found for $rocktype, $rockname, $rockdescrip"
+                    return falses(length(bulkrocktype))
+                end
+            end
+            
+        end
+    end
+
+
+## --- Check for matches
+    function check_matches(rocktype::String, rockname::String, rockdescrip::String, rocknamelist)
+        found = falses(length(rocknamelist))
 
         # Get list of matches from the sample. Check major lithology first
         for i in eachindex(rocknamelist)
@@ -617,24 +680,12 @@ end
                     for i in eachindex(rocknamelist)
                         found[i] |= containsi.(rockdescrip, rocknamelist[i])
                     end
-
-                    if count(found)==0
-                        @warn "No EarthChem matches found"
-                    end
                 end
             end
         end
 
-        # Get all EarthChem samples that match the rock name
-        earthchem_matches = falses(length(bulksamples))
-        to_find = rocknamelist[found]
-        for i in eachindex(to_find)
-            earthchem_matches .|= containsi.(bulk_rockname, to_find[i])
-        end
-
-        return earthchem_matches
+        return found
     end
-
 
 ## --- Find likelihoods
     function likelihood(bulkage::Vector, sampleage::Number,

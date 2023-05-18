@@ -315,7 +315,7 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
     carbtypes = ["carbonate", "limestone", "dolo", "marl", "chalk", "travertine", "tavertine", 
         "teravertine", "tufa",]
     cherttypes = ["chert", "banded iron",]
-    evaporitetypes = ["evaporite", "gypsum", "salt", "salt flat",]
+    evaporitetypes = ["evaporite", "gypsum", "salt flat",]
     coaltypes = ["coal", "anthracite",]
     
     sedtypes = vcat(["sediment", "fluv", "clast", "gravel", "pebble", "caliche", "boulder", 

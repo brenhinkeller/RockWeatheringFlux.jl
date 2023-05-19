@@ -61,23 +61,22 @@
     # Ignoring sparse arrays for now because they make me sad
     # Correct indices for 0-index offset
     composition_idx = Int.(bulktext.index["Composition"] .+ 1)
-    # reference_idx = Int.(bulktext.index["Reference"] .+ 1)
     rockname_idx = Int.(bulktext.index["Rock_Name"] .+ 1)
-    # source_idx = Int.(bulktext.index["Source"] .+ 1)
     type_idx = Int.(bulktext.index["Type"] .+ 1)
     material_idx = Int.(bulktext.index["Material"] .+ 1)
+
+    # reference_idx = Int.(bulktext.index["Reference"] .+ 1)        # Not needed
+    # source_idx = Int.(bulktext.index["Source"] .+ 1)              # Not needed
 
     # Parse numeric codes in index into arrays
     # TO DO: NamedTuple?
     bulk_composition = lowercase.(string.(bulktext.Composition[composition_idx]))
-    # bulk_reference = lowercase.(string.(bulktext.Reference[reference_idx]))
     bulk_rockname = lowercase.(string.(bulktext.Rock_Name[rockname_idx]))
-    # bulk_source = lowercase.(string.(bulktext.Source[source_idx]))
     bulk_type = lowercase.(string.(bulktext.Type[type_idx]))
     bulk_material = lowercase.(string.(bulktext.Material[material_idx]))
 
-    # All relevant rock type identifiers
-    # bulk_lith = bulk_type .* " " .* bulk_material .* " " .* bulk_rockname
+    # bulk_reference = lowercase.(string.(bulktext.Reference[reference_idx]))
+    # bulk_source = lowercase.(string.(bulktext.Source[source_idx]))
 
 
 ## --- Load Macrostrat data
@@ -88,13 +87,6 @@
     # Match data to rock types
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip, major=false)
 
-#=
-    Runtime stats using 500 sample test data set, 3 rock types
-
-    Old (first): 30.999972 seconds (7.16 M allocations: 35.664 GiB, 27.01% gc time, 26.28% compilation time)
-    New (first): 17.308868 seconds (7.37 M allocations: 2.731 GiB, 71.28% compilation time)
-    New (secnd): 5.720018 seconds (145.55 k allocations: 2.372 GiB, 15.38% gc time, 2.19% compilation time)
-=#
 	
 ## --- Find matching Earthchem sample for each Macrostrat sample
     @info "Matching EarthChem and Macrostrat samples"
@@ -107,7 +99,6 @@
     )
     
     @timev for type in eachindex(matches)
-        @info "Matching $type samples"      # TO DO: replace with progress bar
         # Intermediate Earthchem variables
         bulksamples = bulk_cats[type]                   # EarthChem BitVector
         bulklat = bulk.Latitude[bulksamples]            # EarthChem latitudes
@@ -115,9 +106,8 @@
         bulkage = bulk.Age[bulksamples]                 # EarthChem age
 	    sampleidx = bulk_idxs[bulksamples]              # Indices of EarthChem samples
         bulkname = bulk_rockname[bulksamples]           # Rock names
-        bulktype = bulk_type[bulksamples]               # 
-        bulkmaterial = bulk_material[bulksamples] 
-	    # geochemdata = geochem[type]                     # Major element compositions
+        bulktype = bulk_type[bulksamples]               # Types--volcanic, plutonic, siliciclastic, etc.
+        bulkmaterial = bulk_material[bulksamples]       # Ign, met, sed, xenolith, etc.
 	    
 	    # Earthchem samples for only major elements for this rock type
         bulkgeochem = Array{Array}(undef, length(geochemkeys), 1)
@@ -134,10 +124,15 @@
         rockname = macrostrat.rockname[macro_cats[type]]           # Sample name
         rockdescrip = macrostrat.rockdescrip[macro_cats[type]]     # Sample description
 
+        # Progress bar
+        p = Progress(length(lat), desc="Matching $type samples...")
+
         @inbounds for i in eachindex(lat)
             geochemfilter = find_earthchem(rocktype[i], rockname[i], rockdescrip[i], bulkname, bulktype, bulkmaterial)
             geochemdata = major_elements(bulk, bulksamples, geochemfilter)
             matches[type][i] = likelihood(bulkage, sampleage[i], bulklat, bulklon, lat[i], lon[i], bulkgeochem, geochemdata)
+            GC.gc()
+            next!(p)
         end
     end
 

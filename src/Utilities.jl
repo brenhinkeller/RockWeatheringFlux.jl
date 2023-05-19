@@ -402,8 +402,6 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
         end
     end
 
-    println("finished major lithology")
-
     # Check the rest of rocktype
     not_matched = .~(cats.sed .| cats.ign .| cats.met .| cats.cover)
     for j in eachindex(typelist)
@@ -411,8 +409,6 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
             cats[j][not_matched].|= containsi.(rocktype[not_matched], typelist[j][i])
         end
     end
-
-    println("finished rest of rocktype")
 
     # Then rockname
     not_matched = .~(cats.sed .| cats.ign .| cats.met .| cats.cover)
@@ -422,8 +418,6 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
         end
     end
 
-    println("finished rockname")
-
     # Then rockdescrip
     not_matched = .~(cats.sed .| cats.ign .| cats.met .| cats.cover)
     for j in eachindex(typelist)
@@ -431,8 +425,6 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
             cats[j][not_matched].|= containsi.(rockdescrip[not_matched], typelist[j][i])
         end
     end
-
-    println("finished rock descrip")
 
     return cats
 end
@@ -527,34 +519,6 @@ end
     Major elements are defined based on Faye and Ødegård 1975 
     (https://www.ngu.no/filearchive/NGUPublikasjoner/NGUnr_322_Bulletin_35_Faye_35_53.pdf)
     """
-    function major_elements(bulk, bulk_filter)
-        vals = Array{NamedTuple}(undef, length(bulk_filter), 1)
-        for i = 1:length(bulk_filter)
-            elem = (
-                SiO2 = (m = nanmean(bulk.SiO2[bulk_filter[i]]), e = nanstd(bulk.SiO2[bulk_filter[i]])),
-                Al2O3 = (m = nanmean(bulk.Al2O3[bulk_filter[i]]), e = nanstd(bulk.Al2O3[bulk_filter[i]])),
-                Fe2O3T = (m = nanmean(bulk.Fe2O3T[bulk_filter[i]]), e = nanstd(bulk.Fe2O3T[bulk_filter[i]])),
-                TiO2 = (m = nanmean(bulk.TiO2[bulk_filter[i]]), e = nanstd(bulk.TiO2[bulk_filter[i]])),
-                MgO = (m = nanmean(bulk.MgO[bulk_filter[i]]), e = nanstd(bulk.MgO[bulk_filter[i]])),
-                CaO = (m = nanmean(bulk.CaO[bulk_filter[i]]), e = nanstd(bulk.CaO[bulk_filter[i]])),
-                Na2O = (m = nanmean(bulk.Na2O[bulk_filter[i]]), e = nanstd(bulk.Na2O[bulk_filter[i]])),
-                K2O = (m = nanmean(bulk.K2O[bulk_filter[i]]), e = nanstd(bulk.K2O[bulk_filter[i]])),
-                MnO = (m = nanmean(bulk.MnO[bulk_filter[i]]), e = nanstd(bulk.MnO[bulk_filter[i]]))
-            )
-            vals[i] = elem
-        end
-
-        geochemkeys = (
-            :alluvium, :siliciclast, :shale, :carb, :chert, :evaporite, :phosphorite, :coal, 
-                :volcaniclast, :sed,
-            :volc, :plut, :ign,
-            :metased, :metaign, :met
-        )
-
-        # This is actually approx. 15ms slower than manually assigning things element by element...
-        return NamedTuple{geochemkeys}(vals)
-    end
-
     function major_elements(bulk, bulksamples::BitVector, bulk_filter::BitVector)
         elem = (
             SiO2 = (m = nanmean(bulk.SiO2[bulksamples][bulk_filter]), 

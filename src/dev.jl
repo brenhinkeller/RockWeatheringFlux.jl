@@ -138,6 +138,7 @@ function match_rocktype2(rocktype, rockname, rockdescrip; major=false)
 end
 
 # This could potentially be made more efficient with a loop...
+# but even at 50000 points it still only uses about 6KB, so not a priority
 function find_unmatched(cats; major=false)
     if major
         return .!(cats.sed .| cats.ign .| cats.met .| cats.cover)
@@ -151,7 +152,8 @@ function find_unmatched(cats; major=false)
     end
 end
 
-function match_reduced(rocktype)
+# relatively consistently slower, but with slightly fewer allocations
+function match_reduced(rocktype, rockname)
     npoints = length(rocktype)
 
     # Rock types based on EarthChem system in RockNameInference.m
@@ -239,15 +241,15 @@ function match_reduced(rocktype)
     end
 
     # Check the rest of rocktype
-    # not_matched = .!(cats.sed .| cats.ign .| cats.met .| cats.cover)
-    # # wtf in this uses 64 MB of memory... has to be >5MB to be competative
+    # wtf in this uses so much memory...
+    not_matched = find_unmatched(cats, major=false)
     for j in eachindex(typelist)
         for i = 1:length(typelist[j])
             for k in 1:length(cats[j])
-                if cats[j][k]
-                    continue
+                if not_matched[k]
+                    cats[j][k] = containsi(rocktype[k], typelist[j][i])
                 else
-                    cats[j][k] = containsi(rocktype[k], typelist[j][i])     # 656 bytes, vs broadcasting is 19.7 KB...
+                    continue     # 656 bytes, vs broadcasting is 19.7 KB...
                 end
             end
         end
@@ -256,7 +258,7 @@ function match_reduced(rocktype)
     return cats
 end
 
-function match_reduced2(rocktype)
+function match_reduced2(rocktype, rockname)
     npoints = length(rocktype)
 
     # Rock types based on EarthChem system in RockNameInference.m
@@ -343,7 +345,6 @@ function match_reduced2(rocktype)
     end
 
     # Check the rest of rocktype
-    # So because sed hasn't been standardized yet this isn't actually accurate...
     not_matched = find_unmatched(cats, major=false)
     for j in eachindex(typelist)
         for i = 1:length(typelist[j])
@@ -351,5 +352,124 @@ function match_reduced2(rocktype)
         end
     end
 
+    # Then rockname
+    not_matched = find_unmatched(cats, major=false)
+    for j in eachindex(typelist)
+        for i = 1:length(typelist[j])
+            cats[j][not_matched].|= containsi.(rockname[not_matched], typelist[j][i])
+        end
+    end
+
     return cats
 end
+
+function match_reduced3(rocktype, rockname)
+    npoints = length(rocktype)
+
+    # Rock types based on EarthChem system in RockNameInference.m
+        # Sedimentary
+        siliciclasttypes = ["siliciclast", "conglomerat", "sand", "psamm", "arenit", "arkos", "silt",]
+        shaletypes = ["mud", "clay","shale", "wacke", "argillite", "argillaceous", "flysch", "pelit", 
+            "turbidite",]
+        carbtypes = ["carbonate", "limestone", "dolo", "marl", "chalk", "travertine", "tavertine", 
+            "teravertine", "tufa",]
+        cherttypes = ["chert", "banded iron",]
+        evaporitetypes = ["evaporite", "gypsum", "salt flat",]
+        coaltypes = ["coal", "anthracite",]
+        
+        sedtypes = vcat(["sediment", "fluv", "clast", "gravel", "pebble", "caliche", "boulder", 
+            "diamict", "tillite", "stream", "beach", "terrace",  "marine deposits",  "paleosol"],
+            siliciclasttypes, shaletypes, carbtypes, cherttypes, evaporitetypes, coaltypes)
+
+        # Igneous
+        volctypes = ["volcan", "lava", "lahar", "ignimbrite", "ashfall", "tuff", "diatreme",
+            "pipe", "basalt", "andesit", "dacit", "rhyolit", "pillow", "carbonatite", "tephra", 
+            "obsidian", "ash", "scoria", "pumice", "cinder", "latite", "basanite", "phonolite", 
+            "fonolito", "trachyte", "palagonite", "mugearite", "kimberlite", "ultramafitite", 
+            "komatiite",]
+        hypabyssaltypes = ["intrus", "hypabyssal", "sill", "dike", "stock", "laccolith", "lopolith", 
+            "dolerit", "diabase", "porphyry", "microgranite"]
+        pluttypes = vcat(["pluton", "batholith", "granit", "tonalit", "gabbro", "norite", "diorit", 
+            "monzonit", "syenit", "peridot", "dunit", "harzburg", "anorthosite", "mangerite", 
+            "charnockite", "pegmatite", "aplite", "trond", "essexite", "pyroxenite", "adamellite", 
+            "porphyry", "megacryst", "rapakivi", "bronzitite", "alaskite", "troctolite",], 
+            hypabyssaltypes)
+        
+        igntypes = vcat(["igneous", "silicic ", "mafic", "felsic", "basite",], volctypes, pluttypes)
+
+        # Metamorphic
+        metasedtypes = ["para", "metased", "meta-sed", "quartzite", "marble", "slate", "phyllite",]
+        metaigntypes = ["ortho", "metaign", "meta-ign", "serpentin", "amphibolit", "greenstone",
+            "eclogite", "metabasite",]
+        lowgradetypes = ["slate", "phyllite", "serpentin", "greenstone", "greenschist", "zeolite", 
+            "gossan", "alter", "hydrothermal", "palagonite",]
+        highgradetypes = ["crystalline", "basement", "marble", "skarn", "schist", "blueschist", 
+            "gneiss", "amphibolit", "eclogite", "granulit", "hornfels", "granofels", "sanidinite", 
+            "migma", "enderbite", "anorthosite", "charnockite", "pyroxenite", "peridot", "dunit", 
+            "harzburg", "high grade metamorphic"]
+        cataclastictypes = ["mylonit", "cataclasite", "melange", "gouge", "tecton",]
+        
+        mettypes = vcat(["meta", "calc silicate",], metasedtypes, metaigntypes, lowgradetypes, 
+            highgradetypes, cataclastictypes)
+
+        # Cover
+        covertypes = ["cover", "unconsolidated", "quaternary", "lluv", "soil", "regolith", 
+            "laterite", "surficial deposits", "talus", "scree", "mass-wasting", "slide", 
+            "peat", "swamp", "marsh", "water", "ice", "glaci", "till", "loess", "gravel", 
+            "debris"]
+
+    cats = (
+        siliciclast = falses(npoints),
+        shale = falses(npoints),
+        carb = falses(npoints),
+        chert = falses(npoints),
+        evaporite = falses(npoints),
+        coal = falses(npoints),
+        sed = falses(npoints),
+
+        volc = falses(npoints),
+        plut = falses(npoints),
+        ign = falses(npoints),
+
+        metased = falses(npoints),
+        metaign = falses(npoints),
+        met = falses(npoints),
+
+        cover = falses(npoints),
+    )
+    typelist = [siliciclasttypes, shaletypes, carbtypes, cherttypes, evaporitetypes, 
+        coaltypes, sedtypes, volctypes, pluttypes, igntypes, metasedtypes, metaigntypes, 
+        mettypes, covertypes
+    ]
+
+    # Check major lithology first
+    for j in eachindex(typelist)
+        for i = 1:length(typelist[j])
+            cats[j] .|= (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], typelist[j][i]) : false)
+        end
+    end
+
+    # Check the rest of rocktype
+    not_matched = falses(npoints)
+    not_matched .= find_unmatched(cats, major=false)
+    for j in eachindex(typelist)
+        for i = 1:length(typelist[j])
+            cats[j][not_matched].|= containsi.(rocktype[not_matched], typelist[j][i])
+        end
+    end
+
+    # Then rockname
+    not_matched .= find_unmatched(cats, major=false)
+    for j in eachindex(typelist)
+        for i = 1:length(typelist[j])
+            cats[j][not_matched].|= containsi.(rockname[not_matched], typelist[j][i])
+        end
+    end
+
+    return cats
+end
+
+## Test functions
+    match_reduced(macrostrat_small.rocktype, macrostrat_small.rockname)
+    match_reduced2(macrostrat_small.rocktype, macrostrat_small.rockname)
+    match_reduced3(macrostrat_small.rocktype, macrostrat_small.rockname)

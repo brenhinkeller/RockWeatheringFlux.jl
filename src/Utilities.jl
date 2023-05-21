@@ -788,7 +788,7 @@ Calculate the total global flux.
 Note that for now, `erosion`, `macro_cats`, and `crustal_area` _must_ contain the keys:
 ```
 :siliciclast, :shale, :carb, :chert, :evaporite, :coal, :sed, :volc, :plut, :ign, :metased, 
-:metaign, :met, :cryst, :cover
+:metaign, :met, :cryst
 ```
 Keys must be type `Symbol`. Additional keys not in this list are fine.
 

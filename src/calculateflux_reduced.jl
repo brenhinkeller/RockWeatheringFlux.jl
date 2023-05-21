@@ -97,14 +97,14 @@
 
 ## --- Calculate
     # Erosion (m/Myr)
-    for i in eachidex(allkeys)
-        erosion[allkeys[i]] = nanmean(rock_ersn[macro_cats[i]])
-    end
+    # for i in eachidex(allkeys)
+    #     erosion[allkeys[i]] = nanmean(rock_ersn[macro_cats[i]])
+    # end
     erosion = NamedTuple{Tuple(allkeys)}(values(erosion))
 
     # Crustal area (m²), assume proportional distribution of rock types under cover
     const contl_area = 148940000 * 1000000    # Area of continents (m²)
-    for i in eachidex(allkeys)
+    for i in eachindex(allkeys)
         crustal_area[allkeys[i]] = count(macro_cats[i]) / total_known * contl_area
     end
     crustal_area = NamedTuple{Tuple(allkeys)}(values(crustal_area))
@@ -121,31 +121,35 @@
 
     # Create file to store data
     npoints = length(macrostrat.rocktype)
-    subcats = string.(keys(macro_cats))
+    subcats = (:siliciclast, :shale, :carb, :chert, :evaporite, :coal, :sed, :volc, :plut, 
+        :ign, :metased, :metaign, :met, :cryst
+    )
 
+    # Does not work if this file already exists!
     fid = h5open("rwf_output.h5", "w")
-    gp_wt = create_group(fid, "wtpct")
+    gp_wtpt = create_group(fid, "wtpct")
     gp_flux = create_group(fid, "flux")
     gp_gflux = create_group(fid, "fluxglobal")
 
     for i in subcats
-        create_group(gp_wt, i)
-        create_group(gp_flux, i)
+        create_group(gp_wtpt, string(i))
+        create_group(gp_flux, string(i))
     end
 
     # Useful to preallocate datasets...?
 
     for i in eachindex(biglist)
         # Calculate
-        wt, flux, global_flux = flux_source(bulk[biglist[i]], bulkidx, erosion, bulk_cats, 
+        wt, flux, global_flux = flux_source(bulk[biglist[i]], bulkidx, erosion, macro_cats, 
             crustal_area, elem=strbiglist[i]
         )
 
         # Write data to file
         write(gp_gflux, strbiglist[i], global_flux)
-        for i in eachindex(subcats)
-            write(gp_wt[subcats[i]], strbiglist[i], wt[macro_cats[i]])
-            write(gp_flux[subcats[i]], strbiglist[i], flux[macro_cats[i]])
+        for j in eachindex(subcats)
+            dataname = string(subcats[j])
+            write(gp_wtpt[dataname], strbiglist[i], wt[subcats[j]])
+            write(gp_flux[dataname], strbiglist[i], flux[subcats[j]])
         end
     end
     close(fid)

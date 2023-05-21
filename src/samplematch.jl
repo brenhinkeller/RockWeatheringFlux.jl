@@ -36,7 +36,7 @@
 
     # These are in theory useful, but in practice they don't actually do anything...
     # It's possible that this has already been done to the dataset in FindSimilarSamples.m
-    
+
     # Filter ages younger than 0 or greater than the age of the earth
     # invalid_age = vcat(findall(>(4000), bulk.Age), findall(<(0), bulk.Age))
     # bulk.Age[invalid_age] .= NaN
@@ -156,7 +156,7 @@
     allmatches[macro_cats.met] .= matches[:met]
 
     # Write data to a file
-    writedlm("output/matched_bulkidx.tsv", vcat("bulkidx", allmatches),"\t")
+    writedlm("output/matched_bulkidx.tsv", allmatches,"\t")
 
     # Separate into subtypes
     allmatches = (

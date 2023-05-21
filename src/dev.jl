@@ -153,7 +153,7 @@ function find_unmatched(cats; major=false)
 end
 
 # relatively consistently slower, but with slightly fewer allocations
-function match_reduced(rocktype, rockname)
+function match_reduced(rocktype, rockname, rockdescrip)
     npoints = length(rocktype)
 
     # Rock types based on EarthChem system in RockNameInference.m
@@ -246,8 +246,6 @@ function match_reduced(rocktype, rockname)
     not_matched = find_unmatched(cats, major=false)
     for j in eachindex(typelist)
         for i = 1:length(typelist[j])
-            # cats[j][not_matched].|= containsi.(rocktype[not_matched], typelist[j][i])
-
             for k in 1:length(cats[j])
                 if not_matched[k]
                     cats[j][k] |= containsi(rocktype[k], typelist[j][i])
@@ -256,24 +254,34 @@ function match_reduced(rocktype, rockname)
         end
     end
 
-    # # Then rockname
-    # not_matched = find_unmatched(cats, major=false)
-    # for j in eachindex(typelist)
-    #     for i = 1:length(typelist[j])
-    #         for k in 1:length(cats[j])
-    #             if not_matched[k]
-    #                 cats[j][k] = containsi(rockname[k], typelist[j][i])
-    #             else
-    #                 continue
-    #             end
-    #         end
-    #     end
-    # end
+    # Then rockname
+    not_matched = find_unmatched(cats, major=false)
+    for j in eachindex(typelist)
+        for i = 1:length(typelist[j])
+            for k in 1:length(cats[j])
+                if not_matched[k]
+                    cats[j][k] |= containsi(rockname[k], typelist[j][i])
+                end
+            end
+        end
+    end
+
+    # Then rockdescrip
+    not_matched = find_unmatched(cats, major=false)
+    for j in eachindex(typelist)
+        for i = 1:length(typelist[j])
+            for k in 1:length(cats[j])
+                if not_matched[k]
+                    cats[j][k] |= containsi(rockdescrip[k], typelist[j][i])
+                end
+            end
+        end
+    end
 
     return cats
 end
 
-function match_reduced2(rocktype, rockname)
+function match_reduced2(rocktype, rockname, rockdescrip)
     npoints = length(rocktype)
 
     # Rock types based on EarthChem system in RockNameInference.m
@@ -367,21 +375,29 @@ function match_reduced2(rocktype, rockname)
         end
     end
 
-    # # Then rockname
-    # not_matched = find_unmatched(cats, major=false)
-    # for j in eachindex(typelist)
-    #     for i = 1:length(typelist[j])
-    #         cats[j][not_matched].|= containsi.(rockname[not_matched], typelist[j][i])
-    #     end
-    # end
+    # Then rockname
+    not_matched = find_unmatched(cats, major=false)
+    for j in eachindex(typelist)
+        for i = 1:length(typelist[j])
+            cats[j][not_matched].|= containsi.(rockname[not_matched], typelist[j][i])
+        end
+    end
+
+    # Then rockdescrip
+    not_matched = find_unmatched(cats, major=false)
+    for j in eachindex(typelist)
+        for i = 1:length(typelist[j])
+            cats[j][not_matched].|= containsi.(rockdescrip[not_matched], typelist[j][i])
+        end
+    end
 
     return cats
 end
 
 
 ## Test functions
-    t = match_reduced(macrostrat.rocktype, macrostrat.rockname)
-    t2 = match_reduced2(macrostrat.rocktype, macrostrat.rockname)
+    t = match_reduced(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
+    t2 = match_reduced2(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
 
     @test t.siliciclast == t2.siliciclast
     @test t.shale == t2.shale

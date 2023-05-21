@@ -34,10 +34,19 @@
     close(bulk_raw)
     bulk = NamedTuple{Tuple(Symbol.(keys(bulk_dict)))}(values(bulk_dict))
 
+    # These are in theory useful, but in practice they don't actually do anything...
+    # It's possible that this has already been done to the dataset in FindSimilarSamples.m
+    
     # Filter ages younger than 0 or greater than the age of the earth
-    # TO DO: see if I should redo AgeEst... otherwise I'm not using Age
     # invalid_age = vcat(findall(>(4000), bulk.Age), findall(<(0), bulk.Age))
     # bulk.Age[invalid_age] .= NaN
+
+    # # Fill in any missing ages from bounds
+    # for i in eachindex(bulk.Age)
+    #     if isnan(bulk.Age[i])
+    #         bulk.Age[i] = nanmean([bulk.Age_Max[i], bulk.Age_Min[i]])
+    #     end
+    # end
 
     # Get rock types
     bulk_cats = match_earthchem(bulk.Type, major=false)
@@ -53,7 +62,7 @@
     reduced_bulk[end-3] = bulk.P2O5
     reduced_bulk[end-2] = bulk.Latitude
     reduced_bulk[end-1] = bulk.Longitude
-    reduced_bulk[end] = bulk.AgeEst     # TO DO: replace or recalculate AgeEst?
+    reduced_bulk[end] = bulk.Age
     bulk = NamedTuple{(geochemkeys..., :P2O5, :Latitude, :Longitude, :Age)}(reduced_bulk)    
 
 

@@ -14,10 +14,18 @@
     using Profile
     using PProf
     using BenchmarkTools
+    using Test
 
     # Local utilities
     include("Utilities.jl")
 
+## --- Load Macrostrat data
+    @info "Loading Macrostrat lithologic data"
+    macrostrat = importdataset("data/toy_responses.tsv", '\t', importas=:Tuple)     # Reduced size file
+    # macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
+
+    # Match data to rock types
+    macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip, major=false)
 
 ## --- Load Earthchem bulk geochemical data
     @info "Loading EarthChem bulk data"
@@ -35,8 +43,6 @@
     bulk_cats = match_earthchem(bulk.Type, major=false)
 
     # Calculate mean and standard deviation of major element oxides for each rock type
-    # this method is now deprecated in favor of a more rock-specific method
-    # @time geochem = major_elements(bulk, bulk_cats)
     geochemkeys = (:SiO2, :Al2O3, :Fe2O3T, :TiO2, :MgO, :CaO, :Na2O, :K2O, :MnO)
 
     # Reduce bulk to only the data we need
@@ -77,15 +83,6 @@
 
     # bulk_reference = lowercase.(string.(bulktext.Reference[reference_idx]))
     # bulk_source = lowercase.(string.(bulktext.Source[source_idx]))
-
-
-## --- Load Macrostrat data
-    @info "Loading Macrostrat lithologic data"
-    macrostrat = importdataset("data/toy_responses.tsv", '\t', importas=:Tuple)     # Reduced size file
-    # macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
-
-    # Match data to rock types
-    macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip, major=false)
 
 	
 ## --- Find matching Earthchem sample for each Macrostrat sample
@@ -131,7 +128,7 @@
             geochemfilter = find_earthchem(rocktype[i], rockname[i], rockdescrip[i], bulkname, bulktype, bulkmaterial)
             geochemdata = major_elements(bulk, bulksamples, geochemfilter)
             matches[type][i] = likelihood(bulkage, sampleage[i], bulklat, bulklon, lat[i], lon[i], bulkgeochem, geochemdata)
-            GC.gc()
+            GC.gc()     # This is actually necessary...
             next!(p)
         end
     end

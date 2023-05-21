@@ -91,13 +91,9 @@
     )
     allinitvals = fill(NaN, length(allkeys))
 
-    # Dictionaries
     erosion = Dict(zip(allkeys, allinitvals))
     crustal_area = Dict(zip(allkeys, allinitvals))
 
-    # Declare constants
-    const contl_area = 148940000 * 1000000    # Area of continents (m²)
-    const crustal_density = 2750              # Average crustal density (kg/m³)
 
 ## --- Calculate
     # Erosion (m/Myr)
@@ -107,34 +103,52 @@
     erosion = NamedTuple{Tuple(allkeys)}(values(erosion))
 
     # Crustal area (m²), assume proportional distribution of rock types under cover
+    const contl_area = 148940000 * 1000000    # Area of continents (m²)
     for i in eachidex(allkeys)
         crustal_area[allkeys[i]] = count(macro_cats[i]) / total_known * contl_area
     end
     crustal_area = NamedTuple{Tuple(allkeys)}(values(crustal_area))
     
 
-## --- Get average sed contributions from EarthChem data
-    # p_wt = (
-    #     alluvium = [0.0], siliciclast = [0.0], shale = [0.0], carb = [0.0], chert = [0.0], 
-    #         evaporite = [0.0], phosphorite = [0.0], coal = [0.0], volcaniclast = [0.0], 
-    #         sed = [0.0],
-    #     volc = [0.0], plut = [0.0], ign = [0.0],
-    #     metased = [0.0], metaign = [0.0], met = [0.0],
-    # )
-    # for i in eachindex(p_wt)
-    #     p_wt[i][1] = nanmean(bulk.P2O5[bulk_cats[i]]) 
-    # end
+## --- Get data for Everything
+    # Every element in EarthChem
+    biglist = (:Ag,:Al2O3,:As,:Au,:B,:Ba,:Be,:Bi,:C,:CaCO3,:Cd,:Ce,:Cl,:CoO,:Cr2O3,:Cs,
+        :Cu,:Dy,:Er,:Eu,:F,:Fe2O3T,:Ga,:Gd,:H,:Hf,:Hg,:Ho,:I,:In,:Ir,:K2O,:La,:Li,:Lu,
+        :MgO,:MnO,:Mo,:Na2O,:Nb,:Nd,:NiO,:Os,:P2O5,:Pb,:Pd,:Pt,:Pr,:Re,:Rb,:Sb,:Sc,:Se,
+        :SO2,:SiO2,:Sm,:Sn,:Sr,:Ta,:Tb,:Te,:Th,:TiO2,:Tl,:Tm,:U,:V,:W,:Y,:Yb,:Zn,:Zr
+    )
+    strbiglist = string.(biglist)
 
-    # # Calculate P flux by source contributions in kg/yr
-    # pflux_source = (
-    #     siliciclast = [0.0], shale = [0.0], carb = [0.0], chert = [0.0], evaporite = [0.0], 
-    #         coal = [0.0], sed = [0.0],
-    #     volc = [0.0], plut = [0.0], ign = [0.0],
-    #     metased = [0.0], metaign = [0.0], met = [0.0],
-    # )
-    # for i in eachindex(pflux_source)
-    #     pflux_source[i][1] = macro_ersn[i][1] * p_wt[i][1] * crustal_area[i][1] * crustal_density * 1e-6
-    # end
-    # pflux_global = pflux_source.sed[1] + pflux_source.ign[1] + pflux_source.met[1]
+    # Create file to store data
+    npoints = length(macrostrat.rocktype)
+    subcats = string.(keys(macro_cats))
+
+    fid = h5open("rwf_output.h5", "w")
+    gp_wt = create_group(fid, "wtpct")
+    gp_flux = create_group(fid, "flux")
+    gp_gflux = create_group(fid, "fluxglobal")
+
+    for i in subcats
+        create_group(gp_wt, i)
+        create_group(gp_flux, i)
+    end
+
+    # Useful to preallocate datasets...?
+
+    for i in eachindex(biglist)
+        # Calculate
+        wt, flux, global_flux = flux_source(bulk[biglist[i]], bulkidx, erosion, bulk_cats, 
+            crustal_area, elem=strbiglist[i]
+        )
+
+        # Write data to file
+        write(gp_gflux, strbiglist[i], global_flux)
+        for i in eachindex(subcats)
+            write(gp_wt[subcats[i]], strbiglist[i], wt[macro_cats[i]])
+            write(gp_flux[subcats[i]], strbiglist[i], flux[macro_cats[i]])
+        end
+    end
+    close(fid)
+
 
 ## --- End of File

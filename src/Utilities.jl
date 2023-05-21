@@ -398,35 +398,85 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
     # Check major lithology first
     for j in eachindex(typelist)
         for i = 1:length(typelist[j])
-            cats[j] .|= (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], typelist[j][i]) : false)
+            for k in 1:length(cats[j])
+                cats[j][k] |= match(r"major.*?{(.*?)}", rocktype[k]) |> x -> isa(x,RegexMatch) ? containsi(x[1], typelist[j][i]) : false
+            end
         end
     end
 
     # Check the rest of rocktype
-    not_matched = .~(cats.sed .| cats.ign .| cats.met .| cats.cover)
+    not_matched = find_unmatched(cats)
     for j in eachindex(typelist)
         for i = 1:length(typelist[j])
-            cats[j][not_matched].|= containsi.(rocktype[not_matched], typelist[j][i])
+            for k in 1:length(cats[j])
+                if not_matched[k]
+                    cats[j][k] |= containsi(rocktype[k], typelist[j][i])
+                end
+            end
         end
     end
 
     # Then rockname
-    not_matched = .~(cats.sed .| cats.ign .| cats.met .| cats.cover)
+    not_matched = find_unmatched(cats)
     for j in eachindex(typelist)
         for i = 1:length(typelist[j])
-            cats[j][not_matched].|= containsi.(rockname[not_matched], typelist[j][i])
+            for k in 1:length(cats[j])
+                if not_matched[k]
+                    cats[j][k] |= containsi(rockname[k], typelist[j][i])
+                end
+            end
         end
     end
 
     # Then rockdescrip
-    not_matched = .~(cats.sed .| cats.ign .| cats.met .| cats.cover)
+    not_matched = find_unmatched(cats)
     for j in eachindex(typelist)
         for i = 1:length(typelist[j])
-            cats[j][not_matched].|= containsi.(rockdescrip[not_matched], typelist[j][i])
+            for k in 1:length(cats[j])
+                if not_matched[k]
+                    cats[j][k] |= containsi(rockdescrip[k], typelist[j][i])
+                end
+            end
         end
     end
 
     return cats
+end
+
+"""
+```julia
+find_unmatched(cats; major=false)
+```
+
+Find unmatched samples in `cats`. Optionally specify `major` as `true` if `cats` contains
+only `sed`, `ign`, `met`, and `cover`.
+
+# Example
+```
+julia> find_unmatched(cats)
+500-element BitVector:
+ 0
+ 1
+ 1
+ 1
+ ⋮
+ 1
+ 1
+ 1
+ 1
+```
+"""
+function find_unmatched(cats; major=false)
+    if major
+        return .!(cats.sed .| cats.ign .| cats.met .| cats.cover)
+    else
+        cats.sed .= cats.sed .| cats.siliciclast .| cats.shale .| cats.carb .| cats.chert .| 
+            cats.evaporite .| cats.coal
+        cats.ign .= cats.ign .| cats.volc .| cats.plut
+        cats.met .= cats.met .| cats.metased .| cats.metaign
+
+        return .!(cats.sed .| cats.ign .| cats.met .| cats.cover)
+    end
 end
 
 

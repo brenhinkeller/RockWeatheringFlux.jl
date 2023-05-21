@@ -128,7 +128,11 @@
             geochemfilter = find_earthchem(rocktype[i], rockname[i], rockdescrip[i], bulkname, bulktype, bulkmaterial)
             geochemdata = major_elements(bulk, bulksamples, geochemfilter)
             matches[type][i] = likelihood(bulkage, sampleage[i], bulklat, bulklon, lat[i], lon[i], bulkgeochem, geochemdata)
-            GC.gc()     # This is actually necessary...
+            
+            # Manual garbage collection or else the code will run out of memory
+            if i % 7 == 0
+                GC.gc()
+            end
             next!(p)
         end
     end

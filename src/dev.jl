@@ -242,19 +242,16 @@ function match_reduced(rocktype, rockname)
 
     # Check the rest of rocktype
     # wtf in this uses so much memory...
-    # this is missing some things that the other version apparently picks up?
+    # this isn't picking up anything? 
     not_matched = find_unmatched(cats, major=false)
     for j in eachindex(typelist)
         for i = 1:length(typelist[j])
             # cats[j][not_matched].|= containsi.(rocktype[not_matched], typelist[j][i])
-            
-            for k in 1:length(cats[j][not_matched])
-                cats[j][not_matched][k] |= containsi(rocktype[not_matched][k], typelist[j][i])
-                # if not_matched[k]
-                #     cats[j][k] = containsi(rocktype[k], typelist[j][i])
-                # else
-                #     continue
-                # end
+
+            for k in 1:length(cats[j])
+                if not_matched[k]
+                    cats[j][k] |= containsi(rocktype[k], typelist[j][i])
+                end
             end
         end
     end
@@ -366,7 +363,7 @@ function match_reduced2(rocktype, rockname)
     not_matched = find_unmatched(cats, major=false)
     for j in eachindex(typelist)
         for i = 1:length(typelist[j])
-            cats[j][not_matched].|= containsi.(rocktype[not_matched], typelist[j][i])
+            cats[j][not_matched] .|= containsi.(rocktype[not_matched], typelist[j][i])
         end
     end
 
@@ -383,8 +380,8 @@ end
 
 
 ## Test functions
-    t = match_reduced(macrostrat_small.rocktype, macrostrat_small.rockname)
-    t2 = match_reduced2(macrostrat_small.rocktype, macrostrat_small.rockname)
+    t = match_reduced(macrostrat.rocktype, macrostrat.rockname)
+    t2 = match_reduced2(macrostrat.rocktype, macrostrat.rockname)
 
     @test t.siliciclast == t2.siliciclast
     @test t.shale == t2.shale
@@ -401,3 +398,5 @@ end
     @test t.metased == t2.metased
     @test t.metaign == t2.metaign
     @test t.met == t2.met
+
+    @test t == t2

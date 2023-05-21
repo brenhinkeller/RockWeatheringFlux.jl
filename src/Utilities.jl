@@ -774,6 +774,82 @@ end
     end
 
 
+## --- Calculate wt.% and flux by rock type
+"""
+```julia
+function flux_source(bulk::AbstractArray, bulkidx::Vector{Int64}, erosion::NamedTuple, 
+    bulk_cats::NamedTuple, crustal_area::NamedTuple; 
+    crustal_density::Number=2750, elem::String="")
+```
+
+For a specified element in `bulk`, calculate the average wt.% flux (kg/yr) by rocktype. 
+Calculate the total global flux.
+
+Note that for now, `erosion`, `bulk_cats`, and `crustal_area` _must_ contain the keys:
+```
+:siliciclast, :shale, :carb, :chert, :evaporite, :coal, :sed, :volc, :plut, :ign, :metased, 
+:metaign, :met, :cryst, :cover
+```
+Keys must be type `Symbol`. Additional keys not in this list are fine.
+
+### Optional Keyword Arguments
+- `crustal_density::Number=2750`: Average crustal density (kg/m³).
+- `elem::String=""`: Element being analyzed, for terminal printout
+
+# Example
+```julia-repl
+julia> wt, flux, global_flux = flux_source(bulk.P2O5, bulkidx, erosion, bulk_cats, crustal_area, elem="phosphorus")
+[ Info: 44307 of 50000 phosphorus samples (1%) are not NaN
+```
+"""
+    function flux_source(bulk::AbstractArray, bulkidx::Vector{Int64}, erosion::NamedTuple, 
+        bulk_cats::NamedTuple, crustal_area::NamedTuple; 
+        crustal_density::Number=2750, elem::String="")
+
+        # Preallocate
+        allkeys = (:siliciclast, :shale, :carb, :chert, :evaporite, :coal, :sed,
+            :volc, :plut, :ign,
+            :metased, :metaign, :met,
+            :cryst
+        )
+        allinitvals = fill(NaN, length(allkeys))
+        npoints = length(bulkidx)
+
+        wt = Dict(zip(allkeys, allinitvals))
+        flux = Dict(zip(allkeys, allinitvals))
+        bulkdata = Array{Float64}(undef, npoints, 1)
+        datacount = 0
+
+        # Get EarthChem samples
+        for i in eachindex(bulkidx)
+            notzero = bulkidx[i] != 0
+            if notzero
+                bulkdata[i] = bulk[bulkidx[i]]
+                datacount += 1
+            else
+                bulkdata[i] = NaN
+            end
+        end
+
+        @info "$datacount of $npoints $elem samples ($(round(Int, datacount/npoints))%) are not NaN"
+
+        # Calculate average wt.% for each rock type
+        for i in eachindex(allkeys)
+            wt[allkeys[i]] = nanmean(bulkdata[bulk_cats[i]])
+        end
+        wt = NamedTuple{Tuple(allkeys)}(values(wt))
+
+        # Calculate provenance by rock type
+        for i in eachindex(allkeys)
+            flux[allkeys[i]] = erosion[i] * wt[i] * crustal_area[i] * crustal_density * 1e-6
+        end
+        flux = NamedTuple{Tuple(allkeys)}(values(flux))
+        global_flux = flux.sed + flux.ign + flux.met
+
+        return wt, flux, global_flux
+    end
+
+
 ## --- Functions for dealing with SRTM15
     resourcepath = "data"
 

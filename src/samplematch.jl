@@ -21,8 +21,8 @@
 
 ## --- Load Macrostrat data
     @info "Loading Macrostrat lithologic data"
-    macrostrat = importdataset("data/toy_responses.tsv", '\t', importas=:Tuple)     # Reduced size file
-    # macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
+    # macrostrat = importdataset("data/toy_responses.tsv", '\t', importas=:Tuple)     # Reduced size file
+    macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
 
     # Match data to rock types
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip, major=false)
@@ -147,7 +147,7 @@
     allmatches[macro_cats.met] .= matches[:met]
 
     # Write data to a file
-    writedlm("output/matched_bulkidx_toy.tsv", vcat("bulkidx", allmatches),"\t")
+    writedlm("output/matched_bulkidx.tsv", vcat("bulkidx", allmatches),"\t")
 
     # Separate into subtypes
     allmatches = (

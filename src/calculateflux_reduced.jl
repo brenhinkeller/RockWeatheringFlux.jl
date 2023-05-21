@@ -16,15 +16,12 @@
 
 ## --- Load pre-generated Macrostrat data
     macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
-    macro_cats = match_rocktype(rocktype, rockname, rockdescrip, major=false)
+    @time macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
 
     # Reduce likelihood of double matches
     macro_cats.sed .&= .! macro_cats.cover .& .! macro_cats.ign		# Sed excludes cover and igns
     macro_cats.ign .&= .! macro_cats.cover							# Ign excludes cover
     macro_cats.met .&= .! macro_cats.cover							# Met excludes cover
-    
-    # Define crystalline rocks as igneous or non metased metamorphic
-    macro_cryst = macro_cats.ign .| macro_cats.metaign .| macro_cats.met 
 
     # Figure out how many data points weren't matched
     known_rocks = macro_cats.sed .| macro_cats.ign .| macro_cats.met
@@ -47,7 +44,10 @@
     close(bulk_raw)
     bulk = NamedTuple{Tuple(Symbol.(keys(bulk_dict)))}(values(bulk_dict))
 
-    # Matched samples from samplematch.jl
+    # Match codes to rock types
+    bulk_cats = match_earthchem(bulk.Type, major=false)
+
+    # Load matched samples from samplematch.jl
     bulkidx = readdlm("output/matched_bulkidx.tsv")
     
 
@@ -59,9 +59,12 @@
     srtm15_sf = h5read("data/srtm15plus_maxslope.h5", "vars/scalefactor")
 
     # Get slope at each coordinate point
-    rockslope = avg_over_area(srtm15_slope, rocklat, rocklon, srtm15_sf, halfwidth=7)
+    rockslope = avg_over_area(srtm15_slope, macrostrat.rocklat, macrostrat.rocklon, 
+        srtm15_sf, halfwidth=7
+    )
 
     # Calculate all erosion rates (mm/kyr)
+    # TO DO: update this function with a better erosion estimate
     rock_ersn = emmkyr.(rockslope)
     
     @info "Slope and erosion calculated successfully."
@@ -86,6 +89,8 @@
 
     # Area (in m²) of each rock type. 
     # Using all rocks, assuming equal distribution of rock types under cover
+    # TO DO: I actually... don't agree with that assumption at all. 
+        # Cover is most likely in flat areas - seds or maybe mets are probably more likely to be under it
     crustal_area = (
         siliciclast = [0.0], shale = [0.0], carb = [0.0], chert = [0.0], evaporite = [0.0], 
             coal = [0.0], sed = [0.0],
@@ -100,8 +105,6 @@
     
 
 ## --- Get average sed contributions from EarthChem data
-    bulk_cats = match_earthchem(bulk.Type, major=false)
-
     p_wt = (
         alluvium = [0.0], siliciclast = [0.0], shale = [0.0], carb = [0.0], chert = [0.0], 
             evaporite = [0.0], phosphorite = [0.0], coal = [0.0], volcaniclast = [0.0], 

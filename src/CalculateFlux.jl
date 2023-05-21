@@ -1,11 +1,11 @@
 ## --- Setup
     # External packages
-    using ProgressMeter: @showprogress
+    using ProgressMeter
     using StatGeochem
     using DelimitedFiles
     using Plots
     using Dates
-    # using LoopVectorization
+    using LoopVectorization
 
     # File parsing packages
     using JLD
@@ -59,7 +59,7 @@
 
 ## --- Alternatively, load pre-generated data
     @info "Loading pregenerated data. This may take up to 30 minutes on slow machines. Started $(Dates.format(now(), "HH:MM"))"
-    retrive_file = load("data/pregenerated_responses.jld")
+    # retrive_file = load("data/pregenerated_responses.jld")
 
     responses = retrive_file["responses"]
     elevations = float.(retrive_file["elevations"])

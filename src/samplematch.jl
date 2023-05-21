@@ -156,25 +156,25 @@
     allmatches[macro_cats.met] .= matches[:met]
 
     # Write data to a file
-    writedlm("output/matched_bulkidx.tsv", allmatches,"\t")
+    writedlm("output/matched_bulkidx2.tsv", allmatches,"\t")
 
     # Separate into subtypes
-    allmatches = (
-        siliciclast = allmatches[macro_cats.siliciclast],
-        shale = allmatches[macro_cats.shale],
-        carb = allmatches[macro_cats.carb],
-        chert = allmatches[macro_cats.chert],
-        evaporite = allmatches[macro_cats.evaporite],
-        coal = allmatches[macro_cats.coal],
-        sed = allmatches[macro_cats.sed],
+    # allmatches = (
+    #     siliciclast = allmatches[macro_cats.siliciclast],
+    #     shale = allmatches[macro_cats.shale],
+    #     carb = allmatches[macro_cats.carb],
+    #     chert = allmatches[macro_cats.chert],
+    #     evaporite = allmatches[macro_cats.evaporite],
+    #     coal = allmatches[macro_cats.coal],
+    #     sed = allmatches[macro_cats.sed],
 
-        volc = allmatches[macro_cats.volc],
-        plut = allmatches[macro_cats.plut],
-        ign = allmatches[macro_cats.ign],
+    #     volc = allmatches[macro_cats.volc],
+    #     plut = allmatches[macro_cats.plut],
+    #     ign = allmatches[macro_cats.ign],
 
-        metased = allmatches[macro_cats.metased],
-        metaign = allmatches[macro_cats.metaign],
-        met = allmatches[macro_cats.met],
-    )
+    #     metased = allmatches[macro_cats.metased],
+    #     metaign = allmatches[macro_cats.metaign],
+    #     met = allmatches[macro_cats.met],
+    # )
 
 ## --- EOF

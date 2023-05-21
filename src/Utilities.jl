@@ -579,7 +579,8 @@ end
     Compute mean and standard deviation of major elements in `bulk` for each rock type.
 
     Major elements are defined based on Faye and Ødegård 1975 
-    (https://www.ngu.no/filearchive/NGUPublikasjoner/NGUnr_322_Bulletin_35_Faye_35_53.pdf)
+    (https://www.ngu.no/filearchive/NGUPublikasjoner/NGUnr_322_Bulletin_35_Faye_35_53.pdf).
+    These elements are: SiO₂, Al₂O₃, Fe₂O₃ (total), TiO₂, MgO, CaO, Na₂O, K₂O, MnO.
     """
     function major_elements(bulk, bulksamples::BitVector, bulk_filter::BitVector)
         elem = (

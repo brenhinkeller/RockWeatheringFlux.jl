@@ -233,20 +233,18 @@ function match_reduced(rocktype, rockname, rockdescrip)
     ]
 
     for j in eachindex(typelist)
-        for i = 1:length(typelist[j])
-            for k in 1:length(cats[j])
+        for i = eachindex(typelist[j])
+            for k in eachindex(cats[j])
                 cats[j][k] |= match(r"major.*?{(.*?)}", rocktype[k]) |> x -> isa(x,RegexMatch) ? containsi(x[1], typelist[j][i]) : false
             end
         end
     end
 
     # Check the rest of rocktype
-    # wtf in this uses so much memory...
-    # this isn't picking up anything? 
-    not_matched = find_unmatched(cats, major=false)
+    not_matched = find_unmatched(cats)
     for j in eachindex(typelist)
-        for i = 1:length(typelist[j])
-            for k in 1:length(cats[j])
+        for i = eachindex(typelist[j])
+            for k in eachindex(cats[j])
                 if not_matched[k]
                     cats[j][k] |= containsi(rocktype[k], typelist[j][i])
                 end
@@ -255,10 +253,10 @@ function match_reduced(rocktype, rockname, rockdescrip)
     end
 
     # Then rockname
-    not_matched = find_unmatched(cats, major=false)
+    not_matched = find_unmatched(cats)
     for j in eachindex(typelist)
-        for i = 1:length(typelist[j])
-            for k in 1:length(cats[j])
+        for i = eachindex(typelist[j])
+            for k in eachindex(cats[j])
                 if not_matched[k]
                     cats[j][k] |= containsi(rockname[k], typelist[j][i])
                 end
@@ -267,10 +265,10 @@ function match_reduced(rocktype, rockname, rockdescrip)
     end
 
     # Then rockdescrip
-    not_matched = find_unmatched(cats, major=false)
+    not_matched = find_unmatched(cats)
     for j in eachindex(typelist)
-        for i = 1:length(typelist[j])
-            for k in 1:length(cats[j])
+        for i = eachindex(typelist[j])
+            for k in eachindex(cats[j])
                 if not_matched[k]
                     cats[j][k] |= containsi(rockdescrip[k], typelist[j][i])
                 end
@@ -363,31 +361,45 @@ function match_reduced2(rocktype, rockname, rockdescrip)
     # Check major lithology first
     for j in eachindex(typelist)
         for i = 1:length(typelist[j])
-            cats[j] .|= (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], typelist[j][i]) : false)
+            for k in 1:length(cats[j])
+                cats[j][k] |= match(r"major.*?{(.*?)}", rocktype[k]) |> x -> isa(x,RegexMatch) ? containsi(x[1], typelist[j][i]) : false
+            end
         end
     end
 
     # Check the rest of rocktype
-    not_matched = find_unmatched(cats, major=false)
+    not_matched = find_unmatched(cats)
     for j in eachindex(typelist)
         for i = 1:length(typelist[j])
-            cats[j][not_matched] .|= containsi.(rocktype[not_matched], typelist[j][i])
+            for k in 1:length(cats[j])
+                if not_matched[k]
+                    cats[j][k] |= containsi(rocktype[k], typelist[j][i])
+                end
+            end
         end
     end
 
     # Then rockname
-    not_matched = find_unmatched(cats, major=false)
+    not_matched = find_unmatched(cats)
     for j in eachindex(typelist)
         for i = 1:length(typelist[j])
-            cats[j][not_matched].|= containsi.(rockname[not_matched], typelist[j][i])
+            for k in 1:length(cats[j])
+                if not_matched[k]
+                    cats[j][k] |= containsi(rockname[k], typelist[j][i])
+                end
+            end
         end
     end
 
     # Then rockdescrip
-    not_matched = find_unmatched(cats, major=false)
+    not_matched = find_unmatched(cats)
     for j in eachindex(typelist)
         for i = 1:length(typelist[j])
-            cats[j][not_matched].|= containsi.(rockdescrip[not_matched], typelist[j][i])
+            for k in 1:length(cats[j])
+                if not_matched[k]
+                    cats[j][k] |= containsi(rockdescrip[k], typelist[j][i])
+                end
+            end
         end
     end
 

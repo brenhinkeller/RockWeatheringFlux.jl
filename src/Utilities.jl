@@ -818,20 +818,20 @@ julia> wt, flux, global_flux = flux_source(bulk.P2O5, bulkidx, erosion, macro_ca
         wt = Dict(zip(allkeys, allinitvals))
         flux = Dict(zip(allkeys, allinitvals))
         bulkdata = Array{Float64}(undef, npoints, 1)
-        datacount = 0
 
         # Get EarthChem samples
         for i in eachindex(bulkidx)
             notzero = bulkidx[i] != 0
             if notzero
                 bulkdata[i] = bulk[bulkidx[i]]
-                datacount += 1
             else
                 bulkdata[i] = NaN
             end
         end
 
-        @info "$datacount of $npoints $elem samples ($(round(Int, datacount/npoints))%) are not NaN"
+        # Find how many samples have data for the element of interest
+        len = length(findall(!isnan, bulkdata))
+        @info "$len of $npoints $elem samples ($(round(Int, len/npoints*100))%) are not NaN"
 
         # Calculate average wt.% for each rock type
         for i in eachindex(allkeys)

@@ -1,71 +1,21 @@
-## --- Imagine a world where I don't hit sigkill every time I run this code
-
 ## --- Setup
     # External packages
     using StatGeochem
     using DelimitedFiles
-    using Dates
+    # using Dates
 
-    # File parsing packages
-    using JLD
-    using HDF5
-    using HTTP
-    using JSON
+    # # File parsing packages
+    # using JLD
+    # using HDF5
+    # using HTTP
+    # using JSON
     using MAT
 
     # Local utilities
     include("Utilities.jl")
 
-## --- Load pre-generated data
-    @info "Loading pregenerated Macrostrat data. This may take up to 30 minutes on slow machines. Started $(Dates.format(now(), "HH:MM"))"
-    retrive_file = load("data/pregenerated_responses.jld")
-    @info "Success! Parsing data..."
-
-    responses = retrive_file["responses"]
-    elevations = float.(retrive_file["elevations"])
-
-    rocklat = float.(retrive_file["latitude"])
-    rocklon = float.(retrive_file["longitude"])    
-    npoints = retrive_file["npoints"]
-
-
-## --- Parse Macrostrat responses from the loaded data
-    # Preallocate
-    rocktype = Array{String}(undef, npoints, 1)
-    rockdescrip = Array{String}(undef, npoints, 1)
-    rockname = Array{String}(undef, npoints, 1)
-    rockstratname = Array{String}(undef, npoints, 1)
-    rockcomments = Array{String}(undef, npoints, 1)
-    agemax = Array{Float64}(undef, npoints, 1)
-    agemin = Array{Float64}(undef, npoints, 1)
-
-    # Parse responses into preallocated arrays
-    for i in eachindex(rocktype)
-        rocktype[i] = get_macrostrat_lith(responses[i])
-        rockdescrip[i] = get_macrostrat_descrip(responses[i])
-        rockname[i] = get_macrostrat_name(responses[i])
-        rockstratname[i] = get_macrostrat_strat_name(responses[i])
-        rockcomments[i] = get_macrostrat_comments(responses[i])
-        agemax[i] = get_macrostrat_max_age(responses[i])
-        agemin[i] = get_macrostrat_min_age(responses[i])
-    end
-
-    # Convert strings to lowercase so they can be matched to known names of rock types
-    rocktype = lowercase.(rocktype)
-    rockdescrip = lowercase.(rockdescrip)
-    rockname = lowercase.(rockname)
-    rockstratname = lowercase.(rockstratname)
-    rockcomments = lowercase.(rockcomments)
-
-    # Replace tabs with spaces so they will not be confused with the delimitator if exported
-    rocktype = replace.(rocktype, "    " => " ")
-    rockdescrip = replace.(rockdescrip, "    " => " ")
-    rockname = replace.(rockname, "    " => " ")
-    rockstratname = replace.(rockstratname, "    " => " ")
-    rockcomments = replace.(rockcomments, "    " => " ")
-
-
-## --- Match the Burwell rocktype with our rock types
+## --- Load pre-generated Macrostrat data
+    macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
     macro_cats = match_rocktype(rocktype, rockname, rockdescrip, major=false)
 
     # Reduce likelihood of double matches
@@ -90,6 +40,16 @@
     @info "Macrostrat parsing complete!
     not matched = $(count(not_matched)), conflicting matches of major rocktypes = $(count(multi_matched))\n"
 
+## --- Load EarthChem data
+    # Bulk data
+    bulk_raw = matopen("data/bulk.mat")
+    bulk_dict = read(bulk_raw, "bulk")
+    close(bulk_raw)
+    bulk = NamedTuple{Tuple(Symbol.(keys(bulk_dict)))}(values(bulk_dict))
+
+    # Matched samples from samplematch.jl
+    bulkidx = readdlm("output/matched_bulkidx.tsv")
+    
 
 ## --- Calculate erosion rate at each coordinate point of interest
 	@info "Calculating slope and erosion at each point"
@@ -137,14 +97,6 @@
         crustal_area[i][1] = count(macro_cats[i]) / total_known * contl_area
     end
 
-
-## --- Load EarthChem data
-	@info "Loading EarthChem data..."
-    bulk_raw = matopen("data/bulk.mat")
-    bulk_dict = read(bulk_raw, "bulk")
-    close(bulk_raw)
-    bulk = NamedTuple{Tuple(Symbol.(keys(bulk_dict)))}(values(bulk_dict))
-    @info "Success! Parsing data..."
     
 
 ## --- Get average sed contributions from EarthChem data

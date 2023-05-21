@@ -2,6 +2,7 @@
     # External packages
     using StatGeochem
     using DelimitedFiles
+    using ProgressMeter
     # using Dates
 
     # # File parsing packages

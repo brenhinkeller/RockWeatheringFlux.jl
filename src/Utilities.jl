@@ -400,6 +400,9 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
         ]
     end
 
+    # Those that can't optimize, add progress bars
+    p = Progress((length(typelist)*4), desc="Matching rocktypes...")
+
     # Check major lithology first
     for j in eachindex(typelist)
         for i = eachindex(typelist[j])
@@ -407,6 +410,7 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
                 cats[j][k] |= match(r"major.*?{(.*?)}", rocktype[k]) |> x -> isa(x,RegexMatch) ? containsi(x[1], typelist[j][i]) : false
             end
         end
+        next!(p)
     end
 
     # Check the rest of rocktype
@@ -419,6 +423,7 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
                 end
             end
         end
+        next!(p)
     end
 
     # Then rockname
@@ -431,6 +436,7 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
                 end
             end
         end
+        next!(p)
     end
 
     # Then rockdescrip
@@ -443,6 +449,7 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
                 end
             end
         end
+        next!(p)
     end
 
     return cats

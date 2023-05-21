@@ -1,16 +1,10 @@
 ## --- Setup
-    # External packages
+    # Packages
     using StatGeochem
     using DelimitedFiles
     using ProgressMeter
     using LoopVectorization
-    # using Dates
-
-    # # File parsing packages
-    # using JLD
     using HDF5
-    # using HTTP
-    # using JSON
     using MAT
 
     # Local utilities
@@ -41,7 +35,7 @@
     )
     
     # Print to terminal
-    # Conflicting matches are ok -- 
+    # Conflicting matches are ok!
     @info "Macrostrat parsing complete!
       not matched = $(count(not_matched))
       conflicting = $(count(multi_matched))
@@ -67,20 +61,20 @@
     
 
 ## --- Calculate erosion rate at each coordinate point of interest
-	# @info "Calculating slope and erosion at each point"
+	@info "Calculating slope and erosion at each point"
 	
     # Load the slope variable from the SRTM15+ maxslope file
-    # srtm15_slope = h5read("data/srtm15plus_maxslope.h5", "vars/slope")
-    # srtm15_sf = h5read("data/srtm15plus_maxslope.h5", "vars/scalefactor")
+    srtm15_slope = h5read("data/srtm15plus_maxslope.h5", "vars/slope")
+    srtm15_sf = h5read("data/srtm15plus_maxslope.h5", "vars/scalefactor")
 
-    # # Get slope at each coordinate point
-    # rockslope = avg_over_area(srtm15_slope, macrostrat.rocklat, macrostrat.rocklon, 
-    #     srtm15_sf, halfwidth=7
-    # )
+    # Get slope at each coordinate point
+    rockslope = avg_over_area(srtm15_slope, macrostrat.rocklat, macrostrat.rocklon, 
+        srtm15_sf, halfwidth=7
+    )
 
-    # # Calculate all erosion rates (mm/kyr)
-    # # TO DO: update this function with a better erosion estimate
-    # rock_ersn = emmkyr.(rockslope)
+    # Calculate all erosion rates (mm/kyr)
+    # TO DO: update this function with a better erosion estimate
+    rock_ersn = emmkyr.(rockslope)
 
 
 ## --- Preallocate
@@ -97,9 +91,9 @@
 
 ## --- Calculate
     # Erosion (m/Myr)
-    # for i in eachidex(allkeys)
-    #     erosion[allkeys[i]] = nanmean(rock_ersn[macro_cats[i]])
-    # end
+    for i in eachidex(allkeys)
+        erosion[allkeys[i]] = nanmean(rock_ersn[macro_cats[i]])
+    end
     erosion = NamedTuple{Tuple(allkeys)}(values(erosion))
 
     # Crustal area (m²), assume proportional distribution of rock types under cover
@@ -126,7 +120,7 @@
     )
 
     # Does not work if this file already exists!
-    fid = h5open("rwf_output.h5", "w")
+    fid = h5open("output/rwf_output.h5", "w")
     gp_wtpt = create_group(fid, "wtpct")
     gp_flux = create_group(fid, "flux")
     gp_gflux = create_group(fid, "fluxglobal")

@@ -414,7 +414,7 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
     end
 
     # Check the rest of rocktype
-    not_matched = find_unmatched(cats)
+    not_matched = find_unmatched(cats, major=major)
     for j in eachindex(typelist)
         for i = eachindex(typelist[j])
             for k in eachindex(cats[j])
@@ -427,7 +427,7 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
     end
 
     # Then rockname
-    not_matched = find_unmatched(cats)
+    not_matched = find_unmatched(cats, major=major)
     for j in eachindex(typelist)
         for i = eachindex(typelist[j])
             for k in eachindex(cats[j])
@@ -440,7 +440,7 @@ function match_rocktype(rocktype, rockname, rockdescrip; major=false)
     end
 
     # Then rockdescrip
-    not_matched = find_unmatched(cats)
+    not_matched = find_unmatched(cats, major=major)
     for j in eachindex(typelist)
         for i = eachindex(typelist[j])
             for k in eachindex(cats[j])

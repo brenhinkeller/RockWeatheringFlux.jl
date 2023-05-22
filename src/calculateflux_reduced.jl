@@ -91,7 +91,7 @@
 
 ## --- Calculate
     # Erosion (m/Myr)
-    for i in eachidex(allkeys)
+    for i in eachindex(allkeys)
         erosion[allkeys[i]] = nanmean(rock_ersn[macro_cats[i]])
     end
     erosion = NamedTuple{Tuple(allkeys)}(values(erosion))

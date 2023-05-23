@@ -18,11 +18,21 @@
     macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
     @time macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
 
-    # Reduce likelihood of double matches
-    macro_cats.sed .&= .! macro_cats.cover .& .! macro_cats.ign		# Sed excludes cover and igns
-    macro_cats.ign .&= .! macro_cats.cover							# Ign excludes cover
-    macro_cats.met .&= .! macro_cats.cover							# Met excludes cover
-    macro_cats.cryst .&= .! macro_cats.metased                      # Cryst excludes metased
+    # Exclude cover from all rock types
+    macro_cats.sed .&= .! macro_cats.cover
+    macro_cats.ign .&= .! macro_cats.cover
+    macro_cats.met .&= .! macro_cats.cover
+
+    # Exclude metamorphic rocks from sed and igns. Class as metased and metaign
+    macro_cats.metased .|= (macro_cats.sed .& macro_cats.met)
+    macro_cats.metaign .|= (macro_cats.ign .& macro_cats.met)
+
+    macro_cats.sed .&= .! macro_cats.met
+    macro_cats.ign .&= .! macro_cats.met
+
+    # Definitional exclusions
+    macro_cats.cryst .&= .! macro_cats.metased      # Cryst rocks cannot be metasedimentary
+    macro_cats.sed .&= .! macro_cats.ign            # Sed / ign rocks are classified as ign
 
     # Figure out how many data points weren't matched
     known_rocks = macro_cats.sed .| macro_cats.ign .| macro_cats.met
@@ -35,13 +45,15 @@
     )
     
     # Print to terminal
-    # Conflicting matches are ok!
     @info "Macrostrat parsing complete!
-      not matched = $(count(not_matched))
-      conflicting = $(count(multi_matched))
-      sed and ign = $(count(macro_cats.sed .& macro_cats.ign))
-      sed and met = $(count(macro_cats.sed .& macro_cats.met))
-      ign and met = $(count(macro_cats.ign .& macro_cats.met))"
+      not matched = $(count(not_matched))"
+
+    if count(multi_matched) > 0
+        @warn "$(count(multi_matched)) conflicting matches present
+          sed and ign = $(count(macro_cats.sed .& macro_cats.ign))
+          sed and met = $(count(macro_cats.sed .& macro_cats.met))
+          ign and met = $(count(macro_cats.ign .& macro_cats.met))"
+    end
 
 
 ## --- Load EarthChem data

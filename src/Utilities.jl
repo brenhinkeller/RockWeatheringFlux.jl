@@ -786,8 +786,8 @@
         crustal_density::Number=2750, elem::String="")
     ```
 
-    For a specified element in `bulk`, calculate the average wt.% flux (kg/yr) by rocktype. 
-    Calculate the total global flux.
+    For a specified element in `bulk`, calculate the average wt.% and flux (kg/yr) by rocktype. 
+    Calculate the total global flux of that element (kg/yr).
 
     Note that for now, `erosion`, `macro_cats`, and `crustal_area` _must_ contain the keys:
     ```
@@ -845,7 +845,7 @@
 
         # Calculate provenance by rock type
         for i in eachindex(allkeys)
-            flux[allkeys[i]] = erosion[i] * wt[i] * crustal_area[i] * crustal_density * 1e-6
+            flux[allkeys[i]] = erosion[i] * crustal_area[i] * wt[i] * crustal_density* 1e-8
         end
         flux = NamedTuple{Tuple(allkeys)}(values(flux))
         global_flux = flux.sed + flux.ign + flux.met

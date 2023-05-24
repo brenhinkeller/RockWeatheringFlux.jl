@@ -787,7 +787,7 @@
     ```
 
     For a specified element in `bulk`, calculate the average wt.% and flux (kg/yr) by rocktype. 
-    Calculate the total global flux of that element (kg/yr).
+    Calculate the total global flux of that element (kg/yr). Return the number of samples `n`.
 
     Note that for now, `erosion`, `macro_cats`, and `crustal_area` _must_ contain the keys:
     ```
@@ -802,7 +802,7 @@
 
     # Example
     ```julia-repl
-    julia> wt, flux, global_flux = flux_source(bulk.P2O5, bulkidx, erosion, macro_cats, crustal_area, elem="phosphorus")
+    julia> wt, flux, global_flux, n = flux_source(bulk.P2O5, bulkidx, erosion, macro_cats, crustal_area, elem="phosphorus")
     [ Info: 44307 of 50000 phosphorus samples (1%) are not NaN
     ```
     """
@@ -816,7 +816,7 @@
             :metased, :metaign, :met,
             :cryst
         )
-        allinitvals = fill(NaN, length(allkeys))
+        allinitvals = fill(NaN ± NaN, length(allkeys))
         npoints = length(bulkidx)
 
         wt = Dict(zip(allkeys, allinitvals))
@@ -834,23 +834,24 @@
         end
 
         # Find how many samples have data for the element of interest
-        len = length(findall(!isnan, bulkdata))
-        @info "$len of $npoints $elem samples ($(round(Int, len/npoints*100))%) are not NaN"
+        n = length(findall(!isnan, bulkdata))
+        @info "$n of $npoints $elem samples ($(round(Int, n/npoints*100))%) are not NaN"
 
         # Calculate average wt.% for each rock type
         for i in eachindex(allkeys)
-            wt[allkeys[i]] = nanmean(bulkdata[macro_cats[i]])
+            wt[allkeys[i]] = nanmean(bulkdata[macro_cats[i]]) ± nanstd(bulkdata[macro_cats[i]])
         end
         wt = NamedTuple{Tuple(allkeys)}(values(wt))
 
         # Calculate provenance by rock type
+        # TO DO: make this NaN-proof
         for i in eachindex(allkeys)
             flux[allkeys[i]] = erosion[i] * crustal_area[i] * wt[i] * crustal_density* 1e-8
         end
         flux = NamedTuple{Tuple(allkeys)}(values(flux))
         global_flux = flux.sed + flux.ign + flux.met
 
-        return wt, flux, global_flux
+        return wt, flux, global_flux, n
     end
 
 

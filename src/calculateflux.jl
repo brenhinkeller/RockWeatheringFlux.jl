@@ -57,22 +57,6 @@
     end
 
 
-## --- Load EarthChem data
-    @info "Loading EarthChem data"
-
-    # Bulk data
-    bulk_raw = matopen("data/bulk.mat")
-    bulk_dict = read(bulk_raw, "bulk")
-    close(bulk_raw)
-    bulk = NamedTuple{Tuple(Symbol.(keys(bulk_dict)))}(values(bulk_dict))
-
-    # Match codes to rock types
-    bulk_cats = match_earthchem(bulk.Type)
-
-    # Load indices of matched samples from samplematch.jl
-    bulkidx = Int.(vec(readdlm("output/matched_bulkidx.tsv")))
-    
-
 ## --- Calculate erosion rate at each coordinate point of interest
 	@info "Calculating slope and erosion at each point"
 	
@@ -89,6 +73,22 @@
     # TO DO: update this function with a better erosion estimate
     # TO DO: update this to be a measurement value (i.e. prop. uncertainty!)
     rock_ersn = emmkyr.(rockslope)
+
+
+## --- Load EarthChem data
+    @info "Loading EarthChem data"
+
+    # Bulk data
+    bulk_raw = matopen("data/bulk.mat")
+    bulk_dict = read(bulk_raw, "bulk")
+    close(bulk_raw)
+    bulk = NamedTuple{Tuple(Symbol.(keys(bulk_dict)))}(values(bulk_dict))
+
+    # Match codes to rock types
+    bulk_cats = match_earthchem(bulk.Type)
+
+    # Load indices of matched samples from samplematch.jl
+    bulkidx = Int.(vec(readdlm("output/matched_bulkidx.tsv")))
 
 
 ## --- Preallocate
@@ -120,12 +120,11 @@
 
 ## --- Set up arrays and files to get data for Everything
     # Every element in EarthChem
-    biglist = [:Ag,:Al2O3,:As,:Au,:B,:Ba,:Be,:Bi,:C,:CaCO3,:Cd,:Ce,:Cl,:CoO,:Cr2O3,:Cs,
+    biglist = sort([:Ag,:Al2O3,:As,:Au,:B,:Ba,:Be,:Bi,:C,:CaCO3,:Cd,:Ce,:Cl,:CoO,:Cr2O3,:Cs,
         :Cu,:Dy,:Er,:Eu,:F,:Fe2O3T,:Ga,:Gd,:H,:Hf,:Hg,:Ho,:I,:In,:Ir,:K2O,:La,:Li,:Lu,
         :MgO,:MnO,:Mo,:Na2O,:Nb,:Nd,:NiO,:Os,:P2O5,:Pb,:Pd,:Pt,:Pr,:Re,:Rb,:Sb,:Sc,:Se,
         :SO2,:SiO2,:Sm,:Sn,:Sr,:Ta,:Tb,:Te,:Th,:TiO2,:Tl,:Tm,:U,:V,:W,:Y,:Yb,:Zn,:Zr
-    ]
-    sort!(biglist)
+    ])
     ndata = length(biglist)
     strbiglist = string.(biglist)
 
@@ -146,8 +145,8 @@
     # Bulk rock global flux
     bulkrockflux = create_group(fid, "bulkrockflux")
     write(bulkrockflux, "rocktypes", string.(subcats))
-    bulkflux_val = create_dataset(bulkrockflux, "val", Float64, (ndata,))
-    bulkflux_std = create_dataset(bulkrockflux, "std", Float64, (ndata,))
+    bulkflux_val = create_dataset(bulkrockflux, "val", Float64, (length(subcats),))
+    bulkflux_std = create_dataset(bulkrockflux, "std", Float64, (length(subcats),))
 
     # For each element in biglist, wt.% and flux by rock subtype, and total global flux
     elementflux = create_group(fid, "elementflux")
@@ -160,16 +159,18 @@
     # Separated by rock subtypes
     byrocktype = create_group(elementflux, "byrocktype")
     for i in subcats
-        groupname = create_group(byrocktype, string(i))
+        typegroup = create_group(byrocktype, string(i))
 
-        create_dataset(groupname, "wtpct_val", Float64, (ndata,))
-        create_dataset(groupname, "wtpct_std", Float64, (ndata,))
+        create_dataset(typegroup, "wtpct_val", Float64, (ndata,))
+        create_dataset(typegroup, "wtpct_std", Float64, (ndata,))
 
-        create_dataset(groupname, "flux_val", Float64, (ndata,))
-        create_dataset(groupname, "flux_std", Float64, (ndata,))
+        create_dataset(typegroup, "flux_val", Float64, (ndata,))
+        create_dataset(typegroup, "flux_std", Float64, (ndata,))
     end
 
 ## --- Get data
+    @info "Calculating results"
+
     # Calculations by element / compound
     for i in eachindex(biglist)
         # Calculate wt.%, flux, and global flux of each element
@@ -183,13 +184,13 @@
         totalflux_std[i] = global_flux.err
 
         for j in eachindex(subcats)
-            groupname = string(subcats[j])
+            typegroup = string(subcats[j])
 
-            byrocktype[groupname]["flux_val"][i] = flux[subcats[j]].val
-            byrocktype[groupname]["flux_std"][i] = flux[subcats[j]].err
+            byrocktype[typegroup]["flux_val"][i] = flux[subcats[j]].val
+            byrocktype[typegroup]["flux_std"][i] = flux[subcats[j]].err
             
-            byrocktype[groupname]["wtpct_val"][i] = wt[subcats[j]].val
-            byrocktype[groupname]["wtpct_std"][i] = wt[subcats[j]].err
+            byrocktype[typegroup]["wtpct_val"][i] = wt[subcats[j]].val
+            byrocktype[typegroup]["wtpct_std"][i] = wt[subcats[j]].err
         end
     end
 
@@ -198,7 +199,7 @@
     const crustal_density = 2750    # (kg/m³)
     for i in eachindex(subcats)
         netflux = erosion[i] * crustal_area[i] * crustal_density* 1e-6
-        bulkflux_val = netflux
+        bulkflux_val[i] = netflux
         # bulkflux_val[i] = netflux.val
         # bulkflux_std[i] = netflux.err
     end

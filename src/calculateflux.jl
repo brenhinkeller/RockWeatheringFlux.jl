@@ -4,9 +4,10 @@
     using DelimitedFiles
     using ProgressMeter
     using LoopVectorization
+    using Measurements
     using HDF5
     using MAT
-
+    
     # Local utilities
     include("Utilities.jl")
 
@@ -86,6 +87,7 @@
 
     # Calculate all erosion rates (mm/kyr)
     # TO DO: update this function with a better erosion estimate
+    # TO DO: update this to be a measurement value (i.e. prop. uncertainty!)
     rock_ersn = emmkyr.(rockslope)
 
 
@@ -116,48 +118,91 @@
     crustal_area = NamedTuple{Tuple(allkeys)}(values(crustal_area))
     
 
-## --- Get data for Everything
+## --- Set up arrays and files to get data for Everything
     # Every element in EarthChem
-    biglist = (:Ag,:Al2O3,:As,:Au,:B,:Ba,:Be,:Bi,:C,:CaCO3,:Cd,:Ce,:Cl,:CoO,:Cr2O3,:Cs,
+    biglist = [:Ag,:Al2O3,:As,:Au,:B,:Ba,:Be,:Bi,:C,:CaCO3,:Cd,:Ce,:Cl,:CoO,:Cr2O3,:Cs,
         :Cu,:Dy,:Er,:Eu,:F,:Fe2O3T,:Ga,:Gd,:H,:Hf,:Hg,:Ho,:I,:In,:Ir,:K2O,:La,:Li,:Lu,
         :MgO,:MnO,:Mo,:Na2O,:Nb,:Nd,:NiO,:Os,:P2O5,:Pb,:Pd,:Pt,:Pr,:Re,:Rb,:Sb,:Sc,:Se,
         :SO2,:SiO2,:Sm,:Sn,:Sr,:Ta,:Tb,:Te,:Th,:TiO2,:Tl,:Tm,:U,:V,:W,:Y,:Yb,:Zn,:Zr
-    )
+    ]
+    sort!(biglist)
+    ndata = length(biglist)
     strbiglist = string.(biglist)
 
     # Create file to store data
     npoints = length(macrostrat.rocktype)
-    subcats = (:siliciclast, :shale, :carb, :chert, :evaporite, :coal, :sed, :volc, :plut, 
+    subcats = [:siliciclast, :shale, :carb, :chert, :evaporite, :coal, :sed, :volc, :plut, 
         :ign, :metased, :metaign, :met, :cryst
-    )
+    ]
 
-    # Does not work if this file already exists!
-    fid = h5open("output/rwf_output.h5", "w")
-    gp_wtpt = create_group(fid, "wtpct")
-    gp_flux = create_group(fid, "flux")
-    gp_gflux = create_group(fid, "fluxglobal")
+    # Create HDF5 file to store results
+    fid = h5open("output/rwf_output2.h5", "w")
 
+    # Metadata
+    write(fid, "element_names", strbiglist)                     # Names of analyzed elements
+    write(fid, "npoints", npoints)                              # Total macrostrat samples
+    nsample = create_dataset(fid, "element_n", Int, (ndata,))   # Non-NaN samples for each element
+
+    # Bulk rock global flux
+    bulkrockflux = create_group(fid, "bulkrockflux")
+    write(bulkrockflux, "rocktypes", string.(subcats))
+    bulkflux_val = create_dataset(bulkrockflux, "val", Float64, (ndata,))
+    bulkflux_std = create_dataset(bulkrockflux, "std", Float64, (ndata,))
+
+    # For each element in biglist, wt.% and flux by rock subtype, and total global flux
+    elementflux = create_group(fid, "elementflux")
+
+    # Global flux
+    totalflux = create_group(elementflux, "totalelemflux")
+    totalflux_val = create_dataset(totalflux, "val", Float64, (ndata,))
+    totalflux_std = create_dataset(totalflux, "std", Float64, (ndata,))
+
+    # Separated by rock subtypes
+    byrocktype = create_group(elementflux, "byrocktype")
     for i in subcats
-        create_group(gp_wtpt, string(i))
-        create_group(gp_flux, string(i))
+        groupname = create_group(byrocktype, string(i))
+
+        create_dataset(groupname, "wtpct_val", Float64, (ndata,))
+        create_dataset(groupname, "wtpct_std", Float64, (ndata,))
+
+        create_dataset(groupname, "flux_val", Float64, (ndata,))
+        create_dataset(groupname, "flux_std", Float64, (ndata,))
     end
 
-    # Useful to preallocate datasets...?
-
+## --- Get data
+    # Calculations by element / compound
     for i in eachindex(biglist)
-        # Calculate
-        wt, flux, global_flux = flux_source(bulk[biglist[i]], bulkidx, erosion, macro_cats, 
+        # Calculate wt.%, flux, and global flux of each element
+        wt, flux, global_flux, n = flux_source(bulk[biglist[i]], bulkidx, erosion, macro_cats, 
             crustal_area, elem=strbiglist[i]
         )
 
         # Write data to file
-        write(gp_gflux, strbiglist[i], global_flux)
+        nsample[i] = n
+        totalflux_val[i] = global_flux.val
+        totalflux_std[i] = global_flux.err
+
         for j in eachindex(subcats)
-            dataname = string(subcats[j])
-            write(gp_wtpt[dataname], strbiglist[i], wt[subcats[j]])
-            write(gp_flux[dataname], strbiglist[i], flux[subcats[j]])
+            groupname = string(subcats[j])
+
+            byrocktype[groupname]["flux_val"][i] = flux[subcats[j]].val
+            byrocktype[groupname]["flux_std"][i] = flux[subcats[j]].err
+            
+            byrocktype[groupname]["wtpct_val"][i] = wt[subcats[j]].val
+            byrocktype[groupname]["wtpct_std"][i] = wt[subcats[j]].err
         end
     end
+
+    # Total bulk rock mass flux by rock type
+    # TO DO: make this into a measurement type
+    const crustal_density = 2750    # (kg/m³)
+    for i in eachindex(subcats)
+        netflux = erosion[i] * crustal_area[i] * crustal_density* 1e-6
+        bulkflux_val = netflux
+        # bulkflux_val[i] = netflux.val
+        # bulkflux_std[i] = netflux.err
+    end
+
     close(fid)
 
 

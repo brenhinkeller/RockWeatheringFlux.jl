@@ -3,6 +3,7 @@
     using StatGeochem
     using LoopVectorization
     using HDF5
+    using DelimitedFiles
     using Measurements
     using Plots
 
@@ -11,6 +12,9 @@
 
     # Load results
     res = h5open("output/rwf_output3.h5", "r")
+
+    # kg / Gt conversion
+    const kg_gt = 1000000000000 # (kg/Gt)
 
 
 ## --- Get data from HDF5 file into computer memory
@@ -48,38 +52,52 @@
     wt_cats = NamedTuple{Tuple(keys(wt_cats))}(values(wt_cats))
 
 
+## --- Start by making some tables...
+    # Flux by rocktype by element (Gt), ignoring error for now
+    # These numbers seem way too high...
+    bigmatrix = Array{Union{String, Float64}}(undef, length(elems), length(rocks))
+    for i = 1:length(flux_cats)
+        for j = 1:length(flux_cats[i])
+            bigmatrix[j, i] = flux_cats[i][j].val / kg_gt
+        end
+    end
+
+    bigmatrix = vcat(reshape(string.(collect(keys(flux_cats))), 1, 14), bigmatrix)
+    bigmatrix = hcat([""; string.(collect(keys(flux_cats.sed)))], bigmatrix)
+    writedlm("output/flux_gt.csv", bigmatrix)
+
+
 ## --- Calculate total global denundation rate!
-    
-    globalflux = netflux[rocks.sed] + netflux[rocks.ign] + netflux[rocks.met]
+    globalflux = netflux_bulk.sed + netflux_bulk.ign + netflux_bulk.met
 
 ## --- Calculate P provenance
     # planning to clean this code up later
-    path = res["elementflux"]["byrocktype"]
+    # path = res["elementflux"]["byrocktype"]
 
-    sed = read(path["sed"]["flux_val"])
-    ign = read(path["ign"]["flux_val"])
-    met = read(path["met"]["flux_val"])
+    # sed = read(path["sed"]["flux_val"])
+    # ign = read(path["ign"]["flux_val"])
+    # met = read(path["met"]["flux_val"])
 
-    totalp = sed[elems.P2O5] + ign[elems.P2O5] + met[elems.P2O5]
-    spv = sed[elems.P2O5]/totalp
-    ipv = ign[elems.P2O5]/totalp
-    mpv = met[elems.P2O5]/totalp
+    # totalp = sed[elems.P2O5] + ign[elems.P2O5] + met[elems.P2O5]
+    # spv = sed[elems.P2O5]/totalp
+    # ipv = ign[elems.P2O5]/totalp
+    # mpv = met[elems.P2O5]/totalp
 
-    chunkval = [spv, ipv, mpv]
+    # chunkval = [spv, ipv, mpv]
 
-    # Realizing I don't actually know how to deal with getting error from an absolute
-    # value to a value that makes sense for fractional contribution
-    sed_e = read(path["sed"]["flux_std"])[elems.P2O5]
-    ign_e = read(path["ign"]["flux_std"])[elems.P2O5]
-    met_e = read(path["met"]["flux_std"])[elems.P2O5]
+    # # Realizing I don't actually know how to deal with getting error from an absolute
+    # # value to a value that makes sense for fractional contribution
+    # sed_e = read(path["sed"]["flux_std"])[elems.P2O5]
+    # ign_e = read(path["ign"]["flux_std"])[elems.P2O5]
+    # met_e = read(path["met"]["flux_std"])[elems.P2O5]
 
-    chunkerr = [sed_e, ign_e, met_e]
+    # chunkerr = [sed_e, ign_e, met_e]
 
-    # Make plot
-    x = [1, 2, 3]
-    b = plot(x, chunkval, seriestype=:bar, framestyle=:box, xticks=(x, ["Sed", "Ign", "Met"]), 
-        label="", ylabel="Fractional contribution to P flux"
-    )
-    savefig(b, "prelim_P.pdf")
+    # # Make plot
+    # x = [1, 2, 3]
+    # b = plot(x, chunkval, seriestype=:bar, framestyle=:box, xticks=(x, ["Sed", "Ign", "Met"]), 
+    #     label="", ylabel="Fractional contribution to P flux"
+    # )
+    # savefig(b, "prelim_P.pdf")
 
 ## --- End of File

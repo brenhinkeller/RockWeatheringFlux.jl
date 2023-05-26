@@ -838,22 +838,21 @@
         @info "$n of $npoints $elem samples ($(round(Int, n/npoints*100))%) are not NaN"
 
         # Calculate average wt.% for each rock type, keeping in mind some data is ppm
-        for i in eachindex(allkeys)
-            wt[allkeys[i]] = nanmean(bulkdata[macro_cats[i]]) ± nanstd(bulkdata[macro_cats[i]])
+        for i in keys(wt)
+            wt[i] = nanmean(bulkdata[macro_cats[i]]) ± nanstd(bulkdata[macro_cats[i]])
 
             # Convert to wt.% if in units of ppm
-            if wt[allkeys[i]] > 100
-                wt[allkeys[i]] /= 10000
+            if wt[i] > 100
+                wt[i] /= 10000
             end
         end
-        wt = NamedTuple{Tuple(allkeys)}(values(wt))
+        wt = NamedTuple{Tuple(keys(wt))}(values(wt))
 
         # Calculate provenance by rock type
-        # TO DO: make this NaN-proof
-        for i in eachindex(allkeys)
-            flux[allkeys[i]] = erosion[i] * crustal_area[i] * wt[i] * crustal_density* 1e-8
+        for i in keys(flux)
+            flux[i] = erosion[i] * crustal_area[i] * wt[i] * crustal_density* 1e-8
         end
-        flux = NamedTuple{Tuple(allkeys)}(values(flux))
+        flux = NamedTuple{Tuple(keys(flux))}(values(flux))
         global_flux = flux.sed + flux.ign + flux.met
 
         return wt, flux, global_flux, n

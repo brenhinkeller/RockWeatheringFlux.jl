@@ -121,7 +121,7 @@
 ## --- Set up arrays and files to get data for Everything
     # Every element in EarthChem
     biglist = sort([:Ag,:Al2O3,:As,:Au,:B,:Ba,:Be,:Bi,:C,:CaCO3,:Cd,:Ce,:Cl,:CoO,:Cr2O3,:Cs,
-        :Cu,:Dy,:Er,:Eu,:F,:Fe2O3T,:Ga,:Gd,:H,:Hf,:Hg,:Ho,:I,:In,:Ir,:K2O,:La,:Li,:Lu,
+        :Cu,:Dy,:Er,:Eu,:F,:Fe2O3T,:Ga,:Gd,:Hf,:Hg,:Ho,:I,:In,:Ir,:K2O,:La,:Li,:Lu,
         :MgO,:MnO,:Mo,:Na2O,:Nb,:Nd,:NiO,:Os,:P2O5,:Pb,:Pd,:Pt,:Pr,:Re,:Rb,:Sb,:Sc,:Se,
         :SO2,:SiO2,:Sm,:Sn,:Sr,:Ta,:Tb,:Te,:Th,:TiO2,:Tl,:Tm,:U,:V,:W,:Y,:Yb,:Zn,:Zr
     ])
@@ -135,7 +135,7 @@
     ]
 
     # Create HDF5 file to store results
-    fid = h5open("output/rwf_output2.h5", "w")
+    fid = h5open("output/rwf_output3.h5", "w")
 
     # Metadata
     write(fid, "element_names", strbiglist)                     # Names of analyzed elements

@@ -837,9 +837,14 @@
         n = length(findall(!isnan, bulkdata))
         @info "$n of $npoints $elem samples ($(round(Int, n/npoints*100))%) are not NaN"
 
-        # Calculate average wt.% for each rock type
+        # Calculate average wt.% for each rock type, keeping in mind some data is ppm
         for i in eachindex(allkeys)
             wt[allkeys[i]] = nanmean(bulkdata[macro_cats[i]]) ± nanstd(bulkdata[macro_cats[i]])
+
+            # Convert to wt.% if in units of ppm
+            if wt[allkeys[i]] > 100
+                wt[allkeys[i]] /= 10000
+            end
         end
         wt = NamedTuple{Tuple(allkeys)}(values(wt))
 

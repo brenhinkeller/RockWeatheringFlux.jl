@@ -50,11 +50,10 @@
     end
     flux_cats = NamedTuple{Tuple(keys(flux_cats))}(values(flux_cats))
     wt_cats = NamedTuple{Tuple(keys(wt_cats))}(values(wt_cats))
-
+    close(res)
 
 ## --- Start by making some tables...
     # Flux by rocktype by element (Gt), ignoring error for now
-    # These numbers seem way too high...
     bigmatrix = Array{Union{String, Float64}}(undef, length(elems), length(rocks))
     for i = 1:length(flux_cats)
         for j = 1:length(flux_cats[i])
@@ -62,13 +61,23 @@
         end
     end
 
+    # Get global flux for each element, making sure elements are in the right order
+    globalflux = Array{Float64}(undef, length(elems), 1)
+    keyorder = keys(flux_cats.sed)
+    for i in eachindex(keyorder)
+        globalflux[i] = netflux_elem[keyorder[i]].val / kg_gt
+    end
+
+
     bigmatrix = vcat(reshape(string.(collect(keys(flux_cats))), 1, 14), bigmatrix)
+    bigmatrix = hcat(bigmatrix, ["global"; globalflux])
     bigmatrix = hcat([""; string.(collect(keys(flux_cats.sed)))], bigmatrix)
+    
     writedlm("output/flux_gt.csv", bigmatrix)
 
 
 ## --- Calculate total global denundation rate!
-    globalflux = netflux_bulk.sed + netflux_bulk.ign + netflux_bulk.met
+    bulkglobalflux = (netflux_bulk.sed + netflux_bulk.ign + netflux_bulk.met) / kg_gt
 
 ## --- Calculate P provenance
     # planning to clean this code up later

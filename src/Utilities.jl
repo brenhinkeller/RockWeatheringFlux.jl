@@ -853,7 +853,7 @@
             flux[i] = erosion[i] * crustal_area[i] * wt[i] * crustal_density* 1e-8
         end
         flux = NamedTuple{Tuple(keys(flux))}(values(flux))
-        global_flux = flux.sed + flux.ign + flux.met
+        global_flux = nanadd(nanadd(flux.sed, flux.ign), flux.met)
 
         return wt, flux, global_flux, n
     end

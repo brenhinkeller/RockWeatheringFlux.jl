@@ -128,6 +128,22 @@
     ndata = length(biglist)
     strbiglist = string.(biglist)
 
+    # Define which elements are wt.%, ppm, or ppb
+    biglistunits = (Ag=:ppm,Al2O3=:wt,As=:ppm,Au=:ppb,B=:ppm,Ba=:ppm,Be=:ppm,Bi=:ppm,
+        C=:ppm,CaCO3=:wt,Cd=:ppm,Ce=:ppm,Cl=:ppm,CoO=:wt,Cr2O3=:wt,Cs=:ppm,Cu=:ppm,
+        Dy=:ppm,Er=:ppm,Eu=:ppm,F=:ppm,Fe2O3T=:wt,Ga=:ppm,Gd=:ppm,Hf=:ppm,Hg=:ppm,
+        Ho=:ppm,I=:ppm,In=:ppm,Ir=:ppm,K2O=:wt,La=:ppm,Li=:ppm,Lu=:ppm,MgO=:wt,
+        MnO=:wt,Mo=:ppm,Na2O=:wt,Nb=:ppm,Nd=:ppm,NiO=:wt,Os=:ppb,P2O5=:wt,Pb=:ppm,
+        Pd=:ppm,Pt=:ppm,Pr=:ppm,Re=:ppb,Rb=:ppm,Sb=:ppm,Sc=:ppm,Se=:ppm,SO2=:wt,
+        SiO2=:wt,Sm=:ppm,Sn=:ppm,Sr=:ppm,Ta=:ppm,Tb=:ppm,Te=:ppm,Th=:ppm,TiO2=:wt,
+        Tl=:ppm,Tm=:ppm,U=:ppm,V=:ppm,W=:ppm,Y=:ppm,Yb=:ppm,Zn=:ppm,Zr=:ppm
+    )
+
+    # Alternative way to store this data... probably more human and less machine readable
+    # pct = [:Al2O3, ]
+    # ppm = [:Ag, :As, :B, ]
+    # ppb = [:Au, ]
+
     # Create file to store data
     npoints = length(macrostrat.rocktype)
     subcats = [:siliciclast, :shale, :carb, :chert, :evaporite, :coal, :sed, :volc, :plut, 
@@ -173,8 +189,20 @@
 
     # Calculations by element / compound
     for i in eachindex(biglist)
+        # Make sure units are in wt.%
+        unit = biglistunits[biglist[i]]
+        if unit==:ppm
+            data = bulk[biglist[i]] ./ 10000
+        elseif unit==:ppb
+            data = bulk[biglist[i]] ./ 10000000
+        elseif unit==:wt
+            data = bulk[biglist[i]]
+        else
+            @warn "$(biglist[i]) Unit not recognized"
+        end
+
         # Calculate wt.%, flux, and global flux of each element
-        wt, flux, global_flux, n = flux_source(bulk[biglist[i]], bulkidx, erosion, macro_cats, 
+        wt, flux, global_flux, n = flux_source(data, bulkidx, erosion, macro_cats, 
             crustal_area, elem=strbiglist[i]
         )
 

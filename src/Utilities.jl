@@ -840,11 +840,6 @@
         # Calculate average wt.% for each rock type, keeping in mind some data is ppm
         for i in keys(wt)
             wt[i] = nanmean(bulkdata[macro_cats[i]]) ± nanstd(bulkdata[macro_cats[i]])
-
-            # Convert to wt.% if in units of ppm
-            if wt[i] > 100
-                wt[i] /= 10000
-            end
         end
         wt = NamedTuple{Tuple(keys(wt))}(values(wt))
 

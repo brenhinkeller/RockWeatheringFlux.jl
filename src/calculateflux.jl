@@ -125,6 +125,7 @@
         :S,:SiO2,:Sm,:Sn,:Sr,:Ta,:Tb,:Te,:Th,:TiO2,:Tl,:Tm,:U,:V,:W,:Y,:Yb,:Zn,:Zr
     ])
     ndata = length(biglist)
+    strbiglist = string.(biglist)
 
     # Density in g/cm³, only for the elements stored as vol.%
     biglistdensity = (Al2O3=3.95,K2O=2.35,MgO=3.58,Na2O=2.27,P2O5=2.39,SiO2=2.65,TiO2=4.23)
@@ -137,45 +138,29 @@
     close(bulktext_raw)
     bulktext = NamedTuple{Tuple(Symbol.(keys(bulktext_dict)))}(values(bulktext_dict))
 
-    #=
-    Things to consider...
-        not every measurement has a unit
-        units may not be the same for each element...
+    
+    # possibleunit = collect(keys(bulktext.unit))
+    # Can maybe take this out... since this was supposed to only be a temporary check?
+    # Alternatively, just run this as a seperate loop
+    # totalkeys = ""
+    # for i in possibleunit
+    #     global totalkeys = totalkeys * " " * i
+    # end
 
-    =#
-    # Add a progress bar to this dear god
+    # if !contains(totalkeys, unitname)
+    #     @warn "No units for $unitname"
+    #     continue
+    # end
+
     # Also maybe only do this for the data I'm planning on analyzing?
-    possibleunit = collect(keys(bulktext.unit))
-    totalkeys = ""
-    for i in possibleunit
-        totalkeys = totalkeys * " " * i
-    end
-
     p = Progress(ndata, desc="Finding units for each EarthChem sample...")
-    unitsused = falses(length(bulktext.Units))
-    unitsbyelem = map(copy, fill(unitsused, ndata))
-
     for i in eachindex(biglist)
         # Get unit array and correct for 0-index
         unitname = string(biglist[i]) * "_Unit"
-        
-        if !contains(totalkeys, unitname)
-            @warn "No units for $unitname"
-            continue
-        end
 
         unitarray = Int.(bulktext.unit[unitname] .+ 1)
         unitsused = zeros(length(bulktext.Units))
         missinginfo = falses(length(bulk[biglist[i]]))
-
-        # Go through each data point for the element i in bulk
-        # Get the unit that it's in
-            # If there's a unit present, convert to wt.%
-            # If not.... 
-                # Need to infer units. Probably what we have to do is create a counter system for each unit
-                # Each time there's a unit, add 1 to the counter for that unit
-                # After going through all the data that has units, go through the data that doesn't have units
-                # And assume that the units are whatever unit was used most frequently
 
         for j in eachindex(bulk[biglist[i]])
             if isnan(bulk[biglist[i]][j])
@@ -184,30 +169,25 @@
                 unitindex = unitarray[j]
 
                 if unitindex != 1
-                # If units are present (e.g. not 1) convert the units
+                # If units are present (e.g. not 1) convert the units to wt.%
                     unitsused[unitindex] += 1
                     unit = bulktext.Units[unitindex]
 
                     if unit=="WT%"
-                        # No need to convert
                         continue
-
                     elseif unit=="DPM/G"
                         # Disintegrations per minute, not a measure of concentration
                         bulk[biglist[i]][j] = NaN
-
+                        unitsused[unitindex] -= 1
                     elseif unit=="PPM" || unit=="MICROGRAM PER GRAM" || unit=="MILLIGRAM PER KILOGRAM"
                         # Assume ppm by mass. Conversion is the same for all units
                         bulk[biglist[i]][j] /= 10000
-
                     elseif unit=="VOL%"
                         # Convert volume to mass using density
                         # TO DO: make this break-proof in case I don't have density measurement
-                        bulk[biglist[i]][j] *= biglistdensity[i]
-
+                        bulk[biglist[i]][j] *= biglistdensity[biglist[i]]
                     elseif unit=="RATIO"
-                        # L + ratio + the ratio of what to what??
-
+                        missinginfo[j] = true
                     else
                         @warn "Unrecognized unit $unit in $(biglist[i])."
                         missinginfo[j] = true
@@ -220,50 +200,26 @@
         end
 
         # Loop through the list of data without unit information
+        # TO DO: should only have to do this if tree once
+        unit = findmax(unitsused)[2]
+        for j in eachindex(missinginfo)
+            if missinginfo[j]
+                if unit=="WT%"
+                    continue
+                elseif unit=="DPM/G"
+                    bulk[biglist[i]][j] = NaN
+                elseif unit=="PPM" || unit=="MICROGRAM PER GRAM" || unit=="MILLIGRAM PER KILOGRAM"
+                    bulk[biglist[i]][j] /= 10000
+                elseif unit=="VOL%"
+                    bulk[biglist[i]][j] *= biglistdensity[i]
+                end
+            end
+        end
         next!(p)
     end
 
-    # Currently I just want this to give me a list of all the units that get used
-    for i in eachindex(unitsbyelem)
-        unitlist = bulktext.Units[unitsbyelem[i]]
-        allunit = ""
-        for j in unitlist
-            allunit = allunit * " " * j
-        end
-        println("$(biglist[i]) uses $allunit")
-    end
 
-
-    # ndata = length(biglist)
-    # strbiglist = string.(biglist)
-
-    # # Define which elements are wt.%, ppm, or ppb
-    # biglistunits = (Ag=:ppm,Al2O3=:wt,As=:ppm,Au=:ppb,B=:ppm,Ba=:ppm,Be=:ppm,Bi=:ppm,
-    #     C=:ppm,CaCO3=:wt,Cd=:ppm,Ce=:ppm,Cl=:ppm,CoO=:wt,Cr2O3=:wt,Cs=:ppm,Cu=:ppm,
-    #     Dy=:ppm,Er=:ppm,Eu=:ppm,F=:ppm,Fe2O3T=:wt,Ga=:ppm,Gd=:ppm,Hf=:ppm,Hg=:ppm,
-    #     Ho=:ppm,I=:ppm,In=:ppm,Ir=:ppm,K2O=:wt,La=:ppm,Li=:ppm,Lu=:ppm,MgO=:wt,
-    #     MnO=:wt,Mo=:ppm,Na2O=:wt,Nb=:ppm,Nd=:ppm,NiO=:wt,Os=:ppb,P2O5=:wt,Pb=:ppm,
-    #     Pd=:ppm,Pt=:ppm,Pr=:ppm,Re=:ppb,Rb=:ppm,Sb=:ppm,Sc=:ppm,Se=:ppm,SO2=:wt,
-    #     SiO2=:wt,Sm=:ppm,Sn=:ppm,Sr=:ppm,Ta=:ppm,Tb=:ppm,Te=:ppm,Th=:ppm,TiO2=:wt,
-    #     Tl=:ppm,Tm=:ppm,U=:ppm,V=:ppm,W=:ppm,Y=:ppm,Yb=:ppm,Zn=:ppm,Zr=:ppm
-    # )
-
-    # Alternative way to store this data... probably more human and less machine readable
-    # Elements in EarthChem, by unit
-    pct = [:Al2O3, :CaCO3, :CoO, :Cr2O3, :Fe2O3T, :K2O, :MgO, :MnO, :Na2O, :NiO, :P2O5, 
-        :SO2, :SiO2, :TiO2
-    ]
-    ppm = [:Ag, :As, :B, :Ba, :Be, :Bi, :C, :Cd, :Ce, :Cl, :Cs, :Cu, :Dy, :Er, :Eu, :F, 
-        :Ga, :Gd, :Hf, :Hg, :Ho, :I, :In,  :La, :Li, :Lu, :Mo, :Nb, :Nd, :Pb, :Pr, :Rb, 
-        :Sb, :Sc, :Se, :Sm, :Sn, :Sr, :Ta, :Tb, :Te, :Th, :Tl, :Tm, :U, :V, :W, :Y, :Yb, 
-        :Zn, :Zr
-    ]
-    ppb = [:Pd, :Os, :Ir, :Pt, :Au, :Re]
-    biglist = vcat(pct, ppm, ppb)
-    ndata = length(biglist)
-    strbiglist = string.(biglist)
-
-    # Create file to store data
+## --- Create file to store data
     npoints = length(macrostrat.rocktype)
     subcats = [:siliciclast, :shale, :carb, :chert, :evaporite, :coal, :sed, :volc, :plut, 
         :ign, :metased, :metaign, :met, :cryst
@@ -276,7 +232,7 @@
     write(fid, "element_names", strbiglist)                     # Names of analyzed elements
     write(fid, "npoints", npoints)                              # Total macrostrat samples
     nsample = create_dataset(fid, "element_n", Int, (ndata,))   # Non-NaN samples for each element
-    element_names = create_dataset(fid, "element_names", String, ((),))
+    # element_names = create_dataset(fid, "element_names", String, ((),))
 
     # Bulk rock global flux
     bulkrockflux = create_group(fid, "bulkrockflux")
@@ -309,22 +265,8 @@
 
     # Calculations by element / compound
     for i in eachindex(biglist)
-        # Make sure units are in wt.%
-        # unit = biglistunits[biglist[i]]
-        # if unit==:ppm
-        #     data = bulk[biglist[i]] ./ 10000
-        # elseif unit==:ppb
-        #     data = bulk[biglist[i]] ./ 10000000
-        # elseif unit==:wt
-        #     data = bulk[biglist[i]]
-        # else
-        #     @warn "$(biglist[i]) Unit not recognized"
-        # end
-
-
-
         # Calculate wt.%, flux, and global flux of each element
-        wt, flux, global_flux, n = flux_source(data, bulkidx, erosion, macro_cats, 
+        wt, flux, global_flux, n = flux_source(bulk[biglist[i]], bulkidx, erosion, macro_cats, 
             crustal_area, elem=strbiglist[i]
         )
 

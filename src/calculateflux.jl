@@ -53,6 +53,23 @@
         macro_cats[i] .&= .! macro_cats.ign 
     end
 
+    # Exclude subtypes from other subtypes
+    # Relatively arbitrary exclusion of sed types from each other
+    for i in eachindex(sedtypes)
+        for j in sedtypes[i:end]
+            macro_cats[sedtypes[i]] .&= .! macro_cats[j]
+        end
+    end
+
+    # Volcanic and plutonic is downgraded to undifferentiated igneous
+    macro_cats.volc .&= .! (macro_cats.volc .& macro_cats.plut)
+    macro_cats.plut .&= .! (macro_cats.volc .& macro_cats.plut)
+
+    # Metaigneous and metasedimentary is downgraded to undifferentiated metamorphic
+    macro_cats.metased .&= .! (macro_cats.metased .& macro_cats.metaign)
+    macro_cats.metaign .&= .! (macro_cats.metased .& macro_cats.metaign)
+
+
     # Figure out how many data points weren't matched
     known_rocks = macro_cats.sed .| macro_cats.ign .| macro_cats.met
     total_known = count(known_rocks)

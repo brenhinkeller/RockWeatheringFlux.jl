@@ -19,21 +19,39 @@
     macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
     @time macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
 
-    # Exclude cover from all rock types
+    sedtypes = (:siliciclast, :shale, :carb, :chert, :evaporite, :coal)
+    igntypes = (:volc, :plut)
+    mettypes = (:metased, :metaign)
+    alltypes = (sedtypes..., igntypes..., mettypes...)
+
+    # Exclude cover from all major and minor rock types
     macro_cats.sed .&= .! macro_cats.cover
     macro_cats.ign .&= .! macro_cats.cover
     macro_cats.met .&= .! macro_cats.cover
+    for i in alltypes
+        macro_cats[i] .&= .! macro_cats.cover
+    end
 
     # Exclude metamorphic rocks from sed and igns. Class as metased and metaign
     macro_cats.metased .|= (macro_cats.sed .& macro_cats.met)
     macro_cats.metaign .|= (macro_cats.ign .& macro_cats.met)
 
     macro_cats.sed .&= .! macro_cats.met
+    for i in sedtypes
+        macro_cats[i] .&= .! macro_cats.met
+    end
+
     macro_cats.ign .&= .! macro_cats.met
+    for i in igntypes
+        macro_cats[i] .&= .! macro_cats.met
+    end
 
     # Definitional exclusions
     macro_cats.cryst .&= .! macro_cats.metased      # Cryst rocks cannot be metasedimentary
     macro_cats.sed .&= .! macro_cats.ign            # Sed / ign rocks are classified as ign
+    for i in sedtypes
+        macro_cats[i] .&= .! macro_cats.ign 
+    end
 
     # Figure out how many data points weren't matched
     known_rocks = macro_cats.sed .| macro_cats.ign .| macro_cats.met

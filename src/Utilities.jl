@@ -783,22 +783,27 @@
     ```julia
     function flux_source(bulk::AbstractArray, bulkidx::Vector{Int64}, erosion::NamedTuple, 
         macro_cats::NamedTuple, crustal_area::NamedTuple; 
-        crustal_density::Number=2750, elem::String="")
+        unitcodes::AbstractMatrix, unitdecoder::AbstractMatrix, crustal_density::Number=2750, 
+        elem::String="")
     ```
 
     For a specified element in `bulk`, calculate the average wt.% and flux (kg/yr) by rocktype. 
     Calculate the total global flux of that element (kg/yr). Return the number of samples `n`.
 
-    Note that for now, `erosion`, `macro_cats`, and `crustal_area` _must_ contain the keys:
+    Note that `erosion`, `macro_cats`, and `crustal_area` _must_ contain at minimum the keys:
     ```
     :siliciclast, :shale, :carb, :chert, :evaporite, :coal, :sed, :volc, :plut, :ign, :metased, 
     :metaign, :met, :cryst
     ```
-    Keys must be type `Symbol`. Additional keys not in this list are fine.
+    Keys must be type `Symbol`.
+
+    ### Required Keyword Arguments
+    - `unitcodes::AbstractMatrix`: Indices of unit names in the `unitdecoder` array.
+    - `unitdecoder::AbstractMatrix`: Names of units to be accessed with `unitcodes`.
 
     ### Optional Keyword Arguments
     - `crustal_density::Number=2750`: Average crustal density (kg/m³).
-    - `elem::String=""`: Element being analyzed, for terminal printout
+    - `elem::String=""`: Element being analyzed, for terminal printout.
 
     # Example
     ```julia-repl
@@ -808,7 +813,8 @@
     """
     function flux_source(bulk::AbstractArray, bulkidx::Vector{Int64}, erosion::NamedTuple, 
         macro_cats::NamedTuple, crustal_area::NamedTuple; 
-        crustal_density::Number=2750, elem::String="")
+        unitcodes::AbstractMatrix, unitdecoder::AbstractMatrix, crustal_density::Number=2750, 
+        elem::String="")
 
         # Preallocate
         allkeys = (:siliciclast, :shale, :carb, :chert, :evaporite, :coal, :sed,
@@ -822,14 +828,16 @@
         wt = Dict(zip(allkeys, allinitvals))
         flux = Dict(zip(allkeys, allinitvals))
         bulkdata = Array{Float64}(undef, npoints, 1)
+        bulkunits = Array{String}(undef, npoints, 1)
 
-        # Get EarthChem samples
+        # Get EarthChem samples, if present
         for i in eachindex(bulkidx)
-            notzero = bulkidx[i] != 0
-            if notzero
+            if bulkidx[i] != 0
                 bulkdata[i] = bulk[bulkidx[i]]
-            else
+                bulkunits[i] = unitdecoder[unitcodes[bulkidx[i]]]
+            else 
                 bulkdata[i] = NaN
+                bulkunits[i] = "NA"
             end
         end
 

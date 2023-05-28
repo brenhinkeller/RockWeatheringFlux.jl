@@ -69,7 +69,6 @@
     macro_cats.metased .&= .! (macro_cats.metased .& macro_cats.metaign)
     macro_cats.metaign .&= .! (macro_cats.metased .& macro_cats.metaign)
 
-
     # Figure out how many data points weren't matched
     known_rocks = macro_cats.sed .| macro_cats.ign .| macro_cats.met
     total_known = count(known_rocks)
@@ -173,19 +172,14 @@
     close(bulktext_raw)
     bulktext = NamedTuple{Tuple(Symbol.(keys(bulktext_dict)))}(values(bulktext_dict))
 
-    
-    # possibleunit = collect(keys(bulktext.unit))
-    # Can maybe take this out... since this was supposed to only be a temporary check?
-    # Alternatively, just run this as a seperate loop
-    # totalkeys = ""
-    # for i in possibleunit
-    #     global totalkeys = totalkeys * " " * i
-    # end
-
-    # if !contains(totalkeys, unitname)
-    #     @warn "No units for $unitname"
-    #     continue
-    # end
+    # Check that there are units for all identified elements of interest
+    neededkeys = join(strbiglist .* "_Unit", " ")
+    possiblekeys = collect(keys(bulktext.unit))
+    for i in neededkeys
+        if !containsi(possiblekeys, i)
+            @error "No units for $i"
+        end
+    end
 
     # Also maybe only do this for the data I'm planning on analyzing?
     p = Progress(ndata, desc="Finding units for each EarthChem sample...")
@@ -222,6 +216,8 @@
                         # TO DO: make this break-proof in case I don't have density measurement
                         bulk[biglist[i]][j] *= biglistdensity[biglist[i]]
                     elseif unit=="RATIO"
+                        # This is ratio of mass element to mass sample 
+                        # TO DO: come back to this when my brain is working right
                         missinginfo[j] = true
                     else
                         @warn "Unrecognized unit $unit in $(biglist[i])."
@@ -235,21 +231,29 @@
         end
 
         # Loop through the list of data without unit information
-        # TO DO: should only have to do this if tree once
         unit = findmax(unitsused)[2]
-        for j in eachindex(missinginfo)
-            if missinginfo[j]
-                if unit=="WT%"
-                    continue
-                elseif unit=="DPM/G"
+        if unit=="DPM/G"
+            for j in eachindex(missinginfo)
+                if missinginfo[j]
                     bulk[biglist[i]][j] = NaN
-                elseif unit=="PPM" || unit=="MICROGRAM PER GRAM" || unit=="MILLIGRAM PER KILOGRAM"
+                end
+            end
+
+        elseif unit=="PPM" || unit=="MICROGRAM PER GRAM" || unit=="MILLIGRAM PER KILOGRAM"
+            for j in eachindex(missinginfo)
+                if missinginfo[j]
                     bulk[biglist[i]][j] /= 10000
-                elseif unit=="VOL%"
+                end
+            end
+
+        elseif unit=="VOL%"
+            for j in eachindex(missinginfo)
+                if missinginfo[j]
                     bulk[biglist[i]][j] *= biglistdensity[i]
                 end
             end
         end
+
         next!(p)
     end
 

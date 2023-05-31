@@ -55,8 +55,9 @@
 
     # Exclude subtypes from other subtypes
     # Relatively arbitrary exclusion of sed types from each other
-    for i in eachindex(sedtypes)
-        for j in sedtypes[i:end]
+    # Re-order the list to change how the exclusion works
+    for i in 1:(length(sedtypes)-1)
+        for j in sedtypes[i+1:end]
             macro_cats[sedtypes[i]] .&= .! macro_cats[j]
         end
     end
@@ -160,10 +161,8 @@
     ])
     ndata = length(biglist)
     strbiglist = string.(biglist)
-
-    # Density in g/cm³, only for the elements stored as vol.%
     biglistdensity = (Al2O3=3.95,K2O=2.35,MgO=3.58,Na2O=2.27,P2O5=2.39,SiO2=2.65,TiO2=4.23)
-
+    
 
 ## --- Get units of each measurement
     # Metadata
@@ -173,13 +172,15 @@
     bulktext = NamedTuple{Tuple(Symbol.(keys(bulktext_dict)))}(values(bulktext_dict))
 
     # Check that there are units for all identified elements of interest
-    neededkeys = join(strbiglist .* "_Unit", " ")
-    possiblekeys = collect(keys(bulktext.unit))
-    for i in neededkeys
-        if !containsi(possiblekeys, i)
-            @error "No units for $i"
-        end
-    end
+    neededkeys = strbiglist .* "_Unit"
+    possiblekeys = join(collect(keys(bulktext.unit)), " ")
+    missingkeys = .! contains.(possiblekeys, neededkeys)
+    @assert count(missingkeys) == 0 "$(neededkeys[missingkeys]) not present"
+
+
+    # pass to the flux function
+    # units for that element
+    # unit decoder array
 
     # Also maybe only do this for the data I'm planning on analyzing?
     p = Progress(ndata, desc="Finding units for each EarthChem sample...")
@@ -257,6 +258,11 @@
         next!(p)
     end
 
+    # Convert gold to ppb for like. fun or something
+    for i in eachindex(bulk.Au)
+        bulk.Au[i] / 1000 
+    end   
+
 
 ## --- Create file to store data
     npoints = length(macrostrat.rocktype)
@@ -300,13 +306,18 @@
     end
 
 ## --- Get data
-    @info "Calculating results"
+    # p = Progress(ndata, desc="Writing data to file...")
+    unitdecoder = bulktext.Units
 
     # Calculations by element / compound
     for i in eachindex(biglist)
+        # Get units information
+        unitname = strbiglist[i] * "_Unit"
+        unitcodes = Int.(bulktext.unit[unitname] .+ 1)
+
         # Calculate wt.%, flux, and global flux of each element
         wt, flux, global_flux, n = flux_source(bulk[biglist[i]], bulkidx, erosion, macro_cats, 
-            crustal_area, elem=strbiglist[i]
+            crustal_area, unitcodes=unitcodes, unitdecoder=unitdecoder, elem=strbiglist[i]
         )
 
         # Write data to file
@@ -323,6 +334,8 @@
             byrocktype[typegroup]["wtpct_val"][i] = wt[subcats[j]].val
             byrocktype[typegroup]["wtpct_std"][i] = wt[subcats[j]].err
         end
+
+        # next!(p)
     end
 
     # Total bulk rock mass flux by rock type

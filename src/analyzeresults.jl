@@ -37,7 +37,7 @@
     wt_cats = Dict{Symbol, NamedTuple}()
 
     for i in eachindex(rocks)
-        path = res["elementflux"]["byrocktype"][rocks[i]]
+        local path = res["elementflux"]["byrocktype"][rocks[i]]
         fluxelem = Dict{Symbol, Measurement{Float64}}()
         wtelem = Dict{Symbol, Measurement{Float64}}()
 
@@ -52,8 +52,8 @@
     wt_cats = NamedTuple{Tuple(keys(wt_cats))}(values(wt_cats))
     close(res)
 
-## --- Start by making some tables...
-    # Flux by rocktype by element (Gt), ignoring error for now
+
+## --- TABLE: Flux by rocktype by element (Gt), ignoring error for now
     bigmatrix = Array{Union{String, Float64}}(undef, length(elems), length(rocks))
     for i = 1:length(flux_cats)
         for j = 1:length(flux_cats[i])
@@ -68,17 +68,20 @@
         globalflux[i] = netflux_elem[keyorder[i]].val / kg_gt
     end
 
-
     bigmatrix = vcat(reshape(string.(collect(keys(flux_cats))), 1, 14), bigmatrix)
     bigmatrix = hcat(bigmatrix, ["global"; globalflux])
     bigmatrix = hcat([""; string.(collect(keys(flux_cats.sed)))], bigmatrix)
-    
     writedlm("output/flux_gt.csv", bigmatrix)
+
+    # Same idea, but by relative contribution instead of total mass
+    bigmatrix[2:end, 2:end] .= bigmatrix[2:end, 2:end] ./ globalflux
+    writedlm("output/flux_relativecontrib.csv", bigmatrix)
 
 
 ## --- Calculate total global denundation rate!
     bulkglobalflux = (netflux_bulk.sed + netflux_bulk.ign + netflux_bulk.met) / kg_gt
 
+    
 ## --- Calculate P provenance
     # planning to clean this code up later
     # path = res["elementflux"]["byrocktype"]

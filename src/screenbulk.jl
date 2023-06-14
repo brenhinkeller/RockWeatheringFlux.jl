@@ -44,22 +44,20 @@
     # Collect major and minor elements together
     allconstit = vcat(majors, minors)
     ndata = length(allconstit)
-    
-    # Check that there are units for all elements of interest
-    unitslist = string.(allconstit) .* "_Unit"
-    possiblekeys = join(collect(keys(bulktext.unit)), " ")
-    missingkeys = .! contains.(possiblekeys, unitslist)
-    @assert count(missingkeys) == 0 "$(unitslist[missingkeys]) not present"
 
     # Define densities for relevant major element oxides
     density = (Al2O3=3.95,K2O=2.35,MgO=3.58,Na2O=2.27,P2O5=2.39,SiO2=2.65,TiO2=4.23)
 
 
 ## --- Convert all units to wt.%
-    # This is slightly less efficient, but is resistant to changes in element order
+    # Define all possible keys
+    possiblekeys = join(collect(keys(bulktext.unit)), " ")
+
+    # This method is resistant to changes in element order
     for i in allconstit
-        # Convert list of unit indices to a list of units
+        # Check unit is present, and convert indices to a list of units
         unit_i = string(i) * "_Unit"
+        @assert contains(possiblekeys, unit_i) "$unit_i not present"
         bulkunits = bulktext.Units[bulktext.unit[unit_i]]
 
         # Convert all sample data

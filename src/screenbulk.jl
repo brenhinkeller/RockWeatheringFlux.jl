@@ -68,5 +68,8 @@
     end
 
 ## --- Write corrected data to a new file
+    bulkdict = Dict(zip(string.(keys(bulk)), values(bulk)))
+    matwrite("data/bulk_newunits.mat", bulkdict)
+
 
 ## --- End of File

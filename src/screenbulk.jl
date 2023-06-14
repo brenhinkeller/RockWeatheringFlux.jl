@@ -7,11 +7,13 @@
     # Re-read in old files, and figure out what to do for parsing / correcting element 
         # oxide weights. For example, some samples may have different values for CaO and 
         # CaCO3, but Mg and MgO represent the same data.
+    # Consider making multiple utilities files...
 
 ## --- Set up
     # Packages
     using MAT
     using StatGeochem
+    using LoopVectorization     # Required for current Utilities file
 
     # Local utilities
     include("Utilities.jl")
@@ -52,7 +54,7 @@
     presentunits = join(collect(keys(bulktext.unit)), " ")
 
     # Define densities for relevant major element oxides (g/cm³)
-    density = (Al2O3=3.95,K2O=2.35,MgO=3.58,Na2O=2.27,P2O5=2.39,SiO2=2.65,TiO2=4.23)
+    density = (Al2O3=3.95,K2O=2.35,MgO=3.58,Na2O=2.27,P2O5=2.39,SiO2=2.65,TiO2=4.23, CaO=3.34)
 
 
 ## --- Convert all units to wt.%

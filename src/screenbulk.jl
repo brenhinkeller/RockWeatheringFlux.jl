@@ -44,10 +44,9 @@
     # Collect major and minor elements together
     allconstit = vcat(majors, minors)
     ndata = length(allconstit)
-    strallconstit = string.(allconstit)
-    unitslist = strallconstit .* "_Unit"
-
+    
     # Check that there are units for all elements of interest
+    unitslist = string.(allconstit) .* "_Unit"
     possiblekeys = join(collect(keys(bulktext.unit)), " ")
     missingkeys = .! contains.(possiblekeys, unitslist)
     @assert count(missingkeys) == 0 "$(unitslist[missingkeys]) not present"
@@ -57,12 +56,14 @@
 
 
 ## --- Convert all units to wt.%
-    # No logic errors even when vector element order is changed! 
+    # This is slightly less efficient, but is resistant to changes in element order
     for i in allconstit
         # Convert list of unit indices to a list of units
-        bulkunits = Vector{String}(undef, length(bulk[i]), 1)
+        unit_i = string(i) * "_Unit"
+        bulkunits = bulktext.Units[bulktext.unit[unit_i]]
 
-        standardize_units!(bulk[i], bulktext.unit[unitslist[i]], elem=i)
+        # Convert all sample data
+        standardize_units!(bulk[i], bulkunits, elem=string(i))
     end
 
 ## --- Write corrected data to a new file

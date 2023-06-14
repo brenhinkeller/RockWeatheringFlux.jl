@@ -547,9 +547,10 @@
     ```
     Compute mean and standard deviation of major elements in `bulk` for each rock type.
 
-    Major elements are defined based on Faye and Ødegård 1975 
+    Major elements are in part defined based on Faye and Ødegård 1975 
     (https://www.ngu.no/filearchive/NGUPublikasjoner/NGUnr_322_Bulletin_35_Faye_35_53.pdf).
-    These elements are: SiO₂, Al₂O₃, Fe₂O₃ (total), TiO₂, MgO, CaO, Na₂O, K₂O, MnO.
+    These elements are: SiO₂, Al₂O₃, Fe₂O₃ (total), TiO₂, MgO, CaO, Na₂O, K₂O. Fay and Ødegård
+    also define MnO as a major element oxide, but this is not computed.
     """
     function major_elements(bulk, bulksamples::BitVector, bulk_filter::BitVector)
         elem = (
@@ -569,8 +570,8 @@
                 e = nanstd(bulk.Na2O[bulksamples][bulk_filter])),
             K2O = (m = nanmean(bulk.K2O[bulksamples][bulk_filter]), 
                 e = nanstd(bulk.K2O[bulksamples][bulk_filter])),
-            MnO = (m = nanmean(bulk.MnO[bulksamples][bulk_filter]), 
-                e = nanstd(bulk.MnO[bulksamples][bulk_filter]))
+            # MnO = (m = nanmean(bulk.MnO[bulksamples][bulk_filter]), 
+            #     e = nanstd(bulk.MnO[bulksamples][bulk_filter]))
         )
 
         return elem
@@ -699,6 +700,61 @@
 
         return found
     end
+
+
+## --- Correct units to wt.%
+    function standardize_units!(bulkdata::AbstractArray{Float64}, bulkunits::AbstractArray{String}, 
+        density::NamedTuple;
+        elem::Symbol
+    )
+        # Preallocate
+        unitsused = Dict(zip(unique(bulkunits), zeros(Int64, length(unique(bulkunits)))))
+        missinginfo = falses(length(bulkdata))
+
+        # If vol% is used to store units, ensure information is present to correct to wt.%
+        if containsi(keys(unitsused), "VOL%")
+            @assert containsi(keys(density), elem) "No density information present for $(string(elem))"
+            density_i = density[elem]
+        end
+
+        # Correct units for data where unit is known
+        for i in eachindex(bulkunits)
+            # Record unit used
+            unitsused[bulkunits[i]] += 1
+
+            # If data exists, correct to wt.%
+            if bulkunits[i]=="WT%" || bulkunits[i]=="NA"
+                continue
+            elseif bulkunits[i]=="DPM/G"
+                bulkdata[i] = NaN
+                unitsused[bulkunits[i]] -= 1
+            elseif bulkunits[i]=="PPM" || bulkunits[i]=="MICROGRAM PER GRAM" || bulkunits[i]=="MILLIGRAM PER KILOGRAM"
+                bulkdata[i] /= 10000
+            elseif bulkunits[i]=="VOL%"
+                bulkdata[i] *= density_i
+            else
+                missinginfo[i] = true
+            end
+        end
+
+        # Find the most commonly used unit
+        delete!(unitsused, "")
+        assumedunit = maximum(unitsused)[1]
+
+        # Correct units for data with missing unit information
+        for i in eachindex(missinginfo)
+            if missinginfo[i]
+                if assumedunit=="WT%" || assumedunit=="NA"
+                    break
+                elseif assumedunit=="PPM" || assumedunit=="MICROGRAM PER GRAM" || assumedunit=="MILLIGRAM PER KILOGRAM"
+                    bulkdata[i] /= 10000
+                elseif assumedunit=="VOL%"
+                    bulkdata[i] *= density_i
+                end
+            end
+        end
+    end
+
 
 ## --- Find likelihoods
     """

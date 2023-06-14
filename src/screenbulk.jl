@@ -12,6 +12,9 @@
     # Packages
     using MAT
     using StatGeochem
+
+    # Local utilities
+    include("Utilities.jl")
     
     # Load and parse data files
     bulk = matread("data/bulk.mat")["bulk"]
@@ -45,23 +48,23 @@
     allconstit = vcat(majors, minors)
     ndata = length(allconstit)
 
-    # Define densities for relevant major element oxides
+    # Get all units present in bulktext
+    presentunits = join(collect(keys(bulktext.unit)), " ")
+
+    # Define densities for relevant major element oxides (g/cm³)
     density = (Al2O3=3.95,K2O=2.35,MgO=3.58,Na2O=2.27,P2O5=2.39,SiO2=2.65,TiO2=4.23)
 
 
 ## --- Convert all units to wt.%
-    # Define all possible keys
-    possiblekeys = join(collect(keys(bulktext.unit)), " ")
-
     # This method is resistant to changes in element order
     for i in allconstit
         # Check unit is present, and convert indices to a list of units
         unit_i = string(i) * "_Unit"
-        @assert contains(possiblekeys, unit_i) "$unit_i not present"
+        @assert contains(presentunits, unit_i) "$unit_i not present"
         bulkunits = bulktext.Units[bulktext.unit[unit_i]]
 
-        # Convert all sample data
-        standardize_units!(bulk[i], bulkunits, elem=string(i))
+        # Convert units of all sample data
+        standardize_units!(bulk[i], bulkunits, density, elem=i)
     end
 
 ## --- Write corrected data to a new file

@@ -154,17 +154,17 @@
     crustal_area = Dict(zip(allkeys, allinitvals))
 
     # Erosion (m/Myr)
-    for i in eachindex(allkeys)
-        erosion[allkeys[i]] = nanmean(rock_ersn[macro_cats[i]])
+    for i in allkeys
+        erosion[i] = nanmean(rock_ersn[macro_cats[i]])
     end
-    erosion = NamedTuple{Tuple(allkeys)}(values(erosion))
+    erosion = NamedTuple{Tuple(keys(erosion))}(values(erosion))
 
     # Crustal area (m²), assume proportional distribution of rock types under cover
     const contl_area = 148940000 * 1000000    # Area of continents (m²)
-    for i in eachindex(allkeys)
-        crustal_area[allkeys[i]] = count(macro_cats[i]) / total_known * contl_area
+    for i in allkeys
+        crustal_area[i] = count(macro_cats[i]) / total_known * contl_area
     end
-    crustal_area = NamedTuple{Tuple(allkeys)}(values(crustal_area))
+    crustal_area = NamedTuple{Tuple(keys(crustal_area))}(values(crustal_area))
     
 
 ## --- Load EarthChem data

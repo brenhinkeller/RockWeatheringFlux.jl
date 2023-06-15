@@ -214,7 +214,7 @@
 
 
 ## --- Create HDF5 file to store results
-    fid = h5open("output/rwf_output5.h5", "w")
+    fid = h5open("output/rwf_output5.h6", "w")
 
     # Metadata
     write(fid, "element_names", strbiglist)                           # Names of analyzed elements
@@ -247,8 +247,48 @@
         create_dataset(typegroup, "flux_std", Float64, (ndata,))
     end
 
-## --- Get data
-    # Calculations by element / compound
+
+## --- Calculate undifferentiated (bulk) flux
+    const crustal_density = 2750    # (kg/m³)
+
+    # Keys for erosion and crustal_area are in an arbitrary order. Correct indexing critical
+    # TO DO: make this into a measurement type
+    bulkflux = Dict(zip(subcats, fill(NaN, length(subcats))))
+    for i in subcats
+        bulkflux[i] = erosion[i] * crustal_area[i] * crustal_density* 1e-6
+    end
+    bulkflux = NamedTuple{Tuple(keys(bulkflux))}(values(bulkflux))
+
+    # Save to file. Keys are again in arbitrary order
+    for i in eachindex(subcats)
+        sub_i = subcats[i]
+        bulkflux_val[i] = bulkflux[sub_i]
+        # bulkflux_val[i] = bulkflux[sub_i].val
+        # bulkflux_std[i] = bulkflux[sub_i].err
+    end
+
+## --- DEBUGGING: Total flux of minor rock types should be less than flux of major types
+    # minorsed_flux = 0.0
+    # for i in minorsed
+    #     minorsed_flux += crustal_area[i]
+    # end
+    # @assert minorsed_flux < crustal_area.sed
+
+    # minorign_flux = 0.0
+    # for i in minorign
+    #     minorign_flux += crustal_area[i]
+    # end
+    # @assert minorign_flux < crustal_area.ign
+
+    # minormet_flux = 0.0
+    # for i in minormet
+    #     minormet_flux += crustal_area[i]
+    # end
+    # @assert minormet_flux < crustal_area.met
+
+
+## --- Calculate flux by element / element oxide
+    # I should make sure these aren't also scrambled...
     for i in eachindex(biglist)
         # Calculate wt.%, flux, and global flux of each element
         wt, flux, global_flux, n = flux_source(bulk[biglist[i]], bulkidx, erosion, macro_cats, 
@@ -269,16 +309,6 @@
             byrocktype[typegroup]["wtpct_val"][i] = wt[subcats[j]].val
             byrocktype[typegroup]["wtpct_std"][i] = wt[subcats[j]].err
         end
-    end
-
-    # Total bulk rock mass flux by rock type
-    # TO DO: make this into a measurement type
-    const crustal_density = 2750    # (kg/m³)
-    for i in eachindex(subcats)
-        bulkflux = erosion[i] * crustal_area[i] * crustal_density* 1e-6
-        bulkflux_val[i] = bulkflux
-        # bulkflux_val[i] = bulkflux.val
-        # bulkflux_std[i] = bulkflux.err
     end
 
     close(fid)

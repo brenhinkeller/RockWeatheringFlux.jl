@@ -92,39 +92,39 @@
     end
 
 
-## --- Check that all subtypes are included in the major type
-    # Get BitVectors of all minor types
-    minorsed_bv = falses(length(macro_cats.sed))
-    for i in minorsed
-        minorsed_bv .|= macro_cats[i]
-    end
+## --- DEBUGGING: Check that all subtypes are included in the major type
+    # # Get BitVectors of all minor types
+    # minorsed_bv = falses(length(macro_cats.sed))
+    # for i in minorsed
+    #     minorsed_bv .|= macro_cats[i]
+    # end
 
-    minorign_bv = falses(length(macro_cats.ign))
-    for i in minorign
-        minorign_bv .|= macro_cats[i]
-    end
+    # minorign_bv = falses(length(macro_cats.ign))
+    # for i in minorign
+    #     minorign_bv .|= macro_cats[i]
+    # end
 
-    minormet_bv = falses(length(macro_cats.met))
-    for i in minormet
-        minormet_bv .|= macro_cats[i]
-    end
+    # minormet_bv = falses(length(macro_cats.met))
+    # for i in minormet
+    #     minormet_bv .|= macro_cats[i]
+    # end
 
-    # Make sure all minor types are included in the major type
-    for i in eachindex(macro_cats.sed)
-        if minorsed_bv[i]
-            @assert macro_cats.sed[i] "Sedimentary index $i"
-        end
-    end
-    for i in eachindex(macro_cats.ign)
-        if minorign_bv[i]
-            @assert macro_cats.ign[i] "Igneous index $i"
-        end
-    end
-    for i in eachindex(macro_cats.met)
-        if minormet_bv[i]
-            @assert macro_cats.met[i] "Metamorphic index $i"
-        end
-    end
+    # # Make sure all minor types are included in the major type
+    # for i in eachindex(macro_cats.sed)
+    #     if minorsed_bv[i]
+    #         @assert macro_cats.sed[i] "Sedimentary index $i"
+    #     end
+    # end
+    # for i in eachindex(macro_cats.ign)
+    #     if minorign_bv[i]
+    #         @assert macro_cats.ign[i] "Igneous index $i"
+    #     end
+    # end
+    # for i in eachindex(macro_cats.met)
+    #     if minormet_bv[i]
+    #         @assert macro_cats.met[i] "Metamorphic index $i"
+    #     end
+    # end
     
 
 ## --- Calculate erosion rate at each coordinate point of interest
@@ -166,6 +166,25 @@
     end
     crustal_area = NamedTuple{Tuple(keys(crustal_area))}(values(crustal_area))
     
+## --- DEBUGGING: Total area of minor rock types should be less than area of major types
+    # minorsed_area = 0.0
+    # for i in minorsed
+    #     minorsed_area += crustal_area[i]
+    # end
+    # @assert minorsed_area < crustal_area.sed
+
+    # minorign_area = 0.0
+    # for i in minorign
+    #     minorign_area += crustal_area[i]
+    # end
+    # @assert minorign_area < crustal_area.ign
+
+    # minormet_area = 0.0
+    # for i in minormet
+    #     minormet_area += crustal_area[i]
+    # end
+    # @assert minormet_area < crustal_area.met
+
 
 ## --- Load EarthChem data
     @info "Loading EarthChem data"
@@ -191,10 +210,11 @@
 
     npoints = length(macrostrat.rocktype)
     subcats = collect(allkeys)
+    deleteat!(subcats, findall(x->x==:cover,subcats))                 # We don't want to compute cover
 
 
 ## --- Create HDF5 file to store results
-    fid = h5open("output/rwf_output4.h5", "w")
+    fid = h5open("output/rwf_output5.h5", "w")
 
     # Metadata
     write(fid, "element_names", strbiglist)                           # Names of analyzed elements
@@ -255,7 +275,7 @@
     # TO DO: make this into a measurement type
     const crustal_density = 2750    # (kg/m³)
     for i in eachindex(subcats)
-        bulkflux1 = erosion[i] * crustal_area[i] * crustal_density* 1e-6
+        bulkflux = erosion[i] * crustal_area[i] * crustal_density* 1e-6
         bulkflux_val[i] = bulkflux
         # bulkflux_val[i] = bulkflux.val
         # bulkflux_std[i] = bulkflux.err

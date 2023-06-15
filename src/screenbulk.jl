@@ -8,6 +8,17 @@
         # oxide weights. For example, some samples may have different values for CaO and 
         # CaCO3, but Mg and MgO represent the same data.
     # Consider making multiple utilities files...
+    # Read in raw data files. Useful code:
+        # # Filter ages younger than 0 or greater than the age of the earth
+        # invalid_age = vcat(findall(>(4000), bulk.Age), findall(<(0), bulk.Age))
+        # bulk.Age[invalid_age] .= NaN
+
+        # # Fill in any missing ages from bounds
+        # for i in eachindex(bulk.Age)
+        #     if isnan(bulk.Age[i])
+        #         bulk.Age[i] = nanmean([bulk.Age_Max[i], bulk.Age_Min[i]])
+        #     end
+        # end
 
 ## --- Set up
     # Packages
@@ -69,6 +80,67 @@
         standardize_units!(bulk[i], bulkunits, density, elem=i)
     end
 
+
+## --- Check how many samples have total geochemical composition
+    # Calculate total wt.% represented by major elements
+    allmajors = Array{Float64}(undef, length(bulk.SiO2), 1)
+    for i in eachindex(allmajors)
+        for j in majors
+            allmajors[i] = nanadd(allmajors[i], bulk[j][i])
+        end
+    end
+
+    # Calculate percentage of samples with wt.% of major elements oxides above...
+    total = length(bulk.SiO2)
+    t95 = length(findall(>(95), allmajors))     # Above 95%
+    t90 = length(findall(>(90), allmajors))     # Above 90%
+    t75 = length(findall(>(75), allmajors))     # Above 75%
+    t50 = length(findall(>(50), allmajors))     # Above 50%
+
+    @info "Percentage of samples with total major element oxide wt.% above...
+       95%: $(round(t95/total*100))
+       90%: $(round(t90/total*100))
+       75%: $(round(t75/total*100))
+       50%: $(round(t50/total*100))
+       <50%: $(round((total-t50)/total*100))"
+
+    # Check for all major and trace elements
+    allelems = Array{Float64}(undef, length(bulk.SiO2), 1)
+    for i in eachindex(allelems)
+        for j in allconstit
+            allelems[i] = nanadd(allelems[i], bulk[j][i])
+        end
+    end
+
+    # Calculate percentage of samples with wt.% of all elements oxides above...
+    total = length(bulk.SiO2)
+    t95 = length(findall(>(95), allelems))     # Above 95%
+    t90 = length(findall(>(90), allelems))     # Above 90%
+    t75 = length(findall(>(75), allelems))     # Above 75%
+    t50 = length(findall(>(50), allelems))     # Above 50%
+
+    @info "Percentage of samples with total wt.% above...
+       95%: $(round(t95/total*100))
+       90%: $(round(t90/total*100))
+       75%: $(round(t75/total*100))
+       50%: $(round(t50/total*100))
+       <50%: $(round((total-t50)/total*100))"
+
+    # Output of above:
+    # ┌ Info: Percentage of samples with total major element oxide wt.% above...
+    # │        95%: 38.0
+    # │        90%: 43.0
+    # │        75%: 46.0
+    # │        50%: 48.0
+    # └        <50%: 52.0
+    # ┌ Info: Percentage of samples with total wt.% above...
+    # │        95%: 41.0
+    # │        90%: 44.0
+    # │        75%: 48.0
+    # │        50%: 51.0
+    # └        <50%: 49.0
+
+    
 ## --- Write corrected data to a new file
     bulkdict = Dict(zip(string.(keys(bulk)), values(bulk)))
     matwrite("data/bulk_newunits.mat", bulkdict)

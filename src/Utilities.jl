@@ -888,7 +888,7 @@
 
         # Find how many samples have data for the element of interest
         n = length(findall(!isnan, bulkdata))
-        @info "$n of $npoints $elem samples ($(round(Int, n/npoints*100))%) are not NaN"
+        @info "$n of $npoints $elem samples ($(round(n/npoints*100, sigdigits=1))%) are not NaN"
 
         # Calculate average wt.% for each rock type
         for i in keys(wt)

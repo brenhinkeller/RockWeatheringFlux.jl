@@ -29,79 +29,52 @@
 
 ## --- Load Earthchem bulk geochemical data
     @info "Loading EarthChem bulk data"
-    bulk_raw = matopen("data/bulk.mat")
-    bulk_dict = read(bulk_raw, "bulk")
-    close(bulk_raw)
-    bulk = NamedTuple{Tuple(Symbol.(keys(bulk_dict)))}(values(bulk_dict))
-
-    # These are in theory useful, but in practice they don't actually do anything...
-    # It's possible that this has already been done to the dataset in FindSimilarSamples.m
-
-    # Filter ages younger than 0 or greater than the age of the earth
-    # invalid_age = vcat(findall(>(4000), bulk.Age), findall(<(0), bulk.Age))
-    # bulk.Age[invalid_age] .= NaN
-
-    # # Fill in any missing ages from bounds
-    # for i in eachindex(bulk.Age)
-    #     if isnan(bulk.Age[i])
-    #         bulk.Age[i] = nanmean([bulk.Age_Max[i], bulk.Age_Min[i]])
-    #     end
-    # end
+    bulk = matread("data/bulk_newunits.mat")
+    bulk = NamedTuple{Tuple(Symbol.(keys(bulk)))}(values(bulk))
 
     # Get rock types
     bulk_cats = match_earthchem(bulk.Type, major=false)
 
-    # Calculate mean and standard deviation of major element oxides for each rock type
-    geochemkeys = (:SiO2, :Al2O3, :Fe2O3T, :TiO2, :MgO, :CaO, :Na2O, :K2O, :MnO)
-
     # Reduce bulk to only the data we need
-    reduced_bulk = Array{Array{Float64}}(undef, length(geochemkeys) + 4, 1)
+    geochemkeys = (:SiO2, :Al2O3, :Fe2O3T, :TiO2, :MgO, :CaO, :Na2O, :K2O)      # Major elements
+    reduced_bulk = Array{Array{Float64}}(undef, length(geochemkeys) + 3, 1)
     for i in 1:length(geochemkeys)
         reduced_bulk[i] = bulk[geochemkeys[i]]
     end
-    reduced_bulk[end-3] = bulk.P2O5
     reduced_bulk[end-2] = bulk.Latitude
     reduced_bulk[end-1] = bulk.Longitude
     reduced_bulk[end] = bulk.Age
-    bulk = NamedTuple{(geochemkeys..., :P2O5, :Latitude, :Longitude, :Age)}(reduced_bulk)    
+    bulk = NamedTuple{(geochemkeys..., :Latitude, :Longitude, :Age)}(reduced_bulk)    
 
 
 ## --- Load Earthchem metadata
     @info "Loading EarthChem sample metadata"
-    bulktext_raw = matopen("data/bulktext.mat")
-    bulktext_dict = read(bulktext_raw, "bulktext")
-    close(bulktext_raw)
-    bulktext = NamedTuple{Tuple(Symbol.(keys(bulktext_dict)))}(values(bulktext_dict))
+    bulktext = matread("data/bulktext.mat")["bulktext"]
 
-    # Ignoring sparse arrays for now because they make me sad
-    # Correct indices for 0-index offset
-    composition_idx = Int.(bulktext.index["Composition"] .+ 1)
-    rockname_idx = Int.(bulktext.index["Rock_Name"] .+ 1)
-    type_idx = Int.(bulktext.index["Type"] .+ 1)
-    material_idx = Int.(bulktext.index["Material"] .+ 1)
+    # Type stabilize
+    bulktext["elements"] = unique([String.(bulktext["elements"]); ["Units", "Methods"]])
+    for n in bulktext["elements"]
+        bulktext[n] = String.(bulktext[n])
+    end
+    bulktext = NamedTuple{Tuple(Symbol.(keys(bulktext)))}(values(bulktext))
 
-    # reference_idx = Int.(bulktext.index["Reference"] .+ 1)        # Not needed
-    # source_idx = Int.(bulktext.index["Source"] .+ 1)              # Not needed
+    # Correct relevent elements for zero-indexing and Float64 type
+    rockname_idx = Int.(bulktext.index["Rock_Name"] .+ 1.0)
+    type_idx = Int.(bulktext.index["Type"] .+ 1.0)
+    material_idx = Int.(bulktext.index["Material"] .+ 1.0)
 
-    # Parse numeric codes in index into arrays
-    # TO DO: NamedTuple?
-    bulk_composition = lowercase.(string.(bulktext.Composition[composition_idx]))
+    # Convert lookup indices to data values
     bulk_rockname = lowercase.(string.(bulktext.Rock_Name[rockname_idx]))
     bulk_type = lowercase.(string.(bulktext.Type[type_idx]))
     bulk_material = lowercase.(string.(bulktext.Material[material_idx]))
 
-    # bulk_reference = lowercase.(string.(bulktext.Reference[reference_idx]))
-    # bulk_source = lowercase.(string.(bulktext.Source[source_idx]))
 
-	
 ## --- Find matching Earthchem sample for each Macrostrat sample
-    @info "Matching EarthChem and Macrostrat samples"
     bulk_idxs = collect(1:length(bulk.SiO2))
-    # TO DO: NamedTuple instead of a Dict?
-    matches = Dict{Symbol, Array{Int64}}(
-    	:sed => Array{Int64}(undef, count(macro_cats.sed), 1),
-    	:ign => Array{Int64}(undef, count(macro_cats.ign), 1),
-    	:met => Array{Int64}(undef, count(macro_cats.met), 1)
+    matches = (
+        sed = Array{Int64}(undef, count(macro_cats.sed), 1),
+    	ign = Array{Int64}(undef, count(macro_cats.ign), 1),
+    	met = Array{Int64}(undef, count(macro_cats.met), 1)
     )
     
     @timev for type in eachindex(matches)

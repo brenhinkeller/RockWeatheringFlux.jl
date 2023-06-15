@@ -168,100 +168,24 @@
     # Metadata
     bulktext_raw = matopen("data/bulktext.mat")
     bulktext_dict = read(bulktext_raw, "bulktext")
+    # matread("data/bulktext.mat")["bulktext"]
     close(bulktext_raw)
     bulktext = NamedTuple{Tuple(Symbol.(keys(bulktext_dict)))}(values(bulktext_dict))
 
-    # Check that there are units for all identified elements of interest
-    neededkeys = strbiglist .* "_Unit"
-    possiblekeys = join(collect(keys(bulktext.unit)), " ")
-    missingkeys = .! contains.(possiblekeys, neededkeys)
-    @assert count(missingkeys) == 0 "$(neededkeys[missingkeys]) not present"
+    # Unsparse the arrays we're using
+    # bulktext = matread("data/bulktext.mat")["bulktext"]
 
+    # bulktext["elements"] = unique([String.(bulktext["elements"]); ["Units", "Methods"]])
+    # for n in bulktext["elements"]
+    #     bulktext[n] = String.(bulktext[n])
+    # end
+    # for k in keys(bulktext["method"])
+    #     bulktext["method"][k] = collect(bulktext["method"][k])
+    # end
 
-    # pass to the flux function
-    # units for that element
-    # unit decoder array
-
-    # Also maybe only do this for the data I'm planning on analyzing?
-    p = Progress(ndata, desc="Finding units for each EarthChem sample...")
-    for i in eachindex(biglist)
-        # Get unit array and correct for 0-index
-        unitname = string(biglist[i]) * "_Unit"
-
-        unitarray = Int.(bulktext.unit[unitname] .+ 1)
-        unitsused = zeros(length(bulktext.Units))
-        missinginfo = falses(length(bulk[biglist[i]]))
-
-        for j in eachindex(bulk[biglist[i]])
-            if isnan(bulk[biglist[i]][j])
-                continue
-            else
-                unitindex = unitarray[j]
-
-                if unitindex != 1
-                # If units are present (e.g. not 1) convert the units to wt.%
-                    unitsused[unitindex] += 1
-                    unit = bulktext.Units[unitindex]
-
-                    if unit=="WT%"
-                        continue
-                    elseif unit=="DPM/G"
-                        # Disintegrations per minute, not a measure of concentration
-                        bulk[biglist[i]][j] = NaN
-                        unitsused[unitindex] -= 1
-                    elseif unit=="PPM" || unit=="MICROGRAM PER GRAM" || unit=="MILLIGRAM PER KILOGRAM"
-                        # Assume ppm by mass. Conversion is the same for all units
-                        bulk[biglist[i]][j] /= 10000
-                    elseif unit=="VOL%"
-                        # Convert volume to mass using density
-                        # TO DO: make this break-proof in case I don't have density measurement
-                        bulk[biglist[i]][j] *= biglistdensity[biglist[i]]
-                    elseif unit=="RATIO"
-                        # This is ratio of mass element to mass sample 
-                        # TO DO: come back to this when my brain is working right
-                        missinginfo[j] = true
-                    else
-                        @warn "Unrecognized unit $unit in $(biglist[i])."
-                        missinginfo[j] = true
-                    end
-                else
-                # If units are not present, note the index of that unit
-                    missinginfo[j] = true
-                end
-            end
-        end
-
-        # Loop through the list of data without unit information
-        unit = findmax(unitsused)[2]
-        if unit=="DPM/G"
-            for j in eachindex(missinginfo)
-                if missinginfo[j]
-                    bulk[biglist[i]][j] = NaN
-                end
-            end
-
-        elseif unit=="PPM" || unit=="MICROGRAM PER GRAM" || unit=="MILLIGRAM PER KILOGRAM"
-            for j in eachindex(missinginfo)
-                if missinginfo[j]
-                    bulk[biglist[i]][j] /= 10000
-                end
-            end
-
-        elseif unit=="VOL%"
-            for j in eachindex(missinginfo)
-                if missinginfo[j]
-                    bulk[biglist[i]][j] *= biglistdensity[i]
-                end
-            end
-        end
-
-        next!(p)
-    end
-
-    # Convert gold to ppb for like. fun or something
-    for i in eachindex(bulk.Au)
-        bulk.Au[i] / 1000 
-    end   
+    # for k in keys(bulktext["unit"])
+    #     bulktext["unit"][k] = collect(bulktext["unit"][k])
+    # end
 
 
 ## --- Create file to store data

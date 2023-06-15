@@ -19,16 +19,16 @@
     macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
     @time macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
 
-    sedtypes = (:siliciclast, :shale, :carb, :chert, :evaporite, :coal)
-    igntypes = (:volc, :plut)
-    mettypes = (:metased, :metaign)
-    alltypes = (sedtypes..., igntypes..., mettypes...)
+    minorsed = (:siliciclast, :shale, :carb, :chert, :evaporite, :coal)
+    minorign = (:volc, :plut)
+    minormet = (:metased, :metaign)
+    minortypes = (minorsed..., minorign..., minormet...)
 
     # Exclude cover from all major and minor rock types
     macro_cats.sed .&= .! macro_cats.cover
     macro_cats.ign .&= .! macro_cats.cover
     macro_cats.met .&= .! macro_cats.cover
-    for i in alltypes
+    for i in minortypes
         macro_cats[i] .&= .! macro_cats.cover
     end
 
@@ -37,28 +37,28 @@
     macro_cats.metaign .|= (macro_cats.ign .& macro_cats.met)
 
     macro_cats.sed .&= .! macro_cats.met
-    for i in sedtypes
+    for i in minorsed
         macro_cats[i] .&= .! macro_cats.met
     end
 
     macro_cats.ign .&= .! macro_cats.met
-    for i in igntypes
+    for i in minorign
         macro_cats[i] .&= .! macro_cats.met
     end
 
     # Definitional exclusions
     macro_cats.cryst .&= .! macro_cats.metased      # Cryst rocks cannot be metasedimentary
     macro_cats.sed .&= .! macro_cats.ign            # Sed / ign rocks are classified as ign
-    for i in sedtypes
+    for i in minorsed
         macro_cats[i] .&= .! macro_cats.ign 
     end
 
     # Exclude subtypes from other subtypes
     # Relatively arbitrary exclusion of sed types from each other
     # Re-order the list to change how the exclusion works
-    for i in 1:(length(sedtypes)-1)
-        for j in sedtypes[i+1:end]
-            macro_cats[sedtypes[i]] .&= .! macro_cats[j]
+    for i in 1:(length(minorsed)-1)
+        for j in minorsed[i+1:end]
+            macro_cats[minorsed[i]] .&= .! macro_cats[j]
         end
     end
 
@@ -91,6 +91,41 @@
           ign and met = $(count(macro_cats.ign .& macro_cats.met))"
     end
 
+
+## --- Check that all subtypes are included in the major type
+    # Get BitVectors of all minor types
+    minorsed_bv = falses(length(macro_cats.sed))
+    for i in minorsed
+        minorsed_bv .|= macro_cats[i]
+    end
+
+    minorign_bv = falses(length(macro_cats.ign))
+    for i in minorign
+        minorign_bv .|= macro_cats[i]
+    end
+
+    minormet_bv = falses(length(macro_cats.met))
+    for i in minormet
+        minormet_bv .|= macro_cats[i]
+    end
+
+    # Make sure all minor types are included in the major type
+    for i in eachindex(macro_cats.sed)
+        if minorsed_bv[i]
+            @assert macro_cats.sed[i] "Sedimentary index $i"
+        end
+    end
+    for i in eachindex(macro_cats.ign)
+        if minorign_bv[i]
+            @assert macro_cats.ign[i] "Igneous index $i"
+        end
+    end
+    for i in eachindex(macro_cats.met)
+        if minormet_bv[i]
+            @assert macro_cats.met[i] "Metamorphic index $i"
+        end
+    end
+    
 
 ## --- Calculate erosion rate at each coordinate point of interest
 	@info "Calculating slope and erosion at each point"

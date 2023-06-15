@@ -112,11 +112,7 @@
 
 ## --- Get erosion and continental area for each rock type
     # Preallocate
-    allkeys = (:siliciclast, :shale, :carb, :chert, :evaporite, :coal, :sed,
-        :volc, :plut, :ign,
-        :metased, :metaign, :met,
-        :cryst
-    )
+    allkeys = keys(macro_cats)
     allinitvals = fill(NaN, length(allkeys))
 
     erosion = Dict(zip(allkeys, allinitvals))
@@ -138,56 +134,37 @@
 
 ## --- Load EarthChem data
     @info "Loading EarthChem data"
-
-    # Bulk data
     bulk = matread("data/bulk_newunits.mat")
     bulk = NamedTuple{Tuple(Symbol.(keys(bulk)))}(values(bulk))
 
-    # Match codes to rock types
+    # Get rock types from codes
     bulk_cats = match_earthchem(bulk.Type)
 
     # Load indices of matched samples from samplematch.jl
     bulkidx = Int.(vec(readdlm("output/matched_bulkidx.tsv")))
 
 
-## --- Set up arrays and files to get data for Everything
-    # Every element in EarthChem
-    biglist = sort([:Ag,:Al2O3,:As,:Au,:B,:Ba,:Be,:Bi,:C,:CaCO3,:Cd,:Ce,:Cl,:Co,:Cr2O3,:Cs,
-        :Cu,:Dy,:Er,:Eu,:F,:Fe2O3T,:Ga,:Gd,:Hf,:Hg,:Ho,:I,:In,:Ir,:K2O,:La,:Li,:Lu,
-        :MgO,:MnO,:Mo,:Na2O,:Nb,:Nd,:NiO,:Os,:P2O5,:Pb,:Pd,:Pt,:Pr,:Re,:Rb,:Sb,:Sc,:Se,
-        :S,:SiO2,:Sm,:Sn,:Sr,:Ta,:Tb,:Te,:Th,:TiO2,:Tl,:Tm,:U,:V,:W,:Y,:Yb,:Zn,:Zr
-    ])
+## --- Every element of interest from EarthChem
+    biglist = [:SiO2,:Al2O3,:Fe2O3T,:TiO2,:MgO,:CaO,:Na2O,:K2O,
+        :Ag,:As,:Au,:B,:Ba,:Be,:Bi,:C,:CaCO3,:Cd,:Ce,:Cl,:Co,:Cr2O3,:Cs,:Cu,:Dy,:Er,
+        :Eu,:F,:Ga,:Gd,:Hf,:Hg,:Ho,:I,:In,:Ir,:La,:Li,:Lu,:MnO,:Mo,:Nb,:Nd,:NiO,:Os,
+        :P2O5,:Pb,:Pd,:Pt,:Pr,:Re,:Rb,:Sb,:Sc,:Se,:S,:Sm,:Sn,:Sr,:Ta,:Tb,:Te,:Th,:Tl,:Tm,
+        :U,:V,:W,:Y,:Yb,:Zn,:Zr
+    ]
     ndata = length(biglist)
     strbiglist = string.(biglist)
-    biglistdensity = (Al2O3=3.95,K2O=2.35,MgO=3.58,Na2O=2.27,P2O5=2.39,SiO2=2.65,TiO2=4.23)
-    
 
-## --- Get units of each measurement
-    # Metadata
-    bulktext = matread("data/bulktext.mat")["bulktext"]
-
-    # Type stabilize
-    bulktext["elements"] = unique([String.(bulktext["elements"]); ["Units", "Methods"]])
-    for n in bulktext["elements"]
-        bulktext[n] = String.(bulktext[n])
-    end
-    bulktext = NamedTuple{Tuple(Symbol.(keys(bulktext)))}(values(bulktext))
-
-
-## --- Create file to store data
     npoints = length(macrostrat.rocktype)
-    subcats = [:siliciclast, :shale, :carb, :chert, :evaporite, :coal, :sed, :volc, :plut, 
-        :ign, :metased, :metaign, :met, :cryst
-    ]
+    subcats = collect(allkeys)
 
-    # Create HDF5 file to store results
-    fid = h5open("output/rwf_output3.h5", "w")
+
+## --- Create HDF5 file to store results
+    fid = h5open("output/rwf_output4.h5", "w")
 
     # Metadata
-    write(fid, "element_names", strbiglist)                     # Names of analyzed elements
-    write(fid, "npoints", npoints)                              # Total macrostrat samples
-    nsample = create_dataset(fid, "element_n", Int, (ndata,))   # Non-NaN samples for each element
-    # element_names = create_dataset(fid, "element_names", String, ((),))
+    write(fid, "element_names", strbiglist)                           # Names of analyzed elements
+    write(fid, "npoints", npoints)                                    # Total macrostrat samples
+    nsample = create_dataset(fid, "nsamples_byelem", Int, (ndata,))   # Non-NaN samples for each element
 
     # Bulk rock global flux
     bulkrockflux = create_group(fid, "bulkrockflux")
@@ -216,15 +193,8 @@
     end
 
 ## --- Get data
-    # p = Progress(ndata, desc="Writing data to file...")
-    unitdecoder = bulktext.Units
-
     # Calculations by element / compound
     for i in eachindex(biglist)
-        # Get units information
-        unitname = strbiglist[i] * "_Unit"
-        unitcodes = Int.(bulktext.unit[unitname] .+ 1)
-
         # Calculate wt.%, flux, and global flux of each element
         wt, flux, global_flux, n = flux_source(bulk[biglist[i]], bulkidx, erosion, macro_cats, 
             crustal_area, elem=strbiglist[i]
@@ -244,21 +214,18 @@
             byrocktype[typegroup]["wtpct_val"][i] = wt[subcats[j]].val
             byrocktype[typegroup]["wtpct_std"][i] = wt[subcats[j]].err
         end
-
-        # next!(p)
     end
 
     # Total bulk rock mass flux by rock type
     # TO DO: make this into a measurement type
     const crustal_density = 2750    # (kg/m³)
     for i in eachindex(subcats)
-        netflux = erosion[i] * crustal_area[i] * crustal_density* 1e-6
-        bulkflux_val[i] = netflux
-        # bulkflux_val[i] = netflux.val
-        # bulkflux_std[i] = netflux.err
+        bulkflux1 = erosion[i] * crustal_area[i] * crustal_density* 1e-6
+        bulkflux_val[i] = bulkflux
+        # bulkflux_val[i] = bulkflux.val
+        # bulkflux_std[i] = bulkflux.err
     end
 
     close(fid)
-
 
 ## --- End of File

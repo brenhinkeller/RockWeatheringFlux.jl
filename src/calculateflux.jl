@@ -140,10 +140,8 @@
     @info "Loading EarthChem data"
 
     # Bulk data
-    bulk_raw = matopen("data/bulk.mat")
-    bulk_dict = read(bulk_raw, "bulk")
-    close(bulk_raw)
-    bulk = NamedTuple{Tuple(Symbol.(keys(bulk_dict)))}(values(bulk_dict))
+    bulk = matread("data/bulk_newunits.mat")
+    bulk = NamedTuple{Tuple(Symbol.(keys(bulk)))}(values(bulk))
 
     # Match codes to rock types
     bulk_cats = match_earthchem(bulk.Type)
@@ -166,26 +164,14 @@
 
 ## --- Get units of each measurement
     # Metadata
-    bulktext_raw = matopen("data/bulktext.mat")
-    bulktext_dict = read(bulktext_raw, "bulktext")
-    # matread("data/bulktext.mat")["bulktext"]
-    close(bulktext_raw)
-    bulktext = NamedTuple{Tuple(Symbol.(keys(bulktext_dict)))}(values(bulktext_dict))
+    bulktext = matread("data/bulktext.mat")["bulktext"]
 
-    # Unsparse the arrays we're using
-    # bulktext = matread("data/bulktext.mat")["bulktext"]
-
-    # bulktext["elements"] = unique([String.(bulktext["elements"]); ["Units", "Methods"]])
-    # for n in bulktext["elements"]
-    #     bulktext[n] = String.(bulktext[n])
-    # end
-    # for k in keys(bulktext["method"])
-    #     bulktext["method"][k] = collect(bulktext["method"][k])
-    # end
-
-    # for k in keys(bulktext["unit"])
-    #     bulktext["unit"][k] = collect(bulktext["unit"][k])
-    # end
+    # Type stabilize
+    bulktext["elements"] = unique([String.(bulktext["elements"]); ["Units", "Methods"]])
+    for n in bulktext["elements"]
+        bulktext[n] = String.(bulktext[n])
+    end
+    bulktext = NamedTuple{Tuple(Symbol.(keys(bulktext)))}(values(bulktext))
 
 
 ## --- Create file to store data

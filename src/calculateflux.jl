@@ -227,7 +227,7 @@
 
         # Calculate wt.%, flux, and global flux of each element
         wt, flux, global_flux, n = flux_source(bulk[biglist[i]], bulkidx, erosion, macro_cats, 
-            crustal_area, unitcodes=unitcodes, unitdecoder=unitdecoder, elem=strbiglist[i]
+            crustal_area, elem=strbiglist[i]
         )
 
         # Write data to file

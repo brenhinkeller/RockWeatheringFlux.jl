@@ -549,7 +549,7 @@
 
     Major elements are in part defined based on Faye and Ødegård 1975 
     (https://www.ngu.no/filearchive/NGUPublikasjoner/NGUnr_322_Bulletin_35_Faye_35_53.pdf).
-    These elements are: SiO₂, Al₂O₃, Fe₂O₃ (total), TiO₂, MgO, CaO, Na₂O, K₂O. Fay and Ødegård
+    These elements are: SiO₂, Al₂O₃, Fe₂O₃ (total), TiO₂, MgO, CaO, Na₂O, K₂O. Faye and Ødegård
     also define MnO as a major element oxide, but this is not computed.
     """
     function major_elements(bulk, bulksamples::BitVector, bulk_filter::BitVector)
@@ -853,10 +853,6 @@
     ```
     Keys must be type `Symbol`.
 
-    ### Required Keyword Arguments
-    - `unitcodes::AbstractMatrix`: Indices of unit names in the `unitdecoder` array.
-    - `unitdecoder::AbstractMatrix`: Names of units to be accessed with `unitcodes`.
-
     ### Optional Keyword Arguments
     - `crustal_density::Number=2750`: Average crustal density (kg/m³).
     - `elem::String=""`: Element being analyzed, for terminal printout.
@@ -869,7 +865,7 @@
     """
     function flux_source(bulk::AbstractArray, bulkidx::Vector{Int64}, erosion::NamedTuple, 
         macro_cats::NamedTuple, crustal_area::NamedTuple; 
-        unitcodes::AbstractMatrix, unitdecoder::AbstractMatrix, crustal_density::Number=2750, 
+        crustal_density::Number=2750, 
         elem::String="")
 
         # Preallocate
@@ -884,24 +880,17 @@
         wt = Dict(zip(allkeys, allinitvals))
         flux = Dict(zip(allkeys, allinitvals))
         bulkdata = Array{Float64}(undef, npoints, 1)
-        bulkunits = Array{String}(undef, npoints, 1)
 
         # Get EarthChem samples, if present
         for i in eachindex(bulkidx)
-            if bulkidx[i] != 0
-                bulkdata[i] = bulk[bulkidx[i]]
-                bulkunits[i] = unitdecoder[unitcodes[bulkidx[i]]]
-            else 
-                bulkdata[i] = NaN
-                bulkunits[i] = "NA"
-            end
+            (bulkidx[i] != 0) ? (bulkdata[i] = bulk[bulkidx[i]]) : (bulkdata[i] = NaN)
         end
 
         # Find how many samples have data for the element of interest
         n = length(findall(!isnan, bulkdata))
         @info "$n of $npoints $elem samples ($(round(Int, n/npoints*100))%) are not NaN"
 
-        # Calculate average wt.% for each rock type, keeping in mind some data is ppm
+        # Calculate average wt.% for each rock type
         for i in keys(wt)
             wt[i] = nanmean(bulkdata[macro_cats[i]]) ± nanstd(bulkdata[macro_cats[i]])
         end

@@ -152,36 +152,6 @@
 
     # Write to file
     writedlm("output/flux_relativecontrib.csv", bigmatrix)
-    
 
-## --- Calculate P provenance
-    # planning to clean this code up later
-    # path = res["elementflux"]["byrocktype"]
-
-    # sed = read(path["sed"]["flux_val"])
-    # ign = read(path["ign"]["flux_val"])
-    # met = read(path["met"]["flux_val"])
-
-    # totalp = sed[elems.P2O5] + ign[elems.P2O5] + met[elems.P2O5]
-    # spv = sed[elems.P2O5]/totalp
-    # ipv = ign[elems.P2O5]/totalp
-    # mpv = met[elems.P2O5]/totalp
-
-    # chunkval = [spv, ipv, mpv]
-
-    # # Realizing I don't actually know how to deal with getting error from an absolute
-    # # value to a value that makes sense for fractional contribution
-    # sed_e = read(path["sed"]["flux_std"])[elems.P2O5]
-    # ign_e = read(path["ign"]["flux_std"])[elems.P2O5]
-    # met_e = read(path["met"]["flux_std"])[elems.P2O5]
-
-    # chunkerr = [sed_e, ign_e, met_e]
-
-    # # Make plot
-    # x = [1, 2, 3]
-    # b = plot(x, chunkval, seriestype=:bar, framestyle=:box, xticks=(x, ["Sed", "Ign", "Met"]), 
-    #     label="", ylabel="Fractional contribution to P flux"
-    # )
-    # savefig(b, "prelim_P.pdf")
 
 ## --- End of File

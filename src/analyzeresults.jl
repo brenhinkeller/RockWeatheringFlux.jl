@@ -98,38 +98,62 @@
     relative_cats = NamedTuple{Tuple(keys(relative_cats))}(values(relative_cats))
 
 
-## --- 
+## --- Write absolute flux to a .csv file
+    # Preallocate
+    bigmatrix = Array{Union{Float64, String}}(undef, length(elems) + 1, length(rocks) + 2)
 
-
-## --- TABLE: Flux by rocktype by element (Gt), ignoring error for now
-    bigmatrix = Array{Union{String, Float64}}(undef, length(elems), length(rocks))
-    for i = 1:length(flux_cats)
-        for j = 1:length(flux_cats[i])
-            bigmatrix[j, i] = flux_cats[i][j].val / kg_gt
+    # Convert data to a write-able matrix, converting units to Gt/yr
+    for i in 1:length(flux_cats)
+        for j in 1:length(flux_cats[i])
+            bigmatrix[j+1, i+1] = flux_cats[i][j].val / kg_gt
         end
     end
 
-    # Get global flux for each element, making sure elements are in the right order
-    globalflux = Array{Float64}(undef, length(elems), 1)
-    keyorder = keys(flux_cats.sed)
-    for i in eachindex(keyorder)
-        globalflux[i] = netflux_elem[keyorder[i]].val / kg_gt
+    # Add global flux by element, converting units to Gt/yr
+    row_order = collect(keys(flux_cats.sed))
+    for i in eachindex(row_order)
+        nextelement = row_order[i]
+        bigmatrix[i+1, end]  = globalelem[nextelement].val / kg_gt
     end
 
-    bigmatrix = vcat(reshape(string.(collect(keys(flux_cats))), 1, 14), bigmatrix)
-    bigmatrix = hcat(bigmatrix, ["global"; globalflux])
-    bigmatrix = hcat([""; string.(collect(keys(flux_cats.sed)))], bigmatrix)
+    # Add row names (elements) and column names (rock types)
+    for i = 1:(size(bigmatrix)[1] - 1)
+        bigmatrix[i+1, 1] = string.(row_order[i])
+    end
+
+    header = vcat("", string.(collect(keys(flux_cats))), "global")
+    for i = 1:(size(bigmatrix)[2])
+        bigmatrix[1, i] = string.(header[i])
+    end
+
+    # Write to file
     writedlm("output/flux_gt.csv", bigmatrix)
 
-    # Same idea, but by relative contribution instead of total mass
-    bigmatrix[2:end, 2:end] .= bigmatrix[2:end, 2:end] ./ globalflux
+## --- Write relative flux to a .csv file 
+    # Preallocate
+    bigmatrix = Array{Union{Float64, String}}(undef, length(elems) + 1, length(rocks) + 1)
+
+    # Convert data to a write-able matrix
+    for i in 1:length(relative_cats)
+        for j in 1:length(relative_cats[i])
+            bigmatrix[j+1, i+1] = relative_cats[i][j].val
+        end
+    end
+
+    # Add row names (elements) and column names (rock types)
+    for i = 1:(size(bigmatrix)[1] - 1)
+        bigmatrix[i+1, 1] = string.(row_order[i])
+    end
+
+    header = vcat("", string.(collect(keys(relative_cats))), "global")
+    for i = 1:(size(bigmatrix)[2])
+        bigmatrix[1, i] = string.(header[i])
+    end
+
+    # Write to file
     writedlm("output/flux_relativecontrib.csv", bigmatrix)
-
-
-
     
 
-    
 ## --- Calculate P provenance
     # planning to clean this code up later
     # path = res["elementflux"]["byrocktype"]

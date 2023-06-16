@@ -46,13 +46,6 @@
         macro_cats[i] .&= .! macro_cats.met
     end
 
-    # Definitional exclusions
-    macro_cats.cryst .&= .! macro_cats.metased      # Cryst rocks cannot be metasedimentary
-    macro_cats.sed .&= .! macro_cats.ign            # Sed / ign rocks are classified as ign
-    for i in minorsed
-        macro_cats[i] .&= .! macro_cats.ign 
-    end
-
     # Exclude subtypes from other subtypes
     # Relatively arbitrary exclusion of sed types from each other
     # Re-order the list to change how the exclusion works
@@ -69,6 +62,16 @@
     # Metaigneous and metasedimentary is downgraded to undifferentiated metamorphic
     macro_cats.metased .&= .! (macro_cats.metased .& macro_cats.metaign)
     macro_cats.metaign .&= .! (macro_cats.metased .& macro_cats.metaign)
+
+    # Sed / ign rocks are classified as ign
+    macro_cats.sed .&= .! macro_cats.ign            
+    for i in minorsed
+        macro_cats[i] .&= .! macro_cats.ign 
+    end
+
+    # Make sure crystalline rocks are only igneous and non-metased metamorphic rocks
+    macro_cats.cryst .&= .! (macro_cats.sed .& macro_cats.cover)
+    macro_cats.cryst .&= .! macro_cats.metased
 
     # Figure out how many data points weren't matched
     known_rocks = macro_cats.sed .| macro_cats.ign .| macro_cats.met
@@ -214,7 +217,7 @@
 
 
 ## --- Create HDF5 file to store results
-    fid = h5open("output/rwf_output5.h6", "w")
+    fid = h5open("output/rwf_output6.h5", "w")
 
     # Metadata
     write(fid, "element_names", strbiglist)                           # Names of analyzed elements
@@ -255,7 +258,7 @@
     # TO DO: make this into a measurement type
     bulkflux = Dict(zip(subcats, fill(NaN, length(subcats))))
     for i in subcats
-        bulkflux[i] = erosion[i] * crustal_area[i] * crustal_density* 1e-6
+        bulkflux[i] = erosion[i] * crustal_area[i] * crustal_density * 1e-6
     end
     bulkflux = NamedTuple{Tuple(keys(bulkflux))}(values(bulkflux))
 
@@ -267,24 +270,25 @@
         # bulkflux_std[i] = bulkflux[sub_i].err
     end
 
+
 ## --- DEBUGGING: Total flux of minor rock types should be less than flux of major types
     # minorsed_flux = 0.0
     # for i in minorsed
-    #     minorsed_flux += crustal_area[i]
+    #     minorsed_flux += bulkflux[i]
     # end
-    # @assert minorsed_flux < crustal_area.sed
+    # @assert minorsed_flux < bulkflux.sed
 
     # minorign_flux = 0.0
     # for i in minorign
-    #     minorign_flux += crustal_area[i]
+    #     minorign_flux += bulkflux[i]
     # end
-    # @assert minorign_flux < crustal_area.ign
+    # @assert minorign_flux < bulkflux.ign
 
     # minormet_flux = 0.0
     # for i in minormet
-    #     minormet_flux += crustal_area[i]
+    #     minormet_flux += bulkflux[i]
     # end
-    # @assert minormet_flux < crustal_area.met
+    # @assert minormet_flux < bulkflux.met
 
 
 ## --- Calculate flux by element / element oxide

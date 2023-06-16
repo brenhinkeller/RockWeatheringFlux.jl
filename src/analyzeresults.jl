@@ -56,7 +56,7 @@
     globalelem = NamedTuple{Tuple(Symbol.(elems))}(globalelem)
 
 
-## --- Flux (kg/yr) for each element by rocktype
+## --- Flux (kg/yr) for each element by rock type
     # Preallocate
     blank = Dict(zip(Symbol.(elems), fill(NaN ± NaN, length(elems))))
     blanktuple = NamedTuple{Tuple(keys(blank))}(values(blank))
@@ -70,6 +70,7 @@
         for j in eachindex(elems)
             flux[Symbol(elems[j])] = read(path["flux_val"])[j] ± read(path["flux_std"])[j]
         end
+
         flux_cats[Symbol(rocks[i])] = NamedTuple{Tuple(keys(flux))}(values(flux))
     end
     flux_cats = NamedTuple{Tuple(keys(flux_cats))}(values(flux_cats))
@@ -77,8 +78,27 @@
     # File will not be used anymore
     close(res)
 
-    
-## ---
+
+## --- Relative flux (fraction) for each element by rock type
+    # Preallocate
+    relative_cats = Dict(zip(Symbol.(rocks), fill(blanktuple, length(rocks))))
+
+    # Relative contribution is the absolute by rock type over the absolute global flux
+    for i in eachindex(rocks)
+        flux = blank
+        rock = Symbol(rocks[i])     # Cannot assume element order!
+
+        for j in eachindex(elems)
+            element = Symbol(elems[j])
+            flux[element] = flux_cats[rock][element] / globalelem[element]
+        end
+
+        relative_cats[Symbol(rocks[i])] = NamedTuple{Tuple(keys(flux))}(values(flux))
+    end
+    relative_cats = NamedTuple{Tuple(keys(relative_cats))}(values(relative_cats))
+
+
+## --- 
 
 
 ## --- TABLE: Flux by rocktype by element (Gt), ignoring error for now

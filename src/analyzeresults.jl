@@ -10,47 +10,75 @@
     # Local Utilities
     include("Utilities.jl")
 
-    # Load results
-    res = h5open("output/rwf_output3.h5", "r")
+    # Load results. Assume no change in element order during file save
+    res = h5open("output/rwf_output6.h5", "r")
+    rocks = read(res["bulkrockflux"]["rocktypes"])      # Names of rock subtypes
+    elems = read(res["element_names"])                  # Names of element / element oxides
 
-    # kg / Gt conversion
+    # kg / Gt conversion. File is in units of kg/yr
     const kg_gt = 1000000000000 # (kg/Gt)
 
 
-## --- Get data from HDF5 file into computer memory
-    # Organize rock types and element types for easy indexing
-    rocks = read(res["bulkrockflux"]["rocktypes"])
-    elems = read(res["element_names"])
+## --- Compute bulk flux without differentiating by element
+    # Load data into computer memory
+    bulkflux = read(res["bulkrockflux"]["val"]) .± read(res["bulkrockflux"]["std"])     # Currently no std.
+    bulkflux = NamedTuple{Tuple(Symbol.(rocks))}(bulkflux)
 
-    # Total flux for all rocks
-    # Note that we don't have variance for global flux--only comes from wt.% rn
-    netflux_bulk = read(res["bulkrockflux"]["val"]) .± read(res["bulkrockflux"]["std"])
-    netflux_bulk = NamedTuple{Tuple(Symbol.(rocks))}(netflux_bulk)
+    # Before passing GO... make sure the data was saved and loaded correctly
+    minorsed_flux = 0.0
+    for i in minorsed
+        minorsed_flux += bulkflux[i]
+    end
+    @assert minorsed_flux < bulkflux.sed
 
-    # Total global flux of each element
-    path = res["elementflux"]["totalelemflux"]
-    netflux_elem = read(path["val"]) .± read(path["std"])
-    netflux_elem = NamedTuple{Tuple(Symbol.(elems))}(netflux_elem)
+    minorign_flux = 0.0
+    for i in minorign
+        minorign_flux += bulkflux[i]
+    end
+    @assert minorign_flux < bulkflux.ign
 
-    # Flux and wt.% of each element by rocktype
-    flux_cats = Dict{Symbol, NamedTuple}()
-    wt_cats = Dict{Symbol, NamedTuple}()
+    minormet_flux = 0.0
+    for i in minormet
+        minormet_flux += bulkflux[i]
+    end
+    @assert minormet_flux < bulkflux.met
 
+    # Total global flux (denundation)
+    bulkglobalflux = (bulkflux.sed + bulkflux.ign + bulkflux.met) / kg_gt
+    @info "Total global denundation: $(round(bulkglobalflux, digits=2)) Gt/yr"
+
+
+
+## --- Total global flux (kg/yr) for each element
+    fluxpath = res["elementflux"]
+
+    globalelem = read(fluxpath["totalelemflux"]["val"]) .± read(fluxpath["totalelemflux"]["std"])
+    globalelem = NamedTuple{Tuple(Symbol.(elems))}(globalelem)
+
+
+## --- Flux (kg/yr) for each element by rocktype
+    # Preallocate
+    blank = Dict(zip(Symbol.(elems), fill(NaN ± NaN, length(elems))))
+    blanktuple = NamedTuple{Tuple(keys(blank))}(values(blank))
+    flux_cats = Dict(zip(Symbol.(rocks), fill(blanktuple, length(rocks))))
+    
+    # Calculate and store as a NamedTuple
     for i in eachindex(rocks)
-        local path = res["elementflux"]["byrocktype"][rocks[i]]
-        fluxelem = Dict{Symbol, Measurement{Float64}}()
-        wtelem = Dict{Symbol, Measurement{Float64}}()
+        path = fluxpath["byrocktype"][rocks[i]]
+        flux = blank
 
         for j in eachindex(elems)
-            fluxelem[Symbol(elems[j])] = read(path["flux_val"])[j] ± read(path["flux_std"])[j]
-            wtelem[Symbol(elems[j])] = read(path["wtpct_val"])[j] ± read(path["wtpct_std"])[j]
+            flux[Symbol(elems[j])] = read(path["flux_val"])[j] ± read(path["flux_std"])[j]
         end
-        flux_cats[Symbol(rocks[i])] = NamedTuple{Tuple(keys(fluxelem))}(values(fluxelem))
-        wt_cats[Symbol(rocks[i])] = NamedTuple{Tuple(keys(wtelem))}(values(wtelem))
+        flux_cats[Symbol(rocks[i])] = NamedTuple{Tuple(keys(flux))}(values(flux))
     end
     flux_cats = NamedTuple{Tuple(keys(flux_cats))}(values(flux_cats))
-    wt_cats = NamedTuple{Tuple(keys(wt_cats))}(values(wt_cats))
+
+    # File will not be used anymore
     close(res)
+
+    
+## ---
 
 
 ## --- TABLE: Flux by rocktype by element (Gt), ignoring error for now
@@ -78,8 +106,8 @@
     writedlm("output/flux_relativecontrib.csv", bigmatrix)
 
 
-## --- Calculate total global denundation rate!
-    bulkglobalflux = (netflux_bulk.sed + netflux_bulk.ign + netflux_bulk.met) / kg_gt
+
+    
 
     
 ## --- Calculate P provenance

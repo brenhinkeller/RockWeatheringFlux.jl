@@ -70,8 +70,8 @@
     end
 
     # Make sure crystalline rocks are only igneous and non-metased metamorphic rocks
-    macro_cats.cryst .&= .! (macro_cats.sed .& macro_cats.cover)
-    macro_cats.cryst .&= .! macro_cats.metased
+    macro_cats.cryst .= (macro_cats.ign .| macro_cats.met)
+    macro_cats.cryst .&= .! (macro_cats.sed .| macro_cats.cover .| macro_cats.metased)
 
     # Figure out how many data points weren't matched
     known_rocks = macro_cats.sed .| macro_cats.ign .| macro_cats.met

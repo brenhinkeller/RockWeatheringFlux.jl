@@ -869,11 +869,7 @@
         elem::String="")
 
         # Preallocate
-        allkeys = (:siliciclast, :shale, :carb, :chert, :evaporite, :coal, :sed,
-            :volc, :plut, :ign,
-            :metased, :metaign, :met,
-            :cryst
-        )
+        allkeys = keys(macro_cats)
         allinitvals = fill(NaN ± NaN, length(allkeys))
         npoints = length(bulkidx)
 
@@ -888,7 +884,7 @@
 
         # Find how many samples have data for the element of interest
         n = length(findall(!isnan, bulkdata))
-        @info "$n of $npoints $elem samples ($(round(n/npoints*100, sigdigits=1))%) are not NaN"
+        @info "$n of $npoints $elem samples ($(round(n/npoints*100, sigdigits=3))%) are not NaN"
 
         # Calculate average wt.% for each rock type
         for i in keys(wt)
@@ -901,9 +897,34 @@
             flux[i] = erosion[i] * crustal_area[i] * wt[i] * crustal_density* 1e-8
         end
         flux = NamedTuple{Tuple(keys(flux))}(values(flux))
-        global_flux = nanadd(nanadd(flux.sed, flux.ign), flux.met)
+
+        # Compute global flux
+        global_flux = nansum([flux.sed, flux.ign, flux.met])
 
         return wt, flux, global_flux, n
+    end
+
+
+## --- Versions of nanadd and nansum that can handle the measurement type
+    # Modified from NaNStatistics.jl (I think this is type piracy?)
+    function NaNStatistics.nanadd(a::Measurement, b::Measurement)
+        return (a.val*(a.val==a.val) + b.val*(b.val==b.val)) ± (a.err*(a.err==a.err) + b.val*(b.err==b.err))
+    end
+
+    # Note that this doesn't support the dims keyword. I'm also not sure if this is the best
+    # method to modify. This is restricted just to Float64s right now because I have yet to 
+    # find a supertype for the AbstractArray{Measurement{Float64}} type. Inb4 AbstractArray{Measurement}
+    # doesn't work.
+    function NaNStatistics.nansum(A::AbstractArray{Measurement{Float64}})
+        Tₒ = Base.promote_op(+, eltype(A), Int)
+        Σ = ∅ = zero(Tₒ)
+        @inbounds for i ∈ eachindex(A)
+            Aᵢ = A[i]
+            notnan_val = Aᵢ.val==Aᵢ.val
+            notnan_err = Aᵢ.err==Aᵢ.err
+            Σ += ifelse(notnan_val, Aᵢ.val, ∅.val) ± ifelse(notnan_err, Aᵢ.err, ∅.err)
+        end
+        return Σ
     end
 
 

@@ -1,12 +1,12 @@
 ## --- Load external packages
     using StatGeochem           # Used for slope
-    using Plots; gr();          # Commented out
+    # using Plots; gr();          # Commented out
     using ProgressMeter         # Used for slope
     using Statistics            # Used for slope
-    using DelimitedFiles
-    using SpecialFunctions
+    # using DelimitedFiles
+    # using SpecialFunctions
     using JLD                   # Used for slope
-    using NetCDF
+    # using NetCDF
     using LsqFit: curve_fit     # Used for slope
     using HDF5                  # Used for slope
 
@@ -33,6 +33,7 @@
 ## --- Calculate slope for each basin
     @info "Calculating slope for each basin"
 
+    # Note--this is the thing that takes an hour
     srtm = h5read("data/srtm15plus_aveslope.h5","vars/")
     basin_srtm15plus_aveslope = get_basin_srtm15plus_aveslope(srtm, nbasins, subbasins, 
         basin_polygon_lat, basin_polygon_lon
@@ -50,8 +51,8 @@
 
 
 ## --- Alternatively, load pregenerated slope data for each basin
-    # @info "Loading basin slope data"
-    # basin_srtm15plus_aveslope_2 =  load("data/OCTOPUS_basin_aveslope.jld")["basin_srtm15plus_aveslope"]
+    @info "Loading basin slope data"
+    basin_srtm15plus_aveslope_2 =  load("data/OCTOPUS_basin_aveslope.jld")["basin_srtm15plus_aveslope"]
 
 ## --- Fit raw erosion rate as a function of slope (m/km)
     @info "Fitting erosion / slope curve"

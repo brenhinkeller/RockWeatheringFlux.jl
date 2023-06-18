@@ -703,6 +703,21 @@
 
 
 ## --- Correct units to wt.%
+    """
+    ```julia
+    standardize_units!(bulkdata::AbstractArray{Float64}, bulkunits::AbstractArray{String}, 
+        density::NamedTuple;
+        elem::Symbol
+    )
+    ```
+
+    Modify data `bulkdata` with units `bulkunits` so all data is in units of wt.%. 
+    
+    Samples without listed units are assumed to be reported with the most commonly used 
+    known unit for that data set. Requires the density of some element oxides where units 
+    are sometimes stored as vol.%. The key `elem` is used to identify the correct element
+    density.
+    """
     function standardize_units!(bulkdata::AbstractArray{Float64}, bulkunits::AbstractArray{String}, 
         density::NamedTuple;
         elem::Symbol
@@ -869,7 +884,9 @@
         elem::String="")
 
         # Preallocate
-        allkeys = keys(macro_cats)
+        allkeys = collect(keys(macro_cats))
+        deleteat!(allkeys, findall(x->x==:cover,allkeys))       # Do not compute cover
+
         allinitvals = fill(NaN ± NaN, length(allkeys))
         npoints = length(bulkidx)
 
@@ -887,6 +904,7 @@
         @info "$n of $npoints $elem samples ($(round(n/npoints*100, sigdigits=3))%) are not NaN"
 
         # Calculate average wt.% for each rock type
+        # TO DO: Maybe set no data to 0 instead of NaN? Would require re-writing a bit...
         for i in keys(wt)
             wt[i] = nanmean(bulkdata[macro_cats[i]]) ± nanstd(bulkdata[macro_cats[i]])
         end

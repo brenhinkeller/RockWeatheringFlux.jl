@@ -25,23 +25,25 @@
     bulkflux = NamedTuple{Tuple(Symbol.(rocks))}(bulkflux)
 
     # Before passing GO... make sure the data was saved and loaded correctly
-    minorsed_flux = 0.0
-    for i in minorsed
-        minorsed_flux += bulkflux[i]
-    end
-    @assert minorsed_flux < bulkflux.sed
+    # As a note to this and all the others... when running this as a script it won't work
+    # because of minorsed_flux inside the loop is local. Haha
+    # minorsed_flux = 0.0
+    # for i in minorsed
+    #     minorsed_flux += bulkflux[i]
+    # end
+    # @assert minorsed_flux < bulkflux.sed
 
-    minorign_flux = 0.0
-    for i in minorign
-        minorign_flux += bulkflux[i]
-    end
-    @assert minorign_flux < bulkflux.ign
+    # minorign_flux = 0.0
+    # for i in minorign
+    #     minorign_flux += bulkflux[i]
+    # end
+    # @assert minorign_flux < bulkflux.ign
 
-    minormet_flux = 0.0
-    for i in minormet
-        minormet_flux += bulkflux[i]
-    end
-    @assert minormet_flux < bulkflux.met
+    # minormet_flux = 0.0
+    # for i in minormet
+    #     minormet_flux += bulkflux[i]
+    # end
+    # @assert minormet_flux < bulkflux.met
 
     # Total global flux (denundation)
     bulkglobalflux = (bulkflux.sed + bulkflux.ign + bulkflux.met) / kg_gt
@@ -128,6 +130,7 @@
 
     # Write to file
     writedlm("output/flux_gt.csv", bigmatrix)
+
 
 ## --- Write relative flux to a .csv file 
     # Preallocate

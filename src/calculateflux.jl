@@ -213,7 +213,7 @@
 
     npoints = length(macrostrat.rocktype)
     subcats = collect(allkeys)
-    deleteat!(subcats, findall(x->x==:cover,subcats))                 # We don't want to compute cover
+    deleteat!(subcats, findall(x->x==:cover,subcats))       # Do not compute cover
 
 
 ## --- Create HDF5 file to store results

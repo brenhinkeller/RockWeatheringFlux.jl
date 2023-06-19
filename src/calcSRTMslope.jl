@@ -1,13 +1,14 @@
-## --- Load packages we'll be using and load the SRTM15+ dataset
+## --- Set up
+    # Packages
     using StatGeochem
     using HDF5
     using Dates
 
     # Get SRTM15+ file
-    @info "Loading SRTM\n"
+    @info "Loading SRTM"
     srtm = get_srtm15plus()
 
-    # Calculate the maximum slope for each point in the data set
+## --- Calculate maximum slope and save data set
     @info "Calculating slope. This may take up to 30 minutes. Started $(Dates.format(now(), "HH:MM"))"
     slope = maxslope(srtm["elevation"], srtm["x_lon_cntr"], srtm["y_lat_cntr"], srtm["cellsize"], minmatval=-12000)
 
@@ -23,9 +24,11 @@
     g["cellsize"] = srtm["cellsize"]
     g["scalefactor"] = srtm["scalefactor"]
 
-    # Add a data set for slope and compress data
-    @time g["slope", compress=3] = slope    # Takes about 2.5 minutes
+    # Add a data set for slope and compress data (Takes about 2.5 minutes)
+    @time g["slope", compress=3] = slope
     close(fid)
+
+## --- End of file
 
 
 

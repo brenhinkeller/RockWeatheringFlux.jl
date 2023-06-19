@@ -45,7 +45,7 @@
     # Densify the sparse unit arrays, correct for zero-indexing and Float64 type
     for k in keys(bulktext.unit)
         bulktext.unit[k] = collect(bulktext.unit[k])
-        bulktext.unit[k] .+= 1.
+        bulktext.unit[k] .+= 1.0
         bulktext.unit[k] = Int.(bulktext.unit[k])
     end
 

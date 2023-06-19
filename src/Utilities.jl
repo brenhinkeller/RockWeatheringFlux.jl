@@ -922,16 +922,11 @@
     end
 
 
-## --- Versions of nanadd and nansum that can handle the measurement type
-    # Modified from NaNStatistics.jl (I think this is type piracy?)
+## --- New methods for adding Measurements with NaN values
     function NaNStatistics.nanadd(a::Measurement, b::Measurement)
         return (a.val*(a.val==a.val) + b.val*(b.val==b.val)) ± (a.err*(a.err==a.err) + b.val*(b.err==b.err))
     end
 
-    # Note that this doesn't support the dims keyword. I'm also not sure if this is the best
-    # method to modify. This is restricted just to Float64s right now because I have yet to 
-    # find a supertype for the AbstractArray{Measurement{Float64}} type. Inb4 AbstractArray{Measurement}
-    # doesn't work.
     function NaNStatistics.nansum(A::AbstractArray{Measurement{Float64}})
         Tₒ = Base.promote_op(+, eltype(A), Int)
         Σ = ∅ = zero(Tₒ)

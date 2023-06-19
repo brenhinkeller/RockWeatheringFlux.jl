@@ -11,10 +11,10 @@
     using HDF5                  # Used for slope
 
     # Local utilities
-    include("OCTOPUS_utilities.jl")     # TO DO: re-organize utilities files and give these better names
+    include("utilities_slope.jl")
 
 
-## --- Load and parse the OCTOPUS kml file
+## --- Get OCTOPUS basin polygon outlines
     @info "Loading OCTOPUS data"
 
     # Decompress, load, and recompress 
@@ -26,17 +26,21 @@
     data = parse_octopus_kml_variables(str)
     exportdataset(data,"output/octopusdata.tsv",'\t')
 
-    # Get basin polygon outlines
+    # Get basin polygons
     (basin_polygon_n, basin_polygon_lat, basin_polygon_lon) = parse_octopus_polygon_outlines(str,isfirstcoord)
 
 
 ## --- Calculate slope for each basin
     @info "Calculating slope for each basin"
 
-    # Note--this is the thing that takes an hour
-    srtm = h5read("data/srtm15plus_aveslope.h5","vars/")
-    basin_srtm15plus_aveslope = get_basin_srtm15plus_aveslope(srtm, nbasins, subbasins, 
-        basin_polygon_lat, basin_polygon_lon
+    # Load and parse data
+    # Should switch this to max slope, then get average max slope for each basin
+    srtm = h5open("data/srtm15plus_aveslope.h5", "r")     
+    srtm = read(srtm["vars"])
+    srtm = NamedTuple{Tuple(Symbol.(keys(srtm)))}(values(srtm))
+
+    basin_srtm15plus_aveslope = get_basin_srtm15plus_aveslope(srtm.slope, srtm.x_lon_cntr, 
+        srtm.y_lat_cntr, nbasins, subbasins, basin_polygon_lat, basin_polygon_lon
     )
 
     # Slope can be loaded from here instead of calculating everything again
@@ -54,6 +58,7 @@
     @info "Loading basin slope data"
     basin_srtm15plus_aveslope_2 =  load("data/OCTOPUS_basin_aveslope.jld")["basin_srtm15plus_aveslope"]
 
+    
 ## --- Fit raw erosion rate as a function of slope (m/km)
     @info "Fitting erosion / slope curve"
         
@@ -68,11 +73,11 @@
     p = [0.5, 1/100]
     fobj = curve_fit(linear, x, y, p)
 
-    mse = mean(fobj.resid .^ 2)         # Mean-square error         0.30764514536299076
-    ssr = sum((fobj.resid) .^ 2)        # Sum squared regression    984.4644651615704
-    ybar = nanmean(y)                   # Mean                      1.7771592362257302
-    sst = sum((y .- ybar) .^ 2)         # Total sum of squares      1626.2293532703075
-    r2 = 1 - (ssr/sst)                  # r^2 value                 0.39463368854962777        
+    # mse = mean(fobj.resid .^ 2)         # Mean-square error         0.30764514536299076
+    # ssr = sum((fobj.resid) .^ 2)        # Sum squared regression    984.4644651615704
+    # ybar = nanmean(y)                   # Mean                      1.7771592362257302
+    # sst = sum((y .- ybar) .^ 2)         # Total sum of squares      1626.2293532703075
+    # r2 = 1 - (ssr/sst)                  # r^2 value                 0.39463368854962777        
 
     # My parameters are different?
     # Not adding this to the utilities document because I need to figure out a way to get this to

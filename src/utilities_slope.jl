@@ -67,6 +67,7 @@
         return str, isfirstcoord, nbasins, subbasins
     end
 
+
 ## --- Parse the file
     """
     ```julia
@@ -112,6 +113,7 @@
         return data
     end
 
+
 ## --- Parse the basin polygon outlines
     """
     ```julia
@@ -144,29 +146,32 @@
         return basin_polygon_n, basin_polygon_lat, basin_polygon_lon
     end
 
-## --- Calculate slope for each basin
+
+## --- Calculate average slope for each basin
     """
     ```julia
     get_basin_srtm15plus_aveslope(srtm::Dict,nbasins,subbasins,basin_polygon_lat,basin_polygon_lon)
     ```
 
-    Calculate average slope of each basin using STRTM15+ `srtm` data.
+    Calculate average slope of each basin using STRTM15+ `slope`, latitude `y_lat_cntr`, 
+    longitude `x_lon_cntr`.
     """
-    function get_basin_srtm15plus_aveslope(srtm::Dict,nbasins,subbasins,basin_polygon_lat,basin_polygon_lon)
-        # For the future, maybe I want this to be max slope instead of avg.?
-        slope = srtm["slope"]
-        x_lon_cntr = srtm["x_lon_cntr"]
-        y_lat_cntr = srtm["y_lat_cntr"]
-
-        basin_srtm15plus_aveslope = Array{Float64}(undef, nbasins)
-        basin_N = Array{Int64}(undef, nbasins)
+    function get_basin_srtm15plus_aveslope(slope, x_lon_cntr, y_lat_cntr,
+        nbasins, subbasins, basin_polygon_lat, basin_polygon_lon)
 
         p = Progress(nbasins, desc = "Calculating basin slope:")
+
+        # Preallocate
+        basin_srtm15plus_aveslope = Array{Float64}(undef, nbasins)
+        basin_N = Array{Int64}(undef, nbasins)
+        
+        # Average slope of each basin
         for i = 1:nbasins
             # Preallocate
             rowsinbasin = Array{Int}(undef, 0)
             columnsinbasin = Array{Int}(undef, 0)
 
+            # Indices of SRTM15+ grid points in each subbasin
             for j = 1:length(subbasins[i])
                 k = subbasins[i][j]
                 subbasin_lon = basin_polygon_lon[k]
@@ -176,6 +181,7 @@
                 columnsinbasin = vcat(columnsinbasin,column)
             end
 
+            # Slopes of SRTM15+ grid points in basin i
             pointsinbasin = unique(hcat(rowsinbasin,columnsinbasin),dims=1);
             basin_slopes = Array{UInt16}(undef, length(rowsinbasin))
             for j=1:size(pointsinbasin,1)
@@ -193,7 +199,8 @@
         return basin_srtm15plus_aveslope
     end
 
-## --- Cutve fitting functions for slope / erosion rate
+
+## --- Curve fitting functions for slope / erosion rate
     """
     ```julia
     linear(x,p)
@@ -243,7 +250,7 @@
 
         # Download HDF5 file from Google Cloud if necessary
         if ~isfile(filepath)
-            print("Downloading srtm15plus.h5 from google cloud storage\n")
+            @info "Downloading srtm15plus.h5 from google cloud storage\n"
             download("https://storage.googleapis.com/statgeochem/srtm15plus_aveslope.h5", filepath)
         end
 

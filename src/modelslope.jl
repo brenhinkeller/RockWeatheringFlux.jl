@@ -1,14 +1,12 @@
-## --- Load external packages
-    using StatGeochem           # Used for slope
-    # using Plots; gr();          # Commented out
-    using ProgressMeter         # Used for slope
-    using Statistics            # Used for slope
-    # using DelimitedFiles
-    # using SpecialFunctions
-    using JLD                   # Used for slope
-    # using NetCDF
-    using LsqFit: curve_fit     # Used for slope
-    using HDF5                  # Used for slope
+## --- Set up
+    # Packages
+    using StatGeochem
+    using ProgressMeter
+    using Statistics
+    using LsqFit: curve_fit
+    using HDF5
+    using Measurements
+    using DelimitedFiles
 
     # Local utilities
     include("utilities_slope.jl")
@@ -34,29 +32,24 @@
     @info "Calculating slope for each basin"
 
     # Load and parse data
-    # Should switch this to max slope, then get average max slope for each basin
-    srtm = h5open("data/srtm15plus_aveslope.h5", "r")     
+    srtm = h5open("data/srtm15plus_aveslope.h5", "r")           # Max slope?
     srtm = read(srtm["vars"])
     srtm = NamedTuple{Tuple(Symbol.(keys(srtm)))}(values(srtm))
 
-    basin_srtm15plus_aveslope = get_basin_srtm15plus_aveslope(srtm.slope, srtm.x_lon_cntr, 
-        srtm.y_lat_cntr, nbasins, subbasins, basin_polygon_lat, basin_polygon_lon
+    # Expected runtime ~[X] hrs
+    @timev basin_srtm15plus_aveslope = get_basin_srtm15plus_aveslope(srtm, nbasins, subbasins, 
+        basin_polygon_lat, basin_polygon_lon
     )
 
-    # Slope can be loaded from here instead of calculating everything again
-    # Renamed from OctopusSlopeRecalc.jld
-    save("data/OCTOPUS_basin_aveslope_new.jld","basin_srtm15plus_aveslope",basin_srtm15plus_aveslope,
-        "basin_polygon_n",basin_polygon_n,"basin_polygon_lat",basin_polygon_lat,
-        "basin_polygon_lon",basin_polygon_lon, "subbasins",subbasins
-    )
-
-    # Alternatively, loading from this file is about 20x faster
-    # save("data/basin_srtm15plus_aveslope.jld","basin_srtm15plus_aveslope",basin_srtm15plus_aveslope)
+    # Save file
+    header = ["avg_slope" "err"]
+    data = hcat(basin_srtm15plus_aveslope, basin_srtm15plus_aveslope)       # Change this to the error values later
+    writedlm("data/basin_srtm15plus_aveslope.tsv", vcat(header, data))
 
 
 ## --- Alternatively, load pregenerated slope data for each basin
     @info "Loading basin slope data"
-    basin_srtm15plus_aveslope_2 =  load("data/OCTOPUS_basin_aveslope.jld")["basin_srtm15plus_aveslope"]
+    basin_srtm15plus_aveslope = importdataset("data/basin_srtm15plus_aveslope.tsv", '\t', importas=:Tuple)
 
     
 ## --- Fit raw erosion rate as a function of slope (m/km)
@@ -72,16 +65,6 @@
 
     p = [0.5, 1/100]
     fobj = curve_fit(linear, x, y, p)
-
-    # mse = mean(fobj.resid .^ 2)         # Mean-square error         0.30764514536299076
-    # ssr = sum((fobj.resid) .^ 2)        # Sum squared regression    984.4644651615704
-    # ybar = nanmean(y)                   # Mean                      1.7771592362257302
-    # sst = sum((y .- ybar) .^ 2)         # Total sum of squares      1626.2293532703075
-    # r2 = 1 - (ssr/sst)                  # r^2 value                 0.39463368854962777        
-
-    # My parameters are different?
-    # Not adding this to the utilities document because I need to figure out a way to get this to
-    # talk to the flux code and if I want things to recalculate each time... TO DO
 
     # fobj.param[1]: 0.987237
     # fobj.param[2]: 0.00555159

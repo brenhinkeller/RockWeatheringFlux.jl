@@ -153,16 +153,23 @@
     get_basin_srtm15plus_aveslope(srtm::Dict,nbasins,subbasins,basin_polygon_lat,basin_polygon_lon)
     ```
 
-    Calculate average slope of each basin using STRTM15+ `slope`, latitude `y_lat_cntr`, 
-    longitude `x_lon_cntr`.
+    Calculate average slope and standard deviation of each basin using the STRTM15+ DEM.
     """
-    function get_basin_srtm15plus_aveslope(slope, x_lon_cntr, y_lat_cntr,
+    function get_basin_srtm15plus_aveslope(srtm::NamedTuple,
         nbasins, subbasins, basin_polygon_lat, basin_polygon_lon)
 
-        p = Progress(nbasins, desc = "Calculating basin slope:")
+        # Define variables
+        slope = srtm.slope
+        x_lon_cntr = srtm.x_lon_cntr
+        y_lat_cntr = srtm.y_lat_cntr
+
+        # Initialize progress bar
+        p = Progress(nbasins+1, desc = "Calculating basin slope:")
+        next!(p)
 
         # Preallocate
-        basin_srtm15plus_aveslope = Array{Float64}(undef, nbasins)
+        basinslope_avg = Array{Float64}(undef, nbasins)
+        basinslope_err = Array{Float64}(undef, nbasins)
         basin_N = Array{Int64}(undef, nbasins)
         
         # Average slope of each basin
@@ -189,14 +196,15 @@
             end
 
             # Average all the slopes
-            basin_srtm15plus_aveslope[i] = mean(basin_slopes)
+            basinslope_avg[i] = mean(basin_slopes)
+            basinslope_err[i] = std(basin_slopes)
             basin_N[i] = length(basin_slopes)
 
             # Bump progress meter
             next!(p)
         end
 
-        return basin_srtm15plus_aveslope
+        return basinslope_avg, basinslope_err
     end
 
 
@@ -210,18 +218,20 @@
         y = p[1] .+ x * p[2]
     end
 
+
 ## --- Calculate precipitation
     """
     ```julia
-    find_precip(lat,lon)
+    find_precip(lat::AbstractArray, lon::AbstractArray, precip::AbstractMatrix)
     ```
-    for each basin? or each coordinate?
+    
+    Find the precipitation at the coordinates `lat` and `lon`.
     """
-    function find_precip(lat,lon)
-        prate = ncread("data/prate.sfc.mon.ltm.nc","prate")
-        precip = mean(prate, dims=3)[:,:,1]
-
+    function find_precip(lat::AbstractArray, lon::AbstractArray, precip::AbstractMatrix)
+        # Preallocate
         out = Array{Float64}(undef,size(lat))
+
+        # Index into the correct position in the precipitation array
         for i=1:length(lat)
             if isnan(lat[i]) || isnan(lon[i]) || lat[i] > 88.542 || lat[i] < -88.542
                 out[i] = NaN

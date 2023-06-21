@@ -7,6 +7,8 @@
     using HDF5
     using Measurements
     using DelimitedFiles
+    using Plots
+    using NetCDF
 
     # Local utilities
     include("utilities_slope.jl")
@@ -31,14 +33,14 @@
     end
     octopusdata = NamedTuple{Tuple(Symbol.(keys(octopusdata)))}(values(octopusdata))
 
-    # Get basin polygons
-    (basin_polygon_n, basin_polygon_lat, basin_polygon_lon) = parse_octopus_polygon_outlines(str,isfirstcoord)
-
 
 ## --- Calculate slope for each basin
     @info "Calculating slope for each basin"
 
-    # Load and parse data 
+    # Get basin polygons
+    (basin_polygon_n, basin_polygon_lat, basin_polygon_lon) = parse_octopus_polygon_outlines(str,isfirstcoord)
+
+    # Load and parse SRTM15+ data 
     # srtm = h5open("data/srtm15plus_aveslope.h5", "r")
     srtm = h5open("data/srtm15plus_maxslope.h5", "r")
     srtm = read(srtm["vars"])
@@ -51,12 +53,16 @@
 
     # Save file
     header = ["avg_slope" "err"]
-    writedlm("data/basin_srtm15plus_aveslope.tsv", vcat(header, hcat(avgslope, stdslope)))
+    writedlm("data/basin_srtm15plus_avg_maxslope.tsv", vcat(header, hcat(avgslope, stdslope)))
+
+    # File names:
+        # basin_srtm15plus_avg_maxslope -> average of maximum slopes of each point in basin
+        # basin_srtm15plus_aveslope     -> average of average slopes of each point in the basin
 
 
 ## --- Alternatively, load pregenerated slope data for each basin
     @info "Loading basin slope data"
-    basin_srtm = importdataset("data/basin_srtm15plus_aveslope.tsv", '\t', importas=:Tuple)
+    basin_srtm = importdataset("data/basin_srtm15plus_avg_maxslope.tsv", '\t', importas=:Tuple)
 
     
 ## --- Fit raw erosion rate as a function of slope (m/km)
@@ -80,31 +86,68 @@
         return 10^(slp * (fobj.param[2]) + (fobj.param[1]))
     end
 
-
+    # Parameters using maximum slope:
+        # 1.0631462800868299
+        # 0.003687823054086418
+    
 ## --- Plot results
-    # # Ideally instead of a line the model would be a ribbon to show error values
-    # h = scatter(basin_srtm15plus_aveslope,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", msc=:auto, color=:blue)
-    # scatter!(h, basin_srtm15plus_aveslope,octopusdata.eal_mmkyr, label="OCTOPUS Al-26 data", msc=:auto, color=:orange)
-    # plot!(h, 1:500, emmkyr.(1:500), label = "E = 10^(0.056) + 1.00", width=3, color=:black, fg_color_legend=:white)
-    # plot!(xlabel="SRTM15 Slope (m/km)", ylabel="Erosion rate (mm/kyr)", yscale=:log10, legend=:topleft, framestyle=:box)
-    # savefig(h, "slopeerosion.pdf")
+    # Ideally instead of a line the model would be a ribbon to show error values
+    h = scatter(basin_srtm.avg_slope,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", msc=:auto, color=:blue)
+    scatter!(h, basin_srtm.avg_slope,octopusdata.eal_mmkyr, label="OCTOPUS Al-26 data", msc=:auto, color=:orange)
+    plot!(h, 1:500, emmkyr.(1:500), label = "E = 10^(0.056) + 1.00", width=3, color=:black, fg_color_legend=:white)
+    plot!(xlabel="SRTM15 Slope (m/km)", ylabel="Erosion rate (mm/kyr)", yscale=:log10, legend=:topleft, framestyle=:box)
+    savefig(h, "slopeerosion_avg.pdf")
 
 
-## --- Calculate precipitation for each basin
-    # @info "Calculating basin precipitation"
+## --- Calculate precipitation and runoff for each basin
+    @info "Calculating basin precipitation"
 
-    # prate = ncread("data/prate.sfc.mon.ltm.nc","prate")
-    # lat = ncread("data/prate.sfc.mon.ltm.nc","lat")
-    # lon = ncread("data/prate.sfc.mon.ltm.nc","lon")
+    precip = ncread("data/prate.sfc.mon.ltm.nc","prate")
+    precip = mean(precip, dims=3)[:,:,1]
+    basin_precip = find_precip(octopusdata.y_wgs84, octopusdata.x_wgs84, precip)
 
-    # precip = mean(prate, dims=3)[:,:,1]
-    # imsc(collect(precip'), viridis)
-
-    # data["precip"] = find_precip(data["y_wgs84"],data["x_wgs84"])
+    runoff = ncread("data/runof.sfc.mon.ltm.nc", "runof")
+    runoff = mean(runoff, dims=3)[:,:,1]
+    basin_runoff = find_precip(octopusdata.y_wgs84, octopusdata.x_wgs84, runoff)
 
     # # Test find_precip to make sure it's not flipped
+    # imsc(collect(precip'), viridis)
     # lat = repeat(-90:90,1,361)
     # lon = repeat((-180:180)',181,1)
     # imsc(find_precip(lat,lon),viridis)
+
+
+## --- See if adding in a precipitation term makes this work any better
+    # New x term
+    newx = @. basin_srtm.avg_slope      # No precipitation term because not really working
+
+    # Be data
+    t = .!isnan.(newx) .& .!isnan.(octopusdata.ebe_mmkyr) .& (basin_srtm.avg_slope .< 300)
+    x = newx[t]
+    y = log10.(octopusdata.ebe_mmkyr[t])
+
+    # Al data
+    t = .!isnan.(newx) .& .!isnan.(octopusdata.eal_mmkyr) .& (basin_srtm.avg_slope .< 300)
+    x = append!(x, newx[t])
+    y = append!(y, log10.(octopusdata.eal_mmkyr[t]))
+
+    # Fit curve
+    p = [0.5, 1/100]
+    fobj = curve_fit(linear, x, y, p)
+
+    function newemmkyr(slp)
+        return 10^(slp * (fobj.param[2]) + (fobj.param[1]))
+    end
+
+    # Plot
+    modellow = round(nanminimum(newx), sigdigits=2)
+    modelhigh = round(nanmaximum(newx), sigdigits=2)
+    modrng = range(start=modellow, stop=modelhigh, length=50)
+
+    h = scatter(newx,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", msc=:auto, color=:blue)
+    scatter!(h, newx,octopusdata.eal_mmkyr, label="OCTOPUS Al-26 data", msc=:auto, color=:orange)
+    plot!(h, modrng, newemmkyr.(modrng), label = "E = 10^(0.056) + 1.00", width=3, color=:black, fg_color_legend=:white)
+    plot!(xlabel="SRTM15 Slope (m/km)", ylabel="Erosion rate (mm/kyr)", yscale=:log10, legend=:topleft, framestyle=:box)
+    savefig(h, "modeltest.pdf")
 
 ## --- End of file

@@ -3,7 +3,6 @@
     using StatGeochem
     using ProgressMeter
     using Statistics
-    # using LsqFit: curve_fit
     using HDF5
     using Measurements
     using DelimitedFiles
@@ -91,12 +90,10 @@
     yerr = append!(yerr, zeronan!(log10.(octopusdata.eal_err[t])))
 
     # Fit curve
-    # In theory, couldn't we use margin_error and confidence_interval?
-    # p = [0.5, 1/100]
-    # fobj = curve_fit(linear, xval, yval, p)
-    
+    # a, b = linreg(xval, yval)
+
     # function emmkyr(slp)
-    #     return 10^(slp * (fobj.param[2]) + (fobj.param[1]))
+    #     return 10^(slp * b + a)
     # end
 
     fobj = yorkfit(xval, xerr, yval, yerr)

@@ -3,7 +3,6 @@
     using StatGeochem
     using ProgressMeter
     using Statistics
-    # using LsqFit: curve_fit
     using HDF5
     using Measurements
     using DelimitedFiles
@@ -61,8 +60,9 @@
         # basin_srtm15plus_aveslope     -> average of average slopes of each point in the basin
 
 
-## --- Alternatively, load pregenerated slope data for each basin
-    @info "Loading basin slope data"
+## --- Alternatively, load pregenerated OCTOPUS and slope data for each basin
+    @info "Loading pre-parsed OCTOPUS and basin slope data"
+    octopusdata = importdataset("output/octopusdata.tsv",'\t', importas=:Tuple)
     basin_srtm = importdataset("data/basin_srtm15plus_avg_maxslope.tsv", '\t', importas=:Tuple)
 
     
@@ -90,12 +90,10 @@
     yerr = append!(yerr, zeronan!(log10.(octopusdata.eal_err[t])))
 
     # Fit curve
-    # In theory, couldn't we use margin_error and confidence_interval?
-    # p = [0.5, 1/100]
-    # fobj = curve_fit(linear, xval, yval, p)
-    
+    # a, b = linreg(xval, yval)
+
     # function emmkyr(slp)
-    #     return 10^(slp * (fobj.param[2]) + (fobj.param[1]))
+    #     return 10^(slp * b + a)
     # end
 
     fobj = yorkfit(xval, xerr, yval, yerr)
@@ -124,14 +122,21 @@
     end
 
     # Data
-    h = scatter(basin_srtm.avg_slope,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", msc=:auto, color=:blue, alpha=0.5)
-    scatter!(h, basin_srtm.avg_slope,octopusdata.eal_mmkyr, label="OCTOPUS Al-26 data", msc=:auto, color=:orange, alpha=0.5)
+    h = scatter(basin_srtm.avg_slope,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", 
+        msc=:auto, color=:blue, alpha=0.5
+    )
+    scatter!(h, basin_srtm.avg_slope,octopusdata.eal_mmkyr, label="OCTOPUS Al-26 data", 
+        msc=:auto, color=:orange, alpha=0.5
+    )
 
     # Model
-    # plot!(h, 1:500, ribbon = model.err)
-    plot!(h, 1:500, model.val, label = "E = ", width=3, color=:black, fg_color_legend=:white)
-    plot!(xlabel="SRTM15 Slope (m/km)", ylabel="Erosion rate (mm/kyr)", yscale=:log10, legend=:topleft, framestyle=:box)
+    plot!(h, model.val, ribbon = model.err, label="", width=3, color=:black, alpha=0.5)
+    # plot!(h, 1:500, model.val, label = "E = ", width=3, color=:black)
+    plot!(h, xlabel="SRTM15 Slope (m/km)", ylabel="Erosion rate (mm/kyr)", yscale=:log10, 
+        fg_color_legend=:white, legend=:topleft, framestyle=:box
+    )
 
+    display(h)
     savefig(h, "slopeerosion_avg.pdf")
 
 

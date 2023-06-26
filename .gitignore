@@ -12,6 +12,7 @@ dev/
 *.h5
 *.mat
 *.gz
+*.kml
 
 # Some intermediate julia file types to ignore
 *.jl.cov

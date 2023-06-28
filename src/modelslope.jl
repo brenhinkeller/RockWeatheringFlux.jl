@@ -89,36 +89,23 @@
     yval = append!(yval, log10.(octopusdata.eal_mmkyr[t]))
     yerr = append!(yerr, zeronan!(log10.(octopusdata.eal_err[t])))
 
-    # Fit curve
-    # a, b = linreg(xval, yval)
+    # Old method with no uncertainty
+    a, b = linreg(xval, yval)
+    emmkyr_old(slp) = 10^(slp * b + a)
 
-    # function emmkyr(slp)
-    #     return 10^(slp * b + a)
-    # end
-
+    # New method with uncertainty built into the function
     fobj = yorkfit(xval, xerr, yval, yerr)
+    emmkyr(slp) = 10^(slp * (fobj.slope) + (fobj.intercept))
 
-    # Uncertainties are built into this function
-    function emmkyr(slp)
-        return 10^(slp * (fobj.slope) + (fobj.intercept))
-    end
 
-    # Parameters using maximum slope:
-        # 1.0631462800868299
-        # 0.003687823054086418
-
-#         plot(data.Age_Bin_Myr, (data.Lower .+ data.Upper) ./ 2, ribbon = (data.Lower .- data.Upper) ./ 2, 
-#     fillalpha = 1, color=:skyblue, label = ""
-# )
-    
 ## --- Plot results
     # De-measurement model data
-    len = 500
+    len = 650
     model = (val = zeros(len), err = zeros(len))
     for i in 1:len
-        erosion = emmkyr(i)
-        model.val[i] = erosion.val
-        model.err[i] = erosion.err
+        e = emmkyr(i)
+        model.val[i] = e.val
+        model.err[i] = e.err
     end
 
     # Data
@@ -130,14 +117,15 @@
     )
 
     # Model
-    plot!(h, model.val, ribbon = model.err, label="", width=3, color=:black, alpha=0.5)
-    # plot!(h, 1:500, model.val, label = "E = ", width=3, color=:black)
-    plot!(h, xlabel="SRTM15 Slope (m/km)", ylabel="Erosion rate (mm/kyr)", yscale=:log10, 
+    plot!(h, 1:len, emmkyr_old.(1:len), label="Old model", width=3, color=:red)
+    plot!(h, 1:len, model.val, ribbon = model.err, label="New model", width=3, color=:cyan)
+    
+    plot!(h, xlabel="SRTM15+ Slope (m/km)", ylabel="Erosion rate (mm/kyr)", yscale=:log10, 
         fg_color_legend=:white, legend=:topleft, framestyle=:box
     )
 
     display(h)
-    savefig(h, "slopeerosion_avg.pdf")
+    # savefig(h, "slopeerosion_avg.pdf")
 
 
 ## --- Calculate precipitation and runoff for each basin

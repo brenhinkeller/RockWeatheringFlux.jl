@@ -72,7 +72,7 @@
     # Be data
     t = .!isnan.(basin_srtm.avg_slope) .& .!isnan.(basin_srtm.err)              # Basin
     t .&= .!isnan.(octopusdata.ebe_mmkyr) .& .!isnan.(octopusdata.ebe_err)      # Erosion
-    t .&= (basin_srtm.avg_slope .< 300)                                         # Slope [TK: why?]
+    # t .&= (basin_srtm.avg_slope .< 300)                                         # Slope [TK: why?]
 
     xval = basin_srtm.avg_slope[t]
     xerr = zeronan!(basin_srtm.err[t])
@@ -82,7 +82,7 @@
     # Al data
     t = .!isnan.(basin_srtm.avg_slope) .& .!isnan.(basin_srtm.err)              # Basin
     t .&= .!isnan.(octopusdata.eal_mmkyr) .& .!isnan.(octopusdata.eal_err)      # Erosion
-    t .&= (basin_srtm.avg_slope .< 300)                                         # Slope [TK: why?]
+    # t .&= (basin_srtm.avg_slope .< 300)                                         # Slope [TK: why?]
 
     xval = append!(xval, basin_srtm.avg_slope[t])
     xerr = append!(xerr, zeronan!(basin_srtm.err[t]))

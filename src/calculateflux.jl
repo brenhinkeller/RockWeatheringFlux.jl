@@ -337,37 +337,54 @@
       sed: $(round(sedmeasure, sigdigits=3))% of samples, $(round(sedfrac, sigdigits=3))% of rocks
       met: $(round(metmeasure, sigdigits=3))% of samples, $(round(metfrac, sigdigits=3))% of rocks
       ign: $(round(ignmeasure, sigdigits=3))% of samples, $(round(ignfrac, sigdigits=3))% of rocks
-    "
+    "    
 
-    # Calculate crustal abundance of felsic / intermediate / mafic rocks
-    # ufelfrac = 
-    # felfrac = 
-    # intfrac = 
-    # maffrac = 
-    # umaffrac = 
-    
+    # Calculate crustal abundance of felsic / intermediate / mafic igneous rocks
+    allsilicadata = Array{Float64}(undef, length(bulkidx[macro_cats.ign]), 1)
+    for i in eachindex(allsilicadata)
+        allsilicadata[i] = ifelse(bulkidx[macro_cats.ign][i] != 0, 
+            bulk.SiO2[bulkidx[macro_cats.ign][i]], NaN
+        )
+    end
 
-    # Samples available analysis for igneous rock types, compared to crustal abundance
-    # ignsilica = (
-    #     fel = (62, 74),      # Felsic (low exclusive, high inclusive)
-    #     int = (51, 62),      # Intermediate
-    #     maf = (43, 51),      # Mafic
-    #     all = (0, 100)       # All igneous
-    # )
-    # t = @. bound[1] < silicadata <= bound[2]
+    ufel = count(@. ignsilica.fel[2] < allsilicadata)                      # Ultra-silicic
+    fel = count(@. ignsilica.fel[1] < allsilicadata <= ignsilica.fel[2])   # Felsic
+    int = count(@. ignsilica.int[1] < allsilicadata <= ignsilica.int[2])   # Intermediate
+    maf = count(@. ignsilica.maf[1] < allsilicadata <= ignsilica.maf[2])   # Mafic
+    umaf = count(@. ignsilica.maf[1] > allsilicadata)                      # Ultra-mafic
 
-    fel = @. ignsilica.fel[1] < silicadata <= ignsilica.fel[2]
+    allign = ufel + fel + int + maf + umaf      # All non-NaN igneous
+
+    ufelfrac = ufel / allign * 100              # Percent abundances
+    felfrac = fel / allign * 100
+    intfrac = int / allign * 100
+    maffrac = maf / allign * 100
+    umaffrac = umaf / allign * 100
+
+    # Samples available for analysis for igneous rock types, compared to crustal abundance
+    ufelmeasure = count(@. ignsilica.fel[2] < silicadata)                      # Ultra-silicic
+    felmeasure = count(@. ignsilica.fel[1] < silicadata <= ignsilica.fel[2])   # Felsic
+    intmeasure = count(@. ignsilica.int[1] < silicadata <= ignsilica.int[2])   # Intermediate
+    mafmeasure = count(@. ignsilica.maf[1] < silicadata <= ignsilica.maf[2])   # Mafic
+    umafmeasure = count(@. ignsilica.maf[1] > silicadata)                      # Ultra-mafic
+
+    allignmeasure = ufelmeasure + felmeasure + intmeasure + mafmeasure + umafmeasure
+
+    ufelfracmeasure = ufelmeasure / allignmeasure * 100       # Percent abundances
+    felfracmeasure = felmeasure / allignmeasure * 100
+    intfracmeasure = intmeasure / allignmeasure * 100
+    maffracmeasure = mafmeasure / allignmeasure * 100
+    umaffracmeasure = umafmeasure / allignmeasure * 100
 
     @info "Igneous rocks by silica content with >95% measured geochemistry:
-       > 45%: 
-      43-51%: 
-      51-62%: 
-      62-74%: 
-       < 74%: 
+       > 45%: $(round(umaffracmeasure, sigdigits=3))% of samples, $(round(umaffrac, sigdigits=3))% of rocks
+      43-51%: $(round(maffracmeasure, sigdigits=3))% of samples, $(round(maffrac, sigdigits=3))% of rocks
+      51-62%: $(round(intfracmeasure, sigdigits=3))% of samples, $(round(intfrac, sigdigits=3))% of rocks
+      62-74%: $(round(felfracmeasure, sigdigits=3))% of samples, $(round(felfrac, sigdigits=3))% of rocks
+       < 74%: $(round(ufelfracmeasure, sigdigits=3))% of samples, $(round(ufelfrac, sigdigits=3))% of rocks
     "
-    # percenttype = count(t) / length(t) * 100
-    # @info "Rock type $j is $(round(percenttype, sigdigits=3))% of ign samples."
 
+    
 ## --- Create HDF5 file to store results for composition of exposed crust
     fid = h5open("output/exposedcrust.h5", "w")
 

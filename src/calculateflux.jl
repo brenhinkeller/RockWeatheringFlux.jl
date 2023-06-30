@@ -216,8 +216,81 @@
     deleteat!(subcats, findall(x->x==:cover,subcats))       # Do not compute cover
 
 
-## --- Create HDF5 file to store results
-    fid = h5open("output/rwf_output6.h5", "w")
+## --- Composition of exposed crust; start by getting samples with complete geochemical data
+    # Number of samples measuring over 95% of rock components
+    complete = Array{Float64}(undef, length(bulkidx), 1)
+    @time for i in eachindex(bulkidx)
+        if bulkidx[i] != 0
+            for j in biglist
+                complete[i] = nanadd(complete[i], bulk[j][bulkidx[i]])
+            end
+        else
+            complete[i] = 0
+        end
+    end
+
+    abovethreshold = complete .>= 95.0
+    totalgeochem = count(abovethreshold) / length(bulkidx) * 100
+    if totalgeochem > 50
+        @info "$(round(totalgeochem, sigdigits=3))% samples measure > 95% total wt.%"
+    else
+        @warn "$(round(totalgeochem, sigdigits=3))% samples measure > 95% total wt.%"
+    end
+
+    # Sed / met / ign breakdown of total rock geochemistry measurements
+    sedtotal = count(macro_cats.sed)
+    mettotal = count(macro_cats.met)
+    igntotal = count(macro_cats.ign)
+
+    sedmeasure = count(macro_cats.sed .& abovethreshold) / sedtotal * 100
+    metmeasure = count(macro_cats.met .& abovethreshold) / mettotal * 100
+    ignmeasure = count(macro_cats.ign .& abovethreshold) / igntotal * 100
+
+    @info "Samples with >95% measured geochemistry:
+      sed: $(round(sedmeasure, sigdigits=3))%
+      met: $(round(metmeasure, sigdigits=3))%
+      ign: $(round(ignmeasure, sigdigits=3))%
+    "
+    
+## --- Compute average major element geochemistry for major rock types (sanity check)
+    # Get major elements, avoid hardcoding
+    majorelem = collect(keys(major_elements(bulk, bulk_cats.sed, trues(count(bulk_cats.sed)))))
+
+    # Preallocate
+    majorcomp = Dict(
+        :sed => Dict(zip(majorelem, fill(NaN±NaN, length(majorelem)))),
+        :met => Dict(zip(majorelem, fill(NaN±NaN, length(majorelem)))),
+        :ign => Dict(zip(majorelem, fill(NaN±NaN, length(majorelem))))
+    )
+
+    for i in keys(majorcomp)
+        for j in keys(majorcomp[i])
+            # Get data for that element
+            data = Array{Float64}(undef, length(bulkidx[macro_cats[i]]), 1)
+            for k in eachindex(data)
+                if bulkidx[macro_cats[i]][k] != 0
+                    data[k] = bulk[j][bulkidx[macro_cats[i]][k]]
+                else
+                    data[k] = NaN
+                end
+
+                # data[k] = ifelse(bulkidx[macro_cats[i]][k] != 0, bulk[j][bulkidx[macro_cats[i]][k]], NaN)
+            end
+
+            # Put data in dictionary
+            majorcomp[i][j] = nanmean(data) ± nanstd(data)
+        end
+    end
+
+
+## --- Create HDF5 file to store results for composition of exposed crust
+    fid = h5open("output/exposedcrust.h5", "w")
+
+    close(fid)
+
+
+## --- Create HDF5 file to store results for eroded material
+    fid = h5open("output/erodedmaterial.h5", "w")
 
     # Metadata
     write(fid, "element_names", strbiglist)                           # Names of analyzed elements
@@ -292,7 +365,7 @@
 
 
 ## --- Calculate flux by element / element oxide
-    # I should make sure these aren't also scrambled...
+    # TO DO: I should make sure these aren't also scrambled...
     for i in eachindex(biglist)
         # Calculate wt.%, flux, and global flux of each element
         wt, flux, global_flux, n = flux_source(bulk[biglist[i]], bulkidx, erosion, macro_cats, 
@@ -316,5 +389,6 @@
     end
 
     close(fid)
+
 
 ## --- End of File

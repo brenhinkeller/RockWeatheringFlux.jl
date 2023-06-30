@@ -7,6 +7,7 @@
     using Measurements
     using HDF5
     using MAT
+    using DelimitedFiles
     
     # Local utilities
     include("Utilities.jl")
@@ -232,9 +233,9 @@
     above95 = vec(complete .>= 95.0)
     totalgeochem = count(above95) / length(bulkidx) * 100
     if totalgeochem > 50
-        @info "$(round(totalgeochem, sigdigits=3))% samples measure > 95% total wt.%"
+        @info "$(round(totalgeochem, sigdigits=3))% samples have geochemical data for > 95% total wt.%"
     else
-        @warn "$(round(totalgeochem, sigdigits=3))% samples measure > 95% total wt.%"
+        @warn "$(round(totalgeochem, sigdigits=3))% samples have geochemical data for > 95% total wt.%"
     end
 
     
@@ -333,7 +334,7 @@
     metmeasure = count(macro_cats.met .& above95) / mettotal * 100
     ignmeasure = count(macro_cats.ign .& above95) / igntotal * 100
 
-    @info "Samples with >95% measured geochemistry:
+    @info "Samples with >95% measured geochemistry vs. crustal abundance:
       sed: $(round(sedmeasure, sigdigits=3))% of samples, $(round(sedfrac, sigdigits=3))% of rocks
       met: $(round(metmeasure, sigdigits=3))% of samples, $(round(metfrac, sigdigits=3))% of rocks
       ign: $(round(ignmeasure, sigdigits=3))% of samples, $(round(ignfrac, sigdigits=3))% of rocks
@@ -376,7 +377,7 @@
     maffracmeasure = mafmeasure / allignmeasure * 100
     umaffracmeasure = umafmeasure / allignmeasure * 100
 
-    @info "Igneous rocks by silica content with >95% measured geochemistry:
+    @info "Igneous rocks by silica content with >95% measured geochemistry vs. crustal abundance:
        > 45%: $(round(umaffracmeasure, sigdigits=3))% of samples, $(round(umaffrac, sigdigits=3))% of rocks
       43-51%: $(round(maffracmeasure, sigdigits=3))% of samples, $(round(maffrac, sigdigits=3))% of rocks
       51-62%: $(round(intfracmeasure, sigdigits=3))% of samples, $(round(intfrac, sigdigits=3))% of rocks
@@ -384,11 +385,48 @@
        < 74%: $(round(ufelfracmeasure, sigdigits=3))% of samples, $(round(ufelfrac, sigdigits=3))% of rocks
     "
 
-    
-## --- Create HDF5 file to store results for composition of exposed crust
-    fid = h5open("output/exposedcrust.h5", "w")
 
-    close(fid)
+## --- Export results
+    # Preallocate
+    bigmatrix = Array{Float64}(undef, length(keys(majorcomp[:sed])) + 1, 
+        length(keys(majorcomp)) + length(keys(majorcomp[:ign])) - 1
+    )
+
+    # Define column and row names
+    header = collect(keys(majorcomp))
+    deleteat!(header, findall(x->x==:ign,header))
+    push!(header, collect(keys(majorcomp[:ign]))...)
+
+    rows = vcat(collect(keys(majorcomp[:sed])), :total)
+
+    # Put data into matrix
+    for i in eachindex(header)
+        if header[i]==:sed || header[i]==:met
+            for j in eachindex(rows[1:end-1])
+                # By element
+                bigmatrix[j, i] = majorcomp[header[i]][rows[j]].val
+
+                # Total
+                bigmatrix[end, i] = nansum(bigmatrix[1:end-1, i])
+            end
+        else
+            for j in eachindex(rows[1:end-1])
+                # By element
+                bigmatrix[j, i] = majorcomp[:ign][header[i]][rows[j]].val
+
+                # Total
+                bigmatrix[end, i] = nansum(bigmatrix[1:end-1, i])
+            end
+        end
+    end
+
+    # Add row and column names
+    # bigmatrix = hcat(string.(reshape(header, 1, length(header))), bigmatrix)
+    # for i = 2:size(bigmatrix)[1]
+    #     bigmatrix[i, 1] = string(rows[i - 1])
+    # end
+
+    # writedlm("output/erodedmaterial.tsv", bigmatrix)
 
 
 ## --- Create HDF5 file to store results for eroded material

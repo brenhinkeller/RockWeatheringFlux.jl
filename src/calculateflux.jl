@@ -237,19 +237,23 @@
         @warn "$(round(totalgeochem, sigdigits=3))% samples measure > 95% total wt.%"
     end
 
-    # Sed / met / ign breakdown of total rock geochemistry measurements
+    # Terminal printout: number of samples available for analysis: major rock types
     sedtotal = count(macro_cats.sed)
     mettotal = count(macro_cats.met)
     igntotal = count(macro_cats.ign)
+
+    sedfrac = sedtotal / total_known * 100
+    metfrac = mettotal / total_known * 100
+    ignfrac = igntotal / total_known * 100
 
     sedmeasure = count(macro_cats.sed .& abovethreshold) / sedtotal * 100
     metmeasure = count(macro_cats.met .& abovethreshold) / mettotal * 100
     ignmeasure = count(macro_cats.ign .& abovethreshold) / igntotal * 100
 
     @info "Samples with >95% measured geochemistry:
-      sed: $(round(sedmeasure, sigdigits=3))%
-      met: $(round(metmeasure, sigdigits=3))%
-      ign: $(round(ignmeasure, sigdigits=3))%
+      sed: $(round(sedmeasure, sigdigits=3))% of samples, $(round(sedfrac, sigdigits=3))% of rocks
+      met: $(round(metmeasure, sigdigits=3))% of samples, $(round(metfrac, sigdigits=3))% of rocks
+      ign: $(round(ignmeasure, sigdigits=3))% of samples, $(round(ignfrac, sigdigits=3))% of rocks
     "
     
 ## --- Compute average major element geochemistry for major rock types (sanity check)
@@ -276,12 +280,16 @@
         all = (0, 100)       # All igneous
     )
 
+    # Terminal printout: number of samples available for analysis, ign rock types
+    # percenttype = count(t) / length(t) * 100
+    # @info "Rock type $j is $(round(percenttype, sigdigits=3))% of ign samples."
+
     for i in keys(majorcomp)
         # Igneous rocks separated by silica content
         if i==:ign
             # Get silica data
             silicadata = Array{Float64}(undef, length(bulkidx[macro_cats[i]]), 1)
-            for k in eachindex(data)
+            for k in eachindex(silicadata)
                 silicadata[k] = ifelse(bulkidx[macro_cats[i]][k] != 0, 
                     bulk.SiO2[bulkidx[macro_cats[i]][k]], NaN
                 )
@@ -289,10 +297,13 @@
 
             for j in keys(majorcomp[i])
                 # Get silica thresholds
-                bound = ignsilica[j]
-                t = @. bound[1] < silicadata <= bound[2]
+                if j==:all
+                    t = trues(length(silicadata))
+                else
+                    bound = ignsilica[j]
+                    t = @. bound[1] < silicadata <= bound[2]
+                end
 
-                # Print number of samples for that silica content
                 percenttype = count(t) / length(t) * 100
                 @info "Rock type $j is $(round(percenttype, sigdigits=3))% of ign samples."
 

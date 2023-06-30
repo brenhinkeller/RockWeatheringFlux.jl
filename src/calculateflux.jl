@@ -260,25 +260,71 @@
     majorcomp = Dict(
         :sed => Dict(zip(majorelem, fill(NaN±NaN, length(majorelem)))),
         :met => Dict(zip(majorelem, fill(NaN±NaN, length(majorelem)))),
-        :ign => Dict(zip(majorelem, fill(NaN±NaN, length(majorelem))))
+        :ign => Dict(
+            :fel => Dict(zip(majorelem, fill(NaN±NaN, length(majorelem)))),     # Felsic
+            :int => Dict(zip(majorelem, fill(NaN±NaN, length(majorelem)))),     # Intermediate
+            :maf => Dict(zip(majorelem, fill(NaN±NaN, length(majorelem)))),     # Mafic
+            :all => Dict(zip(majorelem, fill(NaN±NaN, length(majorelem))))      # All igneous
+        )
+    )
+
+    # Define igneous rock compositions by silica (from Keller and Schoene, 2012)
+    ignsilica = (
+        fel = (62, 74),      # Felsic (low exclusive, high inclusive)
+        int = (51, 62),      # Intermediate
+        maf = (43, 51),      # Mafic
+        all = (0, 100)       # All igneous
     )
 
     for i in keys(majorcomp)
-        for j in keys(majorcomp[i])
-            # Get data for that element
-            data = Array{Float64}(undef, length(bulkidx[macro_cats[i]]), 1)
+        # Igneous rocks separated by silica content
+        if i==:ign
+            # Get silica data
+            silicadata = Array{Float64}(undef, length(bulkidx[macro_cats[i]]), 1)
             for k in eachindex(data)
-                if bulkidx[macro_cats[i]][k] != 0
-                    data[k] = bulk[j][bulkidx[macro_cats[i]][k]]
-                else
-                    data[k] = NaN
-                end
-
-                # data[k] = ifelse(bulkidx[macro_cats[i]][k] != 0, bulk[j][bulkidx[macro_cats[i]][k]], NaN)
+                silicadata[k] = ifelse(bulkidx[macro_cats[i]][k] != 0, 
+                    bulk.SiO2[bulkidx[macro_cats[i]][k]], NaN
+                )
             end
 
-            # Put data in dictionary
-            majorcomp[i][j] = nanmean(data) ± nanstd(data)
+            for j in keys(majorcomp[i])
+                # Get silica thresholds
+                bound = ignsilica[j]
+                t = @. bound[1] < silicadata <= bound[2]
+
+                # Print number of samples for that silica content
+                percenttype = count(t) / length(t) * 100
+                @info "Rock type $j is $(round(percenttype, sigdigits=3))% of ign samples."
+
+                # Get data for each element
+                for p in keys(majorcomp[i][j])
+                    data = Array{Float64}(undef, length(bulkidx[macro_cats[i]]), 1)
+                    for k in eachindex(data)
+                        data[k] = ifelse(bulkidx[macro_cats[i]][k] != 0, 
+                            bulk[p][bulkidx[macro_cats[i]][k]], NaN
+                        )
+                    end
+
+                    # Reduce data to appropriate silica content, put in dictionary
+                    data = data[t]
+                    majorcomp[i][j][p] = nanmean(data) ± nanstd(data)
+                end
+            end
+
+        # Other rocks not differentiated
+        else
+            for j in keys(majorcomp[i])
+                # Get data for the current element
+                data = Array{Float64}(undef, length(bulkidx[macro_cats[i]]), 1)
+                for k in eachindex(data)
+                    data[k] = ifelse(bulkidx[macro_cats[i]][k] != 0, 
+                        bulk[j][bulkidx[macro_cats[i]][k]], NaN
+                    )
+                end
+
+                # Put data in dictionary
+                majorcomp[i][j] = nanmean(data) ± nanstd(data)
+            end
         end
     end
 

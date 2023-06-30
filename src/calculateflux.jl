@@ -391,6 +391,7 @@
     bigmatrix = Array{Float64}(undef, length(keys(majorcomp[:sed])) + 1, 
         length(keys(majorcomp)) + length(keys(majorcomp[:ign])) - 1
     )
+    exportdata = Array{Union{Float64, String}}(undef, size(bigmatrix).+1)
 
     # Define column and row names
     header = collect(keys(majorcomp))
@@ -420,13 +421,14 @@
         end
     end
 
-    # Add row and column names
-    # bigmatrix = hcat(string.(reshape(header, 1, length(header))), bigmatrix)
-    # for i = 2:size(bigmatrix)[1]
-    #     bigmatrix[i, 1] = string(rows[i - 1])
-    # end
+    # Add column and row names
+    exportdata[1,1] = ""
+    exportdata[2:end, 2:end] = bigmatrix
+    exportdata[1, 2:end] = string.(reshape(header, 1, length(header)))
+    exportdata[2:end, 1] = string.(rows)
 
-    # writedlm("output/erodedmaterial.tsv", bigmatrix)
+    # Write file
+    writedlm("output/exposedcrust.tsv", exportdata)
 
 
 ## --- Create HDF5 file to store results for eroded material

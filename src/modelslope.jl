@@ -93,9 +93,12 @@
     a, b = linreg(xval, yval)
     emmkyr_old(slp) = 10^(slp * b + a)
 
-    # New method with uncertainty built into the function
+    # New method with 2σ uncertainty built into the function
     fobj = yorkfit(xval, xerr, yval, yerr)
-    emmkyr(slp) = 10^(slp * (fobj.slope) + (fobj.intercept))
+    emmkyr(slp) = (10^(slp * (fobj.slope.val ± fobj.slope.err * 2) + 
+        (fobj.intercept.val ± fobj.intercept.err * 2))
+    )
+    # emmkyr(slp) = 10^(slp * (fobj.slope) + (fobj.intercept))
 
 
 ## --- Plot results

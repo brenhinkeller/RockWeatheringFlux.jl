@@ -879,8 +879,7 @@
     """
     function flux_source(bulk::AbstractArray, bulkidx::Vector{Int64}, erosion::NamedTuple, 
         macro_cats::NamedTuple, crustal_area::NamedTuple; 
-        crustal_density::Number=2750, 
-        elem::String="")
+        crustal_density::Number=2750, elem::String="", printinfo=false)
 
         # Preallocate
         allkeys = collect(keys(macro_cats))
@@ -900,7 +899,9 @@
 
         # Find how many samples have data for the element of interest
         n = length(findall(!isnan, bulkdata))
-        @info "$n of $npoints $elem samples ($(round(n/npoints*100, sigdigits=3))%) are not NaN"
+        if printinfo
+            @info "$n of $npoints $elem samples ($(round(n/npoints*100, sigdigits=3))%) are not NaN"
+        end
 
         # Calculate average wt.% for each rock type
         # TO DO: Maybe set no data to 0 instead of NaN? Would require re-writing a bit...

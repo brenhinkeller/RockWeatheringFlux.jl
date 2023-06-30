@@ -229,34 +229,19 @@
         end
     end
 
-    abovethreshold = complete .>= 95.0
-    totalgeochem = count(abovethreshold) / length(bulkidx) * 100
+    above95 = vec(complete .>= 95.0)
+    totalgeochem = count(above95) / length(bulkidx) * 100
     if totalgeochem > 50
         @info "$(round(totalgeochem, sigdigits=3))% samples measure > 95% total wt.%"
     else
         @warn "$(round(totalgeochem, sigdigits=3))% samples measure > 95% total wt.%"
     end
 
-    # Terminal printout: number of samples available for analysis: major rock types
-    sedtotal = count(macro_cats.sed)
-    mettotal = count(macro_cats.met)
-    igntotal = count(macro_cats.ign)
-
-    sedfrac = sedtotal / total_known * 100
-    metfrac = mettotal / total_known * 100
-    ignfrac = igntotal / total_known * 100
-
-    sedmeasure = count(macro_cats.sed .& abovethreshold) / sedtotal * 100
-    metmeasure = count(macro_cats.met .& abovethreshold) / mettotal * 100
-    ignmeasure = count(macro_cats.ign .& abovethreshold) / igntotal * 100
-
-    @info "Samples with >95% measured geochemistry:
-      sed: $(round(sedmeasure, sigdigits=3))% of samples, $(round(sedfrac, sigdigits=3))% of rocks
-      met: $(round(metmeasure, sigdigits=3))% of samples, $(round(metfrac, sigdigits=3))% of rocks
-      ign: $(round(ignmeasure, sigdigits=3))% of samples, $(round(ignfrac, sigdigits=3))% of rocks
-    "
     
-## --- Compute average major element geochemistry for major rock types (sanity check)
+## --- Compute average major element geochemistry for major rock types
+    # Reduce analyzed data to only data with > 95% total wt. analyzed
+    bulkidx95 = bulkidx[above95]
+
     # Get major elements, avoid hardcoding
     majorelem = collect(keys(major_elements(bulk, bulk_cats.sed, trues(count(bulk_cats.sed)))))
 
@@ -280,21 +265,18 @@
         all = (0, 100)       # All igneous
     )
 
-    # Terminal printout: number of samples available for analysis, ign rock types
-    # percenttype = count(t) / length(t) * 100
-    # @info "Rock type $j is $(round(percenttype, sigdigits=3))% of ign samples."
+    # Get silica data
+    silicadata = Array{Float64}(undef, length(bulkidx95[macro_cats.ign[above95]]), 1)
+    for i in eachindex(silicadata)
+        silicadata[i] = ifelse(bulkidx95[macro_cats.ign[above95]][i] != 0, 
+            bulk.SiO2[bulkidx95[macro_cats.ign[above95]][i]], NaN
+        )
+    end
 
+    # Compute composition of exposed crust for each rock subtype!
     for i in keys(majorcomp)
         # Igneous rocks separated by silica content
         if i==:ign
-            # Get silica data
-            silicadata = Array{Float64}(undef, length(bulkidx[macro_cats[i]]), 1)
-            for k in eachindex(silicadata)
-                silicadata[k] = ifelse(bulkidx[macro_cats[i]][k] != 0, 
-                    bulk.SiO2[bulkidx[macro_cats[i]][k]], NaN
-                )
-            end
-
             for j in keys(majorcomp[i])
                 # Get silica thresholds
                 if j==:all
@@ -304,15 +286,12 @@
                     t = @. bound[1] < silicadata <= bound[2]
                 end
 
-                percenttype = count(t) / length(t) * 100
-                @info "Rock type $j is $(round(percenttype, sigdigits=3))% of ign samples."
-
                 # Get data for each element
                 for p in keys(majorcomp[i][j])
-                    data = Array{Float64}(undef, length(bulkidx[macro_cats[i]]), 1)
+                    data = Array{Float64}(undef, length(bulkidx95[macro_cats[i][above95]]), 1)
                     for k in eachindex(data)
-                        data[k] = ifelse(bulkidx[macro_cats[i]][k] != 0, 
-                            bulk[p][bulkidx[macro_cats[i]][k]], NaN
+                        data[k] = ifelse(bulkidx95[macro_cats[i][above95]][k] != 0, 
+                            bulk[p][bulkidx95[macro_cats[i][above95]][k]], NaN
                         )
                     end
 
@@ -326,10 +305,10 @@
         else
             for j in keys(majorcomp[i])
                 # Get data for the current element
-                data = Array{Float64}(undef, length(bulkidx[macro_cats[i]]), 1)
+                data = Array{Float64}(undef, length(bulkidx95[macro_cats[i][above95]]), 1)
                 for k in eachindex(data)
-                    data[k] = ifelse(bulkidx[macro_cats[i]][k] != 0, 
-                        bulk[j][bulkidx[macro_cats[i]][k]], NaN
+                    data[k] = ifelse(bulkidx95[macro_cats[i][above95]][k] != 0, 
+                        bulk[j][bulkidx95[macro_cats[i][above95]][k]], NaN
                     )
                 end
 
@@ -339,6 +318,55 @@
         end
     end
 
+
+## --- Terminal printouts
+    # Samples available for analysis for each major rock type, compared to crustal abundance
+    sedtotal = count(macro_cats.sed)
+    mettotal = count(macro_cats.met)
+    igntotal = count(macro_cats.ign)
+
+    sedfrac = sedtotal / total_known * 100
+    metfrac = mettotal / total_known * 100
+    ignfrac = igntotal / total_known * 100
+
+    sedmeasure = count(macro_cats.sed .& above95) / sedtotal * 100
+    metmeasure = count(macro_cats.met .& above95) / mettotal * 100
+    ignmeasure = count(macro_cats.ign .& above95) / igntotal * 100
+
+    @info "Samples with >95% measured geochemistry:
+      sed: $(round(sedmeasure, sigdigits=3))% of samples, $(round(sedfrac, sigdigits=3))% of rocks
+      met: $(round(metmeasure, sigdigits=3))% of samples, $(round(metfrac, sigdigits=3))% of rocks
+      ign: $(round(ignmeasure, sigdigits=3))% of samples, $(round(ignfrac, sigdigits=3))% of rocks
+    "
+
+    # Calculate crustal abundance of felsic / intermediate / mafic rocks
+    # ufelfrac = 
+    # felfrac = 
+    # intfrac = 
+    # maffrac = 
+    # umaffrac = 
+    
+
+    # Samples available analysis for igneous rock types, compared to crustal abundance
+    # ignsilica = (
+    #     fel = (62, 74),      # Felsic (low exclusive, high inclusive)
+    #     int = (51, 62),      # Intermediate
+    #     maf = (43, 51),      # Mafic
+    #     all = (0, 100)       # All igneous
+    # )
+    # t = @. bound[1] < silicadata <= bound[2]
+
+    fel = @. ignsilica.fel[1] < silicadata <= ignsilica.fel[2]
+
+    @info "Igneous rocks by silica content with >95% measured geochemistry:
+       > 45%: 
+      43-51%: 
+      51-62%: 
+      62-74%: 
+       < 74%: 
+    "
+    # percenttype = count(t) / length(t) * 100
+    # @info "Rock type $j is $(round(percenttype, sigdigits=3))% of ign samples."
 
 ## --- Create HDF5 file to store results for composition of exposed crust
     fid = h5open("output/exposedcrust.h5", "w")

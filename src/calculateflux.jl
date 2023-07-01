@@ -57,12 +57,12 @@
     end
 
     # Volcanic and plutonic is downgraded to undifferentiated igneous
-    macro_cats.volc .&= .! (macro_cats.volc .& macro_cats.plut)
-    macro_cats.plut .&= .! (macro_cats.volc .& macro_cats.plut)
+    macro_cats.volc .&= .!(macro_cats.volc .& macro_cats.plut)
+    macro_cats.plut .&= .!(macro_cats.volc .& macro_cats.plut)
 
     # Metaigneous and metasedimentary is downgraded to undifferentiated metamorphic
-    macro_cats.metased .&= .! (macro_cats.metased .& macro_cats.metaign)
-    macro_cats.metaign .&= .! (macro_cats.metased .& macro_cats.metaign)
+    macro_cats.metased .&= .!(macro_cats.metased .& macro_cats.metaign)
+    macro_cats.metaign .&= .!(macro_cats.metased .& macro_cats.metaign)
 
     # Sed / ign rocks are classified as ign
     macro_cats.sed .&= .! macro_cats.ign            
@@ -72,7 +72,7 @@
 
     # Make sure crystalline rocks are only igneous and non-metased metamorphic rocks
     macro_cats.cryst .= (macro_cats.ign .| macro_cats.met)
-    macro_cats.cryst .&= .! (macro_cats.sed .| macro_cats.cover .| macro_cats.metased)
+    macro_cats.cryst .&= .!(macro_cats.sed .| macro_cats.cover .| macro_cats.metased)
 
     # Figure out how many data points weren't matched
     known_rocks = macro_cats.sed .| macro_cats.ign .| macro_cats.met

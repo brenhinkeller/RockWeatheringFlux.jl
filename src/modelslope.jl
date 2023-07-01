@@ -161,7 +161,6 @@
     # Be data
     t = vec(.!isnan.(slopeprecipval) .& .!isnan.(slopepreciperr))               # Basin
     t .&= .!isnan.(octopusdata.ebe_mmkyr) .& .!isnan.(octopusdata.ebe_err)      # Erosion
-    t .&= (slopeprecip .< 0.025)
 
     xval = slopeprecipval[t]
     xerr = slopepreciperr[t]
@@ -171,7 +170,6 @@
     # Al data
     t = vec(.!isnan.(slopeprecipval) .& .!isnan.(slopepreciperr))               # Basin
     t .&= .!isnan.(octopusdata.eal_mmkyr) .& .!isnan.(octopusdata.eal_err)      # Erosion
-    t .&= (slopeprecip .< 0.025)
 
     xval = append!(xval, slopeprecipval[t])
     xerr = append!(xerr, slopepreciperr[t])
@@ -180,6 +178,7 @@
 
     fobj = yorkfit(xval, xerr, yval, yerr)
     emmkyr_precip(slp) = 10^(slp * (fobj.slope) + (fobj.intercept))
+
 
 ## --- Plot results
     # De-measurement model data
@@ -208,5 +207,66 @@
     )
 
     display(h)
+
+
+## --- Experiment with changepoint
+    # Sort data by slope
+    perm = sortperm(xval)
+    ordered_yval = yval[perm]
+    ordered_yerr = yerr[perm]
+
+    # Get index of potential change point
+    dist = changepoint(ordered_yval, ordered_yerr, 10000, np=1)
+    while true
+        dist = dist[9000:end]
+        sum(dist) > 0 && return dist
+
+        dist = changepoint(ordered_yval, ordered_yerr, 10000)
+    end
+    point = unique(dist)
+
+    # Restrict model input to data before the change
+    t = (xval .< xval[point])
+
+    # Recalculate model
+    xval_change = xval[t]
+    xerr_change = xerr[t]
+    yval_change = yval[t]
+    yerr_change = yerr[t]
+
+    fobj = yorkfit(xval_change, xerr_change, yval_change, yerr_change)
+    emmkyr_cp(slp) = 10^(slp * (fobj.slope) + (fobj.intercept))
+
+
+## --- Plot results
+    # De-measurement model data
+    rng = 0:0.005:0.04
+    model = (val = zeros(length(rng)), err = zeros(length(rng)))
+    for i = 1:length(rng)
+        e = emmkyr_cp(i/300)
+        model.val[i] = e.val
+        model.err[i] = e.err
+    end
+
+    # Data
+    h = scatter(slopeprecipval,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", 
+        msc=:auto, color=:blue, alpha=0.5
+    )
+    scatter!(h, slopeprecipval,octopusdata.eal_mmkyr, label="OCTOPUS Al-26 data", 
+        msc=:auto, color=:orange, alpha=0.5
+    )
+
+    # Model
+    plot!(h, rng, model.val, ribbon = model.err, label="Changepoint Model", width=3, 
+        color=:cyan
+    )
+    
+    plot!(h, xlabel="SRTM15+ Slope (m/km) ⋅ Precipitation rate (kg/m²/s)", 
+        ylabel="Erosion rate (mm/kyr)", yscale=:log10, fg_color_legend=:white, 
+        legend=:topleft, framestyle=:box
+    )
+
+    display(h)
+
 
 ## --- End of file

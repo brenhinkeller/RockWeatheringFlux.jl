@@ -72,33 +72,31 @@
     # Be data
     t = .!isnan.(basin_srtm.avg_slope) .& .!isnan.(basin_srtm.err)              # Basin
     t .&= .!isnan.(octopusdata.ebe_mmkyr) .& .!isnan.(octopusdata.ebe_err)      # Erosion
-    # t .&= (basin_srtm.avg_slope .< 300)                                         # Slope [TK: why?]
 
     xval = basin_srtm.avg_slope[t]
-    xerr = zeronan!(basin_srtm.err[t])
+    xerr = basin_srtm.err[t]
     yval = log10.(octopusdata.ebe_mmkyr[t])
-    yerr = zeronan!(log10.(octopusdata.ebe_err[t]))
+    yerr = log10.(octopusdata.ebe_err[t])
 
     # Al data
     t = .!isnan.(basin_srtm.avg_slope) .& .!isnan.(basin_srtm.err)              # Basin
     t .&= .!isnan.(octopusdata.eal_mmkyr) .& .!isnan.(octopusdata.eal_err)      # Erosion
-    # t .&= (basin_srtm.avg_slope .< 300)                                         # Slope [TK: why?]
 
     xval = append!(xval, basin_srtm.avg_slope[t])
-    xerr = append!(xerr, zeronan!(basin_srtm.err[t]))
+    xerr = append!(xerr, basin_srtm.err[t])
     yval = append!(yval, log10.(octopusdata.eal_mmkyr[t]))
-    yerr = append!(yerr, zeronan!(log10.(octopusdata.eal_err[t])))
+    yerr = append!(yerr, log10.(octopusdata.eal_err[t]))
 
     # Old method with no uncertainty
     a, b = linreg(xval, yval)
     emmkyr_old(slp) = 10^(slp * b + a)
 
-    # New method with 2σ uncertainty built into the function
+    # New method with 1σ uncertainty built into the function
     fobj = yorkfit(xval, xerr, yval, yerr)
-    emmkyr(slp) = (10^(slp * (fobj.slope.val ± fobj.slope.err * 2) + 
-        (fobj.intercept.val ± fobj.intercept.err * 2))
-    )
-    # emmkyr(slp) = 10^(slp * (fobj.slope) + (fobj.intercept))
+    # emmkyr(slp) = (10^(slp * (fobj.slope.val ± fobj.slope.err * 2) + 
+    #     (fobj.intercept.val ± fobj.intercept.err * 2))
+    # )
+    emmkyr(slp) = 10^(slp * (fobj.slope) + (fobj.intercept))
 
 
 ## --- Plot results
@@ -142,44 +140,73 @@
     runoff = mean(runoff, dims=3)[:,:,1]
     basin_runoff = find_precip(octopusdata.y_wgs84, octopusdata.x_wgs84, runoff)
 
-    # # Test find_precip to make sure it's not flipped
-    # imsc(collect(precip'), viridis)
-    # lat = repeat(-90:90,1,361)
-    # lon = repeat((-180:180)',181,1)
-    # imsc(find_precip(lat,lon),viridis)
+    # Test find_precip to make sure it's not flipped
+    # This could probably be done better with GeoMakie
+    imsc(collect(precip'), viridis)
+    lat = repeat(-90:90,1,361)
+    lon = repeat((-180:180)',181,1)
+    imsc(find_precip(lat,lon, precip),viridis)
 
 
-## --- See if adding in a precipitation term makes this work any better
-    # New x term
-    newx = @. basin_srtm.avg_slope      # No precipitation term because not really working
-
+## --- Model erosion as a function of slope and precipitation
+    # Slope-precipitation (kg⋅s/km⋅m ? = 1000kg⋅s/km ??)
+    slopeprecip = (basin_srtm.avg_slope .± basin_srtm.err) .* basin_precip
+    slopeprecipval = Array{Float64}(undef, length(slopeprecip), 1)
+    slopepreciperr = Array{Float64}(undef, length(slopeprecip), 1)
+    for i in eachindex(slopeprecip)
+        slopeprecipval[i] = slopeprecip[i].val
+        slopepreciperr[i] = slopeprecip[i].err
+    end
+    
     # Be data
-    t = .!isnan.(newx) .& .!isnan.(octopusdata.ebe_mmkyr) .& (basin_srtm.avg_slope .< 300)
-    x = newx[t]
-    y = log10.(octopusdata.ebe_mmkyr[t])
+    t = vec(.!isnan.(slopeprecipval) .& .!isnan.(slopepreciperr))               # Basin
+    t .&= .!isnan.(octopusdata.ebe_mmkyr) .& .!isnan.(octopusdata.ebe_err)      # Erosion
+    t .&= (slopeprecip .< 0.025)
+
+    xval = slopeprecipval[t]
+    xerr = slopepreciperr[t]
+    yval = log10.(octopusdata.ebe_mmkyr[t])
+    yerr = log10.(octopusdata.ebe_err[t])
 
     # Al data
-    t = .!isnan.(newx) .& .!isnan.(octopusdata.eal_mmkyr) .& (basin_srtm.avg_slope .< 300)
-    x = append!(x, newx[t])
-    y = append!(y, log10.(octopusdata.eal_mmkyr[t]))
+    t = vec(.!isnan.(slopeprecipval) .& .!isnan.(slopepreciperr))               # Basin
+    t .&= .!isnan.(octopusdata.eal_mmkyr) .& .!isnan.(octopusdata.eal_err)      # Erosion
+    t .&= (slopeprecip .< 0.025)
 
-    # Fit curve
-    p = [0.5, 1/100]
-    fobj = curve_fit(linear, x, y, p)
+    xval = append!(xval, slopeprecipval[t])
+    xerr = append!(xerr, slopepreciperr[t])
+    yval = append!(yval, log10.(octopusdata.eal_mmkyr[t]))
+    yerr = append!(yerr, log10.(octopusdata.eal_err[t]))
 
-    function newemmkyr(slp)
-        return 10^(slp * (fobj.param[2]) + (fobj.param[1]))
+    fobj = yorkfit(xval, xerr, yval, yerr)
+    emmkyr_precip(slp) = 10^(slp * (fobj.slope) + (fobj.intercept))
+
+## --- Plot results
+    # De-measurement model data
+    rng = 0:0.005:0.04
+    model = (val = zeros(length(rng)), err = zeros(length(rng)))
+    for i = 1:length(rng)
+        e = emmkyr_precip(i/300)
+        model.val[i] = e.val
+        model.err[i] = e.err
     end
 
-    # Plot
-    modellow = round(nanminimum(newx), sigdigits=2)
-    modelhigh = round(nanmaximum(newx), sigdigits=2)
-    modrng = range(start=modellow, stop=modelhigh, length=50)
+    # Data
+    h = scatter(slopeprecipval,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", 
+        msc=:auto, color=:blue, alpha=0.5
+    )
+    scatter!(h, slopeprecipval,octopusdata.eal_mmkyr, label="OCTOPUS Al-26 data", 
+        msc=:auto, color=:orange, alpha=0.5
+    )
 
-    h = scatter(newx,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", msc=:auto, color=:blue)
-    scatter!(h, newx,octopusdata.eal_mmkyr, label="OCTOPUS Al-26 data", msc=:auto, color=:orange)
-    plot!(h, modrng, newemmkyr.(modrng), label = "E = 10^(0.056) + 1.00", width=3, color=:black, fg_color_legend=:white)
-    plot!(xlabel="SRTM15 Slope (m/km)", ylabel="Erosion rate (mm/kyr)", yscale=:log10, legend=:topleft, framestyle=:box)
-    savefig(h, "modeltest.pdf")
+    # Model
+    plot!(h, rng, model.val, ribbon = model.err, label="Model", width=3, color=:cyan)
+    
+    plot!(h, xlabel="SRTM15+ Slope (m/km) ⋅ Precipitation rate (kg/m²/s)", 
+        ylabel="Erosion rate (mm/kyr)", yscale=:log10, fg_color_legend=:white, 
+        legend=:topleft, framestyle=:box
+    )
+
+    display(h)
 
 ## --- End of file

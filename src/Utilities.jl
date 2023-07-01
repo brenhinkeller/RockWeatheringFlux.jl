@@ -268,7 +268,8 @@
 
     `false` returns
 
-        siliciclast, shale, carb, chert, evaporite, coal, sed, volc, plut, ign, metased, metaign, met, cryst, cover
+        siliciclast, shale, carb, chert, evaporite, coal, sed, volc, plut, ign, metased, 
+        metaign, met, cover
 
     Note that major rock types include more granular subcategories; i.e. `ign` includes 
     all rock catagorized as `volc` and `plut`, as well as rocks that do not fall into 
@@ -334,9 +335,6 @@
         mettypes = vcat(["meta", "calc silicate",], metasedtypes, metaigntypes, lowgradetypes, 
             highgradetypes, cataclastictypes)
 
-        # Crystalline: igneous and non-metasedimentary metamorphic
-        crysttypes = vcat(igntypes, metaigntypes, highgradetypes)
-
         # Cover
         covertypes = ["cover", "unconsolidated", "quaternary", "lluv", "soil", "regolith", 
             "laterite", "surficial deposits", "talus", "scree", "mass-wasting", "slide", 
@@ -371,13 +369,11 @@
                 metaign = falses(npoints),
                 met = falses(npoints),
 
-                cryst = falses(npoints),
-
                 cover = falses(npoints),
             )
             typelist = [siliciclasttypes, shaletypes, carbtypes, cherttypes, evaporitetypes, 
                 coaltypes, sedtypes, volctypes, pluttypes, igntypes, metasedtypes, metaigntypes, 
-                mettypes, crysttypes, covertypes
+                mettypes, covertypes
             ]
         end
 
@@ -863,7 +859,7 @@
     Note that `erosion`, `macro_cats`, and `crustal_area` _must_ contain at minimum the keys:
     ```
     :siliciclast, :shale, :carb, :chert, :evaporite, :coal, :sed, :volc, :plut, :ign, :metased, 
-    :metaign, :met, :cryst
+    :metaign, :met
     ```
     Keys must be type `Symbol`.
 

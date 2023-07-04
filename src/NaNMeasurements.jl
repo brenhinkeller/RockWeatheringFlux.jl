@@ -3,6 +3,8 @@
 # Ignore any NaN ± NaN values, and respectively convert val ± NaN and NaN ± err to val ± 0
 # and 0 ± err.
 
+using Static
+
 function NaNStatistics.nanadd(a::Measurement, b::Measurement)
     a = a.val*(a.val==a.val) ± a.err*(a.err==a.err)
     b = b.val*(b.val==b.val) ± b.err*(b.err==b.err)
@@ -81,13 +83,13 @@ end
 
 """
 ```julia
-    zeronan!(A::AbstractArray{Measurement{Float64}}; allnans=true)
+    zeronan!(A::AbstractArray{Measurement{Float64}}, allnans=true)
 ```
 
 Replace all `NaN`s in A with zeros of the same type.
 
 Any element containing a `NaN` in _either_ the value or error will be replaced with 
-0.0 ± 0.0. Optionally specify `allnans`=`false` to replace the `NaN` value with a zero
+0.0 ± 0.0. Optionally specify `allnans` as `false` to replace the `NaN` value with a zero
 while retaining the non-`NaN` value in the value or error. 
 
 ## Examples
@@ -109,9 +111,12 @@ julia> zeronan!(A, allnans=false)
  2.0 ± 0.0
 ```
 """
-NaNStatistics.zeronan!(A; allnans=true) = zeronan!(A)
+NaNStatistics.zeronan!(A, allnans::Bool) = NaNStatistics.zeronan!(A, static(allnans))
 
-function NaNStatistics.zeronan!(A::AbstractArray{Measurement{Float64}}; allnans=false)
+NaNStatistics.zeronan!(A, allnans::True) = NaNStatistics.zeronan!(A)
+
+function NaNStatistics.zeronan!(A::AbstractArray{Measurement{Float64}}, allnans::False)
+    println("there")
     ∅ = zero(eltype(A))
     @inbounds for i ∈ eachindex(A)
         Aᵢ = A[i]
@@ -122,6 +127,6 @@ function NaNStatistics.zeronan!(A::AbstractArray{Measurement{Float64}}; allnans=
     end
     return A
 end
-    
+
 
 ## --- End of file

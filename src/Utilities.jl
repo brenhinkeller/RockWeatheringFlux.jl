@@ -917,24 +917,6 @@
 
         return wt, flux, global_flux, n
     end
-
-
-## --- New methods for adding Measurements with NaN values
-    function NaNStatistics.nanadd(a::Measurement, b::Measurement)
-        return (a.val*(a.val==a.val) + b.val*(b.val==b.val)) ± (a.err*(a.err==a.err) + b.val*(b.err==b.err))
-    end
-
-    function NaNStatistics.nansum(A::AbstractArray{Measurement{Float64}})
-        Tₒ = Base.promote_op(+, eltype(A), Int)
-        Σ = ∅ = zero(Tₒ)
-        @inbounds for i ∈ eachindex(A)
-            Aᵢ = A[i]
-            notnan_val = Aᵢ.val==Aᵢ.val
-            notnan_err = Aᵢ.err==Aᵢ.err
-            Σ += ifelse(notnan_val, Aᵢ.val, ∅.val) ± ifelse(notnan_err, Aᵢ.err, ∅.err)
-        end
-        return Σ
-    end
-
+    
 
 ## --- End of file

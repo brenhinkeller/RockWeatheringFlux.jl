@@ -1,43 +1,47 @@
 ## -- NaNMeasurements.jl
-    # Packages
     using StatGeochem
     using Measurements
+    using Statistics
     using Test
 
-    # Create test arrays
-    A = rand(10) .± rand(10)    # Some values will be NaN
-    B = copy(A)                 # NaN values of A removed or replaced with 0
-    S = collect(1:10)           # Possible indices
+## --- Create test arrays
+    A = collect(1:10) .± reverse!(collect(1:10))
+    B = copy(A)
+    B_znan_all = copy(B)
+    B_znan_par = copy(B)
 
-    i_nanerr = rand(S)
-    deleteat!(S, findall(x->x==i_nanerr, S))
-    A[i_nanerr] = A[i_nanerr].val ± NaN
-    B[i_nanerr] = B[i_nanerr].val ± 0
+    A[1] = A[1].val ± NaN
+    B[1] = B[1].val ± 0.0
+    B_znan_all[1] = 0.0 ± 0.0
+    B_znan_par[1] = B[1].val ± 0.0
 
-    i_nanval = rand(S)
-    deleteat!(S, findall(x->x==i_nanval, S))
-    A[i_nanval] = NaN ± A[i_nanval].err
-    B[i_nanval] = 0 ± B[i_nanval].err
+    A[3] = NaN ± A[3].err
+    B[3] = 0.0 ± B[3].err
+    B_znan_all[3] = 0.0 ± 0.0
+    B_znan_par[3] = 0.0 ± B[3].err
 
-    i_nanall = rand(S)
-    deleteat!(S, findall(x->x==i_nanall, S))
-    A[i_nanall] = NaN ± NaN
-    deleteat!(B, i_nanall)
-
-
-## --- nanadd
+    A[10] = NaN ± NaN
+    deleteat!(B, 10)
+    B_znan_all[10] = 0.0 ± 0.0
+    B_znan_par[10] = 0.0 ± 0.0
 
 
-## --- nansum
+## --- Summary statistics
+    @test nanadd(A[1], A[3]) == B[1] + B[3]
+    @test nansum(A) == sum(B)
+    @test nanmean(A) == mean(B)
+    @test nanstd(A) ≈ std(B)
+    @test nanvar(A) ≈ var(B)
 
 
-## --- nanmean
+## --- NaN replacement
+    testA = copy(A)
+    @test zeronan!(testA) == B_znan_all
 
+    testA = copy(A)
+    @test zeronan!(testA, true) == B_znan_all
 
-## --- nanvar
-
-
-## --- nanstd
-
+    testA = copy(A)
+    @test zeronan!(testA, false) == B_znan_par
 
 ## --- End of file

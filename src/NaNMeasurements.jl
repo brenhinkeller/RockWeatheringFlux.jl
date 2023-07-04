@@ -116,7 +116,6 @@ NaNStatistics.zeronan!(A, allnans::Bool) = NaNStatistics.zeronan!(A, static(alln
 NaNStatistics.zeronan!(A, allnans::True) = NaNStatistics.zeronan!(A)
 
 function NaNStatistics.zeronan!(A::AbstractArray{Measurement{Float64}}, allnans::False)
-    println("there")
     ∅ = zero(eltype(A))
     @inbounds for i ∈ eachindex(A)
         Aᵢ = A[i]

@@ -1,5 +1,3 @@
-# TO DO: Define Measurement{Float64} <: Measurement{Number}
-
 # New NaNStatistics methods for Measurements with NaN values
 
 # Ignore any NaN ± NaN values, and respectively convert val ± NaN and NaN ± err to val ± 0
@@ -81,4 +79,49 @@ function NaNStatistics._nanvar(μ::Number, corrected::Bool, A::AbstractArray{Mea
     return σ² / max(n-corrected, 0)
 end
 
+"""
+```julia
+    zeronan!(A::AbstractArray{Measurement{Float64}}; allnans=true)
+```
 
+Replace all `NaN`s in A with zeros of the same type.
+
+Any element containing a `NaN` in _either_ the value or error will be replaced with 
+0.0 ± 0.0. Optionally specify `allnans`=`false` to replace the `NaN` value with a zero
+while retaining the non-`NaN` value in the value or error. 
+
+## Examples
+```julia
+julia> A = [2.0 ± NaN]
+1-element Vector{Measurement{Float64}}:
+ 2.0 ± NaN
+
+julia> zeronan!(A)
+1-element Vector{Measurement{Float64}}:
+ 0.0 ± 0.0
+
+julia> A = [2.0 ± NaN]
+1-element Vector{Measurement{Float64}}:
+ 2.0 ± NaN
+
+julia> zeronan!(A, allnans=false)
+1-element Vector{Measurement{Float64}}:
+ 2.0 ± 0.0
+```
+"""
+NaNStatistics.zeronan!(A; allnans=true) = zeronan!(A)
+
+function NaNStatistics.zeronan!(A::AbstractArray{Measurement{Float64}}; allnans=false)
+    ∅ = zero(eltype(A))
+    @inbounds for i ∈ eachindex(A)
+        Aᵢ = A[i]
+        notnan = Aᵢ.val==Aᵢ.val && Aᵢ.err==Aᵢ.err
+        if !notnan
+            A[i] = Aᵢ.val*(Aᵢ.val==Aᵢ.val) ± Aᵢ.err*(Aᵢ.err==Aᵢ.err)
+        end
+    end
+    return A
+end
+    
+
+## --- End of file

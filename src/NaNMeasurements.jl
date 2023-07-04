@@ -1,6 +1,9 @@
 # TO DO: Define Measurement{Float64} <: Measurement{Number}
 
-# New NaNStatistics methods for Measurements with NaN values. Converts all NaNs to 0
+# New NaNStatistics methods for Measurements with NaN values
+
+# Ignore any NaN ± NaN values, and respectively convert val ± NaN and NaN ± err to val ± 0
+# and 0 ± err.
 
 function NaNStatistics.nanadd(a::Measurement, b::Measurement)
     a = a.val*(a.val==a.val) ± a.err*(a.err==a.err)
@@ -34,15 +37,8 @@ function NaNStatistics.nanmean(A::AbstractArray{Measurement{Float64}})
     return Σ / n
 end
 
-
-# NaNStatistics.nanstd(A; dims=:, dim=:, mean=nothing, corrected=true) = NaNStatistics.sqrt!(_nanvar(mean, corrected, A, dims, dim))
-
-# function NaNStatistics.sqrt!(A::AbstractArray{Measurement{Float64}})
-#     @inbounds for i ∈ eachindex(A)
-#         A[i] = sqrt(A[i])
-#     end
-#     return A
-# end
+NaNStatistics.nanstd(A; dims=:, dim=:, mean=nothing, corrected=true) = 
+    NaNStatistics.sqrt!(NaNStatistics._nanvar(mean, corrected, A, dims, dim))
 
 NaNStatistics.nanvar(A::AbstractArray{Measurement{Float64}}; dims=:, dim=:, mean=nothing, corrected=true) = 
     NaNStatistics._nanvar(mean, corrected, A::AbstractArray{Measurement{Float64}}, dims, dim)

@@ -49,9 +49,9 @@
 
     Find erosion rate in mm/kyr given slope `slp`.
     """
-    function emmkyr(slp)
-        return 10^(slp*0.00567517 + 0.971075)
-    end
+    emmkyr(slp) = 10^(slp * (0.003701 ± 7.7e-5) + (0.558 ± 0.0056))
+
+    # Previously 10^(slp*0.00567517 + 0.971075)
 
 
 ## --- Functions for querying macrostrat
@@ -547,7 +547,7 @@
     Major elements are in part defined based on Faye and Ødegård 1975 
     (https://www.ngu.no/filearchive/NGUPublikasjoner/NGUnr_322_Bulletin_35_Faye_35_53.pdf).
     """
-    function major_elements(bulk, bulksamples::BitVector, bulk_filter::BitVector)
+    function major_elements(bulk::NamedTuple, bulksamples::BitVector, bulk_filter::BitVector)
         elem = (
             SiO2 = (m = nanmean(bulk.SiO2[bulksamples][bulk_filter]), 
                 e = nanstd(bulk.SiO2[bulksamples][bulk_filter])),

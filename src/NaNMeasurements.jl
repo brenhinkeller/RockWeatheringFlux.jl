@@ -1,17 +1,18 @@
 # New NaNStatistics methods for Measurements with NaN values
 
-# Ignore any NaN ± NaN values, and respectively convert val ± NaN and NaN ± err to val ± 0
-# and 0 ± err.
+# Ignore any NaN ± NaN and NaN ± err values. Convert val ± NaN to val ± 0
 
 using Static
 
 function unmeasurementify(A::AbstractArray{Measurement{Float64}})
-    B = (val = fill(NaN, length(A)), err = fill(NaN, length(A)))
+    # B = (val = fill(NaN, length(A)), err = fill(NaN, length(A)))
+    val = fill(NaN, length(A))
+    err = fill(NaN, length(A))
     for i in eachindex(A)
-        B.val[i] = A[i].val
-        B.err[i] = A[i].err
+        val[i] = A[i].val
+        err[i] = A[i].err
     end
-    return B
+    return val, err
 end
 
 function NaNStatistics.nanadd(a::Measurement, b::Measurement)
@@ -22,28 +23,40 @@ function NaNStatistics.nanadd(a::Measurement, b::Measurement)
 end
 
 function NaNStatistics.nansum(A::AbstractArray{Measurement{Float64}})
-    Tₒ = Base.promote_op(+, eltype(A), Int)
-    Σ = zero(Tₒ)
+    Aᵥ, Aₑ = unmeasurementify(A)
+    Tₒ = Base.promote_op(+, eltype(Aᵥ), Int)
+    Σᵥ = Σₑ = ∅ = zero(Tₒ)
+
     @inbounds for i ∈ eachindex(A)
-        Aᵢ = A[i]
-        Aᵢ = Aᵢ.val*(Aᵢ.val==Aᵢ.val) ± Aᵢ.err*(Aᵢ.err==Aᵢ.err)
-        Σ += Aᵢ
+        Avalᵢ = Aᵥ[i]
+        notnanval = Avalᵢ==Avalᵢ
+        Σᵥ += ifelse(notnanval, Avalᵢ, ∅)
+
+        Aerrᵢ = Aₑ[i]
+        notnanerr = Aerrᵢ==Aerrᵢ
+        Σₑ += ifelse(notnanerr, Aerrᵢ * Aerrᵢ, ∅)
     end
-    return Σ
+    return Σᵥ ± sqrt(sum(Σₑ))
 end
 
 function NaNStatistics.nanmean(A::AbstractArray{Measurement{Float64}})
-    Tₒ = Base.promote_op(/, eltype(A), Int)
+    Aᵥ, Aₑ = unmeasurementify(A)
+    Tₒ = Base.promote_op(/, eltype(Aᵥ), Int)
     n = 0
-    Σ = ∅ = zero(Tₒ)
-    @inbounds for i ∈ eachindex(A)
-        Aᵢ_val = A[i].val
-        Aᵢ_err = A[i].err
-        notnan = Aᵢ_val==Aᵢ_val || Aᵢ_err==Aᵢ_err
-        n += notnan
-        Σ += ifelse(notnan, Aᵢ_val*(Aᵢ_val==Aᵢ_val) ± Aᵢ_err*(Aᵢ_err==Aᵢ_err), ∅)
+    Σᵥ = Σₑ = ∅ = zero(Tₒ)
+    
+    @inbounds for i ∈ eachindex(Aᵥ)
+        Avalᵢ = Aᵥ[i]
+        notnanval = Avalᵢ==Avalᵢ
+        Σᵥ += ifelse(notnanval, Avalᵢ, ∅)
+
+        Aerrᵢ = Aₑ[i]
+        notnanerr = Aerrᵢ==Aerrᵢ
+        Σₑ += ifelse(notnanerr, Aerrᵢ * Aerrᵢ, ∅)
+
+        n += (notnanval || notnanerr)
     end
-    return Σ / n
+    return (Σᵥ / n) ± (sqrt(sum(Σₑ)) / n)
 end
 
 NaNStatistics.nanstd(A; dims=:, dim=:, mean=nothing, corrected=true) = 
@@ -53,41 +66,53 @@ NaNStatistics.nanvar(A::AbstractArray{Measurement{Float64}}; dims=:, dim=:, mean
     NaNStatistics._nanvar(mean, corrected, A::AbstractArray{Measurement{Float64}}, dims, dim)
 
 function NaNStatistics._nanvar(::Nothing, corrected::Bool, A::AbstractArray{Measurement{Float64}}, ::Colon, ::Colon)
-    Tₒ = Base.promote_op(/, eltype(A), Int)
+    Aᵥ, Aₑ = unmeasurementify(A)
+    Tₒ = Base.promote_op(/, eltype(Aᵥ), Int)
     n = 0
-    Σ = zero(Tₒ)
+    Σᵥ = Σₑ = ∅ = zero(Tₒ)
     @inbounds for i ∈ eachindex(A)
-        Aᵢ = A[i]
-        notnan = Aᵢ.val==Aᵢ.val || Aᵢ.err==Aᵢ.err
-        Aᵢ = Aᵢ.val*(Aᵢ.val==Aᵢ.val) ± Aᵢ.err*(Aᵢ.err==Aᵢ.err)
-        n += notnan
-        Σ += Aᵢ
-    end
-    μ = Σ / n
+        Avalᵢ = Aᵥ[i]
+        notnanval = Avalᵢ==Avalᵢ
+        Σᵥ += ifelse(notnanval, Avalᵢ, ∅)
 
-    σ² = ∅ = zero(typeof(μ))
-    @inbounds for i ∈ eachindex(A)
-        Aᵢ = A[i]
-        notnan = Aᵢ.val==Aᵢ.val || Aᵢ.err==Aᵢ.err
-        Aᵢ = Aᵢ.val*(Aᵢ.val==Aᵢ.val) ± Aᵢ.err*(Aᵢ.err==Aᵢ.err)
-        δ = Aᵢ - μ
-        σ² += ifelse(notnan, δ * δ, ∅)
+        Aerrᵢ = Aₑ[i]
+        notnanerr = Aerrᵢ==Aerrᵢ
+        Σₑ += ifelse(notnanerr, Aerrᵢ * Aerrᵢ, ∅)
+
+        n += (notnanval || notnanerr)
     end
-    return σ² / max(n-corrected,0)
+    μᵥ = Σᵥ / n
+    μₑ = sqrt(sum(Σₑ)) / n
+
+    σ²ᵥ = σ²ₑ = ∅ = zero(typeof(μᵥ))
+    @inbounds for i ∈ eachindex(A)
+        δᵥ = Aᵥ[i] - μᵥ
+        notnanval = δᵥ==δᵥ
+        σ²ᵥ += ifelse(notnanval, δᵥ * δᵥ, ∅)
+
+        δₑ = (δᵥ * δᵥ) * sqrt(2 * (Aₑ[i] * Aₑ[i] + μₑ * μₑ) / (δᵥ * δᵥ))
+        notnanerr = δₑ==δₑ
+        σ²ₑ += ifelse(notnanerr, δₑ * δₑ, ∅)
+    end
+    return (σ²ᵥ / max(n-corrected,0)) ± (sqrt(sum(σ²ₑ)) / max(n-corrected,0))
 end
 
 function NaNStatistics._nanvar(μ::Number, corrected::Bool, A::AbstractArray{Measurement{Float64}}, ::Colon, ::Colon)
-    n = 0
-    σ² = ∅ = zero(typeof(μ))
+    Aᵥ, Aₑ = unmeasurementify(A)
+    μᵥ = μ.val
+    μₑ = μ.err
+    σ²ᵥ = σ²ₑ = ∅ = zero(typeof(μᵥ))
+
     @inbounds for i ∈ eachindex(A)
-        Aᵢ = A[i]
-        notnan = Aᵢ.val==Aᵢ.val || Aᵢ.err==Aᵢ.err
-        Aᵢ = Aᵢ.val*(Aᵢ.val==Aᵢ.val) ± Aᵢ.err*(Aᵢ.err==Aᵢ.err)
-        δ = Aᵢ - μ
-        n += notnan
-        σ² += ifelse(notnan, δ * δ, ∅)
+        δᵥ = Aᵥ[i] - μᵥ
+        notnanval = δᵥ==δᵥ
+        σ²ᵥ += ifelse(notnanval, δᵥ * δᵥ, ∅)
+
+        δₑ = (δᵥ * δᵥ) * sqrt(2 * (Aₑ[i] * Aₑ[i] + μₑ * μₑ) / (δᵥ * δᵥ))
+        notnanerr = δₑ==δₑ
+        σ²ₑ += ifelse(notnanerr, δₑ * δₑ, ∅)
     end
-    return σ² / max(n-corrected, 0)
+    return (σ²ᵥ / max(n-corrected,0)) ± (sqrt(sum(σ²ₑ)) / max(n-corrected,0))
 end
 
 """

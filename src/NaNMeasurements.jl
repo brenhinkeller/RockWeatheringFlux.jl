@@ -4,8 +4,25 @@
 
 using Static
 
+"""
+```julia
+    unmeasurementify(A::AbstractArray{Measurement{Float64}})
+```
+
+Separate an array `A` of `measurements` into an array of values and an array of errors.
+
+## Example
+```julia
+julia> A = [1 ± 0.1, 2 ± 0.1]
+2-element Vector{Measurement{Float64}}:
+ 1.0 ± 0.1
+ 2.0 ± 0.1
+
+julia> val, err = unmeasurementify(A)
+([1.0, 2.0], [0.1, 0.1])
+```
+"""
 function unmeasurementify(A::AbstractArray{Measurement{Float64}})
-    # B = (val = fill(NaN, length(A)), err = fill(NaN, length(A)))
     val = fill(NaN, length(A))
     err = fill(NaN, length(A))
     for i in eachindex(A)

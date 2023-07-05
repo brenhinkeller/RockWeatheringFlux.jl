@@ -122,7 +122,6 @@
 
 ## --- Separate data by rock type
     # Create one long array of all indices
-    # Note that because not all rocks in Macrostrat were matched, not all will have data
     allmatches = zeros(Int64, length(macro_cats.ign))
     allmatches[macro_cats.sed] .= matches[:sed]
     allmatches[macro_cats.ign] .= matches[:ign]
@@ -131,23 +130,5 @@
     # Write data to a file
     writedlm("output/matched_bulkidx2.tsv", allmatches,"\t")
 
-    # Separate into subtypes
-    # allmatches = (
-    #     siliciclast = allmatches[macro_cats.siliciclast],
-    #     shale = allmatches[macro_cats.shale],
-    #     carb = allmatches[macro_cats.carb],
-    #     chert = allmatches[macro_cats.chert],
-    #     evaporite = allmatches[macro_cats.evaporite],
-    #     coal = allmatches[macro_cats.coal],
-    #     sed = allmatches[macro_cats.sed],
 
-    #     volc = allmatches[macro_cats.volc],
-    #     plut = allmatches[macro_cats.plut],
-    #     ign = allmatches[macro_cats.ign],
-
-    #     metased = allmatches[macro_cats.metased],
-    #     metaign = allmatches[macro_cats.metaign],
-    #     met = allmatches[macro_cats.met],
-    # )
-
-## --- EOF
+## --- End of File

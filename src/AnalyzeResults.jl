@@ -11,7 +11,7 @@
     include("Utilities.jl")
 
     # Load results. Assume no change in element order during file save
-    res = h5open("output/rwf_output6.h5", "r")
+    res = h5open("output/erodedmaterial.h5", "r")
     rocks = read(res["bulkrockflux"]["rocktypes"])      # Names of rock subtypes
     elems = read(res["element_names"])                  # Names of element / element oxides
 
@@ -115,7 +115,7 @@
     row_order = collect(keys(flux_cats.sed))
     for i in eachindex(row_order)
         nextelement = row_order[i]
-        bigmatrix[i+1, end]  = globalelem[nextelement].val / kg_gt
+        bigmatrix[i+1, end] = globalelem[nextelement].val / kg_gt
     end
 
     # Add row names (elements) and column names (rock types)
@@ -129,7 +129,7 @@
     end
 
     # Write to file
-    writedlm("output/flux_gt.csv", bigmatrix)
+    writedlm("output/flux_gt.csv", bigmatrix, delim=',')
 
 
 ## --- Write relative flux to a .csv file 
@@ -154,7 +154,7 @@
     end
 
     # Write to file
-    writedlm("output/flux_relativecontrib.csv", bigmatrix)
+    writedlm("output/flux_relativecontrib.csv", bigmatrix, ',')
 
 
 ## --- End of File

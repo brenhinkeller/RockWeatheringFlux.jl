@@ -26,12 +26,18 @@
     B_znan_par[10] = 0.0 ± 0.0
 
 
-## --- Summary statistics
-    @test nanadd(A[1], A[3]) == B[1] + B[3]
-    @test nansum(A) == sum(B)
-    @test nanmean(A) == mean(B)
-    @test nanstd(A) ≈ std(B)
-    @test nanvar(A) ≈ var(B)
+## --- Summary statistics: simple cases
+    @test nanadd(A[1], A[3]).val == (B[1] + B[3]).val
+    @test nansum(A).val == sum(B).val
+    @test nanmean(A).val == mean(B).val
+    @test nanstd(A).val ≈ std(B).val
+    @test nanvar(A).val ≈ var(B).val
+
+    @test nanadd(A[1], A[3]).err == (B[1] + B[3]).err
+    @test nansum(A).err == sum(B).err
+    @test nanmean(A).err == mean(B).err
+    @test nanstd(A).err ≈ std(B).err
+    @test nanvar(A).err ≈ var(B).err
 
 
 ## --- NaN replacement

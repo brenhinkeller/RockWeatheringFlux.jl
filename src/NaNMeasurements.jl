@@ -59,13 +59,13 @@ function NaNStatistics.nanmean(A::AbstractArray{Measurement{Float64}})
     return (Σᵥ / n) ± (sqrt(sum(Σₑ)) / n)
 end
 
-NaNStatistics.nanstd(A; dims=:, dim=:, mean=nothing, corrected=true) = 
-    NaNStatistics.sqrt!(NaNStatistics._nanvar(mean, corrected, A, dims, dim))
+NaNStatistics.nanstd(A::AbstractArray{Measurement{Float64}}; mean=nothing, corrected=true) = 
+    NaNStatistics.sqrt!(NaNStatistics._nanvar(mean, corrected, A::AbstractArray{Measurement{Float64}}))
 
-NaNStatistics.nanvar(A::AbstractArray{Measurement{Float64}}; dims=:, dim=:, mean=nothing, corrected=true) = 
-    NaNStatistics._nanvar(mean, corrected, A::AbstractArray{Measurement{Float64}}, dims, dim)
+NaNStatistics.nanvar(A::AbstractArray{Measurement{Float64}}; mean=nothing, corrected=true) = 
+    NaNStatistics._nanvar(mean, corrected, A::AbstractArray{Measurement{Float64}})
 
-function NaNStatistics._nanvar(::Nothing, corrected::Bool, A::AbstractArray{Measurement{Float64}}, ::Colon, ::Colon)
+function NaNStatistics._nanvar(::Nothing, corrected::Bool, A::AbstractArray{T}) where T <: Measurement{Float64}
     Aᵥ, Aₑ = unmeasurementify(A)
     Tₒ = Base.promote_op(/, eltype(Aᵥ), Int)
     n = 0
@@ -97,7 +97,7 @@ function NaNStatistics._nanvar(::Nothing, corrected::Bool, A::AbstractArray{Meas
     return (σ²ᵥ / max(n-corrected,0)) ± (sqrt(sum(σ²ₑ)) / max(n-corrected,0))
 end
 
-function NaNStatistics._nanvar(μ::Number, corrected::Bool, A::AbstractArray{Measurement{Float64}}, ::Colon, ::Colon)
+function NaNStatistics._nanvar(μ::Number, corrected::Bool, A::AbstractArray{T}) where T <: Measurement{Float64}
     Aᵥ, Aₑ = unmeasurementify(A)
     μᵥ = μ.val
     μₑ = μ.err

@@ -90,7 +90,7 @@ function NaNStatistics._nanvar(::Nothing, corrected::Bool, A::AbstractArray{Meas
         notnanval = δᵥ==δᵥ
         σ²ᵥ += ifelse(notnanval, δᵥ * δᵥ, ∅)
 
-        δₑ = (δᵥ * δᵥ) * sqrt(2 * (Aₑ[i] * Aₑ[i] + μₑ * μₑ) / (δᵥ * δᵥ))
+        δₑ = (δᵥ * δᵥ) * sqrt(4 * (Aₑ[i] * Aₑ[i] + μₑ * μₑ) / (δᵥ * δᵥ))
         notnanerr = δₑ==δₑ
         σ²ₑ += ifelse(notnanerr, δₑ * δₑ, ∅)
     end
@@ -108,7 +108,7 @@ function NaNStatistics._nanvar(μ::Number, corrected::Bool, A::AbstractArray{Mea
         notnanval = δᵥ==δᵥ
         σ²ᵥ += ifelse(notnanval, δᵥ * δᵥ, ∅)
 
-        δₑ = (δᵥ * δᵥ) * sqrt(2 * (Aₑ[i] * Aₑ[i] + μₑ * μₑ) / (δᵥ * δᵥ))
+        δₑ = (δᵥ * δᵥ) * sqrt(4 * (Aₑ[i] * Aₑ[i] + μₑ * μₑ) / (δᵥ * δᵥ))
         notnanerr = δₑ==δₑ
         σ²ₑ += ifelse(notnanerr, δₑ * δₑ, ∅)
     end

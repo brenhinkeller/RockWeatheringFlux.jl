@@ -91,41 +91,6 @@
           sed and met = $(count(macro_cats.sed .& macro_cats.met))
           ign and met = $(count(macro_cats.ign .& macro_cats.met))"
     end
-
-
-## --- DEBUGGING: Check that all subtypes are included in the major type
-    # # Get BitVectors of all minor types
-    # minorsed_bv = falses(length(macro_cats.sed))
-    # for i in minorsed
-    #     minorsed_bv .|= macro_cats[i]
-    # end
-
-    # minorign_bv = falses(length(macro_cats.ign))
-    # for i in minorign
-    #     minorign_bv .|= macro_cats[i]
-    # end
-
-    # minormet_bv = falses(length(macro_cats.met))
-    # for i in minormet
-    #     minormet_bv .|= macro_cats[i]
-    # end
-
-    # # Make sure all minor types are included in the major type
-    # for i in eachindex(macro_cats.sed)
-    #     if minorsed_bv[i]
-    #         @assert macro_cats.sed[i] "Sedimentary index $i"
-    #     end
-    # end
-    # for i in eachindex(macro_cats.ign)
-    #     if minorign_bv[i]
-    #         @assert macro_cats.ign[i] "Igneous index $i"
-    #     end
-    # end
-    # for i in eachindex(macro_cats.met)
-    #     if minormet_bv[i]
-    #         @assert macro_cats.met[i] "Metamorphic index $i"
-    #     end
-    # end
     
 
 ## --- Calculate erosion rate at each coordinate point of interest
@@ -165,25 +130,6 @@
         crustal_area[i] = count(macro_cats[i]) / total_known * contl_area
     end
     crustal_area = NamedTuple{Tuple(keys(crustal_area))}(values(crustal_area))
-    
-## --- DEBUGGING: Total area of minor rock types should be less than area of major types
-    # minorsed_area = 0.0
-    # for i in minorsed
-    #     minorsed_area += crustal_area[i]
-    # end
-    # @assert minorsed_area < crustal_area.sed
-
-    # minorign_area = 0.0
-    # for i in minorign
-    #     minorign_area += crustal_area[i]
-    # end
-    # @assert minorign_area < crustal_area.ign
-
-    # minormet_area = 0.0
-    # for i in minormet
-    #     minormet_area += crustal_area[i]
-    # end
-    # @assert minormet_area < crustal_area.met
 
 
 ## --- Load EarthChem data
@@ -479,26 +425,6 @@
         bulkflux_val[i] = bulkflux[sub_i].val
         bulkflux_std[i] = bulkflux[sub_i].err
     end
-
-
-## --- DEBUGGING: Total flux of minor rock types should be less than flux of major types
-    # minorsed_flux = 0.0
-    # for i in minorsed
-    #     minorsed_flux += bulkflux[i]
-    # end
-    # @assert minorsed_flux < bulkflux.sed
-
-    # minorign_flux = 0.0
-    # for i in minorign
-    #     minorign_flux += bulkflux[i]
-    # end
-    # @assert minorign_flux < bulkflux.ign
-
-    # minormet_flux = 0.0
-    # for i in minormet
-    #     minormet_flux += bulkflux[i]
-    # end
-    # @assert minormet_flux < bulkflux.met
 
 
 ## --- Calculate flux by element / element oxide

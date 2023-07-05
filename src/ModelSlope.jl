@@ -10,7 +10,7 @@
     using Isoplot: yorkfit
 
     # Local utilities
-    include("utilities_slope.jl")
+    include("UtilitiesSlope.jl")
 
 
 ## --- Get OCTOPUS basin polygon outlines

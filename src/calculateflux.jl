@@ -11,6 +11,7 @@
     
     # Local utilities
     include("Utilities.jl")
+    include("NaNMeasurements.jl")
 
 
 ## --- Load pre-generated Macrostrat data
@@ -135,13 +136,12 @@
     srtm15_sf = h5read("data/srtm15plus_maxslope.h5", "vars/scalefactor")
 
     # Get slope at each coordinate point
+    # Modify this function to return an error as well
     rockslope = avg_over_area(srtm15_slope, macrostrat.rocklat, macrostrat.rocklon, 
         srtm15_sf, halfwidth=7
     )
 
     # Calculate all erosion rates (mm/kyr)
-    # TO DO: update this function with a better erosion estimate
-    # TO DO: update this to be a measurement value (i.e. prop. uncertainty!)
     rock_ersn = emmkyr.(rockslope)
 
 
@@ -150,7 +150,7 @@
     allkeys = keys(macro_cats)
     allinitvals = fill(NaN, length(allkeys))
 
-    erosion = Dict(zip(allkeys, allinitvals))
+    erosion = Dict(zip(allkeys, allinitvals .± allinitvals))
     crustal_area = Dict(zip(allkeys, allinitvals))
 
     # Erosion (m/Myr)
@@ -298,7 +298,7 @@
                 end
             end
 
-        # Other rocks not differentiated
+        # Other rocks, not differentiated
         else
             for j in keys(majorcomp[i])
                 # Get data for the current element
@@ -467,7 +467,7 @@
 
     # Keys for erosion and crustal_area are in an arbitrary order. Correct indexing critical
     # TO DO: make this into a measurement type
-    bulkflux = Dict(zip(subcats, fill(NaN, length(subcats))))
+    bulkflux = Dict(zip(subcats, fill(NaN ± NaN, length(subcats))))
     for i in subcats
         bulkflux[i] = erosion[i] * crustal_area[i] * crustal_density * 1e-6
     end
@@ -476,9 +476,8 @@
     # Save to file. Keys are again in arbitrary order
     for i in eachindex(subcats)
         sub_i = subcats[i]
-        bulkflux_val[i] = bulkflux[sub_i]
-        # bulkflux_val[i] = bulkflux[sub_i].val
-        # bulkflux_std[i] = bulkflux[sub_i].err
+        bulkflux_val[i] = bulkflux[sub_i].val
+        bulkflux_std[i] = bulkflux[sub_i].err
     end
 
 

@@ -5,6 +5,15 @@
 
 using Static
 
+function unmeasurementify(A::AbstractArray{Measurement{Float64}})
+    B = (val = fill(NaN, length(A)), err = fill(NaN, length(A)))
+    for i in eachindex(A)
+        B.val[i] = A[i].val
+        B.err[i] = A[i].err
+    end
+    return B
+end
+
 function NaNStatistics.nanadd(a::Measurement, b::Measurement)
     a = a.val*(a.val==a.val) ± a.err*(a.err==a.err)
     b = b.val*(b.val==b.val) ± b.err*(b.err==b.err)
@@ -26,13 +35,13 @@ end
 function NaNStatistics.nanmean(A::AbstractArray{Measurement{Float64}})
     Tₒ = Base.promote_op(/, eltype(A), Int)
     n = 0
-    Σ = zero(Tₒ)
+    Σ = ∅ = zero(Tₒ)
     @inbounds for i ∈ eachindex(A)
-        Aᵢ = A[i]
-        notnan = Aᵢ.val==Aᵢ.val || Aᵢ.err==Aᵢ.err
-        Aᵢ = Aᵢ.val*(Aᵢ.val==Aᵢ.val) ± Aᵢ.err*(Aᵢ.err==Aᵢ.err)
+        Aᵢ_val = A[i].val
+        Aᵢ_err = A[i].err
+        notnan = Aᵢ_val==Aᵢ_val || Aᵢ_err==Aᵢ_err
         n += notnan
-        Σ += Aᵢ
+        Σ += ifelse(notnan, Aᵢ_val*(Aᵢ_val==Aᵢ_val) ± Aᵢ_err*(Aᵢ_err==Aᵢ_err), ∅)
     end
     return Σ / n
 end

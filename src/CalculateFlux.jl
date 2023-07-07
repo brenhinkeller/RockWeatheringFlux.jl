@@ -33,14 +33,18 @@
     )
     
     # Print to terminal
-    @info "Macrostrat parsing complete!
-      not matched = $(count(not_matched))"
+    @info """
+    Macrostrat parsing complete!
+    not matched = $(count(not_matched))
+    """
 
     if count(multi_matched) > 0
-        @warn "$(count(multi_matched)) conflicting matches present
-          sed and ign = $(count(macro_cats.sed .& macro_cats.ign))
-          sed and met = $(count(macro_cats.sed .& macro_cats.met))
-          ign and met = $(count(macro_cats.ign .& macro_cats.met))"
+        @warn """
+        $(count(multi_matched)) conflicting matches present
+        sed and ign = $(count(macro_cats.sed .& macro_cats.ign))
+        sed and met = $(count(macro_cats.sed .& macro_cats.met))
+        ign and met = $(count(macro_cats.ign .& macro_cats.met))
+        """
     end
     
 
@@ -227,11 +231,12 @@
     metmeasure = count(macro_cats.met .& above95) / mettotal * 100
     ignmeasure = count(macro_cats.ign .& above95) / igntotal * 100
 
-    @info "Samples with >95% measured geochemistry vs. crustal abundance:
-      sed: $(round(sedmeasure, sigdigits=3))% of samples, $(round(sedfrac, sigdigits=3))% of rocks
-      met: $(round(metmeasure, sigdigits=3))% of samples, $(round(metfrac, sigdigits=3))% of rocks
-      ign: $(round(ignmeasure, sigdigits=3))% of samples, $(round(ignfrac, sigdigits=3))% of rocks
-    "    
+    @info """
+    Samples with >95% measured geochemistry vs. crustal abundance:
+    sed: $(round(sedmeasure, sigdigits=3))% of samples, $(round(sedfrac, sigdigits=3))% of rocks
+    met: $(round(metmeasure, sigdigits=3))% of samples, $(round(metfrac, sigdigits=3))% of rocks
+    ign: $(round(ignmeasure, sigdigits=3))% of samples, $(round(ignfrac, sigdigits=3))% of rocks
+    """
 
     # Calculate crustal abundance of felsic / intermediate / mafic igneous rocks
     allsilicadata = Array{Float64}(undef, length(bulkidx[macro_cats.ign]), 1)
@@ -270,13 +275,14 @@
     maffracmeasure = mafmeasure / allignmeasure * 100
     umaffracmeasure = umafmeasure / allignmeasure * 100
 
-    @info "Igneous rocks by silica content with >95% measured geochemistry vs. crustal abundance:
-       > 45%: $(round(umaffracmeasure, sigdigits=3))% of samples, $(round(umaffrac, sigdigits=3))% of rocks
-      43-51%: $(round(maffracmeasure, sigdigits=3))% of samples, $(round(maffrac, sigdigits=3))% of rocks
-      51-62%: $(round(intfracmeasure, sigdigits=3))% of samples, $(round(intfrac, sigdigits=3))% of rocks
-      62-74%: $(round(felfracmeasure, sigdigits=3))% of samples, $(round(felfrac, sigdigits=3))% of rocks
-       < 74%: $(round(ufelfracmeasure, sigdigits=3))% of samples, $(round(ufelfrac, sigdigits=3))% of rocks
-    "
+    @info """
+    Igneous rocks by silica content with >95% measured geochemistry vs. crustal abundance:
+    > 45%: $(round(umaffracmeasure, sigdigits=3))% of samples, $(round(umaffrac, sigdigits=3))% of rocks
+    43-51%: $(round(maffracmeasure, sigdigits=3))% of samples, $(round(maffrac, sigdigits=3))% of rocks
+    51-62%: $(round(intfracmeasure, sigdigits=3))% of samples, $(round(intfrac, sigdigits=3))% of rocks
+    62-74%: $(round(felfracmeasure, sigdigits=3))% of samples, $(round(felfrac, sigdigits=3))% of rocks
+    < 74%: $(round(ufelfracmeasure, sigdigits=3))% of samples, $(round(ufelfrac, sigdigits=3))% of rocks
+    """
 
 
 ## --- Export results

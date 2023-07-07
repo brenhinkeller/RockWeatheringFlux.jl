@@ -25,6 +25,7 @@
     using MAT
     using StatGeochem
     using LoopVectorization     # Required for current Utilities file
+    using Static                # Ditto above
 
     # Local utilities
     include("Utilities.jl")
@@ -97,12 +98,14 @@
     t75 = length(findall(>(75), allmajors))     # Above 75%
     t50 = length(findall(>(50), allmajors))     # Above 50%
 
-    @info "Percentage of samples with total major element oxide wt.% above...
-       95%: $(round(t95/total*100))
-       90%: $(round(t90/total*100))
-       75%: $(round(t75/total*100))
-       50%: $(round(t50/total*100))
-       <50%: $(round((total-t50)/total*100))"
+    @info """
+    Percentage of samples with total major element oxide wt.% above...
+    95%: $(round(t95/total*100))
+    90%: $(round(t90/total*100))
+    75%: $(round(t75/total*100))
+    50%: $(round(t50/total*100))
+    <50%: $(round((total-t50)/total*100))
+    """
 
     # Check for all major and trace elements
     allelems = Array{Float64}(undef, length(bulk.SiO2), 1)
@@ -119,12 +122,14 @@
     t75 = length(findall(>(75), allelems))     # Above 75%
     t50 = length(findall(>(50), allelems))     # Above 50%
 
-    @info "Percentage of samples with total wt.% above...
-       95%: $(round(t95/total*100))
-       90%: $(round(t90/total*100))
-       75%: $(round(t75/total*100))
-       50%: $(round(t50/total*100))
-       <50%: $(round((total-t50)/total*100))"
+    @info """
+    Percentage of samples with total wt.% above...
+    95%: $(round(t95/total*100))
+    90%: $(round(t90/total*100))
+    75%: $(round(t75/total*100))
+    50%: $(round(t50/total*100))
+    <50%: $(round((total-t50)/total*100))
+    """
 
     # Output of above:
     # ┌ Info: Percentage of samples with total major element oxide wt.% above...

@@ -1,3 +1,7 @@
+## --- Required packages
+    using LoopVectorization
+    using Static
+
 ## --- Generate random points on the continental crust
     """
     ```julia

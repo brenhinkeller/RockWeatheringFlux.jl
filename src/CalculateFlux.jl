@@ -3,12 +3,10 @@
     using StatGeochem
     using DelimitedFiles
     using ProgressMeter
-    using LoopVectorization
     using Measurements
     using HDF5
     using MAT
     using DelimitedFiles
-    using Static
     
     # Local utilities
     include("Utilities.jl")

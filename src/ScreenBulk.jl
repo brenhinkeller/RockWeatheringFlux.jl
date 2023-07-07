@@ -24,8 +24,6 @@
     # Packages
     using MAT
     using StatGeochem
-    using LoopVectorization     # Required for current Utilities file
-    using Static                # Ditto above
 
     # Local utilities
     include("Utilities.jl")

@@ -1,7 +1,6 @@
 ## --- Set up
     # Packages
     using StatGeochem
-    using LoopVectorization
     using HDF5
     using DelimitedFiles
     using Measurements
@@ -129,7 +128,7 @@
     end
 
     # Write to file
-    writedlm("output/flux_gt.csv", bigmatrix, delim=',')
+    writedlm("output/flux_gt.csv", bigmatrix, ',')
 
 
 ## --- Write relative flux to a .csv file 

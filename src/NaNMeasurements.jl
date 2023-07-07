@@ -83,6 +83,8 @@ NaNStatistics.nanvar(A::AbstractArray{Measurement{Float64}}; mean=nothing, corre
     NaNStatistics._nanvar(mean, corrected, A::AbstractArray{Measurement{Float64}})
 
 function NaNStatistics._nanvar(::Nothing, corrected::Bool, A::AbstractArray{T}) where T <: Measurement{Float64}
+    @warn "Unpredictable behavior in nanvar when errors are 0"
+
     Aᵥ, Aₑ = unmeasurementify(A)
     Tₒ = Base.promote_op(/, eltype(Aᵥ), Int)
     n = 0
@@ -115,6 +117,8 @@ function NaNStatistics._nanvar(::Nothing, corrected::Bool, A::AbstractArray{T}) 
 end
 
 function NaNStatistics._nanvar(μ::Number, corrected::Bool, A::AbstractArray{T}) where T <: Measurement{Float64}
+    @warn "Unpredictable behavior in nanvar when errors are 0"
+
     Aᵥ, Aₑ = unmeasurementify(A)
     μᵥ = μ.val
     μₑ = μ.err

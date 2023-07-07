@@ -422,7 +422,7 @@
             end
         end
 
-        return cats
+        return un_multimatch!(cats, major)
     end
 
     """
@@ -459,6 +459,103 @@
 
             return .!(cats.sed .| cats.ign .| cats.met .| cats.cover)
         end
+    end
+
+    """
+    ```julia
+    un_multimatch!(cats, major::Bool)
+    ```
+
+    Exclude Macrostrat matches from each other so each sample is only classified as one
+    rock type.
+
+    If `major` is `true`: 
+      * Cover is excluded from all rock types.
+      * Rocks classified as both metamorphic and sedimentary / igneous (i.e., metasedimentary
+        and metaigneous rocks) are respectively re-classified as sedimentary and igneous rocks.
+      * Rocks classified as sedimentary and igneous are re-classified as igneous rocks.
+
+    If `major` is false:
+      * Cover is excluded from all rock types.
+      * Rocks classified as both metamorphic and sedimentary / igneous (i.e., metasedimentary
+        and metaigneous rocks) are **excluded** from sedimentary and igneous rocks, and 
+        re-classified as metasedimentary and metaigneous rocks.
+      * Rocks classified as more than one subtype of sedimentary rocks are excluded from
+        each other, in arbitrary order.
+      * Rocks classified as both volcanic and plutonic, or both metasedimentary and 
+        metaigneous, are respectively re-classified as undifferentiated igneous and metamorphic
+        rocks.
+      * Rocks classified as sedimentary and igneous are re-classified as igneous rocks.
+    """
+    un_multimatch!(cats, major::Bool) = _un_multimatch!(cats, static(major))
+
+    function _un_multimatch!(cats, major::True)
+        # Exclude cover
+        cats.sed .&= .! cats.cover
+        cats.ign .&= .! cats.cover
+        cats.met .&= .! cats.cover
+
+        # Classify metased as sed and metaign and ign
+        cats.met .&= .! cats.sed
+        cats.ign .&= .! cats.ign
+
+        # Sed / ign rocks are classified as ign
+        cats.sed .&= .! cats.ign
+
+        return cats
+    end
+
+    function _un_multimatch!(cats, major::False)
+        # Define types
+        minorsed = (:siliciclast, :shale, :carb, :chert, :evaporite, :coal)
+        minorign = (:volc, :plut)
+        minormet = (:metased, :metaign)
+        minortypes = (minorsed..., minorign..., minormet...)
+
+        # Exclude cover from all major and minor rock types
+        cats.sed .&= .! cats.cover
+        cats.ign .&= .! cats.cover
+        cats.met .&= .! cats.cover
+        for i in minortypes
+            cats[i] .&= .! cats.cover
+        end
+
+        # Exclude metamorphic rocks from sed and igns. Class as metased and metaign
+        cats.metased .|= (cats.sed .& cats.met)
+        cats.metaign .|= (cats.ign .& cats.met)
+
+        cats.sed .&= .! cats.met
+        for i in minorsed
+            cats[i] .&= .! cats.met
+        end
+
+        cats.ign .&= .! cats.met
+        for i in minorign
+            cats[i] .&= .! cats.met
+        end
+
+        # Exclude sed subtypes from other sed subtypes
+        for i in 1:(length(minorsed)-1)
+            for j in minorsed[i+1:end]
+                cats[minorsed[i]] .&= .! cats[j]
+            end
+        end
+
+        # Both volcanic and plutonic is undifferentiated igneous
+        cats.volc .&= .!(cats.volc .& cats.plut)
+        cats.plut .&= .!(cats.volc .& cats.plut)
+
+        # Both metaigneous and metasedimentary is undifferentiated metamorphic
+        cats.metased .&= .!(cats.metased .& cats.metaign)
+        cats.metaign .&= .!(cats.metased .& cats.metaign)
+
+        # Sed / ign rocks are classified as ign
+        cats.sed .&= .! cats.ign            
+        for i in minorsed
+            cats[i] .&= .! cats.ign 
+        end
+
+        return cats
     end
 
 

@@ -8,6 +8,7 @@
     using HDF5
     using MAT
     using DelimitedFiles
+    using Static
     
     # Local utilities
     include("Utilities.jl")
@@ -20,56 +21,6 @@
     # Load and match
     macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
     @time macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
-
-    minorsed = (:siliciclast, :shale, :carb, :chert, :evaporite, :coal)
-    minorign = (:volc, :plut)
-    minormet = (:metased, :metaign)
-    minortypes = (minorsed..., minorign..., minormet...)
-
-    # Exclude cover from all major and minor rock types
-    macro_cats.sed .&= .! macro_cats.cover
-    macro_cats.ign .&= .! macro_cats.cover
-    macro_cats.met .&= .! macro_cats.cover
-    for i in minortypes
-        macro_cats[i] .&= .! macro_cats.cover
-    end
-
-    # Exclude metamorphic rocks from sed and igns. Class as metased and metaign
-    macro_cats.metased .|= (macro_cats.sed .& macro_cats.met)
-    macro_cats.metaign .|= (macro_cats.ign .& macro_cats.met)
-
-    macro_cats.sed .&= .! macro_cats.met
-    for i in minorsed
-        macro_cats[i] .&= .! macro_cats.met
-    end
-
-    macro_cats.ign .&= .! macro_cats.met
-    for i in minorign
-        macro_cats[i] .&= .! macro_cats.met
-    end
-
-    # Exclude subtypes from other subtypes
-    # Relatively arbitrary exclusion of sed types from each other
-    # Re-order the list to change how the exclusion works
-    for i in 1:(length(minorsed)-1)
-        for j in minorsed[i+1:end]
-            macro_cats[minorsed[i]] .&= .! macro_cats[j]
-        end
-    end
-
-    # Volcanic and plutonic is downgraded to undifferentiated igneous
-    macro_cats.volc .&= .!(macro_cats.volc .& macro_cats.plut)
-    macro_cats.plut .&= .!(macro_cats.volc .& macro_cats.plut)
-
-    # Metaigneous and metasedimentary is downgraded to undifferentiated metamorphic
-    macro_cats.metased .&= .!(macro_cats.metased .& macro_cats.metaign)
-    macro_cats.metaign .&= .!(macro_cats.metased .& macro_cats.metaign)
-
-    # Sed / ign rocks are classified as ign
-    macro_cats.sed .&= .! macro_cats.ign            
-    for i in minorsed
-        macro_cats[i] .&= .! macro_cats.ign 
-    end
 
     # Figure out how many data points weren't matched
     known_rocks = macro_cats.sed .| macro_cats.ign .| macro_cats.met

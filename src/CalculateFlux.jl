@@ -98,14 +98,10 @@
 
 
 ## --- Every element of interest from EarthChem
-    biglist = [:SiO2,:Al2O3,:Fe2O3T,:TiO2,:MgO,:CaO,:Na2O,:K2O,
-        :Ag,:As,:Au,:B,:Ba,:Be,:Bi,:C,:CaCO3,:Cd,:Ce,:Cl,:Co,:Cr2O3,:Cs,:Cu,:Dy,:Er,
-        :Eu,:F,:Ga,:Gd,:Hf,:Hg,:Ho,:I,:In,:Ir,:La,:Li,:Lu,:MnO,:Mo,:Nb,:Nd,:NiO,:Os,
-        :P2O5,:Pb,:Pd,:Pt,:Pr,:Re,:Rb,:Sb,:Sc,:Se,:S,:Sm,:Sn,:Sr,:Ta,:Tb,:Te,:Th,:Tl,:Tm,
-        :U,:V,:W,:Y,:Yb,:Zn,:Zr
-    ]
-    nelements = length(biglist)
-    strbiglist = string.(biglist)
+    majors, minors = get_elements
+    allelements = [majors; minors]
+    nelements = length(allelements)
+    # strallelements = string.(allelements)
 
     npoints = length(macrostrat.rocktype)
     subcats = collect(allkeys)
@@ -117,7 +113,7 @@
     complete = Array{Float64}(undef, length(bulkidx), 1)
     @time for i in eachindex(bulkidx)
         if bulkidx[i] != 0
-            for j in biglist
+            for j in allelements
                 complete[i] = nanadd(complete[i], bulk[j][bulkidx[i]])
             end
         else
@@ -139,7 +135,7 @@
     bulkidx95 = bulkidx[above95]
 
     # Get major elements, avoid hardcoding
-    majorelem = collect(keys(major_elements(bulk, bulk_cats.sed, trues(count(bulk_cats.sed)))))
+    majorelem, = get_elements()
 
     # Preallocate
     majorcomp = Dict(
@@ -332,7 +328,7 @@
 #     fid = h5open("output/erodedmaterial.h5", "w")
 
 #     # Metadata
-#     write(fid, "element_names", strbiglist)                           # Names of analyzed elements
+#     write(fid, "element_names", strallelements)                           # Names of analyzed elements
 #     write(fid, "npoints", npoints)                                    # Total macrostrat samples
 #     nsample = create_dataset(fid, "nsamples_byelem", Int, (nelements,))   # Non-NaN samples for each element
 
@@ -342,7 +338,7 @@
 #     bulkflux_val = create_dataset(bulkrockflux, "val", Float64, (length(subcats),))
 #     bulkflux_std = create_dataset(bulkrockflux, "std", Float64, (length(subcats),))
 
-#     # For each element in biglist, wt.% and flux by rock subtype, and total global flux
+#     # For each element in allelements, wt.% and flux by rock subtype, and total global flux
 #     elementflux = create_group(fid, "elementflux")
 
 #     # Global flux
@@ -383,10 +379,10 @@
     
 # ## --- Calculate flux by element / element oxide
 #     # TO DO: I should make sure these aren't also scrambled...
-#     for i in eachindex(biglist)
+#     for i in eachindex(allelements)
 #         # Calculate wt.%, flux, and global flux of each element
-#         wt, flux, global_flux, n = flux_source(bulk[biglist[i]], bulkidx, erosion, macro_cats, 
-#             crustal_area, elem=strbiglist[i]
+#         wt, flux, global_flux, n = flux_source(bulk[allelements[i]], bulkidx, erosion, macro_cats, 
+#             crustal_area, elem=strallelements[i]
 #         )
 
 #         # Write data to file
@@ -435,14 +431,14 @@
     element_flux = create_group(fid, "element_flux")
     elem_vals = create_dataset(element_flux, "values", Float64, (npoints, nelements))
     elem_errs = create_dataset(element_flux, "errors", Float64, (npoints, nelements))
-    elem_head = create_dataset(element_flux, "header", string.(biglist))
+    elem_head = create_dataset(element_flux, "header", string.(allelements))
 
     # Use rock type wt.% averages
-    for i in eachindex(biglist)
+    for i in eachindex(allelements)
         # Compute average wt.% for element i by rock type
         avgwt = Dict(zip(subcats, fill(NaN ± NaN, length(subcats))))
         for j in collect(keys(avgwt))
-            avgwt[j] = nanmean(bulk[biglist[i]][bulk_cats[j]]) ± nanstd(bulk[biglist[i]][bulk_cats[j]])
+            avgwt[j] = nanmean(bulk[allelements[i]][bulk_cats[j]]) ± nanstd(bulk[allelements[i]][bulk_cats[j]])
         end
 
         # Filter rocks of each rock type and compute flux of element i

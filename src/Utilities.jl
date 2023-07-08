@@ -636,7 +636,42 @@
     end
 
 
-## --- Functions for matching samples
+## --- Definitions of major and minor elements
+    """
+    ```julia
+    get_elements()
+    ```
+
+    Return vectors of type `Symbol` of major and minor elements.
+
+    Major elements:
+      * SiO2, Al2O3, FeOT, TiO2, MgO, CaO, Na2O, K2O
+
+        
+    Minor elements:
+      * Ag, As, Au, B, Ba, Be, Bi, C, CaCO3, Cd, Ce, Cl, Co, Cr2O3, Cs, Cu, Dy, Er, Eu, 
+        F, Ga, Gd, Hf, Hg, Ho, I, In, Ir, La, Li, Lu, MnO, Mo, Nb, Nd, NiO, Os, P2O5, Pb, 
+        Pd, Pt, Pr, Re, Rb, Sb, Sc, Se, S, Sm, Sn, Sr, Ta, Tb, Te, Th, Tl, Tm, U, V, W, Y, 
+        Yb, Zn, Zr
+
+    Major elements are in part defined based on Faye and Ødegård 1975 
+    (https://www.ngu.no/filearchive/NGUPublikasjoner/NGUnr_322_Bulletin_35_Faye_35_53.pdf).
+
+    See also: `major_elements`
+
+    """
+    function get_elements()
+        majors = [:SiO2,:Al2O3,:FeOT,:TiO2,:MgO,:CaO,:Na2O,:K2O,]
+        minors = [:Ag,:As,:Au,:B,:Ba,:Be,:Bi,:C,:CaCO3,:Cd,:Ce,:Cl,:Co,:Cr2O3,:Cs,:Cu,
+            :Dy,:Er,:Eu,:F,:Ga,:Gd,:Hf,:Hg,:Ho,:I,:In,:Ir,:La,:Li,:Lu,:MnO,:Mo,:Nb,:Nd,
+            :NiO,:Os,:P2O5,:Pb,:Pd,:Pt,:Pr,:Re,:Rb,:Sb,:Sc,:Se,:S,:Sm,:Sn,:Sr,:Ta,:Tb,
+            :Te,:Th,:Tl,:Tm,:U,:V,:W,:Y,:Yb,:Zn,:Zr
+        ]
+
+        return majors, minors
+    end
+
+
     """
     ```julia
     major_elements(bulk, bulk_filter)
@@ -645,32 +680,17 @@
 
     Major elements: SiO₂, Al₂O₃, FeO (total), TiO₂, MgO, CaO, Na₂O, K₂O. 
 
-    Major elements are in part defined based on Faye and Ødegård 1975 
-    (https://www.ngu.no/filearchive/NGUPublikasjoner/NGUnr_322_Bulletin_35_Faye_35_53.pdf).
+    See also: `get_elements`
     """
     function major_elements(bulk::NamedTuple, bulksamples::BitVector, bulk_filter::BitVector)
-        elem = (
-            SiO2 = (m = nanmean(bulk.SiO2[bulksamples][bulk_filter]), 
-                e = nanstd(bulk.SiO2[bulksamples][bulk_filter])),
-            Al2O3 = (m = nanmean(bulk.Al2O3[bulksamples][bulk_filter]), 
-                e = nanstd(bulk.Al2O3[bulksamples][bulk_filter])),
-            FeOT = (m = nanmean(bulk.FeOT[bulksamples][bulk_filter]), 
-                e = nanstd(bulk.Fe2O3T[bulksamples][bulk_filter])),
-            TiO2 = (m = nanmean(bulk.TiO2[bulksamples][bulk_filter]), 
-                e = nanstd(bulk.TiO2[bulksamples][bulk_filter])),
-            MgO = (m = nanmean(bulk.MgO[bulksamples][bulk_filter]), 
-                e = nanstd(bulk.MgO[bulksamples][bulk_filter])),
-            CaO = (m = nanmean(bulk.CaO[bulksamples][bulk_filter]), 
-                e = nanstd(bulk.CaO[bulksamples][bulk_filter])),
-            Na2O = (m = nanmean(bulk.Na2O[bulksamples][bulk_filter]), 
-                e = nanstd(bulk.Na2O[bulksamples][bulk_filter])),
-            K2O = (m = nanmean(bulk.K2O[bulksamples][bulk_filter]), 
-                e = nanstd(bulk.K2O[bulksamples][bulk_filter])),
-            # MnO = (m = nanmean(bulk.MnO[bulksamples][bulk_filter]), 
-            #     e = nanstd(bulk.MnO[bulksamples][bulk_filter]))
-        )
+        major, = get_elements()
 
-        return elem
+        element = [NamedTuple{(:m, :e)}(tuple.(
+            nanmean(bulk[i][bulksamples][bulkfilter]),
+            nanstd(bulk[i][bulksamples][bulkfilter])))
+        for i in major]
+
+        return NamedTuple{Tuple(major)}(element)
     end
 
 

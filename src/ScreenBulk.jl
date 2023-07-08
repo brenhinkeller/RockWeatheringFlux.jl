@@ -50,16 +50,11 @@
     end
 
 ## --- Define and organize elements to correct
-    majors = [:SiO2,:Al2O3,:FeOT,:TiO2,:MgO,:CaO,:Na2O,:K2O,]
-    minors = [:Ag,:As,:Au,:B,:Ba,:Be,:Bi,:C,:CaCO3,:Cd,:Ce,:Cl,:Co,:Cr2O3,:Cs,:Cu,:Dy,:Er,
-        :Eu,:F,:Ga,:Gd,:Hf,:Hg,:Ho,:I,:In,:Ir,:La,:Li,:Lu,:MnO,:Mo,:Nb,:Nd,:NiO,:Os,
-        :P2O5,:Pb,:Pd,:Pt,:Pr,:Re,:Rb,:Sb,:Sc,:Se,:S,:Sm,:Sn,:Sr,:Ta,:Tb,:Te,:Th,:Tl,:Tm,
-        :U,:V,:W,:Y,:Yb,:Zn,:Zr
-    ]
+    majors, minors = get_elements()
 
     # Collect major and minor elements together
-    allconstit = [majors; minors]
-    ndata = length(allconstit)
+    allelements = [majors; minors]
+    ndata = length(allelements)
 
     # Get all units present in bulktext
     presentunits = join(collect(keys(bulktext.unit)), " ")
@@ -72,7 +67,7 @@
 
 ## --- Convert all units to wt.%
     # This method is resistant to changes in element order
-    for i in allconstit
+    for i in allelements
         # Check unit is present, and convert indices to a list of units
         unit_i = string(i) * "_Unit"
         @assert contains(presentunits, unit_i) "$unit_i not present"
@@ -85,9 +80,9 @@
 
 ## --- Restrict data to 84-104 wt.% analyzed
     bulkweight = zeros(length(bulk.SiO2));
-    @time @turbo for i in eachindex(allconstit)
+    @time @turbo for i in eachindex(allelements)
         for j in eachindex(bulkweight)
-            bulkweight[j] = nanadd(bulkweight[j], bulk[allconstit[i]][j])
+            bulkweight[j] = nanadd(bulkweight[j], bulk[allelements[i]][j])
         end
     end
 
@@ -99,7 +94,7 @@
     @info "Saving $nsamples% samples between $(bounds[1])% and $(bounds[2])% analyzed wt."
 
     bulknew = Dict()
-    for i in allconstit
+    for i in allelements
         bulknew[string(i)] = bulk[i][t]
     end
     matwrite("data/bulknew.mat", bulknew)

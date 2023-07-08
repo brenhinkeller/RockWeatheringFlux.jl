@@ -4,34 +4,6 @@
 
 using Static
 
-"""
-```julia
-    unmeasurementify(A::AbstractArray{Measurement{Float64}})
-```
-
-Separate an array `A` of `measurements` into an array of values and an array of errors.
-
-## Example
-```julia
-julia> A = [1 ± 0.1, 2 ± 0.1]
-2-element Vector{Measurement{Float64}}:
- 1.0 ± 0.1
- 2.0 ± 0.1
-
-julia> val, err = unmeasurementify(A)
-([1.0, 2.0], [0.1, 0.1])
-```
-"""
-function unmeasurementify(A::AbstractArray{Measurement{Float64}})
-    val = fill(NaN, length(A))
-    err = fill(NaN, length(A))
-    for i in eachindex(A)
-        val[i] = A[i].val
-        err[i] = A[i].err
-    end
-    return val, err
-end
-
 function NaNStatistics.nanadd(a::Measurement, b::Measurement)
     a = a.val*(a.val==a.val) ± a.err*(a.err==a.err)
     b = b.val*(b.val==b.val) ± b.err*(b.err==b.err)

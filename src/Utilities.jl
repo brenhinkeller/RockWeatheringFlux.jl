@@ -966,78 +966,78 @@
 
 
 ## --- Calculate wt.% and flux by rock type
-    """
-    ```julia
-    function flux_source(bulk::AbstractArray, bulkidx::Vector{Int64}, erosion::NamedTuple, 
-        macro_cats::NamedTuple, crustal_area::NamedTuple; 
-        unitcodes::AbstractMatrix, unitdecoder::AbstractMatrix, crustal_density::Number=2750, 
-        elem::String="")
-    ```
+    # """
+    # ```julia
+    # function flux_source(bulk::AbstractArray, bulkidx::Vector{Int64}, erosion::NamedTuple, 
+    #     macro_cats::NamedTuple, crustal_area::NamedTuple; 
+    #     unitcodes::AbstractMatrix, unitdecoder::AbstractMatrix, crustal_density::Number=2750, 
+    #     elem::String="")
+    # ```
 
-    For a specified element in `bulk`, calculate the average wt.% and flux (kg/yr) by rocktype. 
-    Calculate the total global flux of that element (kg/yr). Return the number of samples `n`.
+    # For a specified element in `bulk`, calculate the average wt.% and flux (kg/yr) by rocktype. 
+    # Calculate the total global flux of that element (kg/yr). Return the number of samples `n`.
 
-    Note that `erosion`, `macro_cats`, and `crustal_area` _must_ contain at minimum the keys:
-    ```
-    :siliciclast, :shale, :carb, :chert, :evaporite, :coal, :sed, :volc, :plut, :ign, :metased, 
-    :metaign, :met
-    ```
-    Keys must be type `Symbol`.
+    # Note that `erosion`, `macro_cats`, and `crustal_area` _must_ contain at minimum the keys:
+    # ```
+    # :siliciclast, :shale, :carb, :chert, :evaporite, :coal, :sed, :volc, :plut, :ign, :metased, 
+    # :metaign, :met
+    # ```
+    # Keys must be type `Symbol`.
 
-    ### Optional Keyword Arguments
-    - `crustal_density::Number=2750`: Average crustal density (kg/m³).
-    - `elem::String=""`: Element being analyzed, for terminal printout.
+    # ### Optional Keyword Arguments
+    # - `crustal_density::Number=2750`: Average crustal density (kg/m³).
+    # - `elem::String=""`: Element being analyzed, for terminal printout.
 
-    # Example
-    ```julia-repl
-    julia> wt, flux, global_flux, n = flux_source(bulk.P2O5, bulkidx, erosion, macro_cats, crustal_area, elem="phosphorus")
-    [ Info: 44307 of 50000 phosphorus samples (1%) are not NaN
-    ```
-    """
-    function flux_source(bulk::AbstractArray, bulkidx::Vector{Int64}, erosion::NamedTuple, 
-        macro_cats::NamedTuple, crustal_area::NamedTuple; 
-        crustal_density::Number=2750, elem::String="", printinfo=false)
+    # # Example
+    # ```julia-repl
+    # julia> wt, flux, global_flux, n = flux_source(bulk.P2O5, bulkidx, erosion, macro_cats, crustal_area, elem="phosphorus")
+    # [ Info: 44307 of 50000 phosphorus samples (1%) are not NaN
+    # ```
+    # """
+    # function flux_source(bulk::AbstractArray, bulkidx::Vector{Int64}, erosion::NamedTuple, 
+    #     macro_cats::NamedTuple, crustal_area::NamedTuple; 
+    #     crustal_density::Number=2750, elem::String="", printinfo=false)
 
-        # Preallocate
-        allkeys = collect(keys(macro_cats))
-        deleteat!(allkeys, findall(x->x==:cover,allkeys))       # Do not compute cover
+    #     # Preallocate
+    #     allkeys = collect(keys(macro_cats))
+    #     deleteat!(allkeys, findall(x->x==:cover,allkeys))       # Do not compute cover
 
-        allinitvals = fill(NaN ± NaN, length(allkeys))
-        npoints = length(bulkidx)
+    #     allinitvals = fill(NaN ± NaN, length(allkeys))
+    #     npoints = length(bulkidx)
 
-        wt = Dict(zip(allkeys, allinitvals))
-        flux = Dict(zip(allkeys, allinitvals))
-        bulkdata = Array{Float64}(undef, npoints, 1)
+    #     wt = Dict(zip(allkeys, allinitvals))
+    #     flux = Dict(zip(allkeys, allinitvals))
+    #     bulkdata = Array{Float64}(undef, npoints, 1)
 
-        # Get EarthChem samples, if present
-        for i in eachindex(bulkidx)
-            (bulkidx[i] != 0) ? (bulkdata[i] = bulk[bulkidx[i]]) : (bulkdata[i] = NaN)
-        end
+    #     # Get EarthChem samples, if present
+    #     for i in eachindex(bulkidx)
+    #         (bulkidx[i] != 0) ? (bulkdata[i] = bulk[bulkidx[i]]) : (bulkdata[i] = NaN)
+    #     end
 
-        # Find how many samples have data for the element of interest
-        n = length(findall(!isnan, bulkdata))
-        if printinfo
-            @info "$n of $npoints $elem samples ($(round(n/npoints*100, sigdigits=3))%) are not NaN"
-        end
+    #     # Find how many samples have data for the element of interest
+    #     n = length(findall(!isnan, bulkdata))
+    #     if printinfo
+    #         @info "$n of $npoints $elem samples ($(round(n/npoints*100, sigdigits=3))%) are not NaN"
+    #     end
 
-        # Calculate average wt.% for each rock type
-        # TO DO: Maybe set no data to 0 instead of NaN? Would require re-writing a bit...
-        for i in keys(wt)
-            wt[i] = nanmean(bulkdata[macro_cats[i]]) ± nanstd(bulkdata[macro_cats[i]])
-        end
-        wt = NamedTuple{Tuple(keys(wt))}(values(wt))
+    #     # Calculate average wt.% for each rock type
+    #     # TO DO: Maybe set no data to 0 instead of NaN? Would require re-writing a bit...
+    #     for i in keys(wt)
+    #         wt[i] = nanmean(bulkdata[macro_cats[i]]) ± nanstd(bulkdata[macro_cats[i]])
+    #     end
+    #     wt = NamedTuple{Tuple(keys(wt))}(values(wt))
 
-        # Calculate provenance by rock type
-        for i in keys(flux)
-            flux[i] = erosion[i] * crustal_area[i] * wt[i] * crustal_density* 1e-8
-        end
-        flux = NamedTuple{Tuple(keys(flux))}(values(flux))
+    #     # Calculate provenance by rock type
+    #     for i in keys(flux)
+    #         flux[i] = erosion[i] * crustal_area[i] * wt[i] * crustal_density* 1e-8
+    #     end
+    #     flux = NamedTuple{Tuple(keys(flux))}(values(flux))
 
-        # Compute global flux
-        global_flux = nansum([flux.sed, flux.ign, flux.met])
+    #     # Compute global flux
+    #     global_flux = nansum([flux.sed, flux.ign, flux.met])
 
-        return wt, flux, global_flux, n
-    end
+    #     return wt, flux, global_flux, n
+    # end
     
 
 ## --- Functions for dealing with measurements

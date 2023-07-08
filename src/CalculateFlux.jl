@@ -107,91 +107,10 @@
     deleteat!(subcats, findall(x->x==:cover,subcats))       # Do not compute cover
 
 
-# ## --- Create HDF5 file to store results for eroded material
-#     fid = h5open("output/erodedmaterial.h5", "w")
-
-#     # Metadata
-#     write(fid, "element_names", strallelements)                           # Names of analyzed elements
-#     write(fid, "npoints", npoints)                                    # Total macrostrat samples
-#     nsample = create_dataset(fid, "nsamples_byelem", Int, (nelements,))   # Non-NaN samples for each element
-
-#     # Bulk rock global flux
-#     bulkrockflux = create_group(fid, "bulkrockflux")
-#     write(bulkrockflux, "rocktypes", string.(subcats))
-#     bulkflux_val = create_dataset(bulkrockflux, "val", Float64, (length(subcats),))
-#     bulkflux_std = create_dataset(bulkrockflux, "std", Float64, (length(subcats),))
-
-#     # For each element in allelements, wt.% and flux by rock subtype, and total global flux
-#     elementflux = create_group(fid, "elementflux")
-
-#     # Global flux
-#     totalflux = create_group(elementflux, "totalelemflux")
-#     totalflux_val = create_dataset(totalflux, "val", Float64, (nelements,))
-#     totalflux_std = create_dataset(totalflux, "std", Float64, (nelements,))
-
-#     # Separated by rock subtypes
-#     byrocktype = create_group(elementflux, "byrocktype")
-#     for i in subcats
-#         typegroup = create_group(byrocktype, string(i))
-
-#         create_dataset(typegroup, "wtpct_val", Float64, (nelements,))
-#         create_dataset(typegroup, "wtpct_std", Float64, (nelements,))
-
-#         create_dataset(typegroup, "flux_val", Float64, (nelements,))
-#         create_dataset(typegroup, "flux_std", Float64, (nelements,))
-#     end
-
-
-# ## --- Calculate undifferentiated (bulk) flux
-#     const crustal_density = 2750                                # kg/m³
-
-#     # Keys for erosion and crustal_area are in an arbitrary order. Correct indexing critical
-#     bulkflux = Dict(zip(subcats, fill(NaN ± NaN, length(subcats))))
-#     for i in subcats
-#         bulkflux[i] = erosion[i] * crustal_area[i] * crustal_density * 1e-6
-#     end
-#     bulkflux = NamedTuple{Tuple(keys(bulkflux))}(values(bulkflux))
-
-#     # Save to file. Keys are again in arbitrary order
-#     for i in eachindex(subcats)
-#         sub_i = subcats[i]
-#         bulkflux_val[i] = bulkflux[sub_i].val
-#         bulkflux_std[i] = bulkflux[sub_i].err
-#     end
-
-    
-# ## --- Calculate flux by element / element oxide
-#     # TO DO: I should make sure these aren't also scrambled...
-#     for i in eachindex(allelements)
-#         # Calculate wt.%, flux, and global flux of each element
-#         wt, flux, global_flux, n = flux_source(bulk[allelements[i]], bulkidx, erosion, macro_cats, 
-#             crustal_area, elem=strallelements[i]
-#         )
-
-#         # Write data to file
-#         nsample[i] = n
-#         totalflux_val[i] = global_flux.val
-#         totalflux_std[i] = global_flux.err
-
-#         for j in eachindex(subcats)
-#             typegroup = string(subcats[j])
-
-#             byrocktype[typegroup]["flux_val"][i] = flux[subcats[j]].val
-#             byrocktype[typegroup]["flux_std"][i] = flux[subcats[j]].err
-            
-#             byrocktype[typegroup]["wtpct_val"][i] = wt[subcats[j]].val
-#             byrocktype[typegroup]["wtpct_std"][i] = wt[subcats[j]].err
-#         end
-#     end
-
-#     close(fid)
-
-
 ## --- Calculate denundation at each point
     # Declare constants
     const crustal_density = 2750                                # kg/m³
     const unit_sample_area = (148940000 * 1000000) / npoints    # m²
-    # const kg_to_gt = 1e12                                       # Conversion factor
 
     # Create file to save data
     fid = h5open("output/erodedmaterial_new.h5", "w")

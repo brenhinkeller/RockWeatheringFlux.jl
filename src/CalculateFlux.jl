@@ -71,7 +71,7 @@
     erosion = Dict(zip(allkeys, allinitvals .± allinitvals))
     crustal_area = Dict(zip(allkeys, allinitvals))
 
-    # Erosion (m/Myr)
+    # Average erosion by rock type (m/Myr)
     for i in allkeys
         erosion[i] = nanmean(rock_ersn[macro_cats[i]])
     end
@@ -283,7 +283,7 @@
     """
 
 
-## --- Export results
+## --- Export crustal composition results
     # Preallocate
     bigmatrix = Array{Float64}(undef, length(keys(majorcomp[:sed])) + 1, 
         length(keys(majorcomp)) + length(keys(majorcomp[:ign])) - 1
@@ -364,10 +364,9 @@
 
 
 ## --- Calculate undifferentiated (bulk) flux
-    const crustal_density = 2750    # (kg/m³)
+    const crustal_density = 2750                                # kg/m³
 
     # Keys for erosion and crustal_area are in an arbitrary order. Correct indexing critical
-    # TO DO: make this into a measurement type
     bulkflux = Dict(zip(subcats, fill(NaN ± NaN, length(subcats))))
     for i in subcats
         bulkflux[i] = erosion[i] * crustal_area[i] * crustal_density * 1e-6
@@ -380,6 +379,8 @@
         bulkflux_val[i] = bulkflux[sub_i].val
         bulkflux_std[i] = bulkflux[sub_i].err
     end
+
+    
 
 
 ## --- Calculate flux by element / element oxide
@@ -408,5 +409,27 @@
 
     close(fid)
 
+
+## --- Calculate denundation at each point
+    const crustal_density = 2750                                # kg/m³
+    const unit_sample_area = (148940000 * 1000000) / npoints    # m²
+    const kg_to_gt = 1e12                                       # Conversion factor
+
+    # Denundation at each point
+    sampleflux = Array{Measurement{Float64}}(undef, npoints, 1)
+    for i in eachindex(sampleflux)
+        sampleflux[i] = rock_ersn[i] * unit_sample_area * crustal_density * 1e-6
+    end
+
+    # Denundation of each element at each point, using rock type averages
+    for i in eachindex(biglist)
+        # Compute average wt.% for element i by rock type
+        avgcomp = Dict(zip(subcats, fill(NaN ± NaN, length(subcats))))
+        for j in collect(keys(avgcomp))
+            avgcomp[j] = nanmean(bulk[biglist[i]][bulk_cats[j]]) ± nanstd(bulk[biglist[i]][bulk_cats[j]])
+        end
+
+        # 
+    end
 
 ## --- End of File

@@ -29,14 +29,15 @@
 
 ## --- Load Earthchem bulk geochemical data
     @info "Loading EarthChem bulk data"
-    bulk = matread("data/bulk_newunits.mat")
+    bulk = matread("data/bulknew.mat")
+    # bulk = matread("data/bulknew_norm.mat")
     bulk = NamedTuple{Tuple(Symbol.(keys(bulk)))}(values(bulk))
 
     # Get rock types
     bulk_cats = match_earthchem(bulk.Type, major=false)
 
     # Reduce bulk to only the data we need
-    geochemkeys = (:SiO2, :Al2O3, :Fe2O3T, :TiO2, :MgO, :CaO, :Na2O, :K2O)      # Major elements
+    geochemkeys, = get_elements()       # Major elements
     reduced_bulk = Array{Array{Float64}}(undef, length(geochemkeys) + 3, 1)
     for i in 1:length(geochemkeys)
         reduced_bulk[i] = bulk[geochemkeys[i]]
@@ -93,7 +94,7 @@
         for i in 1:length(geochemkeys)
             bulkgeochem[i] = zeronan!(bulk[geochemkeys[i]][bulksamples])
         end
-        bulkgeochem = NamedTuple{geochemkeys}(bulkgeochem)
+        bulkgeochem = NamedTuple{Tuple(geochemkeys)}(bulkgeochem)
 
         # Macrostrat samples
         lat = macrostrat.rocklat[macro_cats[type]]                 # Macrostrat latitude

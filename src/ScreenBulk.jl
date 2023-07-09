@@ -80,7 +80,7 @@
 
 ## --- Restrict data to 84-104 wt.% analyzed
     bulkweight = zeros(length(bulk.SiO2));
-    @time @turbo for i in eachindex(allelements)
+    @time for i in eachindex(allelements)
         for j in eachindex(bulkweight)
             bulkweight[j] = nanadd(bulkweight[j], bulk[allelements[i]][j])
         end
@@ -91,11 +91,15 @@
     t = @. bounds[1] < bulkweight < bounds[2]
 
     nsamples = round(count(t)/length(t)*100, digits=2)
-    @info "Saving $nsamples% samples between $(bounds[1])% and $(bounds[2])% analyzed wt."
+    @info "Saving $nsamples% samples between $(bounds[1])% and $(bounds[2])% analyzed wt.%"
 
-    bulknew = Dict()
-    for i in allelements
-        bulknew[string(i)] = bulk[i][t]
+    bulknew = Dict(zip(string.(allelements), 
+        [fill(NaN, length(bulk.SiO2)) for _ in 1:length(allelements)])
+    )
+    for i in eachindex(allelements)
+        for j in eachindex(t)
+            bulknew[string(allelements[i])][j] = ifelse(t[j], bulk[allelements[i]][j], NaN)
+        end
     end
     matwrite("data/bulknew.mat", bulknew)
 

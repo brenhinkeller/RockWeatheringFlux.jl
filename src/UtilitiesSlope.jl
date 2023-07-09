@@ -373,7 +373,7 @@
 
     ## Example
     ```
-    (c, m, ex, ey) = 
+    (c, m, ex, ey) = binmeans_percentile(x, y, step=5)
     ```
     """
     function binmeans_percentile(x::AbstractArray, y::AbstractArray; step::Number=5)

@@ -113,7 +113,7 @@
     const unit_sample_area = (148940000 * 1000000) / npoints    # m²
 
     # Create file to save data
-    fid = h5open("output/erodedmaterial_new.h5", "w")
+    fid = h5open("output/erodedmaterial.h5", "w")
 
     # Denundation at each point
     sampleflux = Array{Measurement{Float64}}(undef, npoints, 1)
@@ -133,7 +133,7 @@
     element_flux = create_group(fid, "element_flux")
     elem_vals = create_dataset(element_flux, "values", Float64, (npoints, nelements))
     elem_errs = create_dataset(element_flux, "errors", Float64, (npoints, nelements))
-    elem_head = create_dataset(element_flux, "header", string.(allelements))
+    write(element_flux, "header", string.(allelements))
 
     # Use rock type wt.% averages
     for i in eachindex(allelements)

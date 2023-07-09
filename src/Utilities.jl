@@ -793,28 +793,24 @@
         for i in eachindex(rocknamelist)
             found[i] |= (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], rocknamelist[i]) : false)
         end
+        count(found) > 0 && return found
 
         # If no matches, try the rest of rocktype
-        if count(found)==0
-            for i in eachindex(rocknamelist)
-                found[i] |= containsi.(rocktype, rocknamelist[i])
-            end
-
-            # If still no matches, try rockname
-            if count(found)==0
-                for i in eachindex(rocknamelist)
-                    found[i] |= containsi.(rockname, rocknamelist[i])
-                end
-
-                # Then rock descrip...
-                if count(found)==0
-                    for i in eachindex(rocknamelist)
-                        found[i] |= containsi.(rockdescrip, rocknamelist[i])
-                    end
-                end
-            end
+        for i in eachindex(rocknamelist)
+            found[i] |= containsi.(rocktype, rocknamelist[i])
         end
+        count(found) > 0 && return found
 
+        # If still no matches, try rockname
+        for i in eachindex(rocknamelist)
+            found[i] |= containsi.(rockname, rocknamelist[i])
+        end
+        count(found) > 0 && return found
+
+        # The rockdescrip...
+        for i in eachindex(rocknamelist)
+            found[i] |= containsi.(rockdescrip, rocknamelist[i])
+        end
         return found
     end
 

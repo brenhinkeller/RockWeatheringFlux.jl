@@ -122,7 +122,6 @@
         bulkweight[i] = nansum([bulk[j][i] for j in allelements])
     end
 
-    # Restrict data to within bounds
     bounds = (84, 104)
     t = @. bounds[1] < bulkweight < bounds[2]
 
@@ -134,37 +133,37 @@
         bulknew[i] .= bulk[i][t]
     end
 
+    # Normalize compositions to 100%
+    for i in eachindex(bulknew.SiO2)
+        sample = [bulknew[j][i] for j in allelements]   # Get it
+        normalize!(sample)                              # Normalize it
+        for j in eachindex(allelements)                 # Put it back
+            bulknew[allelements[j]][i] = sample[j]
+        end
+    end
+
+    
+## --- Restrict 
+
 
 ## --- Write to an HDF5 file
     fid = h5open("data/bulk.h5", "w")
 
     # Bulk data
-    bulk_g = create_group(fid, "bulk")
+    data = create_group(fid, "bulk")
+
+    write(data, "header", string.(collect(keys(bulk))))
 
 
     # Bulktext metadata
-    bulktext_g = create_group(fid, "bulktext")
+    text = create_group(fid, "bulktext")
+    bulktext_methods_g = 
+    bulktext_units_g = 
 
     close(fid)
 
 ## --- Normalize remaining compositions to 100%
-    for i in eachindex(t)
-        !t[i] && continue
-
-        # Get the geochemical composition of the sample
-        samplegeochem = Array{Float64}(undef, length(allelements))
-        for j in eachindex(allelements)
-            samplegeochem[j] = bulknew[string(allelements[j])][i]
-        end
-
-        # Normalize to 100%
-        normalize!(samplegeochem)
-
-        # Replace data
-        for j in eachindex(allelements)
-            bulknew[string(allelements[j])][i] = samplegeochem[j]
-        end
-    end
+    
 
     # Check that elements were normalized correctly
     # for i in eachindex(t)

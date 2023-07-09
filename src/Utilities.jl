@@ -891,18 +891,18 @@
 ## --- Find likelihoods
     """
     ```julia
-    likelihood(bulkage::Vector, sampleage::Number,
-        bulklat::Vector, bulklon::Vector, samplelat::Number, samplelon::Number,
-        bulkgeochem::NamedTuple, samplegeochem::NamedTuple)
+    likelihood(bulkage::AbstractArray, sampleage::Number,
+        bulklat::AbstractArray, bulklon::AbstractArray, samplelat::Number, 
+        samplelon::Number, bulkgeochem::NamedTuple, samplegeochem::NamedTuple)
     ````
 
     For a Macrostrat sample with age `sampleage`, location (`samplelat`, `samplelon`), and
     estimated geochemistry `samplegeochem`, find the index of the EarthChem sample that 
     is most likely to represent the Macrostrat sample.
     """
-    function likelihood(bulkage::Vector, sampleage::Number,
-            bulklat::Vector, bulklon::Vector, samplelat::Number, samplelon::Number,
-            bulkgeochem::NamedTuple, samplegeochem::NamedTuple)
+    function likelihood(bulkage::AbstractArray, sampleage::Number,
+            bulklat::AbstractArray, bulklon::AbstractArray, samplelat::Number, 
+            samplelon::Number, bulkgeochem::NamedTuple, samplegeochem::NamedTuple)
 
         # Preallocate
         npoints = length(bulkage)

@@ -370,6 +370,11 @@
 
     The means of `y` binned by x into bins equally spaced by percentile. Returns bin centers,
     means, and standard deviations for each bin.
+
+    ## Example
+    ```
+    (c, m, ex, ey) = 
+    ```
     """
     function binmeans_percentile(x::AbstractArray, y::AbstractArray; step::Number=5)
         # Get bin edges and centers in terms of percentiles
@@ -386,17 +391,21 @@
         indices = round.(Int, binedges / 100 * npoints)     # Percentile indices
         indices[1] = 1                                      # Make indices index-able
         indx = [x[i] for i in indices]
-        bincenters = [(indx[i-1]+indx[i])/2 for i in 2:lastindex(indx)]
+        c = [(indx[i-1]+indx[i])/2 for i in 2:lastindex(indx)]
         
-        # Get means for each percentile
-        μ = Array{Float64}(undef, length(bincenters))
-        σ = Array{Float64}(undef, length(bincenters))
+        # Preallocate
+        m = Array{Float64}(undef, length(c))
+        ey = Array{Float64}(undef, length(c))
+        ex = Array{Float64}(undef, length(c))
+
+        # Get means and standard deviations
         for i = 2:lastindex(indices)
-            μ[i-1] = nanmean(y[indices[i-1]:indices[i]])
-            σ[i-1] = nanstd(y[indices[i-1]:indices[i]])
+            m[i-1] = nanmean(y[indices[i-1]:indices[i]])
+            ey[i-1] = nanstd(y[indices[i-1]:indices[i]])
+            ex[i-1] = nanstd(x[indices[i-1]:indices[i]])
         end
 
-        return bincenters, μ, σ
+        return c, m, ex, ey
     end
 
 ## -- End of file

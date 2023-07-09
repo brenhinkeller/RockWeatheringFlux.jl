@@ -69,7 +69,7 @@
         )
     )
     bulktext_methods = (
-        units = bulktext["Methods"],
+        methods = bulktext["Methods"],
         index = NamedTuple{Tuple(Symbol.(collect(keys(bulktext["method"]))))}(
             [bulktext["method"][i] for i in keys(bulktext["method"])]
         )
@@ -77,7 +77,7 @@
 
     # Information by sample
     bulktext = (
-        elements = NamedTuple{Tuple(Symbol.(collect(keys(bulktext["elements"]))))}(
+        elements = NamedTuple{Tuple(Symbol.(bulktext["elements"]))}(
             [bulktext[i] for i in bulktext["elements"]]
         ),
         index = NamedTuple{Tuple(Symbol.(collect(keys((bulktext["index"])))))}(
@@ -116,7 +116,7 @@
     end
 
 
-## --- Restrict data to 84-104 wt.% analyzed
+## --- Restrict bulk to 84-104 wt.% analyzed
     bulkweight = zeros(length(bulk.SiO2));
     @time for i in eachindex(bulkweight)
         bulkweight[i] = nansum([bulk[j][i] for j in allelements])
@@ -128,37 +128,86 @@
     nsamples = round(count(t)/length(t)*100, digits=2)
     @info "Saving $nsamples% samples between $(bounds[1])% and $(bounds[2])% analyzed wt.%"
 
-    bulknew = NamedTuple{Tuple(allkeys)}([fill(NaN, count(t)) for i in allkeys])
-    for i in allkeys
-        bulknew[i] .= bulk[i][t]
-    end
+    # Restrict bulk to in-bounds only
+    bulk = NamedTuple{Tuple(allkeys)}([bulk[i][t] for i in allkeys])
 
     # Normalize compositions to 100%
-    for i in eachindex(bulknew.SiO2)
-        sample = [bulknew[j][i] for j in allelements]   # Get it
+    for i in eachindex(bulk.SiO2)
+        sample = [bulk[j][i] for j in allelements]      # Get it
         normalize!(sample)                              # Normalize it
         for j in eachindex(allelements)                 # Put it back
-            bulknew[allelements[j]][i] = sample[j]
+            bulk[allelements[j]][i] = sample[j]
         end
     end
 
-    
-## --- Restrict 
+
+## --- Restrict bulktext to in-bounds only data for elements of interest
+    restrictunits = Symbol.(string.(allelements) .* "_Unit")
+    restrictmethods = Symbol.(string.(allelements) .* "_Meth")
+
+    bulktext_units = (
+        units = bulktext_units.units,
+        index = NamedTuple{Tuple(restrictunits)}(
+            [bulktext_units.index[i][t] for i in restrictunits]
+        )
+    )
+    bulktext_methods = (
+        methods = bulktext_methods.methods,
+        index = NamedTuple{Tuple(restrictmethods)}(
+            [bulktext_methods.index[i][t] for i in restrictmethods]
+        )
+    )
+    bulktext = (
+        elements = bulktext.elements,
+        index = NamedTuple{Tuple(keys(bulktext.index))}(
+            [bulktext.index[i][t] for i in keys(bulktext.index)]
+        )
+    )
 
 
 ## --- Write to an HDF5 file
     fid = h5open("data/bulk.h5", "w")
-
-    # Bulk data
     data = create_group(fid, "bulk")
-
-    write(data, "header", string.(collect(keys(bulk))))
-
-
-    # Bulktext metadata
     text = create_group(fid, "bulktext")
-    bulktext_methods_g = 
-    bulktext_units_g = 
+
+    # Bulk
+    write(data, "header", string.(allkeys))
+    writebulk = create_dataset(data, "data", Float64, (count(t), length(allkeys)))
+    for i in eachindex(allkeys)
+        writebulk[:,i] = bulk[allkeys[i]]
+    end
+
+    # Bulktext units
+    units = create_group(text, "units")
+    write(units, "units", bulktext_units.units)
+    write(units, "header", string.(restrictunits))
+    index = create_dataset(units, "index", Int64, (count(t), length(restrictunits)))
+    for i in eachindex(restrictunits)
+        index[:,i] = bulktext_units.index[restrictunits[i]]
+    end
+
+    # Bulktext methods
+    methods = create_group(text, "methods")
+    write(methods, "methods", bulktext_methods.methods)
+    write(methods, "header", string.(restrictmethods))
+    index = create_dataset(methods, "index", Int64, (count(t), length(restrictmethods)))
+    for i in eachindex(restrictmethods)
+        index[:,i] = bulktext_methods.index[restrictmethods[i]]
+    end
+
+    # Bulk text sample data
+    sampledata = create_group(text, "sampledata")
+    elements = create_group(sampledata, "elements")
+    for i in keys(bulktext.elements)
+        write(elements, string(i), bulktext.elements[i])
+    end
+    
+    textkeys = collect(keys(bulktext.index))
+    write(sampledata, "header", string.(textkeys))
+    index = create_dataset(sampledata, "index", Int64, (count(t), length(textkeys)))
+    for i in eachindex(textkeys)
+        index[:,i] = bulktext.index[textkeys[i]]
+    end
 
     close(fid)
 

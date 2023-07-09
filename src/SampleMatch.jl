@@ -1,20 +1,13 @@
 ## --- Match Macrostrat samples to the most likely EarthChem sample
     # The thing to do here is probably to have nothing happen in global scope
     # Packages
-    using MAT
-    using JLD
+    using HDF5
     using StatGeochem
     using ProgressMeter
     using StatsBase
     using DelimitedFiles
     using StaticArrays
     using LoopVectorization
-
-    # Profiling
-    using Profile
-    using PProf
-    using BenchmarkTools
-    using Test
 
     # Local utilities
     include("Utilities.jl")
@@ -27,50 +20,34 @@
     # Match data to rock types
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip, major=false)
 
-## --- Load Earthchem bulk geochemical data
-    @info "Loading EarthChem bulk data"
-    bulk = matread("data/bulknew.mat")
-    # bulk = matread("data/bulknew_norm.mat")
-    bulk = NamedTuple{Tuple(Symbol.(keys(bulk)))}(values(bulk))
 
-    # Get rock types
+## --- Load Earthchem bulk geochemical data
+    @info "Loading EarthChem data"
+    bulkfid = h5open("data/bulk.h5", "r")
+
+    # Bulk
+    header = read(bulkfid["bulk"]["header"])
+    data = read(bulkfid["bulk"]["data"])
+    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
     bulk_cats = match_earthchem(bulk.Type, major=false)
 
-    # Reduce bulk to only the data we need
-    geochemkeys, = get_elements()       # Major elements
-    reduced_bulk = Array{Array{Float64}}(undef, length(geochemkeys) + 3, 1)
-    for i in 1:length(geochemkeys)
-        reduced_bulk[i] = bulk[geochemkeys[i]]
-    end
-    reduced_bulk[end-2] = bulk.Latitude
-    reduced_bulk[end-1] = bulk.Longitude
-    reduced_bulk[end] = bulk.Age
-    bulk = NamedTuple{(geochemkeys..., :Latitude, :Longitude, :Age)}(reduced_bulk)    
+    # Bulk rock name, type, and material
+    path = bulkfid["bulktext"]["sampledata"]
+    header = read(path["header"])
+    index = read(path["index"])
 
+    target = ["Rock_Name", "Type", "Material"]
+    targetind = [findall(==(i), header)[1] for i in target]
 
-## --- Load Earthchem metadata
-    @info "Loading EarthChem sample metadata"
-    bulktext = matread("data/bulktext.mat")["bulktext"]
+    bulktext = NamedTuple{Tuple(Symbol.(target))}(
+        [lowercase.(read(path["elements"][target[i]]))[index[:,targetind[i]]] for i in eachindex(target)]
+    )    
 
-    # Type stabilize
-    bulktext["elements"] = unique([String.(bulktext["elements"]); ["Units", "Methods"]])
-    for n in bulktext["elements"]
-        bulktext[n] = String.(bulktext[n])
-    end
-    bulktext = NamedTuple{Tuple(Symbol.(keys(bulktext)))}(values(bulktext))
-
-    # Correct relevent elements for zero-indexing and Float64 type
-    rockname_idx = Int.(bulktext.index["Rock_Name"] .+ 1.0)
-    type_idx = Int.(bulktext.index["Type"] .+ 1.0)
-    material_idx = Int.(bulktext.index["Material"] .+ 1.0)
-
-    # Convert lookup indices to data values
-    bulk_rockname = lowercase.(string.(bulktext.Rock_Name[rockname_idx]))
-    bulk_type = lowercase.(string.(bulktext.Type[type_idx]))
-    bulk_material = lowercase.(string.(bulktext.Material[material_idx]))
+    close(bulkfid)
 
 
 ## --- Find matching Earthchem sample for each Macrostrat sample
+    geochemkeys, = get_elements()               # Major elements
     bulk_idxs = collect(1:length(bulk.SiO2))
     matches = (
         sed = Array{Int64}(undef, count(macro_cats.sed), 1),
@@ -85,9 +62,9 @@
 		bulklon = bulk.Longitude[bulksamples]           # EarthChem longitudes
         bulkage = bulk.Age[bulksamples]                 # EarthChem age
 	    sampleidx = bulk_idxs[bulksamples]              # Indices of EarthChem samples
-        bulkname = bulk_rockname[bulksamples]           # Rock names
-        bulktype = bulk_type[bulksamples]               # Types--volcanic, plutonic, siliciclastic, etc.
-        bulkmaterial = bulk_material[bulksamples]       # Ign, met, sed, xenolith, etc.
+        bulkname = bulktext.Rock_Name[bulksamples]      # Basalt, rhyolite, dacite, etc.
+        bulktype = bulktext.Type[bulksamples]           # Volcanic, siliciclastic, etc.
+        bulkmaterial = bulktext.Material[bulksamples]   # Ign, met, sed, xenolith, etc.
 	    
 	    # Earthchem samples for only major elements for this rock type
         bulkgeochem = Array{Array}(undef, length(geochemkeys), 1)
@@ -97,12 +74,13 @@
         bulkgeochem = NamedTuple{Tuple(geochemkeys)}(bulkgeochem)
 
         # Macrostrat samples
-        lat = macrostrat.rocklat[macro_cats[type]]                 # Macrostrat latitude
-        lon = macrostrat.rocklon[macro_cats[type]]                 # Macrostrat longitude
-        sampleage = macrostrat.age[macro_cats[type]]               # Macrostrat age
-        rocktype = macrostrat.rocktype[macro_cats[type]]           # Sample rock type
-        rockname = macrostrat.rockname[macro_cats[type]]           # Sample name
-        rockdescrip = macrostrat.rockdescrip[macro_cats[type]]     # Sample description
+        macrosamples = macro_cats[type]                         # Macrostrat BitVector
+        lat = macrostrat.rocklat[macrosamples]                  # Macrostrat latitude
+        lon = macrostrat.rocklon[macrosamples]                  # Macrostrat longitude
+        sampleage = macrostrat.age[macrosamples]                # Macrostrat age
+        rocktype = macrostrat.rocktype[macrosamples]            # Sample rock type
+        rockname = macrostrat.rockname[macrosamples]            # Sample name
+        rockdescrip = macrostrat.rockdescrip[macrosamples]      # Sample description
 
         # Progress bar
         p = Progress(length(lat), desc="Matching $type samples...")
@@ -129,7 +107,7 @@
     allmatches[macro_cats.met] .= matches[:met]
 
     # Write data to a file
-    writedlm("output/matched_bulkidx2.tsv", allmatches,"\t")
+    writedlm("output/bulkidx.tsv", allmatches,"\t")
 
 
 ## --- End of File

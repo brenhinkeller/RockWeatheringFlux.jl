@@ -211,22 +211,5 @@
 
     close(fid)
 
-## --- Normalize remaining compositions to 100%
-    
-
-    # Check that elements were normalized correctly
-    # for i in eachindex(t)
-    #     !t[i] && continue
-
-    #     samplesum = 0.0
-    #     for j in eachindex(allelements)
-    #         samplesum = nanadd(samplesum, bulknew[string(allelements[j])][i])
-    #     end
-    #     @assert isapprox(samplesum, 100)
-    # end
-
-    # Save to file
-    matwrite("data/bulknew_norm.mat", bulknew)
-
 
 ## --- End of File

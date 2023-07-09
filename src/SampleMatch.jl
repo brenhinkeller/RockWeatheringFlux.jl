@@ -14,8 +14,8 @@
 
 ## --- Load Macrostrat data
     @info "Loading Macrostrat lithologic data"
-    # macrostrat = importdataset("data/toy_responses.tsv", '\t', importas=:Tuple)     # Reduced size file
-    macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
+    macrostrat = importdataset("data/toy_responses.tsv", '\t', importas=:Tuple)     # Reduced size file
+    # macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
 
     # Match data to rock types
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip, major=false)
@@ -55,40 +55,48 @@
     	met = Array{Int64}(undef, count(macro_cats.met), 1)
     )
     
+    matches = (ign = Array{Int64}(undef, count(macro_cats.ign), 1),)
+
     @timev for type in eachindex(matches)
         # Intermediate Earthchem variables
-        bulksamples = bulk_cats[type]                   # EarthChem BitVector
-        bulklat = bulk.Latitude[bulksamples]            # EarthChem latitudes
-		bulklon = bulk.Longitude[bulksamples]           # EarthChem longitudes
-        bulkage = bulk.Age[bulksamples]                 # EarthChem age
-	    sampleidx = bulk_idxs[bulksamples]              # Indices of EarthChem samples
-        bulkname = bulktext.Rock_Name[bulksamples]      # Basalt, rhyolite, dacite, etc.
-        bulktype = bulktext.Type[bulksamples]           # Volcanic, siliciclastic, etc.
-        bulkmaterial = bulktext.Material[bulksamples]   # Ign, met, sed, xenolith, etc.
+        bulksamples = bulk_cats[type]                        # EarthChem BitVector
+        EC = (
+            bulklat = bulk.Latitude[bulksamples],            # EarthChem latitudes
+            bulklon = bulk.Longitude[bulksamples],           # EarthChem longitudes
+            bulkage = bulk.Age[bulksamples],                 # EarthChem age
+            sampleidx = bulk_idxs[bulksamples],              # Indices of EarthChem samples
+            bulkname = bulktext.Rock_Name[bulksamples],      # Basalt, rhyolite, dacite, etc.
+            bulktype = bulktext.Type[bulksamples],           # Volcanic, siliciclastic, etc.
+            bulkmaterial = bulktext.Material[bulksamples],   # Ign, met, sed, xenolith, etc.
+        )
 	    
 	    # Earthchem samples for only major elements for this rock type
-        bulkgeochem = Array{Array}(undef, length(geochemkeys), 1)
-        for i in 1:length(geochemkeys)
-            bulkgeochem[i] = zeronan!(bulk[geochemkeys[i]][bulksamples])
-        end
-        bulkgeochem = NamedTuple{Tuple(geochemkeys)}(bulkgeochem)
+        bulkgeochem = NamedTuple{Tuple(geochemkeys)}(
+            [zeronan!(bulk[i][bulksamples]) for i in geochemkeys]
+        )
 
         # Macrostrat samples
-        macrosamples = macro_cats[type]                         # Macrostrat BitVector
-        lat = macrostrat.rocklat[macrosamples]                  # Macrostrat latitude
-        lon = macrostrat.rocklon[macrosamples]                  # Macrostrat longitude
-        sampleage = macrostrat.age[macrosamples]                # Macrostrat age
-        rocktype = macrostrat.rocktype[macrosamples]            # Sample rock type
-        rockname = macrostrat.rockname[macrosamples]            # Sample name
-        rockdescrip = macrostrat.rockdescrip[macrosamples]      # Sample description
-
+        macrosamples = macro_cats[type]                              # Macrostrat BitVector
+        MS = (
+            lat = macrostrat.rocklat[macrosamples],                  # Macrostrat latitude
+            lon = macrostrat.rocklon[macrosamples],                  # Macrostrat longitude
+            sampleage = macrostrat.age[macrosamples],                # Macrostrat age
+            rocktype = macrostrat.rocktype[macrosamples],            # Sample rock type
+            rockname = macrostrat.rockname[macrosamples],            # Sample name
+            rockdescrip = macrostrat.rockdescrip[macrosamples],      # Sample description
+        )
+        
         # Progress bar
         p = Progress(length(lat), desc="Matching $type samples...")
 
         @inbounds for i in eachindex(lat)
-            geochemfilter = find_earthchem(rocktype[i], rockname[i], rockdescrip[i], bulkname, bulktype, bulkmaterial)
+            geochemfilter = find_earthchem(MS.rocktype[i], MS.rockname[i], MS.rockdescrip[i], 
+                EC.bulkname, EC.bulktype, EC.bulkmaterial
+            )
             geochemdata = major_elements(bulk, bulksamples, geochemfilter)
-            matches[type][i] = likelihood(bulkage, sampleage[i], bulklat, bulklon, lat[i], lon[i], bulkgeochem, geochemdata)
+            matches[type][i] = likelihood(EC.bulkage, MS.sampleage[i], EC.bulklat, EC.bulklon, 
+                MS.lat[i], MS.lon[i], bulkgeochem, geochemdata
+            )
             
             # Manual garbage collection or else the code will run out of memory
             if i % 7 == 0

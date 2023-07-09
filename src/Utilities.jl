@@ -53,7 +53,7 @@
 
     Find erosion rate in mm/kyr given slope `slp`.
     """
-    emmkyr(slp) = 10^(slp * (0.003701 ± 7.7e-5) + (0.558 ± 0.0056))
+    emmkyr(slp) = exp(slp * (0.0091 ± 0.0095) + (3.1 ± 1.9))
 
     # Previously 10^(slp*0.00567517 + 0.971075)
 

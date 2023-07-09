@@ -52,8 +52,9 @@
 ## --- Define and organize elements to correct
     majors, minors = get_elements()
 
-    # Collect major and minor elements together
+    # Collect major and minor elements together. Make sure to keep rock type!
     allelements = [majors; minors]
+    allkeys = [allelements; [:Type, :Latitude, :Longitude, :Age]]
     ndata = length(allelements)
 
     # Get all units present in bulktext
@@ -93,15 +94,49 @@
     nsamples = round(count(t)/length(t)*100, digits=2)
     @info "Saving $nsamples% samples between $(bounds[1])% and $(bounds[2])% analyzed wt.%"
 
-    bulknew = Dict(zip(string.(allelements), 
-        [fill(NaN, length(bulk.SiO2)) for _ in 1:length(allelements)])
+    bulknew = Dict(zip(string.(allkeys), 
+        [fill(NaN, length(bulk.SiO2)) for _ in 1:length(allkeys)])
     )
-    for i in eachindex(allelements)
+    @time for i in eachindex(allkeys)
         for j in eachindex(t)
-            bulknew[string(allelements[i])][j] = ifelse(t[j], bulk[allelements[i]][j], NaN)
+            bulknew[string(allkeys[i])][j] = ifelse(t[j], bulk[allkeys[i]][j], NaN)
         end
     end
+
     matwrite("data/bulknew.mat", bulknew)
+
+## --- Normalize remaining compositions to 100%
+    for i in eachindex(t)
+        !t[i] && continue
+
+        # Get the geochemical composition of the sample
+        samplegeochem = Array{Float64}(undef, length(allelements))
+        for j in eachindex(allelements)
+            samplegeochem[j] = bulknew[string(allelements[j])][i]
+        end
+
+        # Normalize to 100%
+        normalize!(samplegeochem)
+
+        # Replace data
+        for j in eachindex(allelements)
+            bulknew[string(allelements[j])][i] = samplegeochem[j]
+        end
+    end
+
+    # Check that elements were normalized correctly
+    # for i in eachindex(t)
+    #     !t[i] && continue
+
+    #     samplesum = 0.0
+    #     for j in eachindex(allelements)
+    #         samplesum = nanadd(samplesum, bulknew[string(allelements[j])][i])
+    #     end
+    #     @assert isapprox(samplesum, 100)
+    # end
+
+    # Save to file
+    matwrite("data/bulknew_norm.mat", bulknew)
 
 
 ## --- End of File

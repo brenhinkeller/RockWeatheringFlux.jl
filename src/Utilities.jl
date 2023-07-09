@@ -1,6 +1,7 @@
 ## --- Required packages
     using LoopVectorization
     using Static
+    using Measurements
 
 ## --- Generate random points on the continental crust
     """
@@ -686,8 +687,8 @@
         major, = get_elements()
 
         element = [NamedTuple{(:m, :e)}(tuple.(
-            nanmean(bulk[i][bulksamples][bulkfilter]),
-            nanstd(bulk[i][bulksamples][bulkfilter])))
+            nanmean(bulk[i][bulksamples][bulk_filter]),
+            nanstd(bulk[i][bulksamples][bulk_filter])))
         for i in major]
 
         return NamedTuple{Tuple(major)}(element)
@@ -1067,6 +1068,23 @@
             err[i] = A[i].err
         end
         return val, err
+    end
+
+    
+## --- Normalize compositions to 100%
+    """
+    ```julia
+    normalize!(A::AbstractVector)
+    ```
+
+    Normalize the percentage values in `A` to 100%.
+    """
+    function normalize!(A::AbstractVector)
+        sum_a = nansum(A)
+        @turbo for i in eachindex(A)
+            A[i] = A[i] / sum_a * 100
+        end
+        return A
     end
 
 ## --- End of file

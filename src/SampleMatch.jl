@@ -14,10 +14,7 @@
 
 ## --- Load Macrostrat data
     @info "Loading Macrostrat lithologic data"
-    macrostrat = importdataset("data/toy_responses.tsv", '\t', importas=:Tuple)     # Reduced size file
-    # macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
-
-    # Match data to rock types
+    macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip, major=false)
 
 
@@ -54,11 +51,8 @@
     	ign = Array{Int64}(undef, count(macro_cats.ign), 1),
     	met = Array{Int64}(undef, count(macro_cats.met), 1)
     )
-    
-    matches = (ign = Array{Int64}(undef, count(macro_cats.ign), 1),)
 
     @timev for type in eachindex(matches)
-        # Intermediate Earthchem variables
         bulksamples = bulk_cats[type]                        # EarthChem BitVector
         EC = (
             bulklat = bulk.Latitude[bulksamples],            # EarthChem latitudes
@@ -87,9 +81,9 @@
         )
         
         # Progress bar
-        p = Progress(length(lat), desc="Matching $type samples...")
+        p = Progress(length(MS.lat), desc="Matching $type samples...")
 
-        @inbounds for i in eachindex(lat)
+        @inbounds for i in eachindex(MS.lat)
             geochemfilter = find_earthchem(MS.rocktype[i], MS.rockname[i], MS.rockdescrip[i], 
                 EC.bulkname, EC.bulktype, EC.bulkmaterial
             )
@@ -97,11 +91,6 @@
             matches[type][i] = likelihood(EC.bulkage, MS.sampleage[i], EC.bulklat, EC.bulklon, 
                 MS.lat[i], MS.lon[i], bulkgeochem, geochemdata
             )
-            
-            # Manual garbage collection or else the code will run out of memory
-            if i % 7 == 0
-                GC.gc()
-            end
             next!(p)
         end
     end

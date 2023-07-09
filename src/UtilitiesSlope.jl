@@ -362,4 +362,41 @@
     end
 
 
+## --- Bin means with percentile bin edges
+    """
+    ```julia
+    binmeans_percentile(x::AbstractArray, y::AbstractArray; step::Number=5)
+    ```
+
+    The means of `y` binned by x into bins equally spaced by percentile. Returns bin centers,
+    means, and standard deviations for each bin.
+    """
+    function binmeans_percentile(x::AbstractArray, y::AbstractArray; step::Number=5)
+        # Get bin edges and centers in terms of percentiles
+        binedges = collect(0:step:100)
+        binedges[end] != 100 && push!(binedges, 100)
+
+        # Sort data
+        p = sortperm(x)
+        x = x[p]
+        y = y[p]
+
+        # Get percentile indices and bin centers
+        npoints = length(y)
+        indices = round.(Int, binedges / 100 * npoints)     # Percentile indices
+        indices[1] = 1                                      # Make indices index-able
+        indx = [x[i] for i in indices]
+        bincenters = [(indx[i-1]+indx[i])/2 for i in 2:lastindex(indx)]
+        
+        # Get means for each percentile
+        μ = Array{Float64}(undef, length(bincenters))
+        σ = Array{Float64}(undef, length(bincenters))
+        for i = 2:lastindex(indices)
+            μ[i-1] = nanmean(y[indices[i-1]:indices[i]])
+            σ[i-1] = nanstd(y[indices[i-1]:indices[i]])
+        end
+
+        return bincenters, μ, σ
+    end
+
 ## -- End of file

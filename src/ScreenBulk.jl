@@ -25,6 +25,7 @@
     using MAT
     using StatGeochem
     using LoopVectorization
+    using HDF5
 
     # Local utilities
     include("Utilities.jl")
@@ -33,21 +34,57 @@
     bulk = matread("data/bulk.mat")["bulk"]
     bulk = NamedTuple{Tuple(Symbol.(keys(bulk)))}(values(bulk))
 
+
+## --- Load and parse metadata
     bulktext = matread("data/bulktext.mat")["bulktext"]
 
     # Type stabilize sample metadata
-    bulktext["elements"] = unique([String.(bulktext["elements"]); ["Units", "Methods"]])
-    for n in bulktext["elements"]
+    firstshell = unique([String.(bulktext["elements"]); ["Units", "Methods"]])
+    for n in firstshell
         bulktext[n] = String.(bulktext[n])
     end
-    bulktext = NamedTuple{Tuple(Symbol.(keys(bulktext)))}(values(bulktext))
 
-    # Densify the sparse unit arrays, correct for zero-indexing and Float64 type
-    for k in keys(bulktext.unit)
-        bulktext.unit[k] = collect(bulktext.unit[k])
-        bulktext.unit[k] .+= 1.0
-        bulktext.unit[k] = Int.(bulktext.unit[k])
+    # Densify sparse arrays, correct for zero-indexing and Float64 type
+    for k in keys(bulktext["unit"])
+        bulktext["unit"][k] = collect(bulktext["unit"][k])
+        bulktext["unit"][k] .+= 1.0
+        bulktext["unit"][k] = Int.(bulktext["unit"][k])
     end
+    for k in keys(bulktext["method"])
+        bulktext["method"][k] = collect(bulktext["method"][k])
+        bulktext["method"][k] .+= 1.0
+        bulktext["method"][k] = Int.(bulktext["method"][k])
+    end
+    for k in keys(bulktext["index"])
+        bulktext["index"][k] = collect(bulktext["index"][k])
+        bulktext["index"][k] .+= 1.0
+        bulktext["index"][k] = Int.(bulktext["index"][k])
+    end
+
+    # Information by element
+    bulktext_units = (
+        units = bulktext["Units"],
+        index = NamedTuple{Tuple(Symbol.(collect(keys(bulktext["unit"]))))}(
+            [bulktext["unit"][i] for i in keys(bulktext["unit"])]
+        )
+    )
+    bulktext_methods = (
+        units = bulktext["Methods"],
+        index = NamedTuple{Tuple(Symbol.(collect(keys(bulktext["method"]))))}(
+            [bulktext["method"][i] for i in keys(bulktext["method"])]
+        )
+    )
+
+    # Information by sample
+    bulktext = (
+        elements = NamedTuple{Tuple(Symbol.(collect(keys(bulktext["elements"]))))}(
+            [bulktext[i] for i in bulktext["elements"]]
+        ),
+        index = NamedTuple{Tuple(Symbol.(collect(keys((bulktext["index"])))))}(
+            [bulktext["index"][i] for i in keys(bulktext["index"])]
+        )
+    )
+
 
 ## --- Define and organize elements to correct
     majors, minors = get_elements()
@@ -58,7 +95,7 @@
     ndata = length(allelements)
 
     # Get all units present in bulktext
-    presentunits = join(collect(keys(bulktext.unit)), " ")
+    presentunits = join(collect(keys(bulktext_units.index)), " ")
 
     # Define densities for relevant major element oxides (g/cm³)
     density = (Al2O3=3.95, K2O=2.35, MgO=3.58, Na2O=2.27, P2O5=2.39, SiO2=2.65, TiO2=4.23, 
@@ -72,7 +109,7 @@
         # Check unit is present, and convert indices to a list of units
         unit_i = string(i) * "_Unit"
         @assert contains(presentunits, unit_i) "$unit_i not present"
-        bulkunits = bulktext.Units[bulktext.unit[unit_i]]
+        bulkunits = bulktext_units.units[bulktext_units.index[Symbol(unit_i)]]
 
         # Convert units of all sample data
         standardize_units!(bulk[i], bulkunits, density, elem=i)
@@ -81,29 +118,34 @@
 
 ## --- Restrict data to 84-104 wt.% analyzed
     bulkweight = zeros(length(bulk.SiO2));
-    @time for i in eachindex(allelements)
-        for j in eachindex(bulkweight)
-            bulkweight[j] = nanadd(bulkweight[j], bulk[allelements[i]][j])
-        end
+    @time for i in eachindex(bulkweight)
+        bulkweight[i] = nansum([bulk[j][i] for j in allelements])
     end
 
-    # Restrict data to within bounds and write to file
+    # Restrict data to within bounds
     bounds = (84, 104)
     t = @. bounds[1] < bulkweight < bounds[2]
 
     nsamples = round(count(t)/length(t)*100, digits=2)
     @info "Saving $nsamples% samples between $(bounds[1])% and $(bounds[2])% analyzed wt.%"
 
-    bulknew = Dict(zip(string.(allkeys), 
-        [fill(NaN, length(bulk.SiO2)) for _ in 1:length(allkeys)])
-    )
-    @time for i in eachindex(allkeys)
-        for j in eachindex(t)
-            bulknew[string(allkeys[i])][j] = ifelse(t[j], bulk[allkeys[i]][j], NaN)
-        end
+    bulknew = NamedTuple{Tuple(allkeys)}([fill(NaN, count(t)) for i in allkeys])
+    for i in allkeys
+        bulknew[i] .= bulk[i][t]
     end
 
-    matwrite("data/bulknew.mat", bulknew)
+
+## --- Write to an HDF5 file
+    fid = h5open("data/bulk.h5", "w")
+
+    # Bulk data
+    bulk_g = create_group(fid, "bulk")
+
+
+    # Bulktext metadata
+    bulktext_g = create_group(fid, "bulktext")
+
+    close(fid)
 
 ## --- Normalize remaining compositions to 100%
     for i in eachindex(t)

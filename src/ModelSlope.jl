@@ -107,200 +107,56 @@
     display(h)
 
 
-## --- Fit raw erosion rate as a function of slope (m/km)
-    @info "Fitting erosion / slope curve"
-        
-    # Be data
-    t = .!isnan.(basin_srtm.avg_slope) .& .!isnan.(basin_srtm.err)              # Basin
-    t .&= .!isnan.(octopusdata.ebe_mmkyr) .& .!isnan.(octopusdata.ebe_err)      # Erosion
-
-    xval = basin_srtm.avg_slope[t]
-    xerr = basin_srtm.err[t]
-    yval = log10.(octopusdata.ebe_mmkyr[t])
-    yerr = log10.(octopusdata.ebe_err[t])
-
-    # Al data
-    t = .!isnan.(basin_srtm.avg_slope) .& .!isnan.(basin_srtm.err)              # Basin
-    t .&= .!isnan.(octopusdata.eal_mmkyr) .& .!isnan.(octopusdata.eal_err)      # Erosion
-
-    xval = append!(xval, basin_srtm.avg_slope[t])
-    xerr = append!(xerr, basin_srtm.err[t])
-    yval = append!(yval, log10.(octopusdata.eal_mmkyr[t]))
-    yerr = append!(yerr, log10.(octopusdata.eal_err[t]))
-
-    # Old method with no uncertainty
-    # a, b = linreg(xval, yval)
-    # emmkyr_old(slp) = 10^(slp * b + a)
-
-    # New method with 1σ uncertainty built into the function
-    fobj = yorkfit(xval, xerr, yval, yerr)
-    emmkyr(slp) = 10^(slp * (fobj.slope) + (fobj.intercept))
-
-
-# --- Plot results
-    # De-measurement model data
-    len = 650
-    val, err = unmeasurementify(emmkyr.(1:650))
-    model = (val, err)
-
-    # Data
-    h = scatter(basin_srtm.avg_slope,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", 
-        msc=:auto, color=:blue, alpha=0.5
-    )
-    scatter!(h, basin_srtm.avg_slope,octopusdata.eal_mmkyr, label="OCTOPUS Al-26 data", 
-        msc=:auto, color=:orange, alpha=0.5
-    )
-
-    # Model
-    plot!(h, 1:len, emmkyr.(1:len), label="Old model", width=3, color=:red)
-    plot!(h, 1:len, model.val, ribbon = model.err, label="New model", width=3, color=:cyan)
-    
-    plot!(h, xlabel="SRTM15+ Slope (m/km)", ylabel="Erosion rate (mm/kyr)", yscale=:log10, 
-        fg_color_legend=:white, legend=:topleft, framestyle=:box
-    )
-
-    display(h)
-    # savefig(h, "slopeerosion_avg.pdf")
-
-
-## --- Calculate precipitation and runoff for each basin
-    @info "Calculating basin precipitation"
-
+## --- Model erosion as the product of slope and precipitation
+    # Get basin precipitation
     precip = ncread("data/prate.sfc.mon.ltm.nc","prate")
     precip = mean(precip, dims=3)[:,:,1]
     basin_precip = find_precip(octopusdata.y_wgs84, octopusdata.x_wgs84, precip)
 
-    runoff = ncread("data/runof.sfc.mon.ltm.nc", "runof")
-    runoff = mean(runoff, dims=3)[:,:,1]
-    basin_runoff = find_precip(octopusdata.y_wgs84, octopusdata.x_wgs84, runoff)
-
-    # Test find_precip to make sure it's not flipped
-    # This could probably be done better with GeoMakie
-    imsc(collect(precip'), viridis)
-    lat = repeat(-90:90,1,361)
-    lon = repeat((-180:180)',181,1)
-    imsc(find_precip(lat,lon, precip),viridis)
-
-
-## --- Model erosion as a function of slope and precipitation
-    # Slope-precipitation (kg⋅s/km⋅m ? = 1000kg⋅s/km ??)
+    # Get slope ⋅ precipitation
     slopeprecip = (basin_srtm.avg_slope .± basin_srtm.err) .* basin_precip
-    slopeprecipval = Array{Float64}(undef, length(slopeprecip), 1)
-    slopepreciperr = Array{Float64}(undef, length(slopeprecip), 1)
-    for i in eachindex(slopeprecip)
-        slopeprecipval[i] = slopeprecip[i].val
-        slopepreciperr[i] = slopeprecip[i].err
-    end
-    
-    # Be data
-    t = vec(.!isnan.(slopeprecipval) .& .!isnan.(slopepreciperr))               # Basin
-    t .&= .!isnan.(octopusdata.ebe_mmkyr) .& .!isnan.(octopusdata.ebe_err)      # Erosion
+    v, e = unmeasurementify(slopeprecip)
+    slopeprecip = (v=v, e=e)
 
-    xval = slopeprecipval[t]
-    xerr = slopepreciperr[t]
-    yval = log10.(octopusdata.ebe_mmkyr[t])
-    yerr = log10.(octopusdata.ebe_err[t])
+    # Get erosion
+    t = .!isnan.(slopeprecip.v) .& .!isnan.(slopeprecip.e)
+    t_be = t .& .!isnan.(octopusdata.ebe_mmkyr) .& .!isnan.(octopusdata.ebe_err)
+    t_al = t .& .!isnan.(octopusdata.eal_mmkyr) .& .!isnan.(octopusdata.eal_err)
 
-    # Al data
-    t = vec(.!isnan.(slopeprecipval) .& .!isnan.(slopepreciperr))               # Basin
-    t .&= .!isnan.(octopusdata.eal_mmkyr) .& .!isnan.(octopusdata.eal_err)      # Erosion
+    x = (
+        v = [slopeprecip.v[t_be]; slopeprecip.v[t_al]],
+        e = [slopeprecip.e[t_be]; slopeprecip.e[t_al]]
+    )
+    y = (
+        v = [octopusdata.ebe_mmkyr[t_be]; octopusdata.eal_mmkyr[t_al]],
+        e = [octopusdata.ebe_err[t_be]; octopusdata.eal_err[t_al]]
+    )
 
-    xval = append!(xval, slopeprecipval[t])
-    xerr = append!(xerr, slopepreciperr[t])
-    yval = append!(yval, log10.(octopusdata.eal_mmkyr[t]))
-    yerr = append!(yerr, log10.(octopusdata.eal_err[t]))
+    # Get bin averages in regular space
+    c, m, ex, ey = binmeans_percentile(x.v, y.v, step=5)
 
-    fobj = yorkfit(xval, xerr, yval, yerr)
-    emmkyr_precip(slp) = 10^(slp * (fobj.slope) + (fobj.intercept))
+    # Log transform **both** x and y and fit model
+    fobj = yorkfit(log.(c), log.(ex), log.(m), log.(ey))
+    # emmkyr_precip(slp) = exp(slp * (fobj.slope) + (fobj.intercept))
 
-
-## --- Plot results
-    # De-measurement model data
-    rng = 0:0.005:0.04
-    model = (val = zeros(length(rng)), err = zeros(length(rng)))
-    for i = 1:length(rng)
-        e = emmkyr_precip(i/300)
-        model.val[i] = e.val
-        model.err[i] = e.err
-    end
-
-    # Data
-    h = scatter(slopeprecipval,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", 
+    # Plot results
+    h = scatter(slopeprecip.v,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", 
         msc=:auto, color=:blue, alpha=0.5
     )
-    scatter!(h, slopeprecipval,octopusdata.eal_mmkyr, label="OCTOPUS Al-26 data", 
+    scatter!(h, slopeprecip.v,octopusdata.eal_mmkyr, label="OCTOPUS Al-26 data", 
         msc=:auto, color=:orange, alpha=0.5
     )
+    scatter!(h, c, m, label="Binned Means", msc=:auto, color=:black)
 
     # Model
-    plot!(h, rng, model.val, ribbon = model.err, label="Model", width=3, color=:cyan)
-    
-    plot!(h, xlabel="SRTM15+ Slope (m/km) ⋅ Precipitation rate (kg/m²/s)", 
-        ylabel="Erosion rate (mm/kyr)", yscale=:log10, fg_color_legend=:white, 
-        legend=:topleft, framestyle=:box
+    modelin = range(start=0, stop=0.4, length=100)
+    modelval, modelerr = unmeasurementify(emmkyr_precip.(modelin))
+    # plot!(h, 1:length(modelval), modelval, label="Model", color=:black, width=3)
+    plot!(xlabel="SRTM15+ Slope (m/km)", ylabel="Erosion rate (mm/kyr)",
+        xscale=:log10, yscale=:log10, framestyle=:box, legend=:topleft, 
+        fg_color_legend=:white,
     )
-
     display(h)
-
-
-## --- Experiment with changepoint
-    # Sort data by slope
-    perm = sortperm(xval)
-    ordered_yval = yval[perm]
-    ordered_yerr = yerr[perm]
-
-    # Get index of potential change point
-    dist = changepoint(ordered_yval, ordered_yerr, 10000, np=1)
-    while true
-        dist = dist[9000:end]
-        sum(dist) > 0 && return dist
-
-        dist = changepoint(ordered_yval, ordered_yerr, 10000)
-    end
-    point = unique(dist)
-
-    # Restrict model input to data before the change
-    t = (xval .< xval[point])
-
-    # Recalculate model
-    xval_change = xval[t]
-    xerr_change = xerr[t]
-    yval_change = yval[t]
-    yerr_change = yerr[t]
-
-    fobj = yorkfit(xval_change, xerr_change, yval_change, yerr_change)
-    emmkyr_cp(slp) = 10^(slp * (fobj.slope) + (fobj.intercept))
-
-
-## --- Plot results
-    # De-measurement model data
-    rng = 0:0.005:0.04
-    model = (val = zeros(length(rng)), err = zeros(length(rng)))
-    for i = 1:length(rng)
-        e = emmkyr_cp(i/300)
-        model.val[i] = e.val
-        model.err[i] = e.err
-    end
-
-    # Data
-    h = scatter(slopeprecipval,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", 
-        msc=:auto, color=:blue, alpha=0.5
-    )
-    scatter!(h, slopeprecipval,octopusdata.eal_mmkyr, label="OCTOPUS Al-26 data", 
-        msc=:auto, color=:orange, alpha=0.5
-    )
-
-    # Model
-    plot!(h, rng, model.val, ribbon = model.err, label="Changepoint Model", width=3, 
-        color=:cyan
-    )
     
-    plot!(h, xlabel="SRTM15+ Slope (m/km) ⋅ Precipitation rate (kg/m²/s)", 
-        ylabel="Erosion rate (mm/kyr)", yscale=:log10, fg_color_legend=:white, 
-        legend=:topleft, framestyle=:box
-    )
-
-    display(h)
-
 
 ## --- End of file

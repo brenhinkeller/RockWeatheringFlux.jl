@@ -23,7 +23,7 @@
 
 ## --- Load data for the matched EarthChem samples
     # Macrostrat
-    macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
+    macrostrat = importdataset("output/pregenerated_responses.tsv", '\t', importas=:Tuple)
     macro_cats = match_rocktype(macrostrat.rocktype[t], macrostrat.rockname[t], 
         macrostrat.rockdescrip[t]
     )
@@ -31,7 +31,7 @@
     total_known = count(known_rocks)
 
     # Earthchem
-    bulkfid = h5open("data/bulk.h5", "r")
+    bulkfid = h5open("output/bulk.h5", "r")
     header = read(bulkfid["bulk"]["header"])
     data = read(bulkfid["bulk"]["data"])
     bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
@@ -71,7 +71,7 @@
 
     rows = string.(allelements)
     cols = hcat("", string.(reshape(collect(keys(UCC)), (1, length(keys(UCC))))))
-    writedlm("output/exposedcrust.tsv", vcat(cols, hcat(rows, results)))
+    writedlm("results/exposedcrust.tsv", vcat(cols, hcat(rows, results)))
 
     
 ## --- End of file

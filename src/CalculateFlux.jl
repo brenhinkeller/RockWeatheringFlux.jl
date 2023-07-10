@@ -17,7 +17,7 @@
     t = @. bulkidx != 0     # Exclude samples with missing data
 
     # Load bulk, but just the samples matched to the Macrostrat data
-    bulkfid = h5open("data/bulk.h5", "r")
+    bulkfid = h5open("output/bulk.h5", "r")
     header = read(bulkfid["bulk"]["header"])
     data = read(bulkfid["bulk"]["data"])
     bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
@@ -28,7 +28,7 @@
     @info "Loading Macrostrat data"
 
     # Load and match
-    macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
+    macrostrat = importdataset("output/pregenerated_responses.tsv", '\t', importas=:Tuple)
     @time macro_cats = match_rocktype(macrostrat.rocktype[t], macrostrat.rockname[t], 
         macrostrat.rockdescrip[t]
     )
@@ -73,8 +73,8 @@
 
 ## --- Calculate erosion rate at each coordinate point of interest	
     # Load the slope variable from the SRTM15+ maxslope file
-    srtm15_slope = h5read("data/srtm15plus_maxslope.h5", "vars/slope")
-    srtm15_sf = h5read("data/srtm15plus_maxslope.h5", "vars/scalefactor")
+    srtm15_slope = h5read("output/srtm15plus_maxslope.h5", "vars/slope")
+    srtm15_sf = h5read("output/srtm15plus_maxslope.h5", "vars/scalefactor")
 
     # Get slope at each coordinate point with a known EarthChem sample
     # Modify this function to return an error as well

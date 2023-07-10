@@ -14,13 +14,13 @@
 
 ## --- Load Macrostrat data
     @info "Loading Macrostrat lithologic data"
-    macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
+    macrostrat = importdataset("output/pregenerated_responses.tsv", '\t', importas=:Tuple)
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip, major=false)
 
 
 ## --- Load Earthchem bulk geochemical data
     @info "Loading EarthChem data"
-    bulkfid = h5open("data/bulk.h5", "r")
+    bulkfid = h5open("output/bulk.h5", "r")
 
     # Bulk
     header = read(bulkfid["bulk"]["header"])

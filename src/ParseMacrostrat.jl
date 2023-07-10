@@ -9,7 +9,7 @@
 
 ## --- Load data from the .jld file
 	@info "Loading Macrostrat file"
-    retrive_file = load("data/pregenerated_responses.jld")
+    retrive_file = load("output/pregenerated_responses.jld")
     @info "Success!"
     
     responses = retrive_file["responses"]
@@ -96,7 +96,7 @@
 ## --- Write data to a file
 	@info "Writing to file"
     header = ["rocklat" "rocklon" "agemax" "agemin" "age" "rocktype" "rockname" "rockdescrip" "rockstratname" "rockcomments" "reference"]
-    writedlm("data/pregenerated_responses.tsv", vcat(header, hcat(rocklat, rocklon, agemax, agemin,
+    writedlm("output/pregenerated_responses.tsv", vcat(header, hcat(rocklat, rocklon, agemax, agemin,
         age, rocktype, rockname, rockdescrip, rockstratname, rockcomments, refstrings))
     )
 

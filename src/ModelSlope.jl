@@ -41,8 +41,8 @@
     # (basin_polygon_n, basin_polygon_lat, basin_polygon_lon) = parse_octopus_polygon_outlines(str,isfirstcoord)
 
     # # Load and parse SRTM15+ data 
-    # # srtm = h5open("data/srtm15plus_aveslope.h5", "r")
-    # srtm = h5open("data/srtm15plus_maxslope.h5", "r")
+    # # srtm = h5open("output/srtm15plus_aveslope.h5", "r")
+    # srtm = h5open("output/srtm15plus_maxslope.h5", "r")
     # srtm = read(srtm["vars"])
     # srtm = NamedTuple{Tuple(Symbol.(keys(srtm)))}(values(srtm))
 
@@ -53,17 +53,17 @@
 
     # # Save file
     # header = ["avg_slope" "err"]
-    # writedlm("data/basin_srtm15plus_avg_maxslope.tsv", vcat(header, hcat(avgslope, stdslope)))
+    # writedlm("output/basin_srtm15plus_avg_maxslope.tsv", vcat(header, hcat(avgslope, stdslope)))
 
-    # File names:
-        # basin_srtm15plus_avg_maxslope -> average of maximum slopes of each point in basin
-        # basin_srtm15plus_aveslope     -> average of average slopes of each point in the basin
+    # # File names:
+    # #     basin_srtm15plus_avg_maxslope -> average of maximum slopes of each point in basin
+    # #     basin_srtm15plus_aveslope     -> average of average slopes of each point in the basin
 
 
 ## --- Alternatively, load pregenerated OCTOPUS and slope data for each basin
     @info "Loading pre-parsed OCTOPUS and basin slope data"
     octopusdata = importdataset("output/octopusdata.tsv",'\t', importas=:Tuple)
-    basin_srtm = importdataset("data/basin_srtm15plus_avg_maxslope.tsv", '\t', importas=:Tuple)
+    basin_srtm = importdataset("output/basin_srtm15plus_avg_maxslope.tsv", '\t', importas=:Tuple)
 
 
 ## --- Fit erosion rate / slope curve

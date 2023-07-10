@@ -166,7 +166,7 @@
 
 
 ## --- Write to an HDF5 file
-    fid = h5open("data/bulk.h5", "w")
+    fid = h5open("output/bulk.h5", "w")
     data = create_group(fid, "bulk")
     text = create_group(fid, "bulktext")
 

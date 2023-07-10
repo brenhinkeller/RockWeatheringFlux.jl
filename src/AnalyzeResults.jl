@@ -8,23 +8,28 @@
 
     # Local Utilities
     include("Utilities.jl")
-    include("NaNMeasurements.jl")
 
     # Conversion for kg to Gt. Data file is in units of kg/yr
     const kg_gt = 1e12
 
 
 ## --- Load and parse data
-    # Macrostrat
-    # macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
-    # macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
+    # Indices of matched samples from SampleMatch.jl
+    bulkidx = Int.(vec(readdlm("output/bulkidx.tsv")))
+    t = @. bulkidx != 0     # Exclude samples with missing data
 
-    # Bulk denundation
+    # Macrostrat, if there's matched EarthChem data
+    macrostrat = importdataset("output/pregenerated_responses.tsv", '\t', importas=:Tuple)
+    macro_cats = match_rocktype(macrostrat.rocktype[t], macrostrat.rockname[t], 
+        macrostrat.rockdescrip[t]
+    )
+
+    # Bulk denundation at each point
     res = h5open("output/erodedmaterial.h5", "r")
     path = res["bulk_denundation"]
     bulk_denundation = read(path["values"]) .± read(path["errors"])
 
-    # Element flux
+    # Global flux of each element at each point
     path = res["element_flux"]
     vals = read(path["values"])
     errs = read(path["errors"])
@@ -32,27 +37,28 @@
     close(res)
 
     elementflux = NamedTuple{Tuple(Symbol.(header))}(
-        [zeros(Measurement{Float64}, size(vals)[1]) for _ in 1:(size(vals)[2])]
+        [vals[:,i] .± errs[:,i] for i in eachindex(header)]
     )
-    for i in eachindex(header)
-        elementflux[Symbol(header[i])] .= vals[:,i] .± errs[:,i]
-    end
 
     
 ## --- Compute total...
     # Global denundation
     global_denun = nansum(bulk_denundation) / kg_gt
-    @info "Total global denundation: $(round(global_denun, digits=2)) Gt/yr"
+    
+    # Total global flux for each element
+    totalelementflux = NamedTuple{Tuple(keys(elementflux))}([nansum(i) / kg_gt for i in elementflux])
 
-    # Global flux for each element
-    global_elemflux = Dict{Symbol, Measurement{Float64}}()
-    globalsum = 0.0
-    for i in keys(elementflux)
-        global_elemflux[i] = nansum(elementflux[i]) / kg_gt
-        global globalsum += global_elemflux[i]
-    end
-    global_elemflux = NamedTuple{Tuple(keys(global_elemflux))}(values(global_elemflux))
+    # Sum of all element fluxes
+    globalflux = nansum(totalelementflux)
 
-    @info "Total element flux: $(round(globalsum, digits=2)) Gt/yr"
+    # Print to terminal
+    @info """
+    Total global denundation: $global_denun, digits=3)) Gt/yr
+    Sum of all element fluxes: $(globalsum[1]), digits=3)) Gt/yr
+    """
+
+
+## --- Export results
+
 
 ## --- End of File

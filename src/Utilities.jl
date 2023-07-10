@@ -1073,10 +1073,9 @@
         return val, err
     end
     function unmeasurementify(A::NamedTuple)
-        key = keys(A)
-        val = fill(NaN, length(A.key[1]))
-        err = fill(NaN, length(A.key[1]))
-        for i in eachindex(A)
+        val = fill(NaN, length(A))
+        err = fill(NaN, length(A))
+        for i in eachindex(keys(A))
             val[i] = A[i].val
             err[i] = A[i].err
         end

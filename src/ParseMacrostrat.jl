@@ -1,22 +1,64 @@
 ## --- Set up
     # Packages
+    using StatGeochem
     using DelimitedFiles
     using JLD
-    using StatGeochem
+	using HDF5
+	using HTTP
+	using JSON
     
     # Local utilities
     include("Utilities.jl")
 
+
+## --- Generate random points on the continental crust
+    npoints = 1_000_000
+    etopo = get_etopo("elevation")
+    rocklat, rocklon, elevations = gen_continental_points(npoints, etopo)
+
+
+## --- Get data for each point from the Burwell / Macrostrat API
+    zoom = 11
+    responses = Array{Any}(undef, npoints, 1)
+    @showprogress 5 for i = 1:npoints
+        try
+            responses[i] = query_macrostrat(rocklat[i], rocklon[i], zoom)
+        catch
+            try
+                # Wait and try again
+                sleep(10)
+                responses[i] = query_macrostrat(rocklat[i], rocklon[i], zoom)
+            catch
+                # If still nothing, move on
+                responses[i] = "No response"
+            end
+        end
+        sleep(0.05)
+
+        # Checkpoint save every 10,000 points
+        (i % 10000 == 0) && save("data/$savefilename.jld", "responses", responses, 
+            "elevations", elevations, "latitude", rocklat, "longitude", rocklon, 
+            "npoints", npoints
+        )
+    end
+
+    # Final save
+    save("data/$savefilename.jld", "responses", responses, "elevations", elevations, 
+        "latitude", rocklat, "longitude", rocklon, "npoints", npoints
+    )
+
+
 ## --- Load data from the .jld file
-	@info "Loading Macrostrat file"
-    retrive_file = load("output/pregenerated_responses.jld")
-    @info "Success!"
+	# @info "Loading Macrostrat file"
+    # retrive_file = load("output/pregenerated_responses.jld")
+    # @info "Success!"
     
-    responses = retrive_file["responses"]
-    elevations = float.(retrive_file["elevations"])
-    rocklat = float.(retrive_file["latitude"])
-    rocklon = float.(retrive_file["longitude"])    
-    npoints = retrive_file["npoints"]
+    # responses = retrive_file["responses"]
+    # elevations = float.(retrive_file["elevations"])
+    # rocklat = float.(retrive_file["latitude"])
+    # rocklon = float.(retrive_file["longitude"])    
+    # npoints = retrive_file["npoints"]
+
 
 ## --- Parse Macrostrat responses from the loaded data
 	@info "Starting to parse data"
@@ -100,4 +142,5 @@
         age, rocktype, rockname, rockdescrip, rockstratname, rockcomments, refstrings))
     )
 
-## -- EOF
+
+## -- End of file

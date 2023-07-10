@@ -5,19 +5,33 @@
     using ProgressMeter
     using Measurements
     using HDF5
-    using MAT
 
     # Local utilities
     include("Utilities.jl")
     include("NaNMeasurements.jl")
 
 
-## --- Load pre-generated Macrostrat data
+## --- Load EarthChem data
+    # Indices of matched samples from SampleMatch.jl
+    bulkidx = Int.(vec(readdlm("output/bulkidx.tsv")))
+    t = @. bulkidx != 0     # Exclude samples with missing data
+
+    # Load bulk, but just the samples matched to the Macrostrat data
+    bulkfid = h5open("data/bulk.h5", "r")
+    header = read(bulkfid["bulk"]["header"])
+    data = read(bulkfid["bulk"]["data"])
+    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
+    close(bulkfid)
+
+    
+## --- Load pre-generated Macrostrat data, but only if there's an associated EarthChem sample
     @info "Loading Macrostrat data"
 
     # Load and match
     macrostrat = importdataset("data/pregenerated_responses.tsv", '\t', importas=:Tuple)
-    @time macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
+    @time macro_cats = match_rocktype(macrostrat.rocktype[t], macrostrat.rockname[t], 
+        macrostrat.rockdescrip[t]
+    )
 
     # Figure out how many data points weren't matched
     known_rocks = macro_cats.sed .| macro_cats.ign .| macro_cats.met
@@ -29,11 +43,6 @@
         .| (macro_cats.ign .& macro_cats.met)
     )
 
-    # Define rock sub-types
-    npoints = length(macrostrat.rocktype)
-    subcats = collect(keys(macro_cats))                     # Rock sub-types
-    deleteat!(subcats, findall(x->x==:cover,subcats))       # Do not compute cover
-    
     # Print to terminal
     @info """
     Macrostrat parsing complete!
@@ -50,14 +59,26 @@
     end
     
 
+## --- Definitions
+    # Elements of interest
+    majors, minors = get_elements()
+    allelements = [majors; minors]
+    nelements = length(allelements)
+
+    # Define rock sub-types (do not compute cover)
+    npoints = count(t)
+    subcats = collect(keys(macro_cats))
+    deleteat!(subcats, findall(x->x==:cover,subcats))
+    
+
 ## --- Calculate erosion rate at each coordinate point of interest	
     # Load the slope variable from the SRTM15+ maxslope file
     srtm15_slope = h5read("data/srtm15plus_maxslope.h5", "vars/slope")
     srtm15_sf = h5read("data/srtm15plus_maxslope.h5", "vars/scalefactor")
 
-    # Get slope at each coordinate point
+    # Get slope at each coordinate point with a known EarthChem sample
     # Modify this function to return an error as well
-    rockslope = avg_over_area(srtm15_slope, macrostrat.rocklat, macrostrat.rocklon, 
+    rockslope = avg_over_area(srtm15_slope, macrostrat.rocklat[t], macrostrat.rocklon[t], 
         srtm15_sf, halfwidth=7
     )
 
@@ -66,44 +87,16 @@
 
 
 ## --- Get erosion and continental area for each rock type
-    # Preallocate
-    # allkeys = keys(macro_cats)
-    # allinitvals = fill(NaN, length(allkeys))
+    # Average erosion by rock type (m/Myr)
+    erosion = NamedTuple{Tuple(subcats)}(
+        [nanmean(rock_ersn[macro_cats[i]]) for i in subcats]
+    )
 
-    # erosion = Dict(zip(allkeys, allinitvals .± allinitvals))
-    # crustal_area = Dict(zip(allkeys, allinitvals))
-
-    # # Average erosion by rock type (m/Myr)
-    # for i in allkeys
-    #     erosion[i] = nanmean(rock_ersn[macro_cats[i]])
-    # end
-    # erosion = NamedTuple{Tuple(keys(erosion))}(values(erosion))
-
-    # # Crustal area (m²), assume proportional distribution of rock types under cover
-    # const contl_area = 148940000 * 1000000    # Area of continents (m²)
-    # for i in allkeys
-    #     crustal_area[i] = count(macro_cats[i]) / total_known * contl_area
-    # end
-    # crustal_area = NamedTuple{Tuple(keys(crustal_area))}(values(crustal_area))
-
-
-## --- Load EarthChem data
-    bulkfid = h5open("data/bulk.h5", "r")
-    header = read(bulkfid["bulk"]["header"])
-    data = read(bulkfid["bulk"]["data"])
-    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
-    close(bulkfid)
-
-    # Rock types
-    bulk_cats = match_earthchem(bulk.Type)
-
-    # Indices of matched samples from SampleMatch.jl
-    bulkidx = Int.(vec(readdlm("output/bulkidx.tsv")))
-
-    # Define elements of interest
-    majors, minors = get_elements()
-    allelements = [majors; minors]
-    nelements = length(allelements)
+    # Crustal area (m²), assume proportional distribution of rock types under cover
+    const contl_area = 148940000 * 1000000    # Area of continents (m²)
+    crustal_area = NamedTuple{Tuple(subcats)}(
+        [count(macro_cats[i]) / total_known * contl_area for i in subcats]
+    )
 
 
 ## --- Calculate denundation at each point
@@ -115,10 +108,7 @@
     fid = h5open("output/erodedmaterial.h5", "w")
 
     # Denundation at each point
-    sampleflux = Array{Measurement{Float64}}(undef, npoints, 1)
-    for i in eachindex(sampleflux)
-        sampleflux[i] = rock_ersn[i] * unit_sample_area * crustal_density * 1e-6
-    end
+    sampleflux = [rock_ersn[i] * unit_sample_area * crustal_density * 1e-6 for i = 1:npoints]
 
     # Save to file
     sampleflux_val, sampleflux_err = unmeasurementify(sampleflux)
@@ -134,27 +124,15 @@
     elem_errs = create_dataset(element_flux, "errors", Float64, (npoints, nelements))
     write(element_flux, "header", string.(allelements))
 
-    # Use rock type wt.% averages
     for i in eachindex(allelements)
-        # Compute average wt.% for element i by rock type
-        avgwt = Dict(zip(subcats, fill(NaN ± NaN, length(subcats))))
-        for j in collect(keys(avgwt))
-            avgwt[j] = nanmean(bulk[allelements[i]][bulk_cats[j]]) ± nanstd(bulk[allelements[i]][bulk_cats[j]])
-        end
-
-        # Filter rocks of each rock type and compute flux of element i
-        elementflux = zeros(Measurement{Float64}, npoints)
-        for j in collect(keys(avgwt))
-            filter = macro_cats[j]
-            for k in eachindex(filter)
-                filter[k] && (elementflux[k] = sampleflux[k] * avgwt[j] * 1e-2)
-            end
-        end
+        # Since each Macrostrat point has a corresponding EarthChem sample, use that 
+        # sample to calculate flux
+        elementflux = [sampleflux[j] * bulk[i][j] * 1e-2 for j = 1:npoints]
 
         # Save to file
         elementflux_val, elementflux_err = unmeasurementify(elementflux)
-        elem_vals[:,i] = elementflux_val
-        elem_errs[:,i] = elementflux_err
+        elem_vals[:,i] += elementflux_val
+        elem_errs[:,i] += elementflux_err
     end
 
     close(fid)

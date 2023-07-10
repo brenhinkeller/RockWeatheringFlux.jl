@@ -28,6 +28,11 @@
     multi_matched = ((macro_cats.sed .& macro_cats.ign) .| (macro_cats.sed .& macro_cats.met) 
         .| (macro_cats.ign .& macro_cats.met)
     )
+
+    # Define rock sub-types
+    npoints = length(macrostrat.rocktype)
+    subcats = collect(keys(macro_cats))                     # Rock sub-types
+    deleteat!(subcats, findall(x->x==:cover,subcats))       # Do not compute cover
     
     # Print to terminal
     @info """
@@ -45,9 +50,7 @@
     end
     
 
-## --- Calculate erosion rate at each coordinate point of interest
-	@info "Calculating slope and erosion at each point"
-	
+## --- Calculate erosion rate at each coordinate point of interest	
     # Load the slope variable from the SRTM15+ maxslope file
     srtm15_slope = h5read("data/srtm15plus_maxslope.h5", "vars/slope")
     srtm15_sf = h5read("data/srtm15plus_maxslope.h5", "vars/scalefactor")
@@ -64,53 +67,49 @@
 
 ## --- Get erosion and continental area for each rock type
     # Preallocate
-    allkeys = keys(macro_cats)
-    allinitvals = fill(NaN, length(allkeys))
+    # allkeys = keys(macro_cats)
+    # allinitvals = fill(NaN, length(allkeys))
 
-    erosion = Dict(zip(allkeys, allinitvals .± allinitvals))
-    crustal_area = Dict(zip(allkeys, allinitvals))
+    # erosion = Dict(zip(allkeys, allinitvals .± allinitvals))
+    # crustal_area = Dict(zip(allkeys, allinitvals))
 
-    # Average erosion by rock type (m/Myr)
-    for i in allkeys
-        erosion[i] = nanmean(rock_ersn[macro_cats[i]])
-    end
-    erosion = NamedTuple{Tuple(keys(erosion))}(values(erosion))
+    # # Average erosion by rock type (m/Myr)
+    # for i in allkeys
+    #     erosion[i] = nanmean(rock_ersn[macro_cats[i]])
+    # end
+    # erosion = NamedTuple{Tuple(keys(erosion))}(values(erosion))
 
-    # Crustal area (m²), assume proportional distribution of rock types under cover
-    const contl_area = 148940000 * 1000000    # Area of continents (m²)
-    for i in allkeys
-        crustal_area[i] = count(macro_cats[i]) / total_known * contl_area
-    end
-    crustal_area = NamedTuple{Tuple(keys(crustal_area))}(values(crustal_area))
+    # # Crustal area (m²), assume proportional distribution of rock types under cover
+    # const contl_area = 148940000 * 1000000    # Area of continents (m²)
+    # for i in allkeys
+    #     crustal_area[i] = count(macro_cats[i]) / total_known * contl_area
+    # end
+    # crustal_area = NamedTuple{Tuple(keys(crustal_area))}(values(crustal_area))
 
 
 ## --- Load EarthChem data
-    @info "Loading EarthChem data"
-    bulk = matread("data/bulk_newunits.mat")
-    bulk = NamedTuple{Tuple(Symbol.(keys(bulk)))}(values(bulk))
+    bulkfid = h5open("data/bulk.h5", "r")
+    header = read(bulkfid["bulk"]["header"])
+    data = read(bulkfid["bulk"]["data"])
+    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    close(bulkfid)
 
-    # Get rock types from codes
+    # Rock types
     bulk_cats = match_earthchem(bulk.Type)
 
-    # Load indices of matched samples from samplematch.jl
-    bulkidx = Int.(vec(readdlm("output/matched_bulkidx.tsv")))
+    # Indices of matched samples from SampleMatch.jl
+    bulkidx = Int.(vec(readdlm("output/bulkidx.tsv")))
 
-
-## --- Every element of interest from EarthChem
+    # Define elements of interest
     majors, minors = get_elements()
     allelements = [majors; minors]
     nelements = length(allelements)
-    # strallelements = string.(allelements)
-
-    npoints = length(macrostrat.rocktype)
-    subcats = collect(allkeys)
-    deleteat!(subcats, findall(x->x==:cover,subcats))       # Do not compute cover
 
 
 ## --- Calculate denundation at each point
     # Declare constants
     const crustal_density = 2750                                # kg/m³
-    const unit_sample_area = (148940000 * 1000000) / npoints    # m²
+    const unit_sample_area = (148940000 * 1000000) / npoints    # Area of contients / npoints (m²)
 
     # Create file to save data
     fid = h5open("output/erodedmaterial.h5", "w")

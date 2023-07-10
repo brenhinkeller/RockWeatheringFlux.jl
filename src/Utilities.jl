@@ -3,6 +3,11 @@
     using Static
     using Measurements
 
+## --- Load all sub-utilities
+    include("UtilitiesSlope.jl")
+    include("NaNMeasurements.jl")
+
+    
 ## --- Generate random points on the continental crust
     """
     ```julia
@@ -1041,9 +1046,11 @@
     """
     ```julia
         unmeasurementify(A::AbstractArray{Measurement{Float64}})
+        unmeasurementify(A::NamedTuple)
     ```
     
-    Separate an array `A` of `measurements` into an array of values and an array of errors.
+    Separate an Array or NamedTuple `A` of `measurements` into an array of values and an 
+    array of errors.
     
     ## Example
     ```julia
@@ -1059,6 +1066,16 @@
     function unmeasurementify(A::AbstractArray{Measurement{Float64}})
         val = fill(NaN, length(A))
         err = fill(NaN, length(A))
+        for i in eachindex(A)
+            val[i] = A[i].val
+            err[i] = A[i].err
+        end
+        return val, err
+    end
+    function unmeasurementify(A::NamedTuple)
+        key = keys(A)
+        val = fill(NaN, length(A.key[1]))
+        err = fill(NaN, length(A.key[1]))
         for i in eachindex(A)
             val[i] = A[i].val
             err[i] = A[i].err

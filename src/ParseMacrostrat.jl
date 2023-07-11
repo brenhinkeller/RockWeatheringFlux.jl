@@ -1,6 +1,7 @@
 ## --- Set up
     # Packages
     using StatGeochem
+    using ProgressMeter
     using DelimitedFiles
     using JLD
 	using HDF5
@@ -18,6 +19,7 @@
 
 
 ## --- Get data for each point from the Burwell / Macrostrat API
+    savefilename = "responses"
     zoom = 11
     responses = Array{Any}(undef, npoints, 1)
     @showprogress 5 for i = 1:npoints
@@ -35,18 +37,19 @@
         end
         sleep(0.05)
 
-        # Checkpoint save every 10,000 points
-        (i % 10000 == 0) && save("data/$savefilename.jld", "responses", responses, 
-            "elevations", elevations, "latitude", rocklat, "longitude", rocklon, 
-            "npoints", npoints
-        )
+        # Checkpoint save and garbage collect every 10,000 points
+        if i % 10_000 == 0
+            GC.gc()
+            save("output/$savefilename$i.jld", "responses", responses, "elevations", elevations, 
+                "latitude", rocklat, "longitude", rocklon, "npoints", npoints
+            )
+        end
     end
 
     # Final save
-    save("data/$savefilename.jld", "responses", responses, "elevations", elevations, 
+    save("output/$savefilename.jld", "responses", responses, "elevations", elevations, 
         "latitude", rocklat, "longitude", rocklon, "npoints", npoints
     )
-
 
 ## --- Load data from the .jld file
 	# @info "Loading Macrostrat file"
@@ -135,10 +138,14 @@
     end
     refstrings = @. authors * " | " * years * " | " * titles * " | " * dois
 
-## --- Write data to a file
+
+## --- Write data to file
 	@info "Writing to file"
-    header = ["rocklat" "rocklon" "agemax" "agemin" "age" "rocktype" "rockname" "rockdescrip" "rockstratname" "rockcomments" "reference"]
-    writedlm("output/pregenerated_responses.tsv", vcat(header, hcat(rocklat, rocklon, agemax, agemin,
+    header = ["rocklat", "rocklon", "agemax", "agemin", "age", "rocktype", "rockname", 
+        "rockdescrip", "rockstratname", "rockcomments", "reference"
+    ]
+    header = reshape(header, 1, length(header))
+    writedlm("output/$savefilename.tsv", vcat(header, hcat(rocklat, rocklon, agemax, agemin,
         age, rocktype, rockname, rockdescrip, rockstratname, rockcomments, refstrings))
     )
 

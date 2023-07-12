@@ -6,7 +6,7 @@ data/octopus/
 output/
 figures/
 results/
-file_graveyard
+~file_graveyard
 dev/
 
 /*.nc

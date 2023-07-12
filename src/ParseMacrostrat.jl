@@ -1,5 +1,6 @@
 # Depending on the number of points requested from the Macrostrat / Burwell API, this code
-# may take multiple days to run.
+# may take multiple days to run. Recommend running from the command line as a background
+# process: nohup julia src/ParseMacrostrat.jl &
 
 ## --- Set up
     # Packages
@@ -19,25 +20,36 @@
 ## --- Generate random points on the continental crust
     npoints = 1_000_000
     savepts = round(Int, npoints / 10_000)
-    etopo = get_etopo("elevation")
-    rocklat, rocklon, elevations = gen_continental_points(npoints, etopo)
+    # etopo = get_etopo("elevation")
+    # rocklat, rocklon, elevations = gen_continental_points(npoints, etopo)
 
-    # Start timer, estimate runtime, and print to terminal
+    
+## --- Alternatively, restart process from intermediate file
+    retrive_file = load("output/responses250000.jld")
+    responses = retrive_file["responses"]
+    elevations = float.(retrive_file["elevations"])
+    rocklat = float.(retrive_file["latitude"])
+    rocklon = float.(retrive_file["longitude"])    
+    npoints = retrive_file["npoints"]
+
+
+## --- Start timer, estimate runtime, and print to terminal
     start = now()
     @info """
     Starting API calls: $(Dates.Date(start)) $(Dates.format(start, "HH:MM"))
 
     Okay, shouldn't take long. Between an hour* and, um, 11 months*. Somewhere in there.
 
-     * Estimated minimum run time: $(canonicalize((ceil(Second(npoints/4), Dates.Hour))))
-    ** Estimated maximum run time: $(canonicalize((ceil(Second(npoints/2), Dates.Hour))))
+     * Possible minimum run time: $(canonicalize((ceil(Second(npoints/6), Dates.Hour))))
+    ** Possible maximum run time: $(canonicalize((ceil(Second(npoints/3), Dates.Hour))))
     """
+
 
 ## --- Get data for each point from the Burwell / Macrostrat API
     savefilename = "responses"
     zoom = 11
     responses = Array{Any}(undef, npoints, 1)
-    for i = 1:npoints
+    for i = 250001:npoints
         try
             responses[i] = query_macrostrat(rocklat[i], rocklon[i], zoom)
         catch
@@ -120,7 +132,7 @@
     end
 
     # Filter ages younger than 0 or greater than the age of the earth
-    invalid_age = vcat(findall(>(4000), age), findall(<(0), age))
+    invalid_age = (age .> 4000) .| (age .< 0)
     age[invalid_age] .= NaN
 
     # Make sure age bounds are in the right order

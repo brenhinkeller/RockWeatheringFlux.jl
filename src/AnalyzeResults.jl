@@ -55,8 +55,8 @@
 
     # Print to terminal
     @info """
-    Total global denundation: $global_denun, digits=3)) Gt/yr
-    Sum of all element fluxes: $(globalsum[1]), digits=3)) Gt/yr
+    Total global denundation: $global_denun Gt/yr
+    Sum of all element fluxes: $globalflux Gt/yr
     """
 
 

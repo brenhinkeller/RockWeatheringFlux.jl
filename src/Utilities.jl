@@ -4,6 +4,7 @@
     using Measurements
 
 ## --- Load all sub-utilities
+    include("Definitions.jl")
     include("UtilitiesSlope.jl")
     include("NaNMeasurements.jl")
 

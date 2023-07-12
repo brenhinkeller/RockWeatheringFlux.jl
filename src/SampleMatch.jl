@@ -14,7 +14,7 @@
 
 ## --- Load Macrostrat data
     @info "Loading Macrostrat lithologic data"
-    macrostrat = importdataset("output/pregenerated_responses.tsv", '\t', importas=:Tuple)
+    macrostrat = importdataset("$macrostrat_io", '\t', importas=:Tuple)
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip, major=false)
 
 
@@ -104,7 +104,7 @@
     allmatches[macro_cats.met] .= matches[:met]
 
     # Write data to a file
-    writedlm("output/bulkidx.tsv", allmatches,"\t")
+    writedlm("$matchedbulk_io", allmatches,"\t")
 
 
 ## --- End of File

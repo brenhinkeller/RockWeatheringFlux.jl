@@ -10,10 +10,13 @@
     include("Utilities.jl")
     include("NaNMeasurements.jl")
 
+    # IO file names
+    
+
 
 ## --- Load EarthChem data
     # Indices of matched samples from SampleMatch.jl
-    bulkidx = Int.(vec(readdlm("output/bulkidx.tsv")))
+    bulkidx = Int.(vec(readdlm("$matchedbulk_io")))
     t = @. bulkidx != 0     # Exclude samples with missing data
 
     # Load bulk, but just the samples matched to the Macrostrat data
@@ -28,7 +31,7 @@
     @info "Loading Macrostrat data"
 
     # Load and match
-    macrostrat = importdataset("output/pregenerated_responses.tsv", '\t', importas=:Tuple)
+    macrostrat = importdataset("$macrostrat_io", '\t', importas=:Tuple)
     @time macro_cats = match_rocktype(macrostrat.rocktype[t], macrostrat.rockname[t], 
         macrostrat.rockdescrip[t]
     )

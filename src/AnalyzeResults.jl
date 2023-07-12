@@ -15,11 +15,11 @@
 
 ## --- Load and parse data
     # Indices of matched samples from SampleMatch.jl
-    bulkidx = Int.(vec(readdlm("output/bulkidx.tsv")))
+    bulkidx = Int.(vec(readdlm("$matchedbulk_io")))
     t = @. bulkidx != 0     # Exclude samples with missing data
 
     # Macrostrat, if there's matched EarthChem data
-    macrostrat = importdataset("output/pregenerated_responses.tsv", '\t', importas=:Tuple)
+    macrostrat = importdataset("$macrostrat_io", '\t', importas=:Tuple)
     macro_cats = match_rocktype(macrostrat.rocktype[t], macrostrat.rockname[t], 
         macrostrat.rockdescrip[t]
     )

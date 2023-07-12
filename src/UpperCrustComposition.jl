@@ -9,6 +9,7 @@
     include("Utilities.jl")
     include("NaNMeasurements.jl")
 
+
     # Define igneous rock compositions by silica (from Keller and Schoene, 2012)
     ignsilica = (
         fel = (62, 74),      # Felsic (low exclusive, high inclusive)
@@ -17,13 +18,13 @@
     )
 
     # Indices of matched EarthChem samples from SampleMatch.jl
-    bulkidx = Int.(vec(readdlm("output/bulkidx.tsv")))
-    t = @. bulkidx != 0     # Exclude samples with missing data
+    bulkidx = Int.(vec(readdlm("$matchedbulk_io")))
+    t = @. bulkidx != 0
 
 
 ## --- Load data for the matched EarthChem samples
     # Macrostrat
-    macrostrat = importdataset("output/pregenerated_responses.tsv", '\t', importas=:Tuple)
+    macrostrat = importdataset("$macrostrat_io", '\t', importas=:Tuple)
     macro_cats = match_rocktype(macrostrat.rocktype[t], macrostrat.rockname[t], 
         macrostrat.rockdescrip[t]
     )

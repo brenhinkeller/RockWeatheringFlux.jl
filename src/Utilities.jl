@@ -298,95 +298,8 @@
     ```
     """
     function match_rocktype(rocktype, rockname, rockdescrip; major=false)
-        npoints = length(rocktype)
-
-        # Rock types based on EarthChem system in RockNameInference.m
-        # Sedimentary
-        siliciclasttypes = ["siliciclast", "conglomerat", "sand", "psamm", "arenit", "arkos", "silt",]
-        shaletypes = ["mud", "clay","shale", "wacke", "argillite", "argillaceous", "flysch", "pelit", 
-            "turbidite",]
-        carbtypes = ["carbonate", "limestone", "dolo", "marl", "chalk", "travertine", "tavertine", 
-            "teravertine", "tufa",]
-        cherttypes = ["chert", "banded iron",]
-        evaporitetypes = ["evaporite", "gypsum", "salt flat",]
-        coaltypes = ["coal", "anthracite",]
-        
-        sedtypes = vcat(["sediment", "fluv", "clast", "gravel", "pebble", "caliche", "boulder", 
-            "diamict", "tillite", "stream", "beach", "terrace",  "marine deposits",  "paleosol"],
-            siliciclasttypes, shaletypes, carbtypes, cherttypes, evaporitetypes, coaltypes)
-
-        # Igneous
-        volctypes = ["volcan", "lava", "lahar", "ignimbrite", "ashfall", "tuff", "diatreme",
-            "pipe", "basalt", "andesit", "dacit", "rhyolit", "pillow", "carbonatite", "tephra", 
-            "obsidian", "ash", "scoria", "pumice", "cinder", "latite", "basanite", "phonolite", 
-            "fonolito", "trachyte", "palagonite", "mugearite", "kimberlite", "ultramafitite", 
-            "komatiite",]
-        hypabyssaltypes = ["intrus", "hypabyssal", "sill", "dike", "stock", "laccolith", "lopolith", 
-            "dolerit", "diabase", "porphyry", "microgranite"]
-        pluttypes = vcat(["pluton", "batholith", "granit", "tonalit", "gabbro", "norite", "diorit", 
-            "monzonit", "syenit", "peridot", "dunit", "harzburg", "anorthosite", "mangerite", 
-            "charnockite", "pegmatite", "aplite", "trond", "essexite", "pyroxenite", "adamellite", 
-            "porphyry", "megacryst", "rapakivi", "bronzitite", "alaskite", "troctolite",], 
-            hypabyssaltypes)
-        
-        igntypes = vcat(["igneous", "silicic ", "mafic", "felsic", "basite",], volctypes, pluttypes)
-
-        # Metamorphic
-        metasedtypes = ["para", "metased", "meta-sed", "quartzite", "marble", "slate", "phyllite",]
-        metaigntypes = ["ortho", "metaign", "meta-ign", "serpentin", "amphibolit", "greenstone",
-            "eclogite", "metabasite",]
-        lowgradetypes = ["slate", "phyllite", "serpentin", "greenstone", "greenschist", "zeolite", 
-            "gossan", "alter", "hydrothermal", "palagonite",]
-        highgradetypes = ["crystalline", "basement", "marble", "skarn", "schist", "blueschist", 
-            "gneiss", "amphibolit", "eclogite", "granulit", "hornfels", "granofels", "sanidinite", 
-            "migma", "enderbite", "anorthosite", "charnockite", "pyroxenite", "peridot", "dunit", 
-            "harzburg", "high grade metamorphic"]
-        cataclastictypes = ["mylonit", "cataclasite", "melange", "gouge", "tecton",]
-        
-        mettypes = vcat(["meta", "calc silicate",], metasedtypes, metaigntypes, lowgradetypes, 
-            highgradetypes, cataclastictypes)
-
-        # Cover
-        covertypes = ["cover", "unconsolidated", "quaternary", "lluv", "soil", "regolith", 
-            "laterite", "surficial deposits", "talus", "scree", "mass-wasting", "slide", 
-            "peat", "swamp", "marsh", "water", "ice", "glaci", "till", "loess", "gravel", 
-            "debris"]
-        
-        # Define what we're looking for
-        if major
-            # Preallocate
-            cats = (
-                sed = falses(npoints),
-                ign = falses(npoints),
-                met = falses(npoints),
-                cover = falses(npoints)
-            )
-            typelist = [sedtypes, igntypes, mettypes, covertypes]
-        else
-            cats = (
-                siliciclast = falses(npoints),
-                shale = falses(npoints),
-                carb = falses(npoints),
-                chert = falses(npoints),
-                evaporite = falses(npoints),
-                coal = falses(npoints),
-                sed = falses(npoints),
-
-                volc = falses(npoints),
-                plut = falses(npoints),
-                ign = falses(npoints),
-
-                metased = falses(npoints),
-                metaign = falses(npoints),
-                met = falses(npoints),
-
-                cover = falses(npoints),
-            )
-            typelist = [siliciclasttypes, shaletypes, carbtypes, cherttypes, evaporitetypes, 
-                coaltypes, sedtypes, volctypes, pluttypes, igntypes, metasedtypes, metaigntypes, 
-                mettypes, covertypes
-            ]
-        end
+        # Get rock type classifications and initialized BitVector
+        typelist, cats = get_rock_class(major, length(rocktype))
 
         # Check major lithology first
         for j in eachindex(typelist)
@@ -472,103 +385,6 @@
         end
     end
 
-    """
-    ```julia
-    un_multimatch!(cats, major::Bool)
-    ```
-
-    Exclude Macrostrat matches from each other so each sample is only classified as one
-    rock type.
-
-    If `major` is `true`: 
-      * Cover is excluded from all rock types.
-      * Rocks classified as both metamorphic and sedimentary / igneous (i.e., metasedimentary
-        and metaigneous rocks) are respectively re-classified as sedimentary and igneous rocks.
-      * Rocks classified as sedimentary and igneous are re-classified as igneous rocks.
-
-    If `major` is false:
-      * Cover is excluded from all rock types.
-      * Rocks classified as both metamorphic and sedimentary / igneous (i.e., metasedimentary
-        and metaigneous rocks) are **excluded** from sedimentary and igneous rocks, and 
-        re-classified as metasedimentary and metaigneous rocks.
-      * Rocks classified as more than one subtype of sedimentary rocks are excluded from
-        each other, in arbitrary order.
-      * Rocks classified as both volcanic and plutonic, or both metasedimentary and 
-        metaigneous, are respectively re-classified as undifferentiated igneous and metamorphic
-        rocks.
-      * Rocks classified as sedimentary and igneous are re-classified as igneous rocks.
-    """
-    un_multimatch!(cats, major::Bool) = _un_multimatch!(cats, static(major))
-
-    function _un_multimatch!(cats, major::True)
-        # Exclude cover
-        cats.sed .&= .! cats.cover
-        cats.ign .&= .! cats.cover
-        cats.met .&= .! cats.cover
-
-        # Classify metased as sed and metaign and ign
-        cats.met .&= .! cats.sed
-        cats.ign .&= .! cats.ign
-
-        # Sed / ign rocks are classified as ign
-        cats.sed .&= .! cats.ign
-
-        return cats
-    end
-
-    function _un_multimatch!(cats, major::False)
-        # Define types
-        minorsed = (:siliciclast, :shale, :carb, :chert, :evaporite, :coal)
-        minorign = (:volc, :plut)
-        minormet = (:metased, :metaign)
-        minortypes = (minorsed..., minorign..., minormet...)
-
-        # Exclude cover from all major and minor rock types
-        cats.sed .&= .! cats.cover
-        cats.ign .&= .! cats.cover
-        cats.met .&= .! cats.cover
-        for i in minortypes
-            cats[i] .&= .! cats.cover
-        end
-
-        # Exclude metamorphic rocks from sed and igns. Class as metased and metaign
-        cats.metased .|= (cats.sed .& cats.met)
-        cats.metaign .|= (cats.ign .& cats.met)
-
-        cats.sed .&= .! cats.met
-        for i in minorsed
-            cats[i] .&= .! cats.met
-        end
-
-        cats.ign .&= .! cats.met
-        for i in minorign
-            cats[i] .&= .! cats.met
-        end
-
-        # Exclude sed subtypes from other sed subtypes
-        for i in 1:(length(minorsed)-1)
-            for j in minorsed[i+1:end]
-                cats[minorsed[i]] .&= .! cats[j]
-            end
-        end
-
-        # Both volcanic and plutonic is undifferentiated igneous
-        cats.volc .&= .!(cats.volc .& cats.plut)
-        cats.plut .&= .!(cats.volc .& cats.plut)
-
-        # Both metaigneous and metasedimentary is undifferentiated metamorphic
-        cats.metased .&= .!(cats.metased .& cats.metaign)
-        cats.metaign .&= .!(cats.metased .& cats.metaign)
-
-        # Sed / ign rocks are classified as ign
-        cats.sed .&= .! cats.ign            
-        for i in minorsed
-            cats[i] .&= .! cats.ign 
-        end
-
-        return cats
-    end
-
 
     """
     ```julia
@@ -643,51 +459,13 @@
     end
 
 
-## --- Definitions of major and minor elements
-    """
-    ```julia
-    get_elements()
-    ```
-
-    Return vectors of type `Symbol` of major and minor elements.
-
-    Major elements:
-      * SiO2, Al2O3, FeOT, TiO2, MgO, CaO, Na2O, K2O
-
-        
-    Minor elements:
-      * Ag, As, Au, B, Ba, Be, Bi, C, CaCO3, Cd, Ce, Cl, Co, Cr2O3, Cs, Cu, Dy, Er, Eu, 
-        F, Ga, Gd, Hf, Hg, Ho, I, In, Ir, La, Li, Lu, MnO, Mo, Nb, Nd, NiO, Os, P2O5, Pb, 
-        Pd, Pt, Pr, Re, Rb, Sb, Sc, Se, S, Sm, Sn, Sr, Ta, Tb, Te, Th, Tl, Tm, U, V, W, Y, 
-        Yb, Zn, Zr
-
-    Major elements are in part defined based on Faye and Ødegård 1975 
-    (https://www.ngu.no/filearchive/NGUPublikasjoner/NGUnr_322_Bulletin_35_Faye_35_53.pdf).
-
-    See also: `major_elements`
-
-    """
-    function get_elements()
-        majors = [:SiO2,:Al2O3,:FeOT,:TiO2,:MgO,:CaO,:Na2O,:K2O,]
-        minors = [:Ag,:As,:Au,:B,:Ba,:Be,:Bi,:C,:CaCO3,:Cd,:Ce,:Cl,:Co,:Cr2O3,:Cs,:Cu,
-            :Dy,:Er,:Eu,:F,:Ga,:Gd,:Hf,:Hg,:Ho,:I,:In,:Ir,:La,:Li,:Lu,:MnO,:Mo,:Nb,:Nd,
-            :NiO,:Os,:P2O5,:Pb,:Pd,:Pt,:Pr,:Re,:Rb,:Sb,:Sc,:Se,:S,:Sm,:Sn,:Sr,:Ta,:Tb,
-            :Te,:Th,:Tl,:Tm,:U,:V,:W,:Y,:Yb,:Zn,:Zr
-        ]
-
-        return majors, minors
-    end
-
-
     """
     ```julia
     major_elements(bulk, bulk_filter)
     ```
-    Compute mean and standard deviation of major elements in `bulk` for each rock type.
+    Compute mean and standard deviation of major elements (defined in `get_elements`) in 
+    `bulk` for each rock type.
 
-    Major elements: SiO₂, Al₂O₃, FeO (total), TiO₂, MgO, CaO, Na₂O, K₂O. 
-
-    See also: `get_elements`
     """
     function major_elements(bulk::NamedTuple, bulksamples::BitVector, bulk_filter::BitVector)
         major, = get_elements()

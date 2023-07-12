@@ -10,12 +10,8 @@
     include("NaNMeasurements.jl")
 
 
-    # Define igneous rock compositions by silica (from Keller and Schoene, 2012)
-    ignsilica = (
-        fel = (62, 74),      # Felsic (low exclusive, high inclusive)
-        int = (51, 62),      # Intermediate
-        maf = (43, 51),      # Mafic
-    )
+    # Get igneous rock silica definitions
+    ignsilica = get_ignsilica()
 
     # Indices of matched EarthChem samples from SampleMatch.jl
     bulkidx = Int.(vec(readdlm("$matchedbulk_io")))

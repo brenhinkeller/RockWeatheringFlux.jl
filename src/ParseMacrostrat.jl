@@ -1,7 +1,11 @@
+# Depending on the number of points requested from the Macrostrat / Burwell API, this code
+# may take multiple days to run.
+
 ## --- Set up
     # Packages
     using StatGeochem
-    using ProgressMeter
+    # using ProgressMeter
+    using Dates
     using DelimitedFiles
     using JLD
 	using HDF5
@@ -14,15 +18,26 @@
 
 ## --- Generate random points on the continental crust
     npoints = 1_000_000
+    savepts = round(Int, npoints / 10_000)
     etopo = get_etopo("elevation")
     rocklat, rocklon, elevations = gen_continental_points(npoints, etopo)
 
+    # Start timer, estimate runtime, and print to terminal
+    start = now()
+    @info """
+    Starting API calls: $(Dates.Date(start)) $(Dates.format(start, "HH:MM"))
+
+    Okay, shouldn't take long. Between an hour* and, um, 11 months*. Somewhere in there.
+
+     * Estimated minimum run time: $(canonicalize((ceil(Second(npoints/4), Dates.Hour))))
+    ** Estimated maximum run time: $(canonicalize((ceil(Second(npoints/2), Dates.Hour))))
+    """
 
 ## --- Get data for each point from the Burwell / Macrostrat API
     savefilename = "responses"
     zoom = 11
     responses = Array{Any}(undef, npoints, 1)
-    @showprogress 5 for i = 1:npoints
+    for i = 1:npoints
         try
             responses[i] = query_macrostrat(rocklat[i], rocklon[i], zoom)
         catch
@@ -40,8 +55,12 @@
         # Checkpoint save and garbage collect every 10,000 points
         if i % 10_000 == 0
             GC.gc()
-            save("output/$savefilename$i.jld", "responses", responses, "elevations", elevations, 
-                "latitude", rocklat, "longitude", rocklon, "npoints", npoints
+            save("output/macrostrat/$savefilename$i.jld", "responses", responses, 
+                "elevations", elevations, "latitude", rocklat, "longitude", rocklon, 
+                "npoints", npoints
+            )
+            println("Save point $(round(Int, i/10000))/$savepts at $(Dates.Date(now())) $(
+                Dates.format(now(), "HH:MM"))"
             )
         end
     end
@@ -50,6 +69,14 @@
     save("output/$savefilename.jld", "responses", responses, "elevations", elevations, 
         "latitude", rocklat, "longitude", rocklon, "npoints", npoints
     )
+
+    # Print success to terminal
+    stop = now()
+    @info """
+    API calls finished at $(Dates.Date(stop)) $(Dates.format(stop, "HH:MM")).
+
+    Total runtime: $(canonicalize(round(stop - start, Dates.Minute))).
+    """
 
 ## --- Load data from the .jld file
 	# @info "Loading Macrostrat file"
@@ -64,7 +91,7 @@
 
 
 ## --- Parse Macrostrat responses from the loaded data
-	@info "Starting to parse data"
+	@info "Starting to parse data: $(Dates.Date(now())) $(Dates.format(now(), "HH:MM"))"
     # Preallocate
     rocktype = Array{String}(undef, npoints, 1)
     rockdescrip = Array{String}(undef, npoints, 1)
@@ -87,7 +114,7 @@
     end
 
     # Age of each sample
-    @info "Checking age constraints"
+    @info "Checking age constraints: $(Dates.Date(now())) $(Dates.format(now(), "HH:MM"))"
     for i in 1:npoints
         age[i] = nanmean([agemax[i], agemin[i]])
     end
@@ -122,7 +149,7 @@
 
 
 ## --- Parse Macrostat data references
-	@info "Parsing references"
+	@info "Parsing references: $(Dates.Date(now())) $(Dates.format(now(), "HH:MM"))"
     # Preallocate
     authors = Array{String}(undef, npoints, 1)
     years = Array{String}(undef, npoints, 1)
@@ -140,7 +167,7 @@
 
 
 ## --- Write data to file
-	@info "Writing to file"
+	@info "Writing to file: $(Dates.Date(now())) $(Dates.format(now(), "HH:MM"))"
     header = ["rocklat", "rocklon", "agemax", "agemin", "age", "rocktype", "rockname", 
         "rockdescrip", "rockstratname", "rockcomments", "reference"
     ]
@@ -148,6 +175,8 @@
     writedlm("output/$savefilename.tsv", vcat(header, hcat(rocklat, rocklon, agemax, agemin,
         age, rocktype, rockname, rockdescrip, rockstratname, rockcomments, refstrings))
     )
+
+    @info "Data saved successfully!"
 
 
 ## -- End of file

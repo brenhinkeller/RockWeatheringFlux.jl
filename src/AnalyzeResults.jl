@@ -7,7 +7,7 @@
     using Plots
 
     # Local Utilities
-    include("Utilities.jl")
+    include("utilities/Utilities.jl")
 
     # Conversion for kg to Gt. Data file is in units of kg/yr
     const kg_gt = 1e12

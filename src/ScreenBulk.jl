@@ -28,7 +28,7 @@
     using HDF5
 
     # Local utilities
-    include("Utilities.jl")
+    include("utilities/Utilities.jl")
     
     # Load and parse data files
     bulk = matread("data/bulk.mat")["bulk"]

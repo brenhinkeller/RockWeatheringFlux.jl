@@ -14,7 +14,7 @@
 	using JSON
     
     # Local utilities
-    include("Utilities.jl")
+    include("utilities/Utilities.jl")
 
 
 ## --- Generate random points on the continental crust

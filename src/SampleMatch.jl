@@ -10,7 +10,7 @@
     using LoopVectorization
 
     # Local utilities
-    include("Utilities.jl")
+    include("utilities/Utilities.jl")
 
 ## --- Load Macrostrat data
     @info "Loading Macrostrat lithologic data"

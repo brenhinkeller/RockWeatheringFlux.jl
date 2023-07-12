@@ -3,9 +3,9 @@
     using Static
     using Measurements
 
-## --- Load all sub-utilities
+## --- Run all sub-utilities
     include("Definitions.jl")
-    include("UtilitiesSlope.jl")
+    include("Slope.jl")
     include("NaNMeasurements.jl")
 
     

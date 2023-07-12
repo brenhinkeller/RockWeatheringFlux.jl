@@ -7,11 +7,7 @@
     using HDF5
 
     # Local utilities
-    include("Utilities.jl")
-    include("NaNMeasurements.jl")
-
-    # IO file names
-    
+    include("utilities/Utilities.jl")
 
 
 ## --- Load EarthChem data

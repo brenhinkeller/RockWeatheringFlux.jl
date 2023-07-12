@@ -6,9 +6,7 @@
     using HDF5
 
     # Local utilities
-    include("Utilities.jl")
-    include("NaNMeasurements.jl")
-
+    include("utilities/Utilities.jl")
 
     # Get igneous rock silica definitions
     ignsilica = get_ignsilica()

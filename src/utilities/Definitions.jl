@@ -1,8 +1,21 @@
-## --- Macrostrat / Matched EarthChem file names
-    # Must be common across AnalyzeResults, CalculateFlux, SampleMatch,
-    # and UpperCrustComposition
-    macrostrat_io = "output/pregenerated_responses.tsv"
-    matchedbulk_io = "output/bulkidx.tsv"
+## --- File names
+    # 50,000 Macrostrat samples
+        # macrostrat_io = "output/pregenerated_responses.tsv"
+        # matchedbulk_io = "output/bulkidx.tsv"
+
+        # ucc_out = "results/exposedcrust.tsv"
+        # eroded_out = "output/erodedmaterial.h5"
+        # erodedabs_out = "results/erodedmaterial_abs.tsv"
+        # erodedrel_out = "results/erodedmaterial_rel.tsv"
+
+    # 250,000 Macrostrat samples
+        macrostrat_io = "output/responses250000.tsv"
+        matchedbulk_io = "output/bulkidx25k.tsv"
+
+        ucc_out = "results/exposedcrust250k.tsv"
+        eroded_out = "output/erodedmaterial250k.h5"
+        erodedabs_out = "results/erodedmaterial_abs250k.tsv"
+        erodedrel_out = "results/erodedmaterial_rel250k.tsv"
 
 
 ## --- Major and minor elements

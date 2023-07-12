@@ -104,7 +104,7 @@
     const unit_sample_area = (148940000 * 1000000) / npoints    # Area of contients / npoints (m²)
 
     # Create file to save data
-    fid = h5open("output/erodedmaterial.h5", "w")
+    fid = h5open("$eroded_out", "w")
 
     # Denundation at each point
     sampleflux = [rock_ersn[i] * unit_sample_area * crustal_density * 1e-6 for i = 1:npoints]

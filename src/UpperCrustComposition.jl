@@ -66,7 +66,7 @@
 
     rows = string.(allelements)
     cols = hcat("", string.(reshape(collect(keys(UCC)), (1, length(keys(UCC))))))
-    writedlm("results/exposedcrust.tsv", vcat(cols, hcat(rows, results)))
+    writedlm("$ucc_out", vcat(cols, hcat(rows, results)))
 
     
 ## --- End of file

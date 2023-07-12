@@ -27,7 +27,7 @@
     deleteat!(subcats, findall(x->x==:cover,subcats))
 
     # Bulk denundation at each point in kg/yr
-    res = h5open("output/erodedmaterial.h5", "r")
+    res = h5open("$eroded_out", "r")
     path = res["bulk_denundation"]
     bulk_denundation = read(path["values"]) .± read(path["errors"])
 
@@ -77,10 +77,10 @@
     result[:,end] = TEFval
 
     # Absolute contribution
-    writedlm("results/erodedmaterial_abs.tsv", vcat(cols, hcat(rows, result)))
+    writedlm("$erodedabs_out", vcat(cols, hcat(rows, result)))
 
     # Relative contribution
-    writedlm("results/erodedmaterial_rel.tsv", vcat(cols, hcat(rows, result ./ TEFval)))
+    writedlm("$erodedrel_out", vcat(cols, hcat(rows, result ./ TEFval)))
 
 
 ## --- End of File

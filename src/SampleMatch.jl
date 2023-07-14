@@ -16,7 +16,17 @@
 
 ## --- Load Macrostrat data
     @info "Loading Macrostrat lithologic data"
-    macrostrat = importdataset("$macrostrat_io", '\t', importas=:Tuple)
+    macrofid = h5open("$macrostrat_io", "r")
+    macrostrat = (
+        rocktype = read(macrofid["rocktype"]),
+        rockname = read(macrofid["rockname"]),
+        rockdescrip = read(macrofid["rockdescrip"]),
+        rocklat = read(macrofid["rocklat"]),
+        rocklon = read(macrofid["rocklon"]),
+        age = read(macrofid["age"]),
+    )
+    close(macrofid)
+
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip, major=false)
 
 

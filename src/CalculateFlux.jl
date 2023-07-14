@@ -29,7 +29,15 @@
     @info "Loading Macrostrat data"
 
     # Load and match
-    macrostrat = importdataset("$macrostrat_io", '\t', importas=:Tuple)
+    macrofid = h5open("$macrostrat_io", "r")
+    macrostrat = (
+        rocktype = read(macrofid["rocktype"]),
+        rockname = read(macrofid["rockname"]),
+        rockdescrip = read(macrofid["rockdescrip"]),
+        rocklat = read(macrofid["rocklat"]),
+        rocklon = read(macrofid["rocklon"]),
+    )
+    close(macrofid)
     @time macro_cats = match_rocktype(macrostrat.rocktype[t], macrostrat.rockname[t], 
         macrostrat.rockdescrip[t]
     )

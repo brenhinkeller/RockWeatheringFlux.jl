@@ -21,7 +21,13 @@
     t = @. bulkidx != 0     # Exclude samples with missing data
 
     # Macrostrat, if there's matched EarthChem data
-    macrostrat = importdataset("$macrostrat_io", '\t', importas=:Tuple)
+    macrofid = h5open("$macrostrat_io", "r")
+    macrostrat = (
+        rocktype = read(macrofid["rocktype"])[t],
+        rockname = read(macrofid["rockname"])[t],
+        rockdescrip = read(macrofid["rockdescrip"])[t]
+    )
+    close(macrofid)
     macro_cats = match_rocktype(macrostrat.rocktype[t], macrostrat.rockname[t], 
         macrostrat.rockdescrip[t]
     )

@@ -27,7 +27,7 @@
 
     
 ## --- Alternatively, restart process from intermediate file
-    retrive_file = load("output/responses250000.jld")
+    retrive_file = load("output/macrostrat/responses740000.jld")
     responses = retrive_file["responses"]
     elevations = float.(retrive_file["elevations"])
     rocklat = float.(retrive_file["latitude"])
@@ -51,7 +51,7 @@
     savefilename = "responses"
     zoom = 11
     responses = Array{Any}(undef, npoints, 1)
-    for i = 250001:npoints
+    for i = 740001:npoints
         try
             responses[i] = query_macrostrat(rocklat[i], rocklon[i], zoom)
         catch
@@ -181,16 +181,31 @@
 
 
 ## --- Write data to file
-	@info "Writing to file: $(Dates.Date(now())) $(Dates.format(now(), "HH:MM"))"
-    header = ["rocklat", "rocklon", "agemax", "agemin", "age", "rocktype", "rockname", 
-        "rockdescrip", "rockstratname", "rockcomments", "reference"
-    ]
-    header = reshape(header, 1, length(header))
-    writedlm("output/$savefilename.tsv", vcat(header, hcat(rocklat, rocklon, agemax, agemin,
-        age, rocktype, rockname, rockdescrip, rockstratname, rockcomments, refstrings))
-    )
+	# @info "Writing to file: $(Dates.Date(now())) $(Dates.format(now(), "HH:MM"))"
+    # header = ["rocklat", "rocklon", "agemax", "agemin", "age", "rocktype", "rockname", 
+    #     "rockdescrip", "rockstratname", "rockcomments", "reference"
+    # ]
+    # header = reshape(header, 1, length(header))
+    # writedlm("output/$savefilename.tsv", vcat(header, hcat(rocklat, rocklon, agemax, agemin,
+    #     age, rocktype, rockname, rockdescrip, rockstratname, rockcomments, refstrings))
+    # )
 
-    @info "Data saved successfully!"
+    # @info "Data saved successfully!"
 
+
+## --- Write data to .h5 file
+    fid = h5open("output/$savefilename.h5", "w")
+        fid["rocklat"] = rocklat
+        fid["rocklon"] = macrostrat.rocklon
+        fid["agemax"] = macrostrat.agemax
+        fid["agemin"] = macrostrat.agemin
+        fid["age"] = macrostrat.age
+        fid["rocktype"] = macrostrat.rocktype
+        fid["rockname"] = macrostrat.rockname
+        fid["rockdescrip"] = macrostrat.rockdescrip
+        fid["rockstratname"] = macrostrat.rockstratname
+        fid["rockcomments"] = macrostrat.rockcomments
+        fid["reference"] = macrostrat.refstrings
+    close(fid)
 
 ## -- End of file

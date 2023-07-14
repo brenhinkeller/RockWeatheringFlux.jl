@@ -20,7 +20,13 @@
 
 ## --- Load data for the matched EarthChem samples
     # Macrostrat
-    macrostrat = importdataset("$macrostrat_io", '\t', importas=:Tuple)
+    macrofid = h5open("$macrostrat_io", "r")
+    macrostrat = (
+        rocktype = read(macrofid["rocktype"])[t],
+        rockname = read(macrofid["rockname"])[t],
+        rockdescrip = read(macrofid["rockdescrip"])[t]
+    )
+    close(macrofid)
     macro_cats = match_rocktype(macrostrat.rocktype[t], macrostrat.rockname[t], 
         macrostrat.rockdescrip[t]
     )

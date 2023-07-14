@@ -1,8 +1,3 @@
-## --- Required packages
-    using LoopVectorization
-    using Static
-    using Measurements
-
 ## --- Run all sub-utilities
     include("Definitions.jl")
     include("Slope.jl")

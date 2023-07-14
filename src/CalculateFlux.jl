@@ -5,6 +5,8 @@
     using ProgressMeter
     using Measurements
     using HDF5
+    using LoopVectorization
+    using Static
 
     # Local utilities
     include("utilities/Utilities.jl")

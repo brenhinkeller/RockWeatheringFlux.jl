@@ -8,6 +8,8 @@
     using Plots
     using NetCDF
     using Isoplot: yorkfit
+    using LoopVectorization
+    using Static
 
     # Local utilities
     include("utilities/Utilities.jl")

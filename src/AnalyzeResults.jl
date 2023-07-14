@@ -5,6 +5,8 @@
     using DelimitedFiles
     using Measurements
     using Plots
+    using LoopVectorization
+    using Static
 
     # Local Utilities
     include("utilities/Utilities.jl")

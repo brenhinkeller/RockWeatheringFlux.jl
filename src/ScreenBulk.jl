@@ -26,6 +26,8 @@
     using StatGeochem
     using LoopVectorization
     using HDF5
+    using Static
+    using Measurements
 
     # Local utilities
     include("utilities/Utilities.jl")

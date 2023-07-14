@@ -8,6 +8,8 @@
     using DelimitedFiles
     using StaticArrays
     using LoopVectorization
+    using Static
+    using Measurements
 
     # Local utilities
     include("utilities/Utilities.jl")

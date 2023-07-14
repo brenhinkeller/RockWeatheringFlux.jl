@@ -10,7 +10,7 @@
 
     # 250,000 Macrostrat samples
         macrostrat_io = "output/responses250000.tsv"
-        matchedbulk_io = "output/bulkidx25k.tsv"
+        matchedbulk_io = "output/bulkidx250k.tsv"
 
         ucc_out = "results/exposedcrust250k.tsv"
         eroded_out = "output/erodedmaterial250k.h5"
@@ -70,10 +70,6 @@
     get_ignsilica() = return (fel = (62, 74), int = (51, 62), maf = (43, 51))
 
 
-
-# Define igneous rock compositions by silica (from Keller and Schoene, 2012)
-ignsilica = 
-
 ## --- Rock type classifications based on EarthChem system in RockNameInference.m
     """
     ```julia
@@ -94,73 +90,74 @@ ignsilica =
     """
     function get_rock_class(major::Bool, npoints::Int64)
         # Sedimentary
-        siliciclast = ["siliciclast", "conglomerat", "sand", "psamm", "arenit", "arkos", "silt",]
-        shale = ["mud", "clay","shale", "wacke", "argillite", "argillaceous", "flysch", "pelit", 
-            "turbidite",]
-        carb = ["carbonate", "limestone", "dolo", "marl", "chalk", "travertine", "tavertine", 
-            "teravertine", "tufa",]
-        chert = ["chert", "banded iron",]
-        evaporite = ["evaporite", "gypsum", "salt flat",]
-        coal = ["coal", "anthracite",]
-        
-        sed = vcat(["sediment", "fluv", "clast", "gravel", "pebble", "caliche", "boulder", 
-            "diamict", "tillite", "stream", "beach", "terrace",  "marine deposits",  "paleosol"],
-            siliciclast, shale, carb, chert, evaporite, coal
+        siliciclast = ("siliciclast", "conglomerat", "sand", "psamm", "arenit", "arkos", 
+            "silt")
+        shale = ("mud", "clay","shale", "wacke", "argillite", "argillaceous", "flysch", 
+            "pelit", "turbidite")
+        carb = ("carbonate", "limestone", "dolo", "marl", "chalk", "travertine", "tavertine", 
+            "teravertine", "tufa")
+        chert = ("chert", "banded iron")
+        evaporite = ("evaporite", "gypsum", "salt flat", "caliche")
+        coal = ("coal", "anthracite")
+
+        sed = (("sediment", "fluv", "clast", "gravel", "pebble", "boulder", "diamict",
+            "tillite", "stream", "beach", "terrace",  "marine deposits",  "paleosol")...,
+            siliciclast..., shale..., carb..., chert..., evaporite..., coal...
         )
 
         # Igneous
-        volc = ["volcan", "lava", "lahar", "ignimbrite", "ashfall", "tuff", "diatreme",
-            "pipe", "basalt", "andesit", "dacit", "rhyolit", "pillow", "carbonatite", "tephra", 
-            "obsidian", "ash", "scoria", "pumice", "cinder", "latite", "basanite", "phonolite", 
-            "fonolito", "trachyte", "palagonite", "mugearite", "kimberlite", "ultramafitite", 
-            "komatiite",]
-        hypabyssal = ["intrus", "hypabyssal", "sill", "dike", "stock", "laccolith", "lopolith", 
-            "dolerit", "diabase", "porphyry", "microgranite"]
-        plut = vcat(["pluton", "batholith", "granit", "tonalit", "gabbro", "norite", "diorit", 
-            "monzonit", "syenit", "peridot", "dunit", "harzburg", "anorthosite", "mangerite", 
-            "charnockite", "pegmatite", "aplite", "trond", "essexite", "pyroxenite", "adamellite", 
-            "porphyry", "megacryst", "rapakivi", "bronzitite", "alaskite", "troctolite",], 
-            hypabyssal)
-        
-        ign = vcat(["igneous", "silicic ", "mafic", "felsic", "basite",], volc, plut)
+        volc = ("volcan", "lava", "lahar", "ignimbrite", "ashfall", "tuff", "diatreme",
+            "pipe", "basalt", "andesit", "dacit", "rhyolit", "pillow", "carbonatite", 
+            "tephra", "obsidian", "ash", "scoria", "pumice", "cinder", "latite", 
+            "basanite", "phonolite", "fonolito", "trachyte", "palagonite", "mugearite", 
+            "kimberlite", "ultramafitite", "komatiite",)
+        plut = (
+            # "True" plutonic rocks
+            ("pluton", "batholith", "granit", "tonalit", "gabbro", "norite", 
+            "diorit", "monzonit", "syenit", "peridot", "dunit", "harzburg", "anorthosite", 
+            "mangerite", "charnockite", "pegmatite", "aplite", "trond", "essexite", 
+            "pyroxenite", "adamellite", "porphyry", "megacryst", "rapakivi", "bronzitite", 
+            "alaskite", "troctolite")..., 
+            # Hypabyssal rocks
+            ("intrus", "hypabyssal", "sill", "dike", "stock", "laccolith", "lopolith", 
+            "dolerit", "diabase", "porphyry", "microgranite")...
+        )
+
+        ign = (("igneous", "silicic ", "mafic", "felsic", "basite",)..., volc..., plut...)
 
         # Metamorphic
-        metased = ["para", "metased", "meta-sed", "quartzite", "marble", "slate", "phyllite",]
-        metaign = ["ortho", "metaign", "meta-ign", "serpentin", "amphibolit", "greenstone",
-            "eclogite", "metabasite",]
-        lowgrade = ["slate", "phyllite", "serpentin", "greenstone", "greenschist", "zeolite", 
-            "gossan", "alter", "hydrothermal", "palagonite",]
-        highgrade = ["crystalline", "basement", "marble", "skarn", "schist", "blueschist", 
-            "gneiss", "amphibolit", "eclogite", "granulit", "hornfels", "granofels", "sanidinite", 
-            "migma", "enderbite", "anorthosite", "charnockite", "pyroxenite", "peridot", "dunit", 
-            "harzburg", "high grade metamorphic"]
-        cataclastic = ["mylonit", "cataclasite", "melange", "gouge", "tecton",]
-        
-        met = vcat(["meta", "calc silicate",], metased, metaign, lowgrade, 
-            highgrade, cataclastic
+        metased = ("para", "metased", "meta-sed", "quartzite", "marble", "slate", "phyllite",)
+        metaign = ("ortho", "metaign", "meta-ign", "serpentin", "amphibolit", "greenstone", 
+            "eclogite", "metabasite",)
+        lowgrade = ("slate", "phyllite", "serpentin", "greenstone", "greenschist", "zeolite", 
+            "gossan", "alter", "hydrothermal", "palagonite",)
+        highgrade = ("crystalline", "basement", "marble", "skarn", "schist", "blueschist", "gneiss", 
+            "amphibolit", "eclogite", "granulit", "hornfels", "granofels", "sanidinite", "migma", 
+            "enderbite", "anorthosite", "charnockite", "pyroxenite", "peridot", "dunit", "harzburg", 
+            "high grade metamorphic")
+        cataclastic = ("mylonit", "cataclasite", "melange", "gouge", "tecton",)
+
+        met = (cataclastic..., ("meta", "calc silicate",)...,  metased..., metaign..., lowgrade..., 
+            highgrade..., cataclastic...
         )
 
         # Cover
-        cover = ["cover", "unconsolidated", "quaternary", "lluv", "soil", "regolith", 
+        cover = ("cover", "unconsolidated", "quaternary", "lluv", "soil", "regolith", 
             "laterite", "surficial deposits", "talus", "scree", "mass-wasting", "slide", 
             "peat", "swamp", "marsh", "water", "ice", "glaci", "till", "loess", "gravel", 
             "debris"
-        ]
+        )
 
         # Initialize type lists and BitVectors
         if major
-            typelist = [sed, ign, met, cover]
-            majortypes = (:sed, :ign, :met, :cover)
-            cat_shell = NamedTuple{majortypes}([falses(npoints) for _ in 1:length(majortypes)]) 
+            typelist = (sed.sed, ign.ign, met.met, cover)
         else
-            typelist = [siliciclast, shale, carb, chert, evaporite, coal, sed, volc, 
-                plut, ign, metased, metaign, met, cover]
-            minortypes = (:siliciclast, :shale, :carb, :chert, :evaporite, :coal, :sed, 
-                :volc, :plut, :ign, :metased, :metaign, :met, :cover)
-            cat_shell = NamedTuple{minortypes}([falses(npoints) for _ in 1:length(minortypes)]) 
+            typelist = (siliciclast=siliciclast, shale=shale, carb=carb, chert=chert, 
+                evaporite=evaporite, coal=coal, sed=sed, volc=volc, plut=plut, ign=ign, 
+                metased=metased, metaign=metaign, met=met, cover=cover)
         end
 
-        return typelist, cat_shell
+        return typelist, NamedTuple{keys(typelist)}([falses(npoints) for _ in 1:length(typelist)]) 
     end
 
 

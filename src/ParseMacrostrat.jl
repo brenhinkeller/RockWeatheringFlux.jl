@@ -5,7 +5,9 @@
 ## --- Set up
     # Packages
     using StatGeochem
-    # using ProgressMeter
+    using LoopVectorization
+    using Static
+    using Measurements
     using Dates
     using DelimitedFiles
     using JLD

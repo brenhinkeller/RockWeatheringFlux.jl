@@ -196,16 +196,16 @@
 ## --- Write data to .h5 file
     fid = h5open("output/$savefilename.h5", "w")
         fid["rocklat"] = rocklat
-        fid["rocklon"] = macrostrat.rocklon
-        fid["agemax"] = macrostrat.agemax
-        fid["agemin"] = macrostrat.agemin
-        fid["age"] = macrostrat.age
-        fid["rocktype"] = macrostrat.rocktype
-        fid["rockname"] = macrostrat.rockname
-        fid["rockdescrip"] = macrostrat.rockdescrip
-        fid["rockstratname"] = macrostrat.rockstratname
-        fid["rockcomments"] = macrostrat.rockcomments
-        fid["reference"] = macrostrat.refstrings
+        fid["rocklon"] = rocklon
+        fid["agemax"] = agemax
+        fid["agemin"] = agemin
+        fid["age"] = age
+        fid["rocktype"] = rocktype
+        fid["rockname"] = rockname
+        fid["rockdescrip"] = rockdescrip
+        fid["rockstratname"] = rockstratname
+        fid["rockcomments"] = rockcomments
+        fid["reference"] = refstrings
     close(fid)
 
 ## -- End of file

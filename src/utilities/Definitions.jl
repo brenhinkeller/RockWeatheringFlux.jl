@@ -10,7 +10,7 @@
 
     # 250,000 Macrostrat samples
         # macrostrat_io = "output/responses250000.tsv"
-        macrostrat_io = "output/resposnes250k.h5"
+        macrostrat_io = "output/responses250k.h5"
         matchedbulk_io = "output/bulkidx250k.tsv"
 
         ucc_out = "results/exposedcrust250k.tsv"

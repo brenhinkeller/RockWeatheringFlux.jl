@@ -558,7 +558,7 @@
     """
     ```julia
     check_matches(rocktype::String, rockname::String, rockdescrip::String, rocknamelist)
-    ````
+    ```
 
     Find matching strings in `rocknamelist` in Macrostrat `rocktype`, `rockname`, and 
     `rockdescrip`. Returns a `BitVector`.
@@ -688,7 +688,7 @@
         # Replace missing values: this will penalize but not exclude missing data
         @inbounds for i in 1:npoints
             if isnan(bulkage[i])
-                bulkage[i] = -sampleage
+                bulkage[i] = ifelse(sampleage>1900, 3800, 0)
             end
 
             # Assume if one coordinate is missing, so is the other one
@@ -718,6 +718,7 @@
         matched_sample = rand_prop_liklihood(ll_total)
         return matched_sample
     end
+
 
 ## --- Randomly select a sample, weighted based on likelihood
     """

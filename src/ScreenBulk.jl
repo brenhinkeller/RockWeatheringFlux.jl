@@ -120,13 +120,13 @@
 
 ## --- Restrict bulk to 84-104 wt.% analyzed
     bulkweight = zeros(length(bulk.SiO2));
+    t = falses(length(bulkweight))
+    bounds = (84, 104)
     @time for i in eachindex(bulkweight)
         bulkweight[i] = nansum([bulk[j][i] for j in allelements])
+        t[i] = ifelse(bounds[1] < bulkweight < bounds[2], true, false)
     end
-
-    bounds = (84, 104)
-    t = @. bounds[1] < bulkweight < bounds[2]
-
+    
     nsamples = round(count(t)/length(t)*100, digits=2)
     @info "Saving $nsamples% samples between $(bounds[1])% and $(bounds[2])% analyzed wt.%"
 

@@ -1,3 +1,50 @@
+## --- Set up
+    # Computational Packages
+    using StatGeochem
+    using HDF5
+    using LoopVectorization
+    using Measurements
+    using Static
+
+    # Plotting Packages
+    using GeoMakie
+    using ImageMagick
+
+    # Local utilities
+    include("utilities/Utilities.jl")
+
+
+## --- Get data
+    # Indices of matched EarthChem samples
+    bulkidx = Int.(vec(readdlm("$matchedbulk_io")))
+    t = @. bulkidx != 0     # Exclude samples with missing data
+
+    # Matched EarthChem samples
+    bulkfid = h5open("output/bulk.h5", "r")
+    header = read(bulkfid["bulk"]["header"])
+    data = read(bulkfid["bulk"]["data"])
+    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
+    close(bulkfid)
+
+    # Macrostrat, if there's a matched EarthChem sample
+    macrofid = h5open("$macrostrat_io", "r")
+    macrostrat = (
+        rocktype = read(macrofid["rocktype"])[t],
+        rockname = read(macrofid["rockname"])[t],
+        rockdescrip = read(macrofid["rockdescrip"])[t],
+        rocklat = read(macrofid["rocklat"])[t],
+        rocklon = read(macrofid["rocklon"])[t],
+    )
+    close(macrofid)
+
+
+## --- Visualize physical distance between Macrostrat points and matched points
+    dist = haversine.(macrostrat.rocklat, macrostrat.rocklon, bulk.Latitude, bulk.Longitude)
+
+
+## --- End of File
+@assert 1==2 "End of File"
+
 #=
 The purpose of this script is to allow local plotting. Slope and location data is supplied 
 by the intermediate "parsed_responses.tsv" file generated in CalculateFlux.jl. Extraction / 

@@ -688,7 +688,7 @@
         # Replace missing values: this will penalize but not exclude missing data
         @inbounds for i in 1:npoints
             if isnan(bulkage[i])
-                bulkage[i] = ifelse(sampleage>1900, 3800, 0)
+                bulkage[i] = ifelse(sampleage < 1900, 3800, 0)
             end
 
             # Assume if one coordinate is missing, so is the other one

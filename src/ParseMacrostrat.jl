@@ -74,7 +74,7 @@
         if i % 100_000 == 0
             GC.gc()
             parsed = parse_macrostrat_responses(responses, i)
-            fid = h5open("output/$savefilename$i.h5", "w")
+            fid = h5open("output/macrostrat/$savefilename$i.h5", "w")
                 fid["rocklat"] = rocklat
                 fid["rocklon"] = rocklon
                 fid["elevation"] = elevations

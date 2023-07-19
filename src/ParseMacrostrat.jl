@@ -22,17 +22,21 @@
 ## --- Generate random points on the continental crust
     npoints = 1_000_000
     savepts = round(Int, npoints / 10_000)
-    # etopo = get_etopo("elevation")
-    # rocklat, rocklon, elevations = gen_continental_points(npoints, etopo)
+    etopo = get_etopo("elevation")
+    rocklat, rocklon, elevations = gen_continental_points(npoints, etopo)
 
     
 ## --- Alternatively, restart process from intermediate file
-    retrive_file = load("output/macrostrat/responses740000.jld")
-    responses = retrive_file["responses"]
-    elevations = float.(retrive_file["elevations"])
-    rocklat = float.(retrive_file["latitude"])
-    rocklon = float.(retrive_file["longitude"])    
-    npoints = retrive_file["npoints"]
+    # retrive_file = load("output/macrostrat/responses250000.jld")
+    # responses = retrive_file["responses"]
+    # elevations = float.(retrive_file["elevations"])
+    # rocklat = float.(retrive_file["latitude"])
+    # rocklon = float.(retrive_file["longitude"])    
+    # npoints = retrive_file["npoints"]
+
+    # retrive_file = h5open("output/macrostrat/responses250000.h5", "r")
+
+    # close(retrive_file)
 
 
 ## --- Start timer, estimate runtime, and print to terminal
@@ -51,7 +55,7 @@
     savefilename = "responses"
     zoom = 11
     responses = Array{Any}(undef, npoints, 1)
-    for i = 740001:npoints
+    for i = 1:npoints
         try
             responses[i] = query_macrostrat(rocklat[i], rocklon[i], zoom)
         catch
@@ -67,22 +71,35 @@
         sleep(0.05)
 
         # Checkpoint save and garbage collect every 10,000 points
-        if i % 10_000 == 0
+        if i % 100_000 == 0
             GC.gc()
-            save("output/macrostrat/$savefilename$i.jld", "responses", responses, 
-                "elevations", elevations, "latitude", rocklat, "longitude", rocklon, 
-                "npoints", npoints
-            )
-            println("Save point $(round(Int, i/10000))/$savepts at $(Dates.Date(now())) $(
+            parsed = parse_macrostrat_responses(responses, i)
+            fid = h5open("output/$savefilename$i.h5", "w")
+                fid["rocklat"] = rocklat
+                fid["rocklon"] = rocklon
+                fid["elevation"] = elevations
+                fid["agemax"] = parsed.agemax
+                fid["agemin"] = parsed.agemin
+                fid["age"] = parsed.age
+                fid["rocktype"] = parsed.rocktype
+                fid["rockname"] = parsed.rockname
+                fid["rockdescrip"] = parsed.rockdescrip
+                fid["rockstratname"] = parsed.rockstratname
+                fid["rockcomments"] = parsed.rockcomments
+                fid["reference"] = parsed.refstrings
+                fid["npoints"] = npoints
+            close(fid)
+
+            println("Save point $(round(Int, i/100000))/$savepts at $(Dates.Date(now())) $(
                 Dates.format(now(), "HH:MM"))"
             )
         end
     end
 
     # Final save
-    save("output/$savefilename.jld", "responses", responses, "elevations", elevations, 
-        "latitude", rocklat, "longitude", rocklon, "npoints", npoints
-    )
+    # save("output/$savefilename.jld", "responses", responses, "elevations", elevations, 
+    #     "latitude", rocklat, "longitude", rocklon, "npoints", npoints
+    # )
 
     # Print success to terminal
     stop = now()
@@ -91,6 +108,7 @@
 
     Total runtime: $(canonicalize(round(stop - start, Dates.Minute))).
     """
+
 
 ## --- Load data from the .jld file
 	# @info "Loading Macrostrat file"
@@ -104,108 +122,28 @@
     # npoints = retrive_file["npoints"]
 
 
-## --- Parse Macrostrat responses from the loaded data
-	@info "Starting to parse data: $(Dates.Date(now())) $(Dates.format(now(), "HH:MM"))"
-    # Preallocate
-    rocktype = Array{String}(undef, npoints, 1)
-    rockdescrip = Array{String}(undef, npoints, 1)
-    rockname = Array{String}(undef, npoints, 1)
-    rockstratname = Array{String}(undef, npoints, 1)
-    rockcomments = Array{String}(undef, npoints, 1)
-    agemax = Array{Float64}(undef, npoints, 1)
-    agemin = Array{Float64}(undef, npoints, 1)
-    age = Array{Float64}(undef, npoints, 1)
+## --- Parse Macrostrat responses and write data to .h5 file
+    @info "Starting to parse data: $(Dates.Date(now())) $(Dates.format(now(), "HH:MM"))"
+    parsed = parse_macrostrat_responses(responses, npoints)
 
-    # Parse responses into preallocated arrays
-    for i in eachindex(rocktype)
-        rocktype[i] = get_macrostrat_lith(responses[i])
-        rockdescrip[i] = get_macrostrat_descrip(responses[i])
-        rockname[i] = get_macrostrat_name(responses[i])
-        rockstratname[i] = get_macrostrat_strat_name(responses[i])
-        rockcomments[i] = get_macrostrat_comments(responses[i])
-        agemax[i] = get_macrostrat_max_age(responses[i])
-        agemin[i] = get_macrostrat_min_age(responses[i])
-    end
-
-    # Age of each sample
-    @info "Checking age constraints: $(Dates.Date(now())) $(Dates.format(now(), "HH:MM"))"
-    for i in 1:npoints
-        age[i] = nanmean([agemax[i], agemin[i]])
-    end
-
-    # Filter ages younger than 0 or greater than the age of the earth
-    invalid_age = (age .> 4000) .| (age .< 0)
-    age[invalid_age] .= NaN
-
-    # Make sure age bounds are in the right order
-    for i in 1:npoints
-        if agemin[i] > agemax[i]
-            tempmax = agemin[i]
-            tempmin = agemax[i]
-            agemin[i] = tempmax
-            agemax[i] = tempmin
-        end
-    end
-
-    # Convert strings to lowercase so they can be matched to known names of rock types
-    rocktype = lowercase.(rocktype)
-    rockdescrip = lowercase.(rockdescrip)
-    rockname = lowercase.(rockname)
-    rockstratname = lowercase.(rockstratname)
-    rockcomments = lowercase.(rockcomments)
-
-    # Replace tabs with spaces so they will not be confused with the delimitator when exported
-    rocktype = replace.(rocktype, "    " => " ")
-    rockdescrip = replace.(rockdescrip, "    " => " ")
-    rockname = replace.(rockname, "    " => " ")
-    rockstratname = replace.(rockstratname, "    " => " ")
-    rockcomments = replace.(rockcomments, "    " => " ")
-
-
-## --- Parse Macrostat data references
-	@info "Parsing references: $(Dates.Date(now())) $(Dates.format(now(), "HH:MM"))"
-    # Preallocate
-    authors = Array{String}(undef, npoints, 1)
-    years = Array{String}(undef, npoints, 1)
-    titles = Array{String}(undef, npoints, 1)
-    dois = Array{String}(undef, npoints, 1)
-
-    # Parse into preallocated arrays
-    for i = eachindex(authors)
-        authors[i] = get_macrostrat_ref_authors(responses[i])
-        years[i] =get_macrostrat_ref_year(responses[i])
-        titles[i] = get_macrostrat_ref_title(responses[i])
-        dois[i] = get_macrostrat_ref_doi(responses[i])
-    end
-    refstrings = @. authors * " | " * years * " | " * titles * " | " * dois
-
-
-## --- Write data to file
-	# @info "Writing to file: $(Dates.Date(now())) $(Dates.format(now(), "HH:MM"))"
-    # header = ["rocklat", "rocklon", "agemax", "agemin", "age", "rocktype", "rockname", 
-    #     "rockdescrip", "rockstratname", "rockcomments", "reference"
-    # ]
-    # header = reshape(header, 1, length(header))
-    # writedlm("output/$savefilename.tsv", vcat(header, hcat(rocklat, rocklon, agemax, agemin,
-    #     age, rocktype, rockname, rockdescrip, rockstratname, rockcomments, refstrings))
-    # )
-
-    # @info "Data saved successfully!"
-
-
-## --- Write data to .h5 file
+    @info "Writing to file: $(Dates.Date(now())) $(Dates.format(now(), "HH:MM"))"
     fid = h5open("output/$savefilename.h5", "w")
         fid["rocklat"] = rocklat
         fid["rocklon"] = rocklon
-        fid["agemax"] = agemax
-        fid["agemin"] = agemin
-        fid["age"] = age
-        fid["rocktype"] = rocktype
-        fid["rockname"] = rockname
-        fid["rockdescrip"] = rockdescrip
-        fid["rockstratname"] = rockstratname
-        fid["rockcomments"] = rockcomments
-        fid["reference"] = refstrings
+        fid["elevation"] = elevations
+        fid["agemax"] = parsed.agemax
+        fid["agemin"] = parsed.agemin
+        fid["age"] = parsed.age
+        fid["rocktype"] = parsed.rocktype
+        fid["rockname"] = parsed.rockname
+        fid["rockdescrip"] = parsed.rockdescrip
+        fid["rockstratname"] = parsed.rockstratname
+        fid["rockcomments"] = parsed.rockcomments
+        fid["reference"] = parsed.refstrings
+        fid["npoints"] = npoints
     close(fid)
+
+    @info "Data saved successfully! End of process."
+
 
 ## -- End of file

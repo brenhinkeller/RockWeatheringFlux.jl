@@ -2,6 +2,7 @@
     include("Definitions.jl")
     include("Slope.jl")
     include("NaNMeasurements.jl")
+    include("Macrostrat.jl")
 
     
 ## --- Generate random points on the continental crust
@@ -58,127 +59,6 @@
     emmkyr(slp) = exp(slp * (0.0091 ± 0.0095) + (3.1 ± 1.9))
 
     # Previously 10^(slp*0.00567517 + 0.971075)
-
-
-## --- Functions for querying macrostrat
-    """
-    ```julia
-    query_macrostrat(lat, lon, zoom::Number=11)
-    ```
-    Get lithological data for rocks at `lat`, `lon` coordinate from the Macrostrat API.
-
-    Argument `zoom` controls precision; default is approximately 5km. Automatically retry with
-    less precise window if initial query does not return data.
-    """
-    function query_macrostrat(lat, lon, zoom::Number=11)
-        resp = HTTP.get("https://macrostrat.org/api/mobile/map_query?lat=$lat&lng=$lon&z=$zoom")
-        str = String(resp.body)
-        parsed = JSON.Parser.parse(str)
-        try
-            parsed["success"]["data"]["burwell"][1]["lith"]
-        catch error
-            resp = HTTP.get("https://macrostrat.org/api/mobile/map_query?lat=$lat&lng=$lon&z=1")
-            str = String(resp.body)
-            parsed = JSON.Parser.parse(str)
-        end
-        return parsed
-    end
-
-    function get_macrostrat_min_age(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["t_int_age"]::Number
-        catch error
-            return NaN
-        end
-    end
-
-    function get_macrostrat_max_age(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["b_int_age"]::Number
-        catch error
-            return NaN
-        end
-    end
-
-    function get_macrostrat_map_id(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["map_id"]::Number
-        catch error
-            return NaN
-        end
-    end
-
-    function get_macrostrat_lith(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["lith"]
-        catch error
-            return "NA"
-        end
-    end
-
-    function get_macrostrat_descrip(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["descrip"]
-        catch error
-            return "NA"
-        end
-    end
-
-    function get_macrostrat_name(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["name"]
-        catch error
-            return "NA"
-        end
-    end
-
-    function get_macrostrat_strat_name(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["strat_name"]
-        catch error
-            return "NA"
-        end
-    end
-
-    function get_macrostrat_comments(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["comments"]
-        catch error
-            return "NA"
-        end
-    end
-
-    function get_macrostrat_ref_title(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["ref"]["ref_title"]
-        catch error
-            return "NA"
-        end
-    end
-
-    function get_macrostrat_ref_authors(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["ref"]["authors"]
-        catch error
-            return "NA"
-        end
-    end
-
-    function get_macrostrat_ref_year(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["ref"]["ref_year"]
-        catch error
-            return "NA"
-        end
-    end
-
-    function get_macrostrat_ref_doi(jobj)
-        try
-            return jobj["success"]["data"]["burwell"][1]["ref"]["isbn_doi"]
-        catch error
-            return "NA"
-        end
-    end
 
 
 ## --- Find the average value of slope over an area

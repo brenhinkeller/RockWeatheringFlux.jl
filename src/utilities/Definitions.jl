@@ -151,7 +151,7 @@
 
         # Initialize type lists and BitVectors
         if major
-            typelist = (sed.sed, ign.ign, met.met, cover)
+            typelist = (sed, ign, met, cover)
         else
             typelist = (siliciclast=siliciclast, shale=shale, carb=carb, chert=chert, 
                 evaporite=evaporite, coal=coal, sed=sed, volc=volc, plut=plut, ign=ign, 

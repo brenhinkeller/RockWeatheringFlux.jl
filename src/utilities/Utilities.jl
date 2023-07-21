@@ -249,12 +249,12 @@
     """
     function find_unmatched(cats; major=false)
         if major
-            return .!(cats.sed .| cats.ign .| cats.met .| cats.cover)
+            return @turbo .!(cats.sed .| cats.ign .| cats.met .| cats.cover)
         else
-            cats.sed .= cats.sed .| cats.siliciclast .| cats.shale .| cats.carb .| cats.chert .| 
+            cats.sed .= @turbo cats.sed .| cats.siliciclast .| cats.shale .| cats.carb .| cats.chert .| 
                 cats.evaporite .| cats.coal
-            cats.ign .= cats.ign .| cats.volc .| cats.plut
-            cats.met .= cats.met .| cats.metased .| cats.metaign
+            cats.ign .= @turbo cats.ign .| cats.volc .| cats.plut
+            cats.met .= @turbo cats.met .| cats.metased .| cats.metaign
 
             return .!(cats.sed .| cats.ign .| cats.met .| cats.cover)
         end

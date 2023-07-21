@@ -27,8 +27,8 @@
         rockdescrip = read(macrofid["rockdescrip"])[t]
     )
     close(macrofid)
-    macro_cats = match_rocktype(macrostrat.rocktype[t], macrostrat.rockname[t], 
-        macrostrat.rockdescrip[t]
+    macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
+        macrostrat.rockdescrip
     )
     known_rocks = macro_cats.sed .| macro_cats.ign .| macro_cats.met
     total_known = count(known_rocks)
@@ -60,6 +60,8 @@
         sed = [nanmean(bulk[i][macro_cats.sed]) for i in allelements],
         met = [nanmean(bulk[i][macro_cats.met]) for i in allelements],
         ign = [nanmean(bulk[i][macro_cats.ign]) for i in allelements],
+        volc = [nanmean(bulk[i][macro_cats.volc]) for i in allelements],
+        plut = [nanmean(bulk[i][macro_cats.plut]) for i in allelements],
         fel = [nanmean(bulk[i][ign_cats.fel]) for i in allelements],
         int = [nanmean(bulk[i][ign_cats.int]) for i in allelements],
         maf = [nanmean(bulk[i][ign_cats.maf]) for i in allelements],

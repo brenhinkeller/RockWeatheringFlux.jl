@@ -187,36 +187,30 @@
 
         # Check the rest of rocktype
         not_matched = find_unmatched(cats, major=major)
-        for j in eachindex(typelist)
+        @inbounds for j in eachindex(typelist)
             for i = eachindex(typelist[j])
                 for k in eachindex(cats[j])
-                    if not_matched[k]
-                        cats[j][k] |= containsi(rocktype[k], typelist[j][i])
-                    end
+                    not_matched[k] && (cats[j][k] |= containsi(rocktype[k], typelist[j][i]))
                 end
             end
         end
 
         # Then rockname
         not_matched = find_unmatched(cats, major=major)
-        for j in eachindex(typelist)
+        @inbounds for j in eachindex(typelist)
             for i = eachindex(typelist[j])
                 for k in eachindex(cats[j])
-                    if not_matched[k]
-                        cats[j][k] |= containsi(rockname[k], typelist[j][i])
-                    end
+                    not_matched[k] && (cats[j][k] |= containsi(rockname[k], typelist[j][i]))
                 end
             end
         end
 
         # Then rockdescrip
         not_matched = find_unmatched(cats, major=major)
-        for j in eachindex(typelist)
+        @inbounds for j in eachindex(typelist)
             for i = eachindex(typelist[j])
                 for k in eachindex(cats[j])
-                    if not_matched[k]
-                        cats[j][k] |= containsi(rockdescrip[k], typelist[j][i])
-                    end
+                    not_matched[k] && (cats[j][k] |= containsi(rockdescrip[k], typelist[j][i]))
                 end
             end
         end

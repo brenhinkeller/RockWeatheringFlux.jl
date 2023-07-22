@@ -285,7 +285,7 @@
             cats[k][i] && return Symbol(k)
         end
 
-        @error "No matches found."
+        return nothing
     end
 
 

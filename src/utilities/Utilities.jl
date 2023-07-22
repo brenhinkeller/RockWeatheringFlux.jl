@@ -176,90 +176,46 @@
         # Get rock type classifications and initialized BitVector
         typelist, cats = get_rock_class(major, length(rocktype))
 
-        # # Check major lithology first
-        # for j in eachindex(typelist)
-        #     for i = eachindex(typelist[j])
-        #         for k in eachindex(cats[j])
-        #             cats[j][k] = match(r"major.*?{(.*?)}", rocktype[k]) |> x -> isa(x,RegexMatch) ? containsi(x[1], typelist[j][i]) : false
-        #         end
-        #     end
-        # end
-
-        # # Check the rest of rocktype
-        # not_matched = find_unmatched(cats, major=major)
-        # @inbounds for j in eachindex(typelist)
-        #     for i = eachindex(typelist[j])
-        #         for k in eachindex(cats[j])
-        #             not_matched[k] && (cats[j][k] |= containsi(rocktype[k], typelist[j][i]))
-        #         end
-        #     end
-        # end
-
-        # # Then rockname
-        # not_matched = find_unmatched(cats, major=major)
-        # @inbounds for j in eachindex(typelist)
-        #     for i = eachindex(typelist[j])
-        #         for k in eachindex(cats[j])
-        #             not_matched[k] && (cats[j][k] |= containsi(rockname[k], typelist[j][i]))
-        #         end
-        #     end
-        # end
-
-        # # Then rockdescrip
-        # not_matched = find_unmatched(cats, major=major)
-        # @inbounds for j in eachindex(typelist)
-        #     for i = eachindex(typelist[j])
-        #         for k in eachindex(cats[j])
-        #             not_matched[k] && (cats[j][k] |= containsi(rockdescrip[k], typelist[j][i]))
-        #         end
-        #     end
-        # end
-
-        # Check the rest of rocktype
-        # not_matched = find_unmatched(cats, major=major)
-        # match_from_list!(cats, not_matched, typelist, rocktype)
-
-        # # Then rockname
-        # not_matched = find_unmatched(cats, major=major)
-        # match_from_list!(cats, not_matched, typelist, rockname)
-
-        # # Then rockdescrip
-        # not_matched = find_unmatched(cats, major=major)
-        # match_from_list!(cats, not_matched, typelist, rockdescrip)
-
+        # Check major lithology first
         for j in eachindex(typelist)
             for i = eachindex(typelist[j])
                 for k in eachindex(cats[j])
-                    # Major lithology
                     cats[j][k] = match(r"major.*?{(.*?)}", rocktype[k]) |> x -> isa(x,RegexMatch) ? containsi(x[1], typelist[j][i]) : false
-                    cats[j][k] && continue
+                end
+            end
+        end
 
-                    # The rest of rocktype
-                    cats[j][k] |= containsi(rocktype[k], typelist[j][i])
-                    cats[j][k] && continue
+        # Check the rest of rocktype
+        not_matched = find_unmatched(cats, major=major)
+        @inbounds for j in eachindex(typelist)
+            for i = eachindex(typelist[j])
+                for k in eachindex(cats[j])
+                    not_matched[k] && (cats[j][k] |= containsi(rocktype[k], typelist[j][i]))
+                end
+            end
+        end
 
-                    # rockname
-                    cats[j][k] |= containsi(rockname[k], typelist[j][i])
-                    cats[j][k] && continue
+        # Then rockname
+        not_matched = find_unmatched(cats, major=major)
+        @inbounds for j in eachindex(typelist)
+            for i = eachindex(typelist[j])
+                for k in eachindex(cats[j])
+                    not_matched[k] && (cats[j][k] |= containsi(rockname[k], typelist[j][i]))
+                end
+            end
+        end
 
-                    # rockdescrip
-                    cats[j][k] |= containsi(rockdescrip[k], typelist[j][i])
-                    cats[j][k] && continue
+        # Then rockdescrip
+        not_matched = find_unmatched(cats, major=major)
+        @inbounds for j in eachindex(typelist)
+            for i = eachindex(typelist[j])
+                for k in eachindex(cats[j])
+                    not_matched[k] && (cats[j][k] |= containsi(rockdescrip[k], typelist[j][i]))
                 end
             end
         end
 
         return un_multimatch!(cats, major)
-    end
-
-    function match_from_list!(cats, not_matched, typelist, rocklist)
-        @inbounds for j in eachindex(typelist)
-            for i = eachindex(typelist[j])
-                for k in eachindex(cats[j])
-                    not_matched[k] && (cats[j][k] |= containsi(rocklist[k], typelist[j][i]))
-                end
-            end
-        end
     end
 
 

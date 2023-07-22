@@ -575,7 +575,8 @@
     ```julia
     likelihood(bulkage::AbstractArray, sampleage::Number,
         bulklat::AbstractArray, bulklon::AbstractArray, samplelat::Number, 
-        samplelon::Number, bulkgeochem::NamedTuple, samplegeochem::NamedTuple)
+        samplelon::Number, bulkgeochem::NamedTuple, samplegeochem::NamedTuple,
+        sampleidx::AbstractArray)
     ````
 
     For a Macrostrat sample with age `sampleage`, location (`samplelat`, `samplelon`), and
@@ -584,7 +585,8 @@
     """
     function likelihood(bulkage::AbstractArray, sampleage::Number,
             bulklat::AbstractArray, bulklon::AbstractArray, samplelat::Number, 
-            samplelon::Number, bulkgeochem::NamedTuple, samplegeochem::NamedTuple)
+            samplelon::Number, bulkgeochem::NamedTuple, samplegeochem::NamedTuple,
+            sampleidx::AbstractArray)
 
         # Preallocate
         npoints = length(bulkage)
@@ -616,14 +618,14 @@
         @. ll_total = ll_age + ll_dist
         
         # Geochemical log-likelihoods
-        # for elem in eachindex(bulkgeochem)
-        #     @turbo for i in 1:npoints
-        #         ll_total[i] += -((bulkgeochem[elem][i] - samplegeochem[elem].m)^2)/(samplegeochem[elem].e^2)
-        #     end
-        # end
+        for elem in eachindex(bulkgeochem)
+            @turbo for i in 1:npoints
+                ll_total[i] += -((bulkgeochem[elem][i] - samplegeochem[elem].m)^2)/(samplegeochem[elem].e^2)
+            end
+        end
 
         matched_sample = rand_prop_liklihood(ll_total)
-        return matched_sample
+        return sampleidx[matched_sample]
     end
 
 

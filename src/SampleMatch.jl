@@ -99,7 +99,8 @@
 
         # Find match
         matches[i] = likelihood(EC.bulkage, macrostrat.age[i], EC.bulklat, EC.bulklon, 
-            macrostrat.rocklat[i], macrostrat.rocklon[i], bulkgeochem, geochemdata
+            macrostrat.rocklat[i], macrostrat.rocklon[i], bulkgeochem, geochemdata, 
+            EC.sampleidx
         )
 
         next!(p)

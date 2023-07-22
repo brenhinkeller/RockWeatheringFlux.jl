@@ -21,22 +21,9 @@
 
 ## --- Generate random points on the continental crust
     npoints = 1_000_000
-    savepts = round(Int, npoints / 10_000)
+    savepts = round(Int, npoints / 100_000)
     etopo = get_etopo("elevation")
     rocklat, rocklon, elevations = gen_continental_points(npoints, etopo)
-
-    
-## --- Alternatively, restart process from intermediate file
-    # retrive_file = load("output/macrostrat/responses250000.jld")
-    # responses = retrive_file["responses"]
-    # elevations = float.(retrive_file["elevations"])
-    # rocklat = float.(retrive_file["latitude"])
-    # rocklon = float.(retrive_file["longitude"])    
-    # npoints = retrive_file["npoints"]
-
-    # retrive_file = h5open("output/macrostrat/responses250000.h5", "r")
-
-    # close(retrive_file)
 
 
 ## --- Start timer, estimate runtime, and print to terminal
@@ -44,10 +31,9 @@
     @info """
     Starting API calls: $(Dates.Date(start)) $(Dates.format(start, "HH:MM"))
 
-    Okay, shouldn't take long. Between an hour* and, um, 11 months*. Somewhere in there.
+    Okay, shouldn't take long. Between an hour and, um, 11 months*. Somewhere in there.
 
-     * Possible minimum run time: $(canonicalize((ceil(Second(npoints/6), Dates.Hour))))
-    ** Possible maximum run time: $(canonicalize((ceil(Second(npoints/3), Dates.Hour))))
+     * Each group of 100,000 samples takes roughly 5 hours.
     """
 
 
@@ -96,10 +82,10 @@
         end
     end
 
-    # Final save
-    # save("output/$savefilename.jld", "responses", responses, "elevations", elevations, 
-    #     "latitude", rocklat, "longitude", rocklon, "npoints", npoints
-    # )
+    # Save unparsed output, just in case
+    save("output/$savefilename.jld", "responses", responses, "elevations", elevations, 
+        "latitude", rocklat, "longitude", rocklon, "npoints", npoints
+    )
 
     # Print success to terminal
     stop = now()
@@ -110,7 +96,7 @@
     """
 
 
-## --- Load data from the .jld file
+## --- Alternatively, parse data from a .jld file
 	# @info "Loading Macrostrat file"
     # retrive_file = load("output/pregenerated_responses.jld")
     # @info "Success!"

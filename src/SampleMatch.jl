@@ -63,13 +63,16 @@
 
     @timev for i in eachindex(matches)
         # Progress bar
-        p = Progress(length(MS.lat), desc="Matching $type samples...")
+        p = Progress(length(matches), desc="Matching samples...")
 
         # Get the type of the sample
         type = get_type(macro_cats, i)
+        (type==:cover || type==nothing) && continue
 
         # Get EarthChem data for that type
         bulksamples = bulk_cats[type]                        # EarthChem BitVector
+        count(bulksamples) < 1 && continue
+
         EC = (
             bulklat = bulk.Latitude[bulksamples],            # EarthChem latitudes
             bulklon = bulk.Longitude[bulksamples],           # EarthChem longitudes
@@ -90,8 +93,8 @@
 
         # Find match
         matches[i] = likelihood(EC.bulkage, macrostrat.age[i], EC.bulklat, EC.bulklon, 
-        macrostrat.rocklat[i], lon = macrostrat.rocklon[i], bulkgeochem, geochemdata
-    )
+            macrostrat.rocklat[i], macrostrat.rocklon[i], bulkgeochem, geochemdata
+        )
 
         next!(p)
     end

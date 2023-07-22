@@ -266,6 +266,31 @@
 
     """
     ```julia
+    get_type(cats::NamedTuple, i)
+    ```
+
+    Return the key of `cats` where `i` is `true`.
+
+    # Example
+    ```julia-repl
+    julia> get_type(macro_cats, 254)
+    :metaign
+    ```
+
+    """
+    function get_type(cats::NamedTuple, i)
+        @assert 0 < i <= length(cats[1]) "Index $i out of bounds."
+
+        @inbounds for k in keys(cats)
+            cats[k][i] && return Symbol(k)
+        end
+
+        @error "No matches found."
+    end
+
+    
+    """
+    ```julia
     match_earthchem(type; major=false)
     ```
     Classify EarthChem bulk.mat `type` codes to rock types. Returns a `NamedTuple` of `BitVector`s. 

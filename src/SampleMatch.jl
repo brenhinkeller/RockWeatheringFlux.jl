@@ -15,7 +15,7 @@
     include("utilities/Utilities.jl")
 
 ## --- Load Macrostrat data
-    @info "Loading Macrostrat lithologic data"
+    @info "Loading Macrostrat lithologic data ($macrostrat_io)"
     macrofid = h5open("$macrostrat_io", "r")
     macrostrat = (
         rocktype = read(macrofid["rocktype"]),
@@ -26,12 +26,10 @@
         age = read(macrofid["age"]),
     )
     close(macrofid)
-
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip, major=false)
 
 
 ## --- Load Earthchem bulk geochemical data
-    @info "Loading EarthChem data"
     bulkfid = h5open("output/bulk.h5", "r")
 
     # Bulk
@@ -56,15 +54,21 @@
 
 
 ## --- Find matching Earthchem sample for each Macrostrat sample
+    # Pre-define
     geochemkeys, = get_elements()               # Major elements
-    bulk_idxs = collect(1:length(bulk.SiO2))
-    matches = (
-        sed = Array{Int64}(undef, count(macro_cats.sed), 1),
-    	ign = Array{Int64}(undef, count(macro_cats.ign), 1),
-    	met = Array{Int64}(undef, count(macro_cats.met), 1)
-    )
+    bulk_idxs = collect(1:length(bulk.SiO2))    # Indices of bulk
 
-    @timev for type in eachindex(matches)
+    # Preallocate
+    matches = zeros(Int64, length(macro_cats.sed))
+
+    @timev for i in eachindex(matches)
+        # Progress bar
+        p = Progress(length(MS.lat), desc="Matching $type samples...")
+
+        # Get the type of the sample
+        type = get_type(macro_cats, i)
+
+        # Get EarthChem data for that type
         bulksamples = bulk_cats[type]                        # EarthChem BitVector
         EC = (
             bulklat = bulk.Latitude[bulksamples],            # EarthChem latitudes
@@ -75,48 +79,26 @@
             bulktype = bulktext.Type[bulksamples],           # Volcanic, siliciclastic, etc.
             bulkmaterial = bulktext.Material[bulksamples],   # Ign, met, sed, xenolith, etc.
         )
-	    
-	    # Earthchem samples for only major elements for this rock type
+
+        # Get all EarthChem samples for that rock type
         bulkgeochem = NamedTuple{Tuple(geochemkeys)}(
             [zeronan!(bulk[i][bulksamples]) for i in geochemkeys]
         )
 
-        # Macrostrat samples
-        macrosamples = macro_cats[type]                              # Macrostrat BitVector
-        MS = (
-            lat = macrostrat.rocklat[macrosamples],                  # Macrostrat latitude
-            lon = macrostrat.rocklon[macrosamples],                  # Macrostrat longitude
-            sampleage = macrostrat.age[macrosamples],                # Macrostrat age
-            rocktype = macrostrat.rocktype[macrosamples],            # Sample rock type
-            rockname = macrostrat.rockname[macrosamples],            # Sample name
-            rockdescrip = macrostrat.rockdescrip[macrosamples],      # Sample description
-        )
-        
-        # Progress bar
-        p = Progress(length(MS.lat), desc="Matching $type samples...")
+        # Average geochemistry for that type
+        geochemdata = major_elements(bulk, bulksamples)
 
-        @inbounds for i in eachindex(MS.lat)
-            geochemfilter = find_earthchem(MS.rocktype[i], MS.rockname[i], MS.rockdescrip[i], 
-                EC.bulkname, EC.bulktype, EC.bulkmaterial
-            )
-            geochemdata = major_elements(bulk, bulksamples, geochemfilter)
-            matches[type][i] = likelihood(EC.bulkage, MS.sampleage[i], EC.bulklat, EC.bulklon, 
-                MS.lat[i], MS.lon[i], bulkgeochem, geochemdata
-            )
-            next!(p)
-        end
+        # Find match
+        matches[i] = likelihood(EC.bulkage, macrostrat.age[i], EC.bulklat, EC.bulklon, 
+        macrostrat.rocklat[i], lon = macrostrat.rocklon[i], bulkgeochem, geochemdata
+    )
+
+        next!(p)
     end
 
 
-## --- Separate data by rock type
-    # Create one long array of all indices
-    allmatches = zeros(Int64, length(macro_cats.ign))
-    allmatches[macro_cats.sed] .= matches[:sed]
-    allmatches[macro_cats.ign] .= matches[:ign]
-    allmatches[macro_cats.met] .= matches[:met]
-
-    # Write data to a file
-    writedlm("$matchedbulk_io", allmatches,"\t")
+## --- Write data to a file
+    writedlm("$matchedbulk_io", matches, "\t")
 
 
 ## --- End of File

@@ -1,5 +1,5 @@
 ## --- File names
-    # 50,000 Macrostrat samples
+    # 50_000 Macrostrat samples
         # macrostrat_io = "output/pregenerated_responses.tsv"
         # matchedbulk_io = "output/bulkidx.tsv"
 
@@ -8,15 +8,18 @@
         # erodedabs_out = "results/erodedmaterial_abs.tsv"
         # erodedrel_out = "results/erodedmaterial_rel.tsv"
 
-    # 250,000 Macrostrat samples
+    # 250_000 Macrostrat samples
         # macrostrat_io = "output/responses250000.tsv"
-        macrostrat_io = "output/responses250k.h5"
-        matchedbulk_io = "output/bulkidx250k.tsv"
+        # macrostrat_io = "output/responses250k.h5"
+        # matchedbulk_io = "output/bulkidx250k.tsv"
 
-        ucc_out = "results/exposedcrust250k.tsv"
-        eroded_out = "output/erodedmaterial250k.h5"
-        erodedabs_out = "results/erodedmaterial_abs250k.tsv"
-        erodedrel_out = "results/erodedmaterial_rel250k.tsv"
+        # ucc_out = "results/exposedcrust250k.tsv"
+        # eroded_out = "output/erodedmaterial250k.h5"
+        # erodedabs_out = "results/erodedmaterial_abs250k.tsv"
+        # erodedrel_out = "results/erodedmaterial_rel250k.tsv"
+
+    # 100_000 Macrostrat samples
+    macrostrat_io = "output/responses100000.h5"
 
 
 ## --- Major and minor elements
@@ -151,7 +154,7 @@
 
         # Initialize type lists and BitVectors
         if major
-            typelist = (sed, ign, met, cover)
+            typelist = (sed=sed, ign=ign, met=met, cover=cover)
         else
             typelist = (siliciclast=siliciclast, shale=shale, carb=carb, chert=chert, 
                 evaporite=evaporite, coal=coal, sed=sed, volc=volc, plut=plut, ign=ign, 

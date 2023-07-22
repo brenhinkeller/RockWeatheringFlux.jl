@@ -592,11 +592,11 @@
         @. ll_total = ll_age + ll_dist
         
         # Geochemical log-likelihoods
-        for elem in eachindex(bulkgeochem)
-            @turbo for i in 1:npoints
-                ll_total[i] += -((bulkgeochem[elem][i] - samplegeochem[elem].m)^2)/(samplegeochem[elem].e^2)
-            end
-        end
+        # for elem in eachindex(bulkgeochem)
+        #     @turbo for i in 1:npoints
+        #         ll_total[i] += -((bulkgeochem[elem][i] - samplegeochem[elem].m)^2)/(samplegeochem[elem].e^2)
+        #     end
+        # end
 
         matched_sample = rand_prop_liklihood(ll_total)
         return matched_sample
@@ -757,4 +757,5 @@
         return A
     end
 
+    
 ## --- End of file

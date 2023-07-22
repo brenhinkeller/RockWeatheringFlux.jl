@@ -176,6 +176,10 @@
         # Get rock type classifications and initialized BitVector
         typelist, cats = get_rock_class(major, length(rocktype))
 
+        # If you can't improve the algorithm the least you can do is add a progress bar
+        p = Progress(length(typelist)*4+1, desc="Finding Macrostrat rock types...")
+        next!(p)
+
         # Check major lithology first
         for j in eachindex(typelist)
             for i = eachindex(typelist[j])
@@ -183,6 +187,7 @@
                     cats[j][k] = match(r"major.*?{(.*?)}", rocktype[k]) |> x -> isa(x,RegexMatch) ? containsi(x[1], typelist[j][i]) : false
                 end
             end
+            next!(p)
         end
 
         # Check the rest of rocktype
@@ -193,6 +198,7 @@
                     not_matched[k] && (cats[j][k] |= containsi(rocktype[k], typelist[j][i]))
                 end
             end
+            next!(p)
         end
 
         # Then rockname
@@ -203,6 +209,7 @@
                     not_matched[k] && (cats[j][k] |= containsi(rockname[k], typelist[j][i]))
                 end
             end
+            next!(p)
         end
 
         # Then rockdescrip
@@ -213,6 +220,7 @@
                     not_matched[k] && (cats[j][k] |= containsi(rockdescrip[k], typelist[j][i]))
                 end
             end
+            next!(p)
         end
 
         return un_multimatch!(cats, major)

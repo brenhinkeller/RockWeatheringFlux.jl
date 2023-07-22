@@ -1,5 +1,14 @@
 ## --- File names
-    # 50_000 Macrostrat samples
+    # 500 Macrostrat samples
+        macrostrat_io = "output/toy_responses.h5"
+        matchedbulk_io = "output/toy_bulkidx.tsv"
+
+        ucc_out = "results/toy_exposedcrust.tsv"
+        eroded_out = "output/toy_erodedmaterial.h5"
+        erodedabs_out = "results/toy_erodedmaterial_abs.tsv"
+        erodedrel_out = "results/toy_erodedmaterial_rel.tsv"
+
+    # 50_000 Macrostrat samples (note: .tsv filetype is deprecated)
         # macrostrat_io = "output/pregenerated_responses.tsv"
         # matchedbulk_io = "output/bulkidx.tsv"
 
@@ -9,17 +18,22 @@
         # erodedrel_out = "results/erodedmaterial_rel.tsv"
 
     # 250_000 Macrostrat samples
-        # macrostrat_io = "output/responses250000.tsv"
-        # macrostrat_io = "output/responses250k.h5"
-        # matchedbulk_io = "output/bulkidx250k.tsv"
+        # macrostrat_io = "output/250K_responses.h5"
+        # matchedbulk_io = "output/250K_bulkidx.tsv"
 
-        # ucc_out = "results/exposedcrust250k.tsv"
-        # eroded_out = "output/erodedmaterial250k.h5"
-        # erodedabs_out = "results/erodedmaterial_abs250k.tsv"
-        # erodedrel_out = "results/erodedmaterial_rel250k.tsv"
+        # ucc_out = "results/250K_exposedcrust.tsv"
+        # eroded_out = "output/250K_erodedmaterial.h5"
+        # erodedabs_out = "results/250K_erodedmaterial_abs.tsv"
+        # erodedrel_out = "results/250K_erodedmaterial_rel.tsv"
 
-    # 100_000 Macrostrat samples
-    macrostrat_io = "output/responses100000.h5"
+    # 1_000_000 Macrostrat samples
+        # macrostrat_io = "output/1M_responses.h5"
+        # matchedbulk_io = "output/1M_bulkidx.tsv"
+
+        # ucc_out = "results/1M_exposedcrust.tsv"
+        # eroded_out = "output/1M_erodedmaterial.h5"
+        # erodedabs_out = "results/1M_erodedmaterial_abs.tsv"
+        # erodedrel_out = "results/1M_erodedmaterial_rel.tsv"
 
 
 ## --- Major and minor elements

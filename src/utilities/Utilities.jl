@@ -288,7 +288,7 @@
         @error "No matches found."
     end
 
-    
+
     """
     ```julia
     match_earthchem(type; major=false)
@@ -364,18 +364,17 @@
 
     """
     ```julia
-    major_elements(bulk, bulk_filter)
+    major_elements(bulk::NamedTuple, [bulk_filter::BitVector])
     ```
     Compute mean and standard deviation of major elements (defined in `get_elements`) in 
-    `bulk` for each rock type.
-
+    `bulk`. Optionally restrict samples by `bulk_filter`.
     """
-    function major_elements(bulk::NamedTuple, bulksamples::BitVector, bulk_filter::BitVector)
+    function major_elements(bulk::NamedTuple, bulk_filter::BitVector=trues(length(bulk[1])))
         major, = get_elements()
 
         element = [NamedTuple{(:m, :e)}(tuple.(
-            nanmean(bulk[i][bulksamples][bulk_filter]),
-            nanstd(bulk[i][bulksamples][bulk_filter])))
+            nanmean(bulk[i][bulk_filter]),
+            nanstd(bulk[i][bulk_filter])))
         for i in major]
 
         return NamedTuple{Tuple(major)}(element)

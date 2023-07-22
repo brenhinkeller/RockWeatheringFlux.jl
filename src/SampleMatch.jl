@@ -58,6 +58,12 @@
     geochemkeys, = get_elements()               # Major elements
     bulk_idxs = collect(1:length(bulk.SiO2))    # Indices of bulk
 
+    # Zero-NaN version of the major elements in bulk
+    bulkzero = deepcopy(bulk)
+    bulkzero = NamedTuple{Tuple(geochemkeys)}(
+        [zeronan!(bulkzero[i]) for i in geochemkeys]
+    )
+    
     # Preallocate
     matches = zeros(Int64, length(macro_cats.sed))
 
@@ -85,7 +91,7 @@
 
         # Get all EarthChem samples for that rock type
         bulkgeochem = NamedTuple{Tuple(geochemkeys)}(
-            [zeronan!(bulk[i][bulksamples]) for i in geochemkeys]
+            [bulkzero[i][bulksamples] for i in geochemkeys]
         )
 
         # Average geochemistry for that type

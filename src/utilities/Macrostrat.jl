@@ -199,4 +199,65 @@
         )
     end
 
+
+## --- Crop intermediate files
+    """
+    ```julia
+    crop_intermediate!(pathin::String, [pathout::String])
+    ```
+
+    Intermediate Macrostrat save files contain all pre-generated latitudes, longitudes, 
+    and elevations. Reduce the latitude / longitude / elevations saved in the file to
+    only those with responses.
+
+    File names must be relative paths, including file name extensions.
+    """
+    function crop_intermediate!(pathin::String, pathout::String=pathin)
+        # Load the old file
+        fid = h5open("$pathin", "r")
+            rocklat = read(fid["rocklat"])
+            rocklon = read(fid["rocklon"])
+            elevation = read(fid["elevation"])
+            agemax = read(fid["agemax"])
+            agemin = read(fid["agemin"])
+            age = read(fid["age"])
+            rocktype = read(fid["rocktype"])
+            rockname = read(fid["rockname"])
+            rockdescrip = read(fid["rockdescrip"])
+            rockstratname = read(fid["rockstratname"])
+            rockcomments = read(fid["rockcomments"])
+            refstrings = read(fid["reference"])
+        close(fid)
+
+        # Get number of samples
+        npoints = length(rocktype)
+
+        # Get the rock type of each sample
+        macro_cats = match_rocktype(rocktype, rockname, rockdescrip)
+        types = Array{String}(undef, npoints, 1)
+        for i in eachindex(types)
+            type = get_type(macro_cats, i)
+            type==nothing && (type="")
+            types[i] = string(type)
+        end
+
+        # Load the new file
+        fid = h5open("$pathout", "w")
+            fid["rocklat"] = rocklat[1:npoints]
+            fid["rocklon"] = rocklon[1:npoints]
+            fid["elevation"] = elevation[1:npoints]
+            fid["agemax"] = agemax
+            fid["agemin"] = agemin
+            fid["age"] = age
+            fid["rocktype"] = rocktype
+            fid["rockname"] = rockname
+            fid["rockdescrip"] = rockdescrip
+            fid["rockstratname"] = rockstratname
+            fid["rockcomments"] = rockcomments
+            fid["reference"] = refstrings
+            fid["npoints"] = npoints
+            fid["typecategory"] = types
+        close(fid)
+    end
+
 ## --- End of File

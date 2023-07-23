@@ -269,7 +269,8 @@
     get_type(cats::NamedTuple, i)
     ```
 
-    Return the key of `cats` where `i` is `true`.
+    Return the key of `cats` where `i` is `true`. This requires major types (e.g., sed, ign,
+    and met) to be listed _after_ the subtypes.
 
     # Example
     ```julia-repl
@@ -399,65 +400,22 @@
     """
     function find_earthchem(rocktype::String, rockname::String, rockdescrip::String, 
         bulkrockname, bulkrocktype, bulkmaterial)
-        # Check for matches in rock name
-        rocknamelist = unique(bulkrockname)
-        found = check_matches(rocktype, rockname, rockdescrip, rocknamelist)
 
-        if count(found)!=0
-        # If samples were found, get all EarthChem samples that match the rock name
-            earthchem_matches = falses(length(bulkrockname))
-            to_find = rocknamelist[found]
-            t = findall(!=(""), to_find)
-            to_find = to_find[t]
+        # Check Rock_Name
+        found = check_matches(rocktype, rockname, rockdescrip, bulkrockname)
+        count(found) > 0 && return found
 
-            for i in eachindex(to_find)
-                earthchem_matches .|= containsi.(bulkrockname, to_find[i])
-            end
+        # Then type
+        found = check_matches(rocktype, rockname, rockdescrip, bulkrocktype)
+        count(found) > 0 && return found
 
-            return earthchem_matches
-        
-        else
-        # If no samples were found, check material
-            rocknamelist = unique(bulkmaterial)
-            found = check_matches(rocktype, rockname, rockdescrip, rocknamelist)
+        # Then material
+        found = check_matches(rocktype, rockname, rockdescrip, bulkmaterial)
+        count(found) > 0 && return found
 
-            if count(found)!=0
-            # Process and return
-                earthchem_matches = falses(length(bulkmaterial))
-                to_find = rocknamelist[found]
-                t = findall(!=(""), to_find)
-                to_find = to_find[t]
-
-                for i in eachindex(to_find)
-                    earthchem_matches .|= containsi.(bulkmaterial, to_find[i])
-                end
-
-                return earthchem_matches
-
-            else
-            # If still none, check type
-                rocknamelist = unique(bulkrocktype)
-                found = check_matches(rocktype, rockname, rockdescrip, rocknamelist)
-
-                if count(found)!=0
-                    earthchem_matches = falses(length(bulkrocktype))
-                    to_find = rocknamelist[found]
-                    t = findall(!=(""), to_find)
-                    to_find = to_find[t]
-
-                    for i in eachindex(to_find)
-                        earthchem_matches .|= containsi.(bulkrocktype, to_find[i])
-                    end
-
-                    return earthchem_matches
-
-                else
-                    @warn "No matching EarthChem samples found for $rocktype, $rockname, $rockdescrip"
-                    return falses(length(bulkrocktype))
-                end
-            end
-            
-        end
+        # Warn if no matches found
+        @warn "No matching EarthChem samples found for $rocktype, $rockname, $rockdescrip"
+        return found
     end
 
 
@@ -475,26 +433,30 @@
     function check_matches(rocktype::String, rockname::String, rockdescrip::String, rocknamelist)
         found = falses(length(rocknamelist))
 
-        # Get list of matches from the sample. Check major lithology first
+        # Check major lithology first
         for i in eachindex(rocknamelist)
+            rocknamelist[i] == "" && continue
             found[i] |= (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], rocknamelist[i]) : false)
         end
         count(found) > 0 && return found
 
         # If no matches, try the rest of rocktype
         for i in eachindex(rocknamelist)
+            rocknamelist[i] == "" && continue
             found[i] |= containsi.(rocktype, rocknamelist[i])
         end
         count(found) > 0 && return found
 
         # If still no matches, try rockname
         for i in eachindex(rocknamelist)
+            rocknamelist[i] == "" && continue
             found[i] |= containsi.(rockname, rocknamelist[i])
         end
         count(found) > 0 && return found
 
         # The rockdescrip...
         for i in eachindex(rocknamelist)
+            rocknamelist[i] == "" && continue
             found[i] |= containsi.(rockdescrip, rocknamelist[i])
         end
         return found

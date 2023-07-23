@@ -3,12 +3,11 @@
 # Ignore data folders and files
 data/
 data/octopus/
-output/
 figures/
 results/
 ~file_graveyard
 dev/
-
+output/macrostrat/
 /*.nc
 /*.xls
 /*.csv
@@ -17,7 +16,6 @@ dev/
 
 # Ignore large files
 *.jld
-*.h5
 *.mat
 *.gz
 *.kml

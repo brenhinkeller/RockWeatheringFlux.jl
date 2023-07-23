@@ -30,17 +30,13 @@
 
     # Load and match
     macrofid = h5open("$macrostrat_io", "r")
-    macrostrat = (
-        rocktype = read(macrofid["rocktype"]),
-        rockname = read(macrofid["rockname"]),
-        rockdescrip = read(macrofid["rockdescrip"]),
+    macrostrat = (     
         rocklat = read(macrofid["rocklat"]),
         rocklon = read(macrofid["rocklon"]),
+        typecategory = read(macrofid["typecategory"]),
     )
     close(macrofid)
-    @time macro_cats = match_rocktype(macrostrat.rocktype[t], macrostrat.rockname[t], 
-        macrostrat.rockdescrip[t]
-    )
+    macro_cats = match_rocktype(macrostrat.typecategory[t])
 
     # Figure out how many data points weren't matched
     known_rocks = macro_cats.sed .| macro_cats.ign .| macro_cats.met

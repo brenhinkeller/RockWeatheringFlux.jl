@@ -18,15 +18,13 @@
     @info "Loading Macrostrat lithologic data ($macrostrat_io)"
     macrofid = h5open("$macrostrat_io", "r")
     macrostrat = (
-        rocktype = read(macrofid["rocktype"]),
-        rockname = read(macrofid["rockname"]),
-        rockdescrip = read(macrofid["rockdescrip"]),
         rocklat = read(macrofid["rocklat"]),
         rocklon = read(macrofid["rocklon"]),
         age = read(macrofid["age"]),
+        type = read(macrofid["typecategory"])
     )
     close(macrofid)
-    macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip, major=false)
+    macro_cats = match_rocktype(macrostrat.typecategory)
 
 
 ## --- Load Earthchem bulk geochemical data
@@ -84,9 +82,6 @@
             bulklon = bulk.Longitude[bulksamples],           # EarthChem longitudes
             bulkage = bulk.Age[bulksamples],                 # EarthChem age
             sampleidx = bulk_idxs[bulksamples],              # Indices of EarthChem samples
-            bulkname = bulktext.Rock_Name[bulksamples],      # Basalt, rhyolite, dacite, etc.
-            bulktype = bulktext.Type[bulksamples],           # Volcanic, siliciclastic, etc.
-            bulkmaterial = bulktext.Material[bulksamples],   # Ign, met, sed, xenolith, etc.
         )
 
         # Get all EarthChem samples for that rock type

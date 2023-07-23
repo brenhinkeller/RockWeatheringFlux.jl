@@ -143,23 +143,23 @@
     """
     ```julia
     match_rocktype(rocktype, rockname, rockdescrip; major=false)
+    match_rocktype(writtentype::AbstractArray{String})
     ```
     Return the `NamedTuple` of `BitVector`s catagorizing Macrostrat `rocktype`, 
     `rockname`, and `rockdescrip` as sedimentary, igneous, metamorphic, or cover. 
+    Alternatively, return types already stored as strings in `writtentype`.
 
-    # Optional keyword argument `major`
-    `true` returns 
+    ### Optional keyword argument `major`
+    Note that this argument is only valid when parsing data directly from Macrostrat responses.
 
-        sed, ign, met
+    `true` returns: `sed, ign, met`
 
-    `false` returns
-
-        siliciclast, shale, carb, chert, evaporite, coal, sed, volc, plut, ign, metased, 
-        metaign, met, cover
+    `false` returns: `siliciclast, shale, carb, chert, evaporite, coal, sed, volc, plut, 
+    ign, metased, metaign, met, cover`
 
     Note that major rock types include more granular subcategories; i.e. `ign` includes 
     all rock catagorized as `volc` and `plut`, as well as rocks that do not fall into 
-    either of those subcategories. To match this catagorization to the EarthChem system, 
+    either of those subcategories. To match the catagorization to the EarthChem system, 
     `plut` includes hypabyssal rocks, and `chert` includes banded iron formations.
 
     # Example
@@ -172,7 +172,9 @@
     cover  = BitVector(50000,)    [false ... false]
     ```
     """
-    function match_rocktype(rocktype, rockname, rockdescrip; major=false)
+    function match_rocktype(rocktype::AbstractArray, rockname::AbstractArray, 
+        rockdescrip::AbstractArray; major=false)
+
         # Get rock type classifications and initialized BitVector
         typelist, cats = get_rock_class(major, length(rocktype))
 
@@ -226,6 +228,32 @@
         return un_multimatch!(cats, major)
     end
 
+    function match_rocktype(writtentype::AbstractArray{String})
+        typelist, cats = get_rock_class(false, length(writtentype))
+
+        # Get all of the written types into their proper place
+        for i in eachindex(writtentype)
+            try
+                cats[Symbol(writtentype[i])][i] = true
+            catch
+                continue
+            end
+        end
+
+        # Make sure that sed / ign / met are true when their subtypes are true
+        minortypes = (
+            sed = (:siliciclast, :shale, :carb, :chert, :evaporite, :coal),
+            ign = (:volc, :plut),
+            met = (:metased, :metaign)
+        )
+        for k in keys(minortypes)
+            for i in minortypes[k]
+                cats[k][cats[i]] .= true
+            end
+        end
+
+        return cats
+    end
 
     """
     ```julia

@@ -21,17 +21,8 @@
 ## --- Load data for the matched EarthChem samples
     # Macrostrat
     macrofid = h5open("$macrostrat_io", "r")
-    macrostrat = (
-        rocktype = read(macrofid["rocktype"])[t],
-        rockname = read(macrofid["rockname"])[t],
-        rockdescrip = read(macrofid["rockdescrip"])[t]
-    )
+    macro_cats = match_rocktype(read(macrofid["typecategory"])[t])
     close(macrofid)
-    macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
-        macrostrat.rockdescrip
-    )
-    known_rocks = macro_cats.sed .| macro_cats.ign .| macro_cats.met
-    total_known = count(known_rocks)
 
     # Earthchem
     bulkfid = h5open("output/bulk.h5", "r")

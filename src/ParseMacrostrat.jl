@@ -108,10 +108,18 @@
     # npoints = retrive_file["npoints"]
 
 
-## --- Parse Macrostrat responses and write data to .h5 file
+## --- Parse Macrostrat responses, including rock type
     @info "Starting to parse data: $(Dates.Date(now())) $(Dates.format(now(), "HH:MM"))"
     parsed = parse_macrostrat_responses(responses, npoints)
 
+    types = Array{String}(undef, npoints, 1)
+    macro_cats = match_rocktype(parsed.rocktype, parsed.rockname, parsed.rockdescrip, major=false)
+    for i in eachindex(types)
+        types[i] = string(get_type(macro_cats, i))
+    end
+
+
+## --- Write data to .h5 file
     @info "Writing to file: $(Dates.Date(now())) $(Dates.format(now(), "HH:MM"))"
     fid = h5open("output/$savefilename.h5", "w")
         fid["rocklat"] = rocklat
@@ -126,6 +134,7 @@
         fid["rockstratname"] = parsed.rockstratname
         fid["rockcomments"] = parsed.rockcomments
         fid["reference"] = parsed.refstrings
+        fid["typecategory"] = types
         fid["npoints"] = npoints
     close(fid)
 

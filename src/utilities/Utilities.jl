@@ -774,4 +774,91 @@
     end
 
 
+## --- Get points inside a polygon
+    """
+    ```
+    ```
+
+    Find all latitude / longitude points from the a set that lie within a polygon defined
+    by the coordinates (`polylats`, `polylons`). Points on an edge are included. Accurate 
+    to approximately 10 m at the equator (0.0001 decimal degree).
+
+    Uses the even-odd rule to determine if points are inside the polygon
+    (https://en.wikipedia.org/wiki/Even%E2%80%93odd_rule)
+
+    As a note... I think I DO have to convert these to cartesian coordinates, or else you
+    run into the problem if you're overlapping something. Whatever I guess.
+
+    Also none of the points can be NaNs
+    """
+    function points_in_shape(polylats::AbstractArray{T1}, polylons::AbstractArray{T2}, 
+        datalats::AbstractArray{T4}, datalons::AbstractArray{T3}) 
+        where{T1, T2, T3, T4} <:Number
+
+        # Define BitVectors for points in the polygon, and points that we know are in or outside
+        inpolygon, known = falses(length(datalats)), falses(length(datalats))
+
+        # Get the number of points in the polygon
+        npoints = length(polylats)
+
+        # Get the min / max of the polygon
+        latbox = (min = minimum(polylats), max = maximum(polylats))
+        lonbox = (min = minimum(polylons), max = maximum(polylons))
+
+        # Start by narrowing our list of unknowns. Any point that is outside the box defined
+        # by the minimum and maximum is not in the polygon. Any point in a corner is in the
+        # polygon
+        for i in eachindex(datalats, datalons)
+            # Check bounds. If outside the bounds, skip checking the corners
+            # inpolygon[i] is false by default, so we don't have to change it
+            if latbox.min > datalats[i] > latbox.max && lonbox.min > datalons[i] > lonbox.max
+                known[i] = true
+                continue
+            end
+
+            # Check corners
+            for j in eachindex(polylats, polylons)
+                if datalats[i]==polylats[j] && datalons[i]==polylons[j]
+                    inpolygon[i] = known[i] = true
+                end
+            end
+        end
+
+        # The remaining points need to be determined using the even-odd algorithm. We're
+        # going to work with the latitude (y) coordinate, because the distance between
+        # longitude changes as you move poleward
+        for i in eachindex(datalats, datalons)
+            # Don't bother if we already know
+            known[i] && continue
+
+            # Counter (will this be a new local in the next loop?)
+            pass = 0
+
+            # Check each side
+            for j in eachindex(polylats, polylons)
+                # Define the start and end points of the side
+                A = (x = polylons[j], y = polylats[j])
+                B = (x = polylons[j%npoints + 1], y = polylons[j%npoints + 1])
+
+                # A ray extending infinitely in the positive direction along the latitude 
+                # (x) axis will cross the side if and only if:
+                    # 1) The latitude (y) coordinate of the ray falls between the latitude
+                    #    (y) coordinates of the side
+                    # 2) The starting longitude (x) coordinate of the ray is less than the
+                    #    smallest longitude (x) coordinate of the side
+
+                if (minimum(A.y,B.y) < datalats[i] < maximum(A.y,B.y)) && (datalons[i] < minimum(A.x,B.x))
+                    pass += 1
+                end
+            end
+
+            # The point is in the polygon if it crosses through the sides an even number of times
+            inpolygon[i] = (pass % 2 != 0)
+            known[i] = true
+        end
+        
+        return datalats[inpolygon], datalons[inpolygon]
+    end
+
+
 ## --- End of file

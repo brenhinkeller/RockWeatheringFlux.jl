@@ -1,4 +1,4 @@
-## -- NaNMeasurements.jl
+## -- Test functions from Utilities.jl
     using Test
 
 ## --- match_earthchem
@@ -46,5 +46,17 @@
     @test count(cats.met) == length(findall(==(2.0), testset)) + (count(cats.metased) + 
         count(cats.metaign)
     )
+
+
+## --- Points in polygon
+    # Define simple shape
+    polyx = [0, 10, 10, 0]
+    polyy = [0, 0, 10, 10]
+    x = [5, 0, 10, 10, 15, -1, 3]
+    y = [5, 0, 5, 10, 10, -1, 20]
+
+    xin, yin = points_in_shape(polyx, polyy, x, y)
+    @test xin == [5, 0, 10, 10]
+    @test yin == [5, 0, 5, 10]
 
 ## --- End of file

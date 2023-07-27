@@ -776,16 +776,25 @@
 
 ## --- Get points inside a polygon
     """
-    ```
-    x, y = points_in_shape(poly_x::AbstractArray, poly_y::AbstractArray,  
-        data_x::AbstractArray, data_y::AbstractArray) 
+    ```julia
+    points_in_shape(poly_x::AbstractArray, poly_y::AbstractArray,  
+                    data_x::AbstractArray, data_y::AbstractArray) 
     ```
 
     Find all points from a set that lie within a polygon defined by the coordinates 
-    (`poly_y`, `poly_x`). Points on an edge are included.
+    (`poly_y`, `poly_x`). Points on an edge are included; returns a `BitVector` to filter
+    points by position. Shapes are assumed to be self closing.
 
     Uses the even-odd rule to determine if points are inside the polygon
-    (https://en.wikipedia.org/wiki/Even%E2%80%93odd_rule)
+    (https://en.wikipedia.org/wiki/Even%E2%80%93odd_rule).
+
+    To find latitude and longitude coordinates within a polygon, see `coords_in_shape`
+
+    ### Example
+
+    ```julia
+    x, y, inpolygon = points_in_shape(poly_x, poly_y, data_x, data_y)
+    ```
     """
     function points_in_shape(poly_x::AbstractArray{<:Number}, poly_y::AbstractArray{<:Number},  
         data_x::AbstractArray{<:Number}, data_y::AbstractArray{<:Number})
@@ -817,9 +826,9 @@
         end
 
         # The remaining points need to be determined using the even-odd algorithm. We're
-        # going to work with the latitude (y) coordinate, because the distance between
-        # longitude changes as you move poleward
-
+        # going to work with the y coordinate, because this was originally designed for 
+        # latitude / longitude coordinate points, and the distance between longitudes 
+        # changes as you move poleward
         npoints = length(poly_y)
         for i in eachindex(data_x, data_y)
             # Don't bother if we already know
@@ -849,7 +858,53 @@
             known[i] = true
         end
         
-        return data_x[inpolygon], data_y[inpolygon]
+        return data_x[inpolygon], data_y[inpolygon], inpolygon
+    end
+
+
+## --- Find coordinates in polygon
+    """
+    ```julia
+    coords_in_shape(polylons::AbstractArray, polylats::AbstractArray, 
+                    datalons::AbstractArray, datalats::AbstractArray)
+    ```
+
+    Return the latitude and longitude coordinates inside a polygon defined by `polylats`,
+    `polylons`. Also returns a `BitVector` to index into the original data coordinate 
+    vectors.
+
+    ### Example
+
+    ```julia
+    lats, lons, points = coords_in_shape(polylon, polylat, datalon, datalat)
+    ```
+    """
+    function coords_in_shape(polylons::AbstractArray{T1}, polylats::AbstractArray{T2}, 
+        datalons::AbstractArray{T3}, datalats::AbstractArray{T4}) where {T1, T2, T3, T4}
+
+        # Preallocate
+        Tp = float(promote_type(T1, T2))
+        Td = float(promote_type(T3, T4))
+
+        xp, yp, zp = similar(polylats, Tp), similar(polylats, Tp), similar(polylats, Tp)
+        xd, yd, zd = similar(datalats, Td), similar(datalats, Td), similar(datalats, Td)
+
+        # Convert coordinates to cartesian
+        @inbounds for i in eachindex(polylats, polylons)
+            φ = deg2rad(90 - polylats[i])
+            θ = deg2rad(polylons[i])
+            xp[i], yp[i], zp[i] = cartesian(one(Tp), φ, θ)
+        end
+        @inbounds for i in eachindex(datalats, datalons)
+            φ = deg2rad(90 - datalats[i])
+            θ = deg2rad(datalons[i])
+            xd[i], yd[i], zd[i] = cartesian(one(Td), φ, θ)
+        end
+
+        # Find points in the polygon. The z value is always constant, so we can ignore it
+        xin, yin, inpolygon = points_in_shape(yp, xp, yd, xd)
+
+        return datalons[inpolygon], datalats[inpolygon], inpolygon
     end
 
 

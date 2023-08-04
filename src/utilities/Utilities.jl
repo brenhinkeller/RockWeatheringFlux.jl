@@ -145,6 +145,7 @@
     match_rocktype(rocktype, rockname, rockdescrip; major=false)
     match_rocktype(writtentype::AbstractArray{String})
     ```
+
     Return the `NamedTuple` of `BitVector`s catagorizing Macrostrat `rocktype`, 
     `rockname`, and `rockdescrip` as sedimentary, igneous, metamorphic, or cover. 
     Alternatively, return types already stored as strings in `writtentype`.
@@ -255,13 +256,18 @@
         return cats
     end
 
+
     """
     ```julia
-    find_unmatched(cats; major=false)
+    find_unmatched(cats; [major])
     ```
 
-    Find unmatched samples in `cats`. Optionally specify `major` as `true` if `cats` contains
-    only `sed`, `ign`, `met`, and `cover`.
+    Given a `Tuple` of `BitVectors`, return a `BitVector` that is `true` at index `i` iff 
+    all elements of the `Tuple` are `false` at index `i`.
+
+    If `cats` is a `NamedTuple` of rock types defined by `get_rock_class`, specify `major` 
+    as `true` or `false` to decrease runtime. `major` is `true` if `cats` contains only 
+    `sed`, `ign`, `met`, and `cover`.
 
     # Example
     ```
@@ -278,7 +284,7 @@
     1
     ```
     """
-    function find_unmatched(cats; major=false)
+    function find_unmatched(cats; major::Bool)
         if major
             return .!(cats.sed .| cats.ign .| cats.met .| cats.cover)
         else
@@ -291,6 +297,91 @@
         end
     end
 
+    function find_unmatched(cats)
+        matched = falses(length(cats[1]))
+        for i in eachindex(cats)
+            matched .|= cats[i]
+        end
+
+        return .!matched
+    end
+
+
+## --- Return a list of matching rock names
+
+    """
+    ```
+    match_rockname(rocktype::AbstractArray, rockname::AbstractArray, 
+        rockdescrip::AbstractArray)
+    ```
+
+    Find samples in Macrostrat matching pre-defined rock names (e.g., basalt, sandstone,
+    gneiss, etc.). Return a `NamedTuple` of `BitVectors` where the elements of the 
+    `NamedTuple` are the rock names, and the `BitVectors` are true at element `i` iff
+    sample `i` is that rock name.
+
+    See also: `match_rocktype`.
+    """
+    function match_rockname(rocktype::AbstractArray, rockname::AbstractArray, 
+        rockdescrip::AbstractArray)
+
+        # Get rock names as one long list, excluding cover
+        typelist = get_rock_class(true, length(rocktype))[1]
+        typelist = unique((typelist.sed..., typelist.met..., typelist.ign...))
+
+        # Initialize a NamedTuple with a BitVector for each rock name
+        cats = NamedTuple{Symbol.(Tuple(typelist))}([falses(length(rocktype))
+            for _ in 1:length(typelist)]
+        )
+
+        # If you can't improve the algorithm the least you can do is add a progress bar
+        p = Progress(length(typelist)*4+1, desc="Finding Macrostrat rock names...")
+        next!(p)
+
+        # Check major lithology first
+        for i in eachindex(typelist)
+            for j in eachindex(rocktype)
+                cats[i] .= match(r"major.*?{(.*?)}", rocktype[j]) |> x -> isa(x,RegexMatch) ? 
+                containsi(x[1], typelist[i]) : false
+            end
+            next!(p)
+        end
+
+        # Check the rest of rocktype
+        not_matched = find_unmatched(cats)
+        @inbounds for i in eachindex(typelist)
+            for j in eachindex(rocktype)
+                !not_matched[j] && continue
+                cats[i][j] |= containsi(rocktype[j], typelist[i])
+            end
+            next!(p)
+        end
+
+        # Then rockname
+        not_matched = find_unmatched(cats)
+        @inbounds for i in eachindex(typelist)
+            for j in eachindex(rockname)
+                !not_matched[j] && continue
+                cats[i][j] |= containsi(rockname[j], typelist[i])
+            end
+            next!(p)
+        end
+
+        # Then rockdescrip
+        not_matched = find_unmatched(cats)
+        @inbounds for i in eachindex(typelist)
+            for j in eachindex(rockdescrip)
+                !not_matched[j] && continue
+                cats[i][j] |= containsi(rockdescrip[j], typelist[i])
+            end
+            next!(p)
+        end
+
+        return cats
+    end
+
+
+## --- More Stuff. Maybe one day this file will be organized
 
     """
     ```julia

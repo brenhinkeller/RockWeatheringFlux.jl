@@ -531,8 +531,8 @@
         # Material, type, name for each sample
         for i in eachindex(rockmaterial)
             matches[i] = containsi(rockmaterial[i], name)
-            matches[i] =| containsi(rocktype[i], name)
-            matches[i] =| containsi(rockname[i], name)
+            matches[i] |= containsi(rocktype[i], name)
+            matches[i] |= containsi(rockname[i], name)
         end
 
         # Warn if no matches found

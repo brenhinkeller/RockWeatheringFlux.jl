@@ -504,37 +504,43 @@
 ## --- Find all EarthChem samples matching a Macrostrat sample
     """
     ```julia
-    find_earthchem(rocktype::String, rockname::String, rockdescrip::String, 
-        bulksamples::BitVector, bulk_rockname
-    )
+    find_earthchem(name::String, rockname::AbstractArray, rocktype::AbstractArray, 
+        rockmaterial::AbstractArray)
     ```
 
-    For a single macrostrat sample, find all possible matching EarthChem samples. 
+    Given a rock `name` (e.g. "basalt"), find all matching EarthChem samples from `rockname`,
+    `rocktype`, and `rockmaterial`, where:
+       * `rockname`s are rock names (e.g., sandstone, shale, chert)
+       * `rocktype`s are "specialized" rock classes (e.g., volcanic, plutonic, breccia)
+       * `rockmaterial`s are "generalized" rock classes (e.g., igneous, sedimentary, 
+           metamorphic)
     Returns a `BitVector`.
-    
-    To avoid finding matches that are minor or incidental occurrences in a formation,
-    search for matches in the Earthchem `bulkrockname`, followed by `bulkmaterial`, and
-    then `bulkrocktype`. In Macrostrat, search for these strings in major lithology, 
-    followed by all rocktype, rockname, and rockdescrip. 
+
+    General rock names should return general results: i.e., "igneous" should return _all_
+    igneous rocks. Therefore, EarthChem fields are searched from most to least general.
+    All EarthChem fields are searched for all samples (unlike `match_rocktype` and 
+    `match_rockname`, which stop searching when a sample is matched).
+
     """
-    function find_earthchem(rocktype::String, rockname::String, rockdescrip::String, 
-        bulkrockname, bulkrocktype, bulkmaterial)
+    function find_earthchem(name::String, rockname::AbstractArray, rocktype::AbstractArray, 
+        rockmaterial::AbstractArray)
 
-        # Check Rock_Name
-        found = check_matches(rocktype, rockname, rockdescrip, bulkrockname)
-        count(found) > 0 && return found
+        # Preallocate
+        matches = falses(length(rockname))
 
-        # Then type
-        found = check_matches(rocktype, rockname, rockdescrip, bulkrocktype)
-        count(found) > 0 && return found
-
-        # Then material
-        found = check_matches(rocktype, rockname, rockdescrip, bulkmaterial)
-        count(found) > 0 && return found
+        # Material, type, name for each sample
+        for i in eachindex(rockmaterial)
+            matches[i] = containsi(rockmaterial[i], name)
+            matches[i] =| containsi(rocktype[i], name)
+            matches[i] =| containsi(rockname[i], name)
+        end
 
         # Warn if no matches found
-        @warn "No matching EarthChem samples found for $rocktype, $rockname, $rockdescrip"
-        return found
+        if count(matches) == 0
+            @warn "No matching EarthChem samples found for $name"
+        end
+        
+        return matches
     end
 
 

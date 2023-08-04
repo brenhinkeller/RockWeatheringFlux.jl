@@ -539,52 +539,8 @@
         if count(matches) == 0
             @warn "No matching EarthChem samples found for $name"
         end
-        
+
         return matches
-    end
-
-
-## --- Check for matches
-    """
-    ```julia
-    check_matches(rocktype::String, rockname::String, rockdescrip::String, rocknamelist)
-    ```
-
-    Find matching strings in `rocknamelist` in Macrostrat `rocktype`, `rockname`, and 
-    `rockdescrip`. Returns a `BitVector`.
-
-    See also: `find_earthchem`
-    """
-    function check_matches(rocktype::String, rockname::String, rockdescrip::String, rocknamelist)
-        found = falses(length(rocknamelist))
-
-        # Check major lithology first
-        for i in eachindex(rocknamelist)
-            rocknamelist[i] == "" && continue
-            found[i] |= (match.(r"major.*?{(.*?)}", rocktype) .|> x -> isa(x,RegexMatch) ? containsi(x[1], rocknamelist[i]) : false)
-        end
-        count(found) > 0 && return found
-
-        # If no matches, try the rest of rocktype
-        for i in eachindex(rocknamelist)
-            rocknamelist[i] == "" && continue
-            found[i] |= containsi.(rocktype, rocknamelist[i])
-        end
-        count(found) > 0 && return found
-
-        # If still no matches, try rockname
-        for i in eachindex(rocknamelist)
-            rocknamelist[i] == "" && continue
-            found[i] |= containsi.(rockname, rocknamelist[i])
-        end
-        count(found) > 0 && return found
-
-        # The rockdescrip...
-        for i in eachindex(rocknamelist)
-            rocknamelist[i] == "" && continue
-            found[i] |= containsi.(rockdescrip, rocknamelist[i])
-        end
-        return found
     end
 
 

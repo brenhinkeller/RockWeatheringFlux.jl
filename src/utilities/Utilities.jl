@@ -385,20 +385,24 @@
 
     """
     ```julia
-    get_type(cats::NamedTuple, i)
+    get_type(cats::NamedTuple, i; [all_keys=false])
     ```
 
-    Return the key of `cats` where `i` is `true`. This requires major types (e.g., sed, ign,
-    and met) to be listed _after_ the subtypes.
+    Return the first key of `cats` where `i` is `true`. Optionally specify `allkeys`=`true`
+    to return _all_ keys where `i` is true. Assumes equal length elements of `cats`.
 
-    # Example
+    # Examples
     ```julia-repl
     julia> get_type(macro_cats, 254)
-    :metaign
-    ```
+    :sed
 
+    julia> get_type(name_cats, 3, all_keys=true)
+    (:gravel, :sand, :silt, :clay)
+    ```
     """
-    function get_type(cats::NamedTuple, i)
+    get_type(cats::NamedTuple, i::Int64; all_keys::Bool=false) = _get_type(cats, i, static(all_keys))
+
+    function _get_type(cats, i, all_keys::False)
         @assert 0 < i <= length(cats[1]) "Index $i out of bounds."
 
         @inbounds for k in keys(cats)
@@ -406,6 +410,19 @@
         end
 
         return nothing
+    end
+
+    function _get_type(cats, i, allkeys::True)
+        @assert 0 < i <= length(cats[1]) "Index $i out of bounds."
+
+        catkeys = keys(cats)
+        keymatches = falses(length(catkeys))
+
+        @inbounds for k in eachindex(catkeys)
+            cats[k][i] && (keymatches[k]=true)
+        end
+
+        return catkeys[keymatches]
     end
 
     """

@@ -115,8 +115,9 @@
         # p = Progress(length(matches)+1, desc="Matching samples...")
         # next!(p)
 
-        # Get the type of the sample
-        type = get_type(macro_cats, i)
+        # Get the rock type and rock names of the sample
+        type = get_type(name_cats, i)
+        name = get_type(name_cats, i, all_keys=true)
         (type==:cover || type==nothing) && continue
 
         # Get EarthChem data for that type
@@ -135,8 +136,9 @@
             [bulkzero[i][bulksamples] for i in geochemkeys]
         )
 
-        # Average geochemistry for that type
-        geochemdata = major_elements(bulk, bulksamples)
+        # Average geochemistry by rock names
+        # geochemdata = major_elements(bulk, bulksamples)
+        geochemdata = bulk_lookup[name]
 
         # Find match
         matches[i] = likelihood(EC.bulkage, macrostrat.age[i], EC.bulklat, EC.bulklon, 

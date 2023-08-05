@@ -413,10 +413,13 @@
     class_up(typelist, name::String)
     ```
 
-    Find the rock type category for `name`.
+    Find the rock type category for `name`. The `name` must be included in the rock name
+    `typelist` returned by `get_rock_class`.
 
     ### Example
     ```julia-repl
+    julia> class_up(typelist, "dacit")
+    :volc
     ```
     """
     function class_up(typelist, name::String)
@@ -425,6 +428,8 @@
                 name == i && return k
             end
         end
+
+        return nothing
     end
 
     """

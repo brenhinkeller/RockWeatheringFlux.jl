@@ -14,6 +14,7 @@
     # Local utilities
     include("utilities/Utilities.jl")
 
+
 ## --- Load Macrostrat data
     @info "Loading Macrostrat lithologic data ($macrostrat_io)"
     macrofid = h5open("$macrostrat_io", "r")
@@ -21,12 +22,15 @@
         rocklat = read(macrofid["rocklat"]),
         rocklon = read(macrofid["rocklon"]),
         age = read(macrofid["age"]),
-        type = read(macrofid["typecategory"])
+        type = read(macrofid["typecategory"]),
+        rocktype = read(macrofid["rocktype"]),
+        rockname = read(macrofid["rockname"]),
+        rockdescrip = read(macrofid["rockdescrip"]),
     )
     close(macrofid)
-    macro_cats = match_rocktype(macrostrat.typecategory)
+    macro_cats = match_rocktype(macrostrat.type)
 
-
+    
 ## --- Load Earthchem bulk geochemical data
     bulkfid = h5open("output/bulk.h5", "r")
 
@@ -46,11 +50,21 @@
 
     bulktext = NamedTuple{Tuple(Symbol.(target))}(
         [lowercase.(read(path["elements"][target[i]]))[index[:,targetind[i]]] for i in eachindex(target)]
-    )    
-
+    )
     close(bulkfid)
 
 
+## --- create lookup table
+    # Get rock names for each Macrostrat sample
+    name_cats = match_rockname(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
+    rocknames = string.(keys(name_cats))
+
+    # Get average geochemical composition for each rock name
+    geochem_lookup = [major_elements(bulk, find_earthchem(rocknames[i], bulktext.Rock_Name, 
+        bulktext.Type, bulktext.Material)) for i in eachindex(rocknames)
+    ]
+
+    
 ## --- Find matching Earthchem sample for each Macrostrat sample
     # Pre-define
     geochemkeys, = get_elements()               # Major elements
@@ -65,9 +79,10 @@
     # Preallocate
     matches = zeros(Int64, length(macro_cats.sed))
 
-    @timev for i in eachindex(matches)
+    @timev @showprogress for i in eachindex(matches)
         # Progress bar
-        p = Progress(length(matches), desc="Matching samples...")
+        # p = Progress(length(matches)+1, desc="Matching samples...")
+        # next!(p)
 
         # Get the type of the sample
         type = get_type(macro_cats, i)
@@ -98,11 +113,10 @@
             EC.sampleidx
         )
 
-        next!(p)
+        # next!(p)
     end
 
-
-## --- Write data to a file
+    # Write data to a file
     writedlm("$matchedbulk_io", matches, "\t")
 
 

@@ -54,17 +54,32 @@
     close(bulkfid)
 
 
-## --- create lookup table
+## --- Create average geochemistry lookup table for each rock name
     # Get rock names for each Macrostrat sample
     name_cats = match_rockname(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
     rocknames = string.(keys(name_cats))
+    not_found = falses(length(rocknames))
+
+    # EarthChem samples for each rock name
+    bulk_lookup = NamedTuple{keys(name_cats)}([find_earthchem(rocknames[i], bulktext.Rock_Name, bulktext.Type, 
+        bulktext.Material) for i in eachindex(rocknames)]
+    )
 
     # Get average geochemical composition for each rock name
-    geochem_lookup = [major_elements(bulk, find_earthchem(rocknames[i], bulktext.Rock_Name, 
-        bulktext.Type, bulktext.Material)) for i in eachindex(rocknames)
-    ]
 
-    
+    # geochem_lookup = [major_elements(bulk, find_earthchem(rocknames[i], bulktext.Rock_Name, 
+    #     bulktext.Type, bulktext.Material)) for i in eachindex(rocknames)
+    # ]
+
+    # @showprogress for i in eachindex(rocknames)
+    #     s = find_earthchem(rocknames[i], bulktext.Rock_Name, bulktext.Type, bulktext.Material)
+
+    #     # if count(s) > 0
+    #     #     major_elements(bulk, s)
+    #     # end
+    # end
+
+
 ## --- Find matching Earthchem sample for each Macrostrat sample
     # Pre-define
     geochemkeys, = get_elements()               # Major elements

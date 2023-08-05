@@ -58,26 +58,42 @@
     # Get rock names for each Macrostrat sample
     name_cats = match_rockname(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
     rocknames = string.(keys(name_cats))
-    not_found = falses(length(rocknames))
 
-    # EarthChem samples for each rock name
-    bulk_lookup = NamedTuple{keys(name_cats)}([find_earthchem(rocknames[i], bulktext.Rock_Name, bulktext.Type, 
-        bulktext.Material) for i in eachindex(rocknames)]
+    # Get EarthChem samples for each rock name
+    typelist = get_rock_class(false, 1)[1]
+    nbulk = length(bulktext.Rock_Name)
+    bulk_lookup = NamedTuple{keys(name_cats)}([falses(nbulk) for _ in eachindex(name_cats)])
+
+    p = Progress(length(rocknames)+1, desc="Finding EarthChem samples for each rock name")
+    next!(p)
+    for i in eachindex(rocknames)
+        bulk_lookup[i] .= find_earthchem(rocknames[i], bulktext.Rock_Name, bulktext.Type, 
+            bulktext.Material
+        )
+
+        # If no matches, jump up a class
+        if count(bulk_lookup[i]) == 0
+            newsearch = class_up(typelist, rocknames[i])
+            newsearch==:carb && (newsearch=="carbonate")    # No carbonatites
+            bulk_lookup[i] .= find_earthchem(string(newsearch), bulktext.Rock_Name, 
+                bulktext.Type, bulktext.Material
+            )
+
+            # If still no matches, jump up a class again
+            if count(bulk_lookup[i]) == 0
+                newsearch = class_up(typelist, rocknames[i])
+                bulk_lookup[i] .= find_earthchem(string(newsearch), bulktext.Rock_Name, 
+                    bulktext.Type, bulktext.Material
+                )
+            end
+        end
+        next!(p)
+    end
+
+    # Get average geochemistry for each rock name
+    bulk_lookup = NamedTuple{keys(name_cats)}([major_elements(bulk, bulk_lookup[i]) 
+        for i in eachindex(bulk_lookup)]
     )
-
-    # Get average geochemical composition for each rock name
-
-    # geochem_lookup = [major_elements(bulk, find_earthchem(rocknames[i], bulktext.Rock_Name, 
-    #     bulktext.Type, bulktext.Material)) for i in eachindex(rocknames)
-    # ]
-
-    # @showprogress for i in eachindex(rocknames)
-    #     s = find_earthchem(rocknames[i], bulktext.Rock_Name, bulktext.Type, bulktext.Material)
-
-    #     # if count(s) > 0
-    #     #     major_elements(bulk, s)
-    #     # end
-    # end
 
 
 ## --- Find matching Earthchem sample for each Macrostrat sample

@@ -2,8 +2,6 @@
 
 # Ignore any NaN ± NaN and NaN ± err values. Convert val ± NaN to val ± 0
 
-using Static
-
 function NaNStatistics.nanadd(a::Measurement, b::Measurement)
     a = a.val*(a.val==a.val) ± a.err*(a.err==a.err)
     b = b.val*(b.val==b.val) ± b.err*(b.err==b.err)

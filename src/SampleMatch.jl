@@ -116,7 +116,7 @@
         # next!(p)
 
         # Get the rock type and rock names of the sample
-        type = get_type(name_cats, i)
+        type = get_type(macro_cats, i)
         name = get_type(name_cats, i, all_keys=true)
         (type==:cover || type==nothing) && continue
 

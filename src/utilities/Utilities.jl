@@ -673,7 +673,7 @@
         npoints = length(bulkage)
         ll_age = Array{Float64}(undef, npoints, 1)
         ll_dist = Array{Float64}(undef, npoints, 1)
-        ll_total = Array{Float64}(undef, npoints, 1)
+        ll_chem = zeros(npoints)
 
         # Replace missing values: this will penalize but not exclude missing data
         @inbounds for i in 1:npoints
@@ -696,16 +696,19 @@
             ll_dist[i] = -((haversine(samplelat, samplelon, bulklat[i], bulklon[i]))^2)/(1.8^2)
         end
 
-        @. ll_total = ll_age + ll_dist
-        
         # Geochemical log-likelihoods
-        for elem in eachindex(bulkgeochem)
-            @turbo for i in 1:npoints
-                ll_total[i] += -((bulkgeochem[elem][i] - samplegeochem[elem].m)^2)/(samplegeochem[elem].e^2)
+        for name in eachindex(samplegeochem)
+            for elem in eachindex(bulkgeochem)
+                @turbo for i in 1:npoints
+                    ll_chem[i] += -(((bulkgeochem[elem][i] - 
+                        samplegeochem[name][elem].m)^2)/(samplegeochem[name][elem].e^2)
+                    )
+                end
             end
         end
+        ll_chem ./= length(samplegeochem)
 
-        matched_sample = rand_prop_liklihood(ll_total)
+        matched_sample = rand_prop_liklihood(ll_age .+ ll_dist .+ ll_chem)
         return sampleidx[matched_sample]
     end
 

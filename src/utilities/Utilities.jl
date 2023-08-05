@@ -408,6 +408,24 @@
         return nothing
     end
 
+    """
+    ```julia
+    class_up(typelist, name::String)
+    ```
+
+    Find the rock type category for `name`.
+
+    ### Example
+    ```julia-repl
+    ```
+    """
+    function class_up(typelist, name::String)
+        for k in keys(typelist)
+            for i in typelist[k]
+                name == i && return k
+            end
+        end
+    end
 
     """
     ```julia
@@ -533,11 +551,6 @@
             matches[i] = containsi(rockmaterial[i], name)
             matches[i] |= containsi(rocktype[i], name)
             matches[i] |= containsi(rockname[i], name)
-        end
-
-        # Warn if no matches found
-        if count(matches) == 0
-            @warn "No matching EarthChem samples found for $name"
         end
 
         return matches

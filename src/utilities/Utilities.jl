@@ -320,6 +320,8 @@
     `NamedTuple` are the rock names, and the `BitVectors` are true at element `i` iff
     sample `i` is that rock name.
 
+    Does not match rock names defined as cover by `get_rock_class`.
+
     See also: `match_rocktype`.
     """
     function match_rockname(rocktype::AbstractArray, rockname::AbstractArray, 
@@ -422,6 +424,7 @@
             cats[k][i] && (keymatches[k]=true)
         end
 
+        count(keymatches)==0 && return nothing
         return catkeys[keymatches]
     end
 

@@ -209,14 +209,14 @@
 
 
 ## --- Curve fitting functions for slope / erosion rate
-    """
-    ```julia
-    linear(x,p)
-    ```
-    """
-    function linear(x,p)
-        y = p[1] .+ x * p[2]
-    end
+    # """
+    # ```julia
+    # linear(x,p)
+    # ```
+    # """
+    # function linear(x,p)
+    #     y = p[1] .+ x * p[2]
+    # end
 
 
 ## --- Calculate precipitation
@@ -371,8 +371,8 @@
     The means of `y` binned by x into bins equally spaced by percentile. Returns bin centers,
     means, and standard deviations for each bin.
 
-    ## Example
-    ```
+    # Example
+    ```julia
     (c, m, ex, ey) = binmeans_percentile(x, y, step=5)
     ```
     """

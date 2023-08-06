@@ -117,8 +117,8 @@ Any element containing a `NaN` in _either_ the value or error will be replaced w
 0.0 ± 0.0. Optionally specify `allnans` as `false` to replace the `NaN` value with a zero
 while retaining the non-`NaN` value in the value or error. 
 
-## Examples
-```julia
+# Examples
+```julia-repl
 julia> A = [2.0 ± NaN]
 1-element Vector{Measurement{Float64}}:
  2.0 ± NaN

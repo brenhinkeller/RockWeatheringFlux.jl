@@ -76,14 +76,14 @@
     of maximum slope at each point on Earth, and would return the _average maximum slope_ at 
     each point of interest.
 
-    # Defaults and Other Keyword Arguments
+    ### Defaults and Other Keyword Arguments:
 
-    - `sf::Number=240`: Scale factor (cells per degree) for the SRTM15+ data. For 15 arc-second 
-    resolution, the scale factor is 240, because 15 arc-seconds go into 1 arc-degree 60 * 4 = 
-    240 times.
+    * `sf::Number=240`: Scale factor (cells per degree) for the SRTM15+ data. For 15 arc-second 
+       resolution, the scale factor is 240, because 15 arc-seconds go into 1 arc-degree 60 * 4 = 
+       240 times.
 
-    - `maxpossible::Number=0xffff`: The maximum possible value for the variable of interest; 
-    variables with values greater than this are ignored.
+    * `maxpossible::Number=0xffff`: The maximum possible value for the variable of interest; 
+       variables with values greater than this are ignored.
 
     """
     function avg_over_area(data::Matrix, lat::Vector, lon::Vector, sf::Number=240;
@@ -151,7 +151,7 @@
     Alternatively, return types already stored as strings in `writtentype`.
 
     ### Optional keyword argument `major`
-    Note that this argument is only valid when parsing data directly from Macrostrat responses.
+    This argument is only valid when parsing data directly from Macrostrat responses.
 
     `true` returns: `sed, ign, met`
 
@@ -164,7 +164,7 @@
     `plut` includes hypabyssal rocks, and `chert` includes banded iron formations.
 
     # Example
-    ```julia-repl
+    ```julia
     cats = match_rocktype(rocktype, rockname, rockdescrip, major=true)
     NamedTuple with 4 elements:
     sed    = BitVector(50000,)    [true ... true]
@@ -270,7 +270,7 @@
     `sed`, `ign`, `met`, and `cover`.
 
     # Example
-    ```
+    ```julia-repl
     julia> find_unmatched(cats)
     500-element BitVector:
     0
@@ -436,13 +436,18 @@
     Find the rock type category for `name`. The `name` must be included in the rock name
     `typelist` returned by `get_rock_class`.
 
-    ### Example
+    # Example
     ```julia-repl
     julia> class_up(typelist, "dacit")
     :volc
     ```
     """
     function class_up(typelist, name::String)
+        # Check if name is a typelist key
+        for k in keys(typelist)
+            name == string(k)
+        end
+
         for k in keys(typelist)
             for i in typelist[k]
                 name == i && return k
@@ -458,7 +463,7 @@
     ```
     Classify EarthChem bulk.mat `type` codes to rock types. Returns a `NamedTuple` of `BitVector`s. 
 
-    # Optional Keyword Argument `major`
+    ### Optional Keyword Argument `major`
     `true` returns 
 
         sed, ign, met
@@ -817,8 +822,8 @@
     Separate an Array or NamedTuple `A` of `measurements` into an array of values and an 
     array of errors.
     
-    ## Example
-    ```julia
+    # Example
+    ```julia-repl
     julia> A = [1 ± 0.1, 2 ± 0.1]
     2-element Vector{Measurement{Float64}}:
      1.0 ± 0.1
@@ -881,8 +886,7 @@
 
     To find latitude and longitude coordinates within a polygon, see `coords_in_shape`
 
-    ### Example
-
+    # Example
     ```julia
     x, y, inpolygon = points_in_shape(poly_x, poly_y, data_x, data_y)
     ```
@@ -964,8 +968,7 @@
     `polylons`. Also returns a `BitVector` to index into the original data coordinate 
     vectors.
 
-    ### Example
-
+    # Example
     ```julia
     lats, lons, points = coords_in_shape(polylon, polylat, datalon, datalat)
     ```

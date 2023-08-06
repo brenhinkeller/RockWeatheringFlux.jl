@@ -242,10 +242,11 @@
         end
 
         # Make sure that sed / ign / met are true when their subtypes are true
+        minorsed, minorign, minormet = get_minor_types()
         minortypes = (
-            sed = (:siliciclast, :shale, :carb, :chert, :evaporite, :coal),
-            ign = (:volc, :plut),
-            met = (:metased, :metaign)
+            sed = minorsed,
+            ign = minorign,
+            met = minormet
         )
         for k in keys(minortypes)
             for i in minortypes[k]
@@ -440,15 +441,25 @@
     ```julia-repl
     julia> class_up(typelist, "dacit")
     :volc
+
+    julia> class_up(typelist, "evaporite")
+    :sed
     ```
     """
     function class_up(typelist, name::String)
-        # Check if name is a typelist key
-        for k in keys(typelist)
-            name == string(k)
+        # Check if name is a minor type which will not correctly class upwards
+        minorsed, minorign, minormet = get_minor_types()
+        @inbounds for k in string.(minorsed)
+            name==k && return :sed
+        end
+        @inbounds for k in string.(minorign)
+            name==k && return :ign 
+        end
+        @inbounds for k in string.(minormet) 
+            name==k && return :met 
         end
 
-        for k in keys(typelist)
+        @inbounds for k in keys(typelist)
             for i in typelist[k]
                 name == i && return k
             end

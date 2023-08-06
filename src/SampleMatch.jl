@@ -81,7 +81,7 @@
 
             # If still no matches, jump up a class again
             if count(bulk_lookup[i]) == 0
-                newsearch = class_up(typelist, rocknames[i])
+                newsearch = class_up(typelist, string(newsearch))
                 bulk_lookup[i] .= find_earthchem(string(newsearch), bulktext.Rock_Name, 
                     bulktext.Type, bulktext.Material
                 )
@@ -91,13 +91,14 @@
     end
 
     # Get average geochemistry for each rock name
-    bulk_lookup = NamedTuple{keys(name_cats)}([major_elements(bulk, bulk_lookup[i]) 
+    geochem_lookup = NamedTuple{keys(name_cats)}([major_elements(bulk, bulk_lookup[i]) 
         for i in eachindex(bulk_lookup)]
     )
 
 
 ## --- Find matching Earthchem sample for each Macrostrat sample
-    # Pre-define
+    # Preallocate
+    matches = zeros(Int64, length(macro_cats.sed))
     geochemkeys, = get_elements()               # Major elements
     bulk_idxs = collect(1:length(bulk.SiO2))    # Indices of bulk
 
@@ -106,23 +107,22 @@
     bulkzero = NamedTuple{Tuple(geochemkeys)}(
         [zeronan!(bulkzero[i]) for i in geochemkeys]
     )
-    
-    # Preallocate
-    matches = zeros(Int64, length(macro_cats.sed))
 
-    @timev @showprogress for i in eachindex(matches)
-        # Progress bar
-        # p = Progress(length(matches)+1, desc="Matching samples...")
-        # next!(p)
-
-        # Get the rock type and rock names of the sample
+    p = Progress(length(matches)+1, desc="Matching samples...")
+    next!(p)
+    @timev for i in eachindex(matches)
+        # Get the rock type and randomly select one sample rock name
         type = get_type(macro_cats, i)
-        name = get_type(name_cats, i, all_keys=true)
-        (type==:cover || type==nothing) && continue
+        if type==:cover || type==nothing
+            next!(p)
+            continue
+        end
+
+        name = rand(get_type(name_cats, i, all_keys=true))
 
         # Get EarthChem data for that type
         bulksamples = bulk_cats[type]                        # EarthChem BitVector
-        count(bulksamples) < 1 && continue
+        count(bulksamples) == 0 && continue
 
         EC = (
             bulklat = bulk.Latitude[bulksamples],            # EarthChem latitudes
@@ -138,7 +138,18 @@
 
         # Average geochemistry by rock names
         # geochemdata = major_elements(bulk, bulksamples)
-        geochemdata = bulk_lookup[name]
+        # geochemdata = bulk_lookup[name]
+
+        # Randomly select one matched rock name to represent the geochemistry of the rock.
+        # Use the errors from the whole sample set, but the values from the single sample
+        geochemdata = geochem_lookup[name]
+        randsample = rand(bulk_idxs[bulk_lookup[name]])
+        geochemdata = NamedTuple{Tuple(geochemkeys)}(
+            [NamedTuple{(:m, :e)}(tuple.(
+                (bulk[i][randsample]),
+                geochemdata[i].e)) for i in geochemkeys
+            ]
+        )
 
         # Find match
         matches[i] = likelihood(EC.bulkage, macrostrat.age[i], EC.bulklat, EC.bulklon, 
@@ -146,11 +157,11 @@
             EC.sampleidx
         )
 
-        # next!(p)
+        next!(p)
     end
 
     # Write data to a file
-    writedlm("$matchedbulk_io", matches, "\t")
+    writedlm("$matchedbulk_io", matches, '\t')
 
 
 ## --- End of File

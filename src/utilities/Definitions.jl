@@ -1,12 +1,12 @@
 ## --- File names
     # 500 Macrostrat samples
-        macrostrat_io = "output/toy_responses.h5"
-        matchedbulk_io = "output/toy_bulkidx.tsv"
+        # macrostrat_io = "output/toy_responses.h5"
+        # matchedbulk_io = "output/toy_bulkidx.tsv"
 
-        ucc_out = "results/toy_exposedcrust.tsv"
-        eroded_out = "output/toy_erodedmaterial.h5"
-        erodedabs_out = "results/toy_erodedmaterial_abs.tsv"
-        erodedrel_out = "results/toy_erodedmaterial_rel.tsv"
+        # ucc_out = "results/toy_exposedcrust.tsv"
+        # eroded_out = "output/toy_erodedmaterial.h5"
+        # erodedabs_out = "results/toy_erodedmaterial_abs.tsv"
+        # erodedrel_out = "results/toy_erodedmaterial_rel.tsv"
 
     # 50_000 Macrostrat samples (note: .tsv filetype is deprecated)
         # macrostrat_io = "output/pregenerated_responses.tsv"
@@ -18,13 +18,13 @@
         # erodedrel_out = "results/erodedmaterial_rel.tsv"
 
     # 250_000 Macrostrat samples
-        # macrostrat_io = "output/250K_responses.h5"
-        # matchedbulk_io = "output/250K_bulkidx.tsv"
+        macrostrat_io = "output/250K_responses.h5"
+        matchedbulk_io = "output/250K_bulkidx.tsv"
 
-        # ucc_out = "results/250K_exposedcrust.tsv"
-        # eroded_out = "output/250K_erodedmaterial.h5"
-        # erodedabs_out = "results/250K_erodedmaterial_abs.tsv"
-        # erodedrel_out = "results/250K_erodedmaterial_rel.tsv"
+        ucc_out = "results/250K_exposedcrust.tsv"
+        eroded_out = "output/250K_erodedmaterial.h5"
+        erodedabs_out = "results/250K_erodedmaterial_abs.tsv"
+        erodedrel_out = "results/250K_erodedmaterial_rel.tsv"
 
     # 1_000_000 Macrostrat samples
         # macrostrat_io = "output/1M_responses.h5"
@@ -79,8 +79,7 @@
     ```
 
     Define felsic, intermediate, and mafic rocks by wt.% silica, using values from Keller 
-    and Schoene, 2012 (doi.org/10.1038/nature11024)
-
+    and Schoene, 2012 (DOI: 10.1038/nature11024):
       * Felsic: 62-74%
       * Intermediate: 51-62%
       * Mafic: 43-51%
@@ -100,11 +99,12 @@
     If `major` is `true`, only major types are defined. If `major` is `false`, all subtypes
     are defined.
 
-    ## Example
+    See also: `get_minor_types`
+
+    # Example
     ```julia
     typelist, cats = get_rock_class(true, 10)
     ```
-
     """
     function get_rock_class(major::Bool, npoints::Int64)
         # Sedimentary
@@ -178,6 +178,27 @@
         return typelist, NamedTuple{keys(typelist)}([falses(npoints) for _ in 1:length(typelist)]) 
     end
 
+## --- Define minor types
+    """
+    ```julia
+    get_minor_types()
+    ```
+
+    Return types nested under the sed, ign, and met "major" types.
+
+    ### Minor Types:
+      * Sed: siliciclast, shale, carb, chert, evaporite, coal
+      * Ign: volc, plut
+      * Met: metased, metaign
+    
+    # Example
+    ```julia
+    minorsed, minorign, minormet = get_minor_types()
+    ```
+    """
+    get_minor_types() = (:siliciclast, :shale, :carb, :chert, :evaporite, :coal), 
+        (:volc, :plut), (:metased, :metaign)
+
 
 ## --- Macrostrat type exclusions to avoid multi-matching
     """
@@ -222,11 +243,10 @@
 
         return cats
     end
+    
     function _un_multimatch!(cats, major::False)
         # Define types
-        minorsed = (:siliciclast, :shale, :carb, :chert, :evaporite, :coal)
-        minorign = (:volc, :plut)
-        minormet = (:metased, :metaign)
+        minorsed, minorign, minormet = get_minor_types()
         minortypes = (minorsed..., minorign..., minormet...)
 
         # Exclude cover from all major and minor rock types
@@ -274,4 +294,5 @@
 
         return cats
     end
+
 ## --- End of file

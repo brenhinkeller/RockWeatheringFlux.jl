@@ -95,6 +95,43 @@
         for i in eachindex(bulk_lookup)]
     )
 
+## --- Calculate inverse spatial weight for each rock name
+    # This current method means samples without a latitude or longitude will never get picked.
+    # In theory, I could undo that by assigning a weight to samples without spatial data;
+    # probably the mean of the weights (although this could cause some weird statistical
+    # behavior depending on the distribution...). In any case, it may not end up mattering
+    # if there's enough samples to choose from.
+
+    # # Preallocate
+    # spatial_lookup = NamedTuple{keys(name_cats)}([fill(0., nbulk) for _ in eachindex(name_cats)])
+
+    # @info "Calculating inverse spatial weights for each rock name"
+    # for n in eachindex(keys(spatial_lookup))
+    #     println("$n ($n/$(length(rocknames))) \n")
+    #     spatial_lookup[n][bulk_lookup[n]] .= invweight(bulk.Latitude[bulk_lookup[n]], 
+    #         bulk.Latitude[bulk_lookup[n]], ones(nbulk)
+    #     )
+    # end
+
+    # # Save to file
+    # A = Array{Float64}(undef, nbulk, length(spatial_lookup))
+    # for i in eachindex(keys(spatial_lookup))
+    #     A[:,i] = spatial_lookup[i]
+    # end
+
+    # fid = h5open("output/invspatial.h5", "w")
+    #     fid["header"] = collect(rocknames)
+    #     fid["k"] = A
+    # close(fid)
+
+
+## --- Alternatively, load spatial weights from a file
+    fid = h5open("output/invspatial.h5", "r")
+        header = read(fid["header"])
+        data = read(fid["k"])
+    close(fid)
+    spatial_lookup = NamedTuple{Tuple(Symbol.(header))}(data[:,i] for i in eachindex(header))
+
 
 ## --- Find matching Earthchem sample for each Macrostrat sample
     # Preallocate
@@ -118,8 +155,6 @@
             continue
         end
 
-        name = rand(get_type(name_cats, i, all_keys=true))
-
         # Get EarthChem data for that type
         bulksamples = bulk_cats[type]                        # EarthChem BitVector
         count(bulksamples) == 0 && continue
@@ -136,19 +171,22 @@
             [bulkzero[i][bulksamples] for i in geochemkeys]
         )
 
-        # Average geochemistry by rock names
-        # geochemdata = major_elements(bulk, bulksamples)
-        # geochemdata = bulk_lookup[name]
+        # Randomly select one EarthChem sample from a randomly selected sample name, 
+        # proportional to it's spatial weight. Assign an error sampled from a normal 
+        # distribution with mean and standard deviation equal to the mean and standard 
+        # deviation of that rock name.
+        #
+        # This will represent the assumed geochemistry of the Macrostrat sample. The
+        # assumption of this method is that there are enough samples of each name that 
+        # outliers get ironed out.
+        name = rand(get_type(name_cats, i, all_keys=true))
+        randsample = bulk_idxs[weighted_rand(spatial_lookup[name])]
 
-        # Randomly select one matched rock name to represent the geochemistry of the rock.
-        # Use the errors from the whole sample set, but the values from the single sample
         geochemdata = geochem_lookup[name]
-        randsample = rand(bulk_idxs[bulk_lookup[name]])
-        geochemdata = NamedTuple{Tuple(geochemkeys)}(
-            [NamedTuple{(:m, :e)}(tuple.(
-                (bulk[i][randsample]),
-                geochemdata[i].e)) for i in geochemkeys
-            ]
+        errs = NamedTuple{Tuple(geochemkeys)}([abs(randn()*geochemdata[i].e) for i in geochemkeys])
+
+        geochemdata = NamedTuple{Tuple(geochemkeys)}([NamedTuple{(:m, :e)}(
+            tuple.((bulk[i][randsample]), errs[i])) for i in geochemkeys]
         )
 
         # Find match

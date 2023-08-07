@@ -447,6 +447,8 @@
     ```
     """
     function class_up(typelist, name::String)
+        @assert name != "sed" || "ign" || "met" "No upwards class for $name"
+
         # Check if name is a minor type which will not correctly class upwards
         minorsed, minorign, minormet = get_minor_types()
         @inbounds for k in string.(minorsed)
@@ -733,6 +735,9 @@
     ```
 
     Weighted-random selection of an index based on log-likelihoods `ll`.
+
+    See also: `weighted_rand` for weighted random selection based on likelihood / weight
+    in normal space.
     """
     function rand_prop_liklihood(ll)
         sum_likelihoods = sum(exp, ll)
@@ -745,6 +750,28 @@
             end
         end
         return lastindex(ll)
+    end
+
+    """
+    ```julia
+    weighted_rand(p)
+    ````
+
+    Weighted random selection of an index based on weights `p`.
+
+    See `rand_prop_liklihood` for selection based on log-likelihood.
+    """
+    function weighted_rand(p)
+        sum_weights = nansum(p)
+        r = rand()*sum_weights
+        s = zero(typeof(sum_weights))
+        @inbounds for i in eachindex(p)
+            s += p[i]
+            if s > r
+                return i
+            end
+        end
+        return lastindex(p)
     end
 
 

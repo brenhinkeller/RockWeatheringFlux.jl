@@ -7,7 +7,7 @@ figures/
 results/
 ~file_graveyard
 dev/
-output/macrostrat/
+output/
 /*.nc
 /*.xls
 /*.csv

@@ -47,6 +47,50 @@
     display(f)
     save("bulk_all.png", f)
 
+## --- Plot matched bulk points
+    # Matched samples
+    bulkidx = Int.(vec(readdlm("$matchedbulk_io")))
+    t = @. bulkidx != 0
+
+    # Earthchem
+    bulkfid = h5open("output/bulk.h5", "r")
+    header = read(bulkfid["bulk"]["header"])
+    data = read(bulkfid["bulk"]["data"])
+    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
+    close(bulkfid)
+
+    f = Figure(resolution = (1200, 600))
+    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
+    h = CairoMakie.scatter!(ax, vec(bulk.Longitude), vec(bulk.Latitude), color=vec(bulk.Age),
+        colormap=colorsch, markersize = 3
+    )
+    Colorbar(f[1,2], h, label = "Age [Ma]", height = Relative(0.9))
+    display(f)
+    save("bulk_matched.png", f)
+
+## --- Plot Macrostrat samples
+    # Matched samples
+    bulkidx = Int.(vec(readdlm("$matchedbulk_io")))
+    t = @. bulkidx != 0
+
+    # Macrostrat
+    macrofid = h5open("$macrostrat_io", "r")
+    macrostrat = (
+        rocklat = read(macrofid["rocklat"])[t],
+        rocklon = read(macrofid["rocklon"])[t],
+        age = read(macrofid["age"])[t]
+    )
+    close(macrofid)
+
+    f = Figure(resolution = (1200, 600))
+    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
+    h = CairoMakie.scatter!(ax, macrostrat.rocklon, macrostrat.rocklat, 
+        color=macrostrat.age, colormap=colorsch, markersize = 3
+    )
+    Colorbar(f[1,2], h, label = "Age [Ma]", height = Relative(0.9))
+    display(f)
+    save("macrostrat.png", f)
+
 
 ## --- Visualize distance between matched points and Macrostrat data
     # Location data
@@ -197,7 +241,7 @@
     i = findmax(counts)[2]
     @info "$(round(f*100, digits=2))% of indices are from EarthChem sample i = $(unind[i])"
 
-    
+
 ## --- Take a look at the matched sample
     # Set sample value
     i = 413791

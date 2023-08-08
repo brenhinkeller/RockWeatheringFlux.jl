@@ -142,7 +142,7 @@
 
     """
     ```julia
-    match_rocktype(rocktype, rockname, rockdescrip; major=false)
+    match_rocktype(rocktype, rockname, rockdescrip; major=false, [multimatch])
     match_rocktype(writtentype::AbstractArray{String})
     ```
 
@@ -150,7 +150,7 @@
     `rockname`, and `rockdescrip` as sedimentary, igneous, metamorphic, or cover. 
     Alternatively, return types already stored as strings in `writtentype`.
 
-    ### Optional keyword argument `major`
+    ### Optional kwarg `major`
     This argument is only valid when parsing data directly from Macrostrat responses.
 
     `true` returns: `sed, ign, met`
@@ -163,6 +163,9 @@
     either of those subcategories. To match the catagorization to the EarthChem system, 
     `plut` includes hypabyssal rocks, and `chert` includes banded iron formations.
 
+    ### Optional kwarg `multimatch`
+    Setting `multimatch=:off` will not remove multiply-matched samples.
+
     # Example
     ```julia
     cats = match_rocktype(rocktype, rockname, rockdescrip, major=true)
@@ -174,7 +177,7 @@
     ```
     """
     function match_rocktype(rocktype::AbstractArray, rockname::AbstractArray, 
-        rockdescrip::AbstractArray; major=false)
+        rockdescrip::AbstractArray; major=false, multimatch::Symbol=:on)
 
         # Get rock type classifications and initialized BitVector
         typelist, cats = get_rock_class(major, length(rocktype))
@@ -226,7 +229,8 @@
             next!(p)
         end
 
-        return un_multimatch!(cats, major)
+        multimatch==:on && return un_multimatch!(cats, major)
+        return cats
     end
 
     function match_rocktype(writtentype::AbstractArray{String})

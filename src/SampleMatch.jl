@@ -28,8 +28,10 @@
         rockdescrip = read(macrofid["rockdescrip"]),
     )
     close(macrofid)
-    macro_cats = match_rocktype(macrostrat.type)
-
+    # macro_cats = match_rocktype(macrostrat.type)
+    macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
+        macrostrat.rockdescrip, multimatch=:off
+    )
     
 ## --- Load Earthchem bulk geochemical data
     bulkfid = h5open("output/bulk.h5", "r")
@@ -149,15 +151,26 @@
     next!(p)
     @timev for i in eachindex(matches)
         # Get the rock type and randomly select one sample rock name
-        type = get_type(macro_cats, i)
-        if type==:cover || type==nothing
+        type = get_type(macro_cats, i, all_keys=true)
+        if type==(:cover,) || type==nothing
             next!(p)
             continue
         end
 
         # Get EarthChem data for that type
-        bulksamples = bulk_cats[type]                        # EarthChem BitVector
-        count(bulksamples) == 0 && continue
+        bulksamples = falses(length(bulk_cats[1]))           # EarthChem BitVector
+        for t in type
+            if t==:cover
+                bulksamples .|= bulk_cats.alluvium
+                continue
+            end
+            bulksamples .|= bulk_cats[t]
+        end
+
+        if count(bulksamples) == 0
+            next!(p)
+            continue
+        end
 
         EC = (
             bulklat = bulk.Latitude[bulksamples],            # EarthChem latitudes

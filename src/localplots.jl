@@ -5,6 +5,7 @@
     using LoopVectorization
     using Measurements
     using Static
+    using MAT
 
     # Plotting Packages
     using CairoMakie
@@ -14,6 +15,40 @@
     # Local utilities
     include("utilities/Utilities.jl")
 
+    colorsch = :jet1
+
+## --- Plot bulk data from wt.% restricted
+    bulkfid = h5open("output/bulk.h5", "r")
+        header = read(bulkfid["bulk"]["header"])
+        data = read(bulkfid["bulk"]["data"])
+    close(bulkfid)
+    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+
+    f = Figure(resolution = (1200, 600))
+    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
+    h = CairoMakie.scatter!(ax, bulk.Longitude, bulk.Latitude, color=bulk.Age,
+        colormap=colorsch, markersize = 3
+    )
+    Colorbar(f[1,2], h, label = "Age [Ma]", height = Relative(0.9))
+    display(f)
+    save("bulk_restricted.png", f)
+
+
+## --- Plot unrestricted bulk data
+    bulk = matread("data/bulk.mat")["bulk"]
+    bulk = NamedTuple{Tuple(Symbol.(keys(bulk)))}(values(bulk))
+
+    f = Figure(resolution = (1200, 600))
+    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
+    h = CairoMakie.scatter!(ax, vec(bulk.Longitude), vec(bulk.Latitude), color=vec(bulk.Age),
+        colormap=colorsch, markersize = 3
+    )
+    Colorbar(f[1,2], h, label = "Age [Ma]", height = Relative(0.9))
+    display(f)
+    save("bulk_all.png", f)
+
+
+## --- Visualize distance between matched points and Macrostrat data
     # Location data
     data = importdataset("dist.csv", ',', importas=:Tuple)
     macrostrat = (rocklat = data.lat_m, rocklon = data.lon_m)
@@ -22,8 +57,7 @@
     # silica data
     silica = importdataset("silica.csv", ',', importas=:Tuple)
 
-
-## --- Plot distance between sample and matched point
+    # Distance between sample and matched point
     f = Figure(resolution = (1200, 600))
     ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
     h = CairoMakie.scatter!(ax, macrostrat.rocklon, macrostrat.rocklat, color=dist,
@@ -32,8 +66,7 @@
     Colorbar(f[1,2], h, label = "Arc Degrees from Matched Point", height = Relative(0.9))
     display(f)
 
-
-## --- Plot silica content of matched samples
+    # Silica content of matched samples
     t = silica.SiO2 .> 50
 
     f = Figure(resolution = (1200, 600))
@@ -45,8 +78,7 @@
     display(f)
 
 
-
-## --- Plot histograms of silica content by igneous rock type. Load data:
+## --- Plot histograms of silica content by igneous rock type
     # Run UCC calculations
     using Plots
     using StatGeochem
@@ -89,7 +121,7 @@
 
 ## --- Sample data plots; normalizing distributions
     # All igneous
-    c, n = bincounts(bulk.SiO2[macro_cats.ign], 40, 80, 80)
+    c, n = bincounts(bulk.SiO2[macro_cats.ign], 40, 80, 40)
     n = float(n) ./ nansum(float(n) .* step(c))
     h = plot(c, n, seriestype=:bar, label="All Igneous; n = $(count(macro_cats.ign))", 
         ylabel="Weight", xlabel="SiO2 [wt.%]", framestyle=:box, 
@@ -98,7 +130,7 @@
     savefig("c_ign.png")
 
     # Volcanic
-    c, n = bincounts(bulk.SiO2[macro_cats.volc], 40, 80, 80)
+    c, n = bincounts(bulk.SiO2[macro_cats.volc], 40, 80, 40)
     n = float(n) ./ nansum(float(n) .* step(c))
     h = plot(c, n, seriestype=:bar, label="Volcanic; n = $(count(macro_cats.volc))", 
         ylabel="Weight", xlabel="SiO2 [wt.%]", framestyle=:box,
@@ -107,7 +139,7 @@
     savefig("c_volc.png")
 
     # Plutonic
-    c, n = bincounts(bulk.SiO2[macro_cats.plut], 40, 80, 80)
+    c, n = bincounts(bulk.SiO2[macro_cats.plut], 40, 80, 40)
     n = float(n) ./ nansum(float(n) .* step(c))
     h = plot(c, n, seriestype=:bar, label="Plutonic; n = $(count(macro_cats.plut))", 
         ylabel="Weight", xlabel="SiO2 [wt.%]", framestyle=:box,
@@ -157,6 +189,7 @@
     counts = [count(==(i), ind) for i in unique(ind)]
 
     f = findmax(counts)[1] / length(ind)
-    @info "$(round(f*100, digits=2))% indices are from one EarthChem sample"
+    @info "$(round(f*100, digits=2))% of indices are from one EarthChem sample"
+
 
 ## --- End of File

@@ -179,17 +179,58 @@
 
 ## --- Check how many indices in a given bin are from one sample
     # Given an index i and bin centers c...
+    # c, n, = bincounts(rsvolc.SiO2, 40, 80, 160)
+    c, n, = bincounts(rsplut.SiO2, 40, 80, 160)
+    # c, n, = bincounts(rsign.SiO2, 40, 80, 160)
+
     filter = macro_cats.plut
     i = findmax(n)[2]
 
     s = step(c)/2
     s = @. c[i]-s <= bulk.SiO2[filter] <= c[i]+s
 
-    ind = bulkidx[t][macro_cats.plut][s]
-    counts = [count(==(i), ind) for i in unique(ind)]
+    ind = bulkidx[t][filter][s]
+    unind = unique(ind)
+    counts = [count(==(i), ind) for i in unind]
 
     f = findmax(counts)[1] / length(ind)
-    @info "$(round(f*100, digits=2))% of indices are from one EarthChem sample"
+    i = findmax(counts)[2]
+    @info "$(round(f*100, digits=2))% of indices are from EarthChem sample i = $(unind[i])"
 
+    
+## --- Take a look at the matched sample
+    # Set sample value
+    i = 413791
 
+    # Bulk cannot be restricted
+    bulkfid = h5open("output/bulk.h5", "r")
+    header = read(bulkfid["bulk"]["header"])
+    data = read(bulkfid["bulk"]["data"])
+    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    # bulk_cats = match_earthchem(bulk.Type, major=false)
+
+    # Bulk rock name, type, and material
+    path = bulkfid["bulktext"]["sampledata"]
+    header = read(path["header"])
+    index = read(path["index"])
+    target = ["Rock_Name", "Type", "Material"]
+    targetind = [findall(==(i), header)[1] for i in target]
+    bulktext = NamedTuple{Tuple(Symbol.(target))}(
+        [lowercase.(read(path["elements"][target[i]]))[index[:,targetind[i]]] for i in eachindex(target)]
+    )
+    close(bulkfid)
+
+    # Terminal printout
+    @info """
+    Age: $(bulk.Age[i])
+    Lat, Lon: ($(bulk.Latitude[i]), $(bulk.Longitude[i]))
+    SiO₂: $(round(bulk.SiO2[i], digits=2))%
+
+    Name: $(bulktext.Rock_Name[i])
+    Type: $(bulktext.Type[i])
+    Material: $(bulktext.Material[i])
+    """
+
+    # Query Macrostrat at that location:
+    # https://macrostrat.org/api/mobile/map_query?lat=LAT&lng=LON&z=11
 ## --- End of File

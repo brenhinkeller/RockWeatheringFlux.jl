@@ -7,7 +7,6 @@
     using ProgressMeter
     using LoopVectorization
     using Static
-    using Plots
 
     # Local utilities
     include("utilities/Utilities.jl")
@@ -85,7 +84,7 @@
 
     
 ## --- Daly Gap problems
-    # Plutonic
+    # # Plutonic
     # count(macro_cats.plut)
     # count(macro_cats.plut .& ign_cats.maf)
     # count(macro_cats.plut .& ign_cats.int)
@@ -109,7 +108,8 @@
     # count(ign_cats.int)
     # count(ign_cats.fel)
 
-    ## --- More experimentation to see what's going on with igneous rocks
+
+## --- More experimentation to see what's going on with igneous rocks
     # allnames = [get_type(name_cats, i, all_keys=true) for i in eachindex(macro_cats.sed)]
     # ignnames = unique(allnames[macro_cats.ign])
 
@@ -126,82 +126,6 @@
     # writedlm("rockname_silica.csv", vcat(["name" "class" "silica" "1 sigma"], 
     #     hcat(collect(rocknames), class, silica, silica_err)), ','
     # )
-    
 
-## --- Plot igneous rock silica distributions
-    # # All igneous
-    # c, n = bincounts(bulk.SiO2[macro_cats.ign], 40, 80, 40)
-    # n = float(n) ./ nansum(float(n) .* step(c))
-    # h = plot(c, n, seriestype=:bar, label="All Igneous; n = $(count(macro_cats.ign))", 
-    #     ylabel="Weight", xlabel="SiO2 [wt.%]", framestyle=:box, 
-    #     ylims=(0, round(maximum(n), digits=2)+0.01))
-    # display(h)
-    # savefig("c_ign.png")
-
-    # # Volcanic
-    # c, n = bincounts(bulk.SiO2[macro_cats.volc], 40, 80, 40)
-    # n = float(n) ./ nansum(float(n) .* step(c))
-    # h = plot(c, n, seriestype=:bar, label="Volcanic; n = $(count(macro_cats.volc))", 
-    #     ylabel="Weight", xlabel="SiO2 [wt.%]", framestyle=:box,
-    #     ylims=(0, round(maximum(n), digits=2)+0.01))
-    # display(h)
-    # savefig("c_volc.png")
-
-    # # Plutonic
-    # c, n = bincounts(bulk.SiO2[macro_cats.plut], 40, 80, 40)
-    # n = float(n) ./ nansum(float(n) .* step(c))
-    # h = plot(c, n, seriestype=:bar, label="Plutonic; n = $(count(macro_cats.plut))", 
-    #     ylabel="Weight", xlabel="SiO2 [wt.%]", framestyle=:box,
-    #     ylims=(0, round(maximum(n), digits=2)+0.01))
-    # display(h)
-    # savefig("c_plut.png")
-
-    # # Resampled
-    # rssilica = importdataset("output/bulk_ignsilica_rs.tsv", '\t', importas=:Tuple)
-    # c, n, = bincounts(rssilica.SiO2, 40, 80, 160)
-    # n = float(n) ./ nansum(float(n) .* step(c))
-    # h = plot(c, n, seriestype=:bar, label="Resampled; n = $(length(rssilica.SiO2))", 
-    #     ylabel="Weight", xlabel="SiO2 [wt.%]", framestyle=:box, color=:purple, 
-    #     linecolor=:purple, ylims=(0, round(maximum(n), digits=2)+0.01))
-    # display(h)
-    # savefig("c_rsam.png")
-
-
-## --- Resample (whole) bulk SiO2
-    # Get bulk data (normalized to 100%)
-    bulkfid = h5open("output/bulk.h5", "r")
-        header = read(bulkfid["bulk"]["header"])
-        data = read(bulkfid["bulk"]["data"])
-        bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
-    close(bulkfid)
-    bulk_cats = match_earthchem(bulk.Type, major=false)
-
-    # Resample igneous rocks based on spatial distribution **only**
-    # Assume error ± 0 wt.%
-    nrows = 1_000_000
-    k = invweight(bulk.Latitude[bulk_cats.ign], bulk.Longitude[bulk_cats.ign], fill(2000, 
-        length(bulk.Age))
-    )                                                   # Calculate inverse weights
-    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)      # Keep ~ 1/5 of the data in each resampling
-    t = @. !isnan(p)
-    silica = bsresample(bulk.SiO2[bulk_cats.ign][t], zeros(length(bulk.SiO2[bulk_cats.ign][t])), 
-        nrows, p[t]
-    )         
-
-    # Save data to file
-    gap = length(silica) - length(k)
-    k = vcat(k, fill(NaN, gap))
-    p = vcat(p, fill(NaN, gap))
-    # writedlm("output/bulk_silica_rs.tsv", vcat(["k" "p" "SiO2"], hcat(k, p, silica)))
-    writedlm("output/bulk_ignsilica_rs.tsv", vcat(["k" "p" "SiO2"], hcat(k, p, silica)))
-
-    # Get mafic / intermediate / felsic counts
-    maf_rs = @. ignsilica.maf[1] < silica <= ignsilica.maf[2]
-    int_rs = @. ignsilica.int[1] < silica <= ignsilica.int[2]
-    fel_rs = @. ignsilica.fel[1] < silica <= ignsilica.fel[2]
-
-    count(maf_rs)
-    count(int_rs)
-    count(fel_rs)
 
 ## --- End of file

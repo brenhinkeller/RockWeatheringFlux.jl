@@ -139,7 +139,7 @@
     # display(f)
 
 
-## --- [DATA] SiO₂ content by igneous rock type
+## --- [DATA] Matched EarthChem and Macrostrat samples
     # Get indicies of matched samples
     bulkidx = Int.(vec(readdlm("$matchedbulk_io")))
     t = @. bulkidx != 0
@@ -197,14 +197,25 @@
     savefig("c_plut.png")
 
 
+## --- SiO₂ distribution by sedimentary rock type 
+    # All sedimentary
+    c, n = bincounts(bulk.SiO2[macro_cats.sed], 0, 100, 100)
+    n = float(n) ./ nansum(float(n) .* step(c))
+    h = plot(c, n, seriestype=:bar, label="All Sedimentary; n = $(count(macro_cats.sed))", 
+        ylabel="Weight", xlabel="SiO2 [wt.%]", framestyle=:box, 
+        ylims=(0, round(maximum(n), digits=2)+0.01))
+    display(h)
+    savefig("c_sed.png")
+
+
 ## --- [DATA] Resampled EarthChem SiO₂ (spatial density only)
     # Igneous
-    rs_ign = importdataset("output/resampled/ign.tsv", '\t', importas=:Tuple)
-    rs_volc = importdataset("output/resampled/volc.tsv", '\t', importas=:Tuple)
-    rs_plut = importdataset("output/resampled/plut.tsv", '\t', importas=:Tuple)
+    rs_ign = importdataset("output/resampled/rs_ign.tsv", '\t', importas=:Tuple)
+    rs_volc = importdataset("output/resampled/rs_volc.tsv", '\t', importas=:Tuple)
+    rs_plut = importdataset("output/resampled/rs_plut.tsv", '\t', importas=:Tuple)
 
     # Sedimentary
-    rs_sed = importdataset("output/resampled/sed.tsv", '\t', importas=:Tuple)
+    rs_sed = importdataset("output/resampled/rs_sed.tsv", '\t', importas=:Tuple)
 
 
 ## --- Resampled SiO₂ distribution by igneous rock type
@@ -236,6 +247,17 @@
     savefig("c_rs_plut.png")
 
 
+## --- Resampled SiO₂ distribution by sedimentary rock type
+    # All sedimentary
+    c, n, = bincounts(rs_sed.SiO2, 0, 100, 100)
+    n = float(n) ./ nansum(float(n) .* step(c))
+    h = plot(c, n, seriestype=:bar, label="Sedimentary (resample); n = $(length(rs_sed.SiO2))", 
+        ylabel="Weight", xlabel="SiO2 [wt.%]", framestyle=:box, color=:purple, 
+        linecolor=:purple, ylims=(0, round(maximum(n), digits=2)+0.01))
+    display(h)
+    savefig("c_rs_sed.png")
+
+
 ## --- [FUNCTION] Find the most common EarthChem sample in the modal bin
     using Plots
 
@@ -246,28 +268,44 @@
 
     Count how many samples in the modal bin are from the same EarthChem sample. Optionally
     plot a histogram of the frequency of all selected indices.
+
+    Assumes `bulk` is matched indices such that `macro_cats` can be used to filter samples
+    by rock type.
     """
-    function sameindex(type::Symbol, macro_cats, bulk, bulkidx; hist=:on)
+    function sameindex(type::Symbol, macro_cats, bulk, bulkidx; 
+        bins, hist=:on)
+
         filter = macro_cats[type]
 
-        c, n, = bincounts(bulk.SiO2[filter], 40, 80, 160)
+        c, n, = bincounts(bulk.SiO2[filter], bins...,)
 
         # Find modal bin and all the points in it
         i = findmax(n)[2]
         s = step(c)/2
-        s = @. c[i]-s <= bulk.SiO2[filter] <= c[i]+s
+        tᵢ = @. c[i]-s <= bulk.SiO2[filter] <= c[i]+s
 
         # Find indices of those points, and count the frequency
-        ind = bulkidx[filter][s]
+        ind = bulkidx[filter][tᵢ]
         unind = unique(ind)
         counts = [count(==(i), ind) for i in unind]
 
-        # What percent of the indices are the mode?
-        f = findmax(counts)[1] / length(ind)
-        i = findmax(counts)[2]
+        # What percent of the indices in this bin are the mode?
+        f = findmax(counts)[1] 
+        j = findmax(counts)[2]
+
+        # What percent of total indices are this index?
+        totalcount = count(==(unind[j]), bulkidx[filter])
+        totalindex = length(bulkidx[filter])
 
         # Terminal printout
-        @info "$(round(f*100, digits=2))% of $type indices are from EarthChem sample i = $(unind[i])"
+        @info """
+        Type: $type
+        Modal bin: $i ($(c[i]-s)-$(c[i]+s) wt.% SiO₂)
+        Modal index count: $f of $(length(ind)) ($(round(f/length(ind)*100, digits=2))%)
+        Index: $(unind[j])
+
+        This index is $(round(totalcount/totalindex*100, digits=2))% of all $type indices.
+        """
 
         # Histogram
         if hist==:on
@@ -283,14 +321,18 @@
 
 ## --- [FN CALL] sameindex() modal bin index counter
     # Igneous
-    sameindex(:ign, macro_cats, bulk, bulkidx[t], hist=:off)        # All igneous
-    sameindex(:volc, macro_cats, bulk, bulkidx[t], hist=:off)       # Plutonic 
-    sameindex(:plut, macro_cats, bulk, bulkidx[t], hist=:off)       # Volcanic
+    ignbin = (40, 80, 40)
+    sameindex(:ign, macro_cats, bulk, bulkidx[t], bins=ignbin, hist=:off)        # All igneous
+    sameindex(:volc, macro_cats, bulk, bulkidx[t], bins=ignbin, hist=:off)       # Plutonic 
+    sameindex(:plut, macro_cats, bulk, bulkidx[t], bins=ignbin, hist=:off)       # Volcanic
 
-
+    # Sedimentary
+    sedbin = (0, 100, 100)
+    sameindex(:sed, macro_cats, bulk, bulkidx[t], bins=sedbin, hist=:off)        # All sedimentary
 ## --- Get EarthChem (meta)data for a given sample index
     # Set sample value
-    i = 413791
+    # i = 413791    # Igneous
+    i = 413684    # Sedimentary
 
     # Load EarthChem data
     bulkfid = h5open("output/bulk.h5", "r")

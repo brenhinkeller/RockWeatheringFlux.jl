@@ -236,12 +236,13 @@
 
     """
     ```julia
-    sameindex(type::Symbol, macro_cats, bulk, bulkidx)
+    sameindex(type::Symbol, macro_cats, bulk, bulkidx, hist=:on)
     ```
 
-    Count how many samples in the modal bin are from the same EarthChem sample.
+    Count how many samples in the modal bin are from the same EarthChem sample. Optionally
+    plot a histogram of the frequency of all selected indices.
     """
-    function sameindex(type::Symbol, macro_cats, bulk, bulkidx)
+    function sameindex(type::Symbol, macro_cats, bulk, bulkidx, hist=:on)
         filter = macro_cats[type]
 
         c, n, = bincounts(bulk.SiO2[filter], 40, 80, 160)
@@ -264,12 +265,14 @@
         @info "$(round(f*100, digits=2))% of indices are from EarthChem sample i = $(unind[i])"
 
         # Histogram
-        c = sort!(unique(bulkidx[filter]))
-        n = [count(==(i), bulkidx[filter]) for i in c]
-        h = plot(c, n, seriestype=:bar, label="$type", xlabel="Index [all bins]", 
-            ylabel="Frequency", framestyle=:box, ylims=(0, maximum(n)+100), color=:black
-        )
-        display(h)
+        if hist==:on
+            c = sort!(unique(bulkidx[filter]))
+            n = [count(==(i), bulkidx[filter]) for i in c]
+            h = plot(c, n, seriestype=:bar, label="$type", xlabel="Index [all bins]", 
+                ylabel="Frequency", framestyle=:box, ylims=(0, maximum(n)+100), color=:black,
+            )
+            display(h)
+        end
     end
 
 
@@ -315,5 +318,5 @@
     # Query Macrostrat at that location:
     # https://macrostrat.org/api/mobile/map_query?lat=LAT&lng=LON&z=11
 
-    
+
 ## --- End of File

@@ -1,4 +1,6 @@
 ## --- Set up
+    # CTRL+K CTR+[ to collapse all sections
+
     # Base computational packages
     using StatGeochem
     using HDF5
@@ -197,9 +199,12 @@
 
 ## --- [DATA] Resampled EarthChem SiO₂ (spatial density only)
     # Igneous
-    rs_ign = importdataset("output/bulk_ignsilica_rs.tsv", '\t', importas=:Tuple)
-    rs_volc = importdataset("output/bulk_volcsilica_rs.tsv", '\t', importas=:Tuple)
-    rs_plut = importdataset("output/bulk_plutsilica_rs.tsv", '\t', importas=:Tuple)
+    rs_ign = importdataset("output/resampled/ign.tsv", '\t', importas=:Tuple)
+    rs_volc = importdataset("output/resampled/volc.tsv", '\t', importas=:Tuple)
+    rs_plut = importdataset("output/resampled/plut.tsv", '\t', importas=:Tuple)
+
+    # Sedimentary
+    rs_sed = importdataset("output/resampled/sed.tsv", '\t', importas=:Tuple)
 
 
 ## --- Resampled SiO₂ distribution by igneous rock type
@@ -236,13 +241,13 @@
 
     """
     ```julia
-    sameindex(type::Symbol, macro_cats, bulk, bulkidx, hist=:on)
+    sameindex(type::Symbol, macro_cats, bulk, bulkidx; hist=:on)
     ```
 
     Count how many samples in the modal bin are from the same EarthChem sample. Optionally
     plot a histogram of the frequency of all selected indices.
     """
-    function sameindex(type::Symbol, macro_cats, bulk, bulkidx, hist=:on)
+    function sameindex(type::Symbol, macro_cats, bulk, bulkidx; hist=:on)
         filter = macro_cats[type]
 
         c, n, = bincounts(bulk.SiO2[filter], 40, 80, 160)
@@ -262,7 +267,7 @@
         i = findmax(counts)[2]
 
         # Terminal printout
-        @info "$(round(f*100, digits=2))% of indices are from EarthChem sample i = $(unind[i])"
+        @info "$(round(f*100, digits=2))% of $type indices are from EarthChem sample i = $(unind[i])"
 
         # Histogram
         if hist==:on
@@ -278,9 +283,9 @@
 
 ## --- [FN CALL] sameindex() modal bin index counter
     # Igneous
-    sameindex(:ign, macro_cats, bulk, bulkidx[t])        # All igneous
-    sameindex(:volc, macro_cats, bulk, bulkidx[t])       # Plutonic 
-    sameindex(:plut, macro_cats, bulk, bulkidx[t])       # Volcanic
+    sameindex(:ign, macro_cats, bulk, bulkidx[t], hist=:off)        # All igneous
+    sameindex(:volc, macro_cats, bulk, bulkidx[t], hist=:off)       # Plutonic 
+    sameindex(:plut, macro_cats, bulk, bulkidx[t], hist=:off)       # Volcanic
 
 
 ## --- Get EarthChem (meta)data for a given sample index

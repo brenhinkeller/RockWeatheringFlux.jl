@@ -706,7 +706,7 @@
             # Assume if one coordinate is missing, so is the other one
             if isnan(bulklat[i])
                 bulklat[i] = -samplelat
-                bulklon[i] = -samplelon
+                bulklon[i] = samplelon + 180
             end
         end
 

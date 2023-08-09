@@ -105,13 +105,13 @@
     # if there's enough samples to choose from.
 
     # # Preallocate
-    # spatial_lookup = NamedTuple{keys(name_cats)}([fill(0., nbulk) for _ in eachindex(name_cats)])
+    # spatial_lookup = NamedTuple{keys(name_cats)}([fill(NaN, nbulk) for _ in eachindex(name_cats)])
 
     # @info "Calculating inverse spatial weights for each rock name"
     # for n in eachindex(keys(spatial_lookup))
     #     println("$n ($n/$(length(rocknames))) \n")
-    #     spatial_lookup[n][bulk_lookup[n]] .= invweight(bulk.Latitude[bulk_lookup[n]], 
-    #         bulk.Latitude[bulk_lookup[n]], ones(nbulk)
+    #     spatial_lookup[n][bulk_lookup[n]] .= invweight_location(bulk.Latitude[bulk_lookup[n]], 
+    #         bulk.Latitude[bulk_lookup[n]]
     #     )
     # end
 
@@ -130,12 +130,15 @@
 ## --- Alternatively, load spatial weights from a file
     fid = h5open("output/invspatial.h5", "r")
         header = read(fid["header"])
-        data = read(fid["k"])
+        k = read(fid["k"])
     close(fid)
-    spatial_lookup = NamedTuple{Tuple(Symbol.(header))}(data[:,i] for i in eachindex(header))
+    # p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+    p = 1.0 ./ k
+    zeronan!(p)
+    spatial_lookup = NamedTuple{Tuple(Symbol.(header))}(p[:,i] for i in eachindex(header))
 
 
-## --- Find matching Earthchem sample for each Macrostrat sample
+# ## --- Find matching Earthchem sample for each Macrostrat sample
     # Preallocate
     matches = zeros(Int64, length(macro_cats.sed))
     geochemkeys, = get_elements()               # Major elements

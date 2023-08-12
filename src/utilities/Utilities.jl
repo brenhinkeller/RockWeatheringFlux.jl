@@ -3,6 +3,7 @@
     include("Slope.jl")
     include("NaNMeasurements.jl")
     include("Macrostrat.jl")
+    include("Analysis.jl")
 
     
 ## --- Generate random points on the continental crust

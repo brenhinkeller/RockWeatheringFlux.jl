@@ -36,6 +36,19 @@
         # erodedrel_out = "results/1M_erodedmaterial_rel.tsv"
 
 
+## --- Color names for visualization
+    clr_gradient = :jet1
+
+    # Observed samples by rock type
+    clr_ign = :crimson
+    clr_volc = :tomato 
+    clr_plut = :darkred
+    clr_sed = :green
+
+    # Resampled
+    clr_rs = :grey
+
+
 ## --- Major and minor elements
     """
     ```julia

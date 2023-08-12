@@ -1,5 +1,7 @@
 ## --- Set up
     # CTRL+K CTR+[ to collapse all sections
+    # Note that loading Makie packages and Plots packages may cause the code to run
+    # incorrectly
 
     # Base computational packages
     using StatGeochem
@@ -169,6 +171,8 @@
 
 
 ## --- SiO₂ distribution by igneous rock type
+    using Plots
+
     # All igneous
     c, n = bincounts(bulk.SiO2[macro_cats.ign], 40, 80, 40)
     n = float(n) ./ nansum(float(n) .* step(c))
@@ -269,20 +273,20 @@
     Count how many samples in the modal bin are from the same EarthChem sample. Optionally
     plot a histogram of the frequency of all selected indices.
 
-    Assumes `bulk` is matched indices such that `macro_cats` can be used to filter samples
-    by rock type.
+    Data in `bulk` __must__ be the unmatched samples, and `bulkidx` must be filtered so
+    there are no indices of 0.
     """
-    function sameindex(type::Symbol, macro_cats, bulk, bulkidx; 
+    function sameindex(type::Symbol, macro_cats, bulk, bulktext, bulkidx; 
         bins, hist=:on)
 
         filter = macro_cats[type]
 
-        c, n, = bincounts(bulk.SiO2[filter], bins...,)
+        c, n, = bincounts(bulk.SiO2[bulkidx][filter], bins...,)
 
         # Find modal bin and all the points in it
         i = findmax(n)[2]
         s = step(c)/2
-        tᵢ = @. c[i]-s <= bulk.SiO2[filter] <= c[i]+s
+        tᵢ = @. c[i]-s <= bulk.SiO2[bulkidx][filter] <= c[i]+s
 
         # Find indices of those points, and count the frequency
         ind = bulkidx[filter][tᵢ]
@@ -291,10 +295,11 @@
 
         # What percent of the indices in this bin are the mode?
         f = findmax(counts)[1] 
-        j = findmax(counts)[2]
+        j = unind[findmax(counts)[2]]
+
 
         # What percent of total indices are this index?
-        totalcount = count(==(unind[j]), bulkidx[filter])
+        totalcount = count(==(j), bulkidx[filter])
         totalindex = length(bulkidx[filter])
 
         # Terminal printout
@@ -302,9 +307,19 @@
         Type: $type
         Modal bin: $i ($(c[i]-s)-$(c[i]+s) wt.% SiO₂)
         Modal index count: $f of $(length(ind)) ($(round(f/length(ind)*100, digits=2))%)
-        Index: $(unind[j])
+        Index: $(j)
 
-        This index is $(round(totalcount/totalindex*100, digits=2))% of all $type indices.
+        This sample is $(round(totalcount/totalindex*100, digits=2))% of all $type matches.
+        ---
+        Sample information:
+
+        Age: $(bulk.Age[j])
+        Lat, Lon: $(bulk.Latitude[j]), $(bulk.Longitude[j])
+        SiO₂: $(round(bulk.SiO2[j], digits=2))%
+
+        Name: $(bulktext.Rock_Name[j])
+        Type: $(bulktext.Type[j])
+        Material: $(bulktext.Material[j])
         """
 
         # Histogram
@@ -319,21 +334,7 @@
     end
 
 
-## --- [FN CALL] sameindex() modal bin index counter
-    # Igneous
-    ignbin = (40, 80, 40)
-    sameindex(:ign, macro_cats, bulk, bulkidx[t], bins=ignbin, hist=:off)        # All igneous
-    sameindex(:volc, macro_cats, bulk, bulkidx[t], bins=ignbin, hist=:off)       # Plutonic 
-    sameindex(:plut, macro_cats, bulk, bulkidx[t], bins=ignbin, hist=:off)       # Volcanic
-
-    # Sedimentary
-    sedbin = (0, 100, 100)
-    sameindex(:sed, macro_cats, bulk, bulkidx[t], bins=sedbin, hist=:off)        # All sedimentary
-## --- Get EarthChem (meta)data for a given sample index
-    # Set sample value
-    # i = 413791    # Igneous
-    i = 413684    # Sedimentary
-
+## --- [FN CALL, DATA] sameindex() modal bin index counter
     # Load EarthChem data
     bulkfid = h5open("output/bulk.h5", "r")
     header = read(bulkfid["bulk"]["header"])
@@ -351,19 +352,17 @@
     )
     close(bulkfid)
 
-    # Terminal printout
-    @info """
-    Age: $(bulk.Age[i])
-    Lat, Lon: ($(bulk.Latitude[i]), $(bulk.Longitude[i]))
-    SiO₂: $(round(bulk.SiO2[i], digits=2))%
+    # Igneous
+    ignbin = (40, 80, 40)
+    sameindex(:ign, macro_cats, bulk, bulktext, bulkidx[t], bins=ignbin, hist=:off)     # All ign
+    sameindex(:volc, macro_cats, bulk, bulktext, bulkidx[t], bins=ignbin, hist=:off)    # Plutonic 
+    sameindex(:plut, macro_cats, bulk, bulktext, bulkidx[t], bins=ignbin, hist=:off)    # Volcanic
 
-    Name: $(bulktext.Rock_Name[i])
-    Type: $(bulktext.Type[i])
-    Material: $(bulktext.Material[i])
-    """
+    # Sedimentary
+    sedbin = (0, 100, 100)
+    sameindex(:sed, macro_cats, bulk, bulktext, bulkidx[t], bins=sedbin, hist=:off)     # All sed
 
     # Query Macrostrat at that location:
     # https://macrostrat.org/api/mobile/map_query?lat=LAT&lng=LON&z=11
 
-
-## --- End of File
+## --- End of file

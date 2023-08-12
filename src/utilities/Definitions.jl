@@ -139,7 +139,7 @@
         # Igneous
         volc = ("volcan", "lava", "lahar", "ignimbrite", "ashfall", "tuff", "diatreme",
             "pipe", "basalt", "andesit", "dacit", "rhyolit", "pillow", "carbonatite", 
-            "tephra", "obsidian", "ash", "scoria", "pumice", "cinder", "latite", 
+            "tephra", "obsidian", "ash fall", "scoria", "pumice", "cinder", "latite", 
             "basanite", "phonolite", "fonolito", "trachyte", "palagonite", "mugearite", 
             "kimberlite", "ultramafitite", "komatiite",)
         plut = (

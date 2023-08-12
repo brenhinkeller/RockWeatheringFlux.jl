@@ -202,7 +202,7 @@
         errs = NamedTuple{Tuple(geochemkeys)}([abs(randn()*geochemdata[i].e) for i in geochemkeys])
 
         geochemdata = NamedTuple{Tuple(geochemkeys)}([NamedTuple{(:m, :e)}(
-            tuple.((bulk[i][randsample]), errs[i])) for i in geochemkeys]
+            tuple.((bulkzero[i][randsample]), errs[i])) for i in geochemkeys]
         )
 
         # Find match

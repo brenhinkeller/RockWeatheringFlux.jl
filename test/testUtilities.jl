@@ -1,14 +1,14 @@
 ## -- Test functions from Utilities.jl
     using Test
 
-    
+
 ## --- Rock name matching
     rocktype = ["sedimentary and volcanic rocks", "major: {limestone},minor: {slate}", "", "",]
     rockname = ["precambrian-phanerozoic sedimentary and volcanic rocks", "rabbitkettle fm", 
         "hodgkinson formation - hornfelsed", "",]
     rockdescrip = ["", "", "hornfelsed arenite and mudstone", "silt, sand, sandstone",]
 
-    # Match to classes
+    # Match Macrostrat names to classes
     cats = match_rocktype(rocktype, rockname, rockdescrip; source=:macrostrat, unmultimatch=false)
 
     @test cats.siliciclast == [false, false, false, true]
@@ -33,13 +33,38 @@
     @test all(get_type(cats, 3, all_keys=true) == (:metased, :met))
     @test all(get_type(cats, 4, all_keys=true) == (:siliciclast, :sed))
 
-    # Match rock names to names
+    # Match Macrostrat rock names to names
     cats = match_rockname(rocktype, rockname, rockdescrip)
 
     @test all(get_type(cats, 1, all_keys=true) == (:sediment, :volcanic, :volcan))
     @test all(get_type(cats, 2, all_keys=true) == (:limestone,))
     @test all(get_type(cats, 3, all_keys=true) == (:hornfels,))
     @test all(get_type(cats, 4, all_keys=true) == (:sand, :silt))
+
+    # Match EarthChem rock names to classes
+    Rock_Name = ["basalt", "sandstone", ""]
+    Type = ["volcanic", "siliciclastic", ""]
+    Material = ["igneous", "sedimentary", "exotic"]
+
+    cats = match_rocktype(Rock_Name, Type, Material; source=:earthchem, unmultimatch=false)
+
+    @test cats.siliciclast == [false, true, false]
+    @test cats.shale == [false, false, false]
+    @test cats.carb == [false, false, false]
+    @test cats.chert == [false, false, false]
+    @test cats.evaporite == [false, false, false]
+    @test cats.coal == [false, false, false]
+    @test cats.phosphorite == [false, false, false]
+    @test cats.volcaniclast == [false, false, false]
+    @test cats.sed == [false, true, false]
+    @test cats.volc == [true, false, false]
+    @test cats.plut == [false, false, true]
+    @test cats.ign == [true, false, true]
+    @test cats.metased == [false, false, false]
+    @test cats.metaign == [false, false, false]
+    @test cats.met == [false, false, false]
+    @test cats.cover == [false, false, false]
+
 
 
 ## --- Points in polygon

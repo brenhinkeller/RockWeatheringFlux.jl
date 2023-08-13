@@ -17,16 +17,11 @@
     ```
 
     Classify rock samples as sedimentary, igneous, or metamorphic (and associated subtypes)
-    based on `primary`, `secondary`, and `tertiary` sample metadata. Classify samples using
-    `primary` metadata first; if no matches are made, attempt to classify sample using 
-    `secondary` metadata, etc. 
+    based on `primary`, `secondary`, and `tertiary` sample metadata. Use `primary` metadata 
+    first; if no matches are made, attempt to classify sample using `secondary` metadata, 
+    etc. 
 
-    ### Required kwarg `source`
     Specify the source of the samples as `:macrostrat` or `:earthchem`.
-
-    Recommended `primary`, `secondary`, and `tertiary` sample metadata for:
-      * Macrostrat: `match_rocktype(rocktype, rockname, rockdescrip; source=:macrostrat)`
-      * Earthchem: `match_rocktype(Rock_Name, Type, Material; source=:earthchem)`
 
     ### Optional kwarg `major`
     `true` returns: `sed, ign, met`
@@ -49,33 +44,34 @@
     cover  = BitVector(50000,)    [false ... false]
     ```
     """
-    function match_rocktype(rocktype::AbstractArray, rockname::AbstractArray, rockdescrip::AbstractArray; 
-            major::Bool=false, 
-            unmultimatch::Bool=true, 
-            source::Symbol
-        )
+    match_rocktype(primary::AbstractArray, secondary::AbstractArray, tertiary::AbstractArray; 
+        major::Bool=false, unmultimatch::Bool=true, source::Symbol
+    ) = _match_rocktype(primary, secondary, tertiary, major, unmultimatch, static(source))
 
+    """
+    ```julia
+    match_rocktype(rocktype, rockname, rockdescrip; source=:macrostrat, [major], [unmultimatch])
+    ```
+
+    Match Macrostrat rock names to defined rock classes.
+    """
+    function _match_rocktype(rocktype, rockname, rockdescrip, major, unmultimatch, 
+            source::StaticSymbol{:macrostrat}
+        )
         # Get rock type classifications and initialized BitVector
         typelist, cats = get_cats(major, length(rocktype))
+        p = Progress(length(typelist)*4+1, desc="Finding Macrostrat rock types...")
+        next!(p)
 
-        # Check major lithology if samples are from Macrostrat
-        if source==:macrostrat
-            p = Progress(length(typelist)*4+1, desc="Finding Macrostrat rock types...")
-            next!(p)
-            for j in eachindex(typelist)
-                for i = eachindex(typelist[j])
-                    for k in eachindex(cats[j])
-                        cats[j][k] |= match(r"major.*?{(.*?)}", rocktype[k]) |> x -> 
-                        isa(x,RegexMatch) ? containsi(x[1], typelist[j][i]) : false
-                    end
+        # Check major lithology 
+        for j in eachindex(typelist)
+            for i = eachindex(typelist[j])
+                for k in eachindex(cats[j])
+                    cats[j][k] |= match(r"major.*?{(.*?)}", rocktype[k]) |> x -> 
+                    isa(x,RegexMatch) ? containsi(x[1], typelist[j][i]) : false
                 end
-                next!(p)
             end
-        elseif source==:earthchem 
-            p = Progress(length(typelist)*3+1, desc="Finding Earthchem rock types...")
             next!(p)
-        else
-            error("Source $source not recognized.Specify :macrostrat or :earthchem")
         end
 
         # Check the rest of rocktype
@@ -106,6 +102,84 @@
             for i = eachindex(typelist[j])
                 for k in eachindex(cats[j])
                     not_matched[k] && (cats[j][k] |= containsi(rockdescrip[k], typelist[j][i]))
+                end
+            end
+            next!(p)
+        end
+
+        # If subtypes are true, major types must also be true
+        if major==false
+            minorsed, minorign, minormet = get_minor_types()
+            for type in minorsed
+                cats.sed .|= cats[type]
+            end
+            for type in minorign
+                cats.ign .|= cats[type]
+            end
+            for type in minormet
+                cats.met .|= cats[type]
+            end
+        end
+
+        unmultimatch && return un_multimatch!(cats, major)
+        return cats
+    end
+
+    """
+    ```julia
+    match_rocktype(Rock_Name, Type, Material; source=:earthchem, [major], [unmultimatch])
+    ```
+
+    Match Earthchem rock names to defined rock classes.
+    """
+    function _match_rocktype(Rock_Name, Type, Material, major, unmultimatch, 
+            source::StaticSymbol{:earthchem}
+        )
+        # Get rock type classifications and initialized BitVector
+        typelist, cats = get_cats(major, length(Rock_Name))
+        p = Progress(length(typelist)*3+1, desc="Finding Earthchem rock types...")
+        next!(p)
+
+        # Check rock name
+        @inbounds for j in eachindex(typelist)
+            for i = eachindex(typelist[j])
+                for k in eachindex(cats[j])
+                    cats[j][k] |= containsi(Rock_Name[k], typelist[j][i])
+                end
+            end
+            next!(p)
+        end
+
+        # New typelist for Type
+        # Omitted: vein
+        typelist = (
+            siliciclast = ("siliciclastic", "conglomerate&breccia",),
+            volc = ("volcanic",),
+            plut = ("plutonic", "pegmatitic"),
+        )
+        not_matched = find_unmatched(cats)
+        @inbounds for j in eachindex(typelist)
+            for i = eachindex(typelist[j])
+                for k in eachindex(cats[j])
+                    not_matched[k] && (cats[j][k] |= (Type[k] == typelist[j][i]))
+                end
+            end
+            next!(p)
+        end
+
+        # New typelist for Material
+        # Omitted: vein, ore
+        typelist = (
+            sed = ("sedimentary",),
+            plut = ("exotic",),
+            ign = ("igneous", "xenolith",),
+            met = ("metamorphic", "alteration",),
+        )
+        not_matched = find_unmatched(cats)
+        @inbounds for j in eachindex(typelist)
+            for i = eachindex(typelist[j])
+                for k in eachindex(cats[j])
+                    not_matched[k] && (cats[j][k] |= (Material[k] == typelist[j][i]))
                 end
             end
             next!(p)

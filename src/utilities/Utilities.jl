@@ -62,11 +62,10 @@
         if source==:macrostrat
             p = Progress(length(typelist)*4+1, desc="Finding Macrostrat rock types...")
             next!(p)
-
             for j in eachindex(typelist)
                 for i = eachindex(typelist[j])
                     for k in eachindex(cats[j])
-                        cats[j][k] = match(r"major.*?{(.*?)}", rocktype[k]) |> x -> 
+                        cats[j][k] |= match(r"major.*?{(.*?)}", rocktype[k]) |> x -> 
                         isa(x,RegexMatch) ? containsi(x[1], typelist[j][i]) : false
                     end
                 end
@@ -247,30 +246,27 @@
 
         # Check the rest of rocktype
         not_matched = find_unmatched(cats)
-        @inbounds for i in eachindex(typelist)
+        @inbounds for i in typelist
             for j in eachindex(rocktype)
-                !not_matched[j] && continue
-                cats[i][j] |= containsi(rocktype[j], typelist[i])
+                not_matched[j] && (cats[i][j] |= containsi(rocktype[j], typelist[i]))
             end
             next!(p)
         end
 
         # Then rockname
         not_matched = find_unmatched(cats)
-        @inbounds for i in eachindex(typelist)
+        @inbounds for i in typelist
             for j in eachindex(rockname)
-                !not_matched[j] && continue
-                cats[i][j] |= containsi(rockname[j], typelist[i])
+                not_matched[j] && (cats[i][j] |= containsi(rockname[j], typelist[i]))
             end
             next!(p)
         end
 
         # Then rockdescrip
         not_matched = find_unmatched(cats)
-        @inbounds for i in eachindex(typelist)
+        @inbounds for i in typelist
             for j in eachindex(rockdescrip)
-                !not_matched[j] && continue
-                cats[i][j] |= containsi(rockdescrip[j], typelist[i])
+                not_matched[j] && (cats[i][j] |= containsi(rockdescrip[j], typelist[i]))
             end
             next!(p)
         end

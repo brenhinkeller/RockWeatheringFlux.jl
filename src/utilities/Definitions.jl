@@ -121,62 +121,91 @@
     """
     function get_rock_class(major::Bool, npoints::Int64)
         # Sedimentary
-        siliciclast = ("siliciclast", "conglomerat", "sand", "psamm", "arenit", "arkos", 
-            "silt")
-        shale = ("mud", "clay","shale", "wacke", "argillite", "argillaceous", "flysch", 
-            "pelit", "turbidite")
-        carb = ("carbonate", "limestone", "dolo", "marl", "chalk", "travertine", "tavertine", 
-            "teravertine", "tufa")
-        chert = ("chert", "banded iron")
-        evaporite = ("evaporite", "gypsum", "salt flat", "caliche")
-        coal = ("coal", "anthracite")
+        siliciclast = ("siliciclast", "conglomerat", "sand", "psamm", "arenit", "arkos", "silt")
+        shale = ("lutite", "mud", "clay", "shale", "wacke", "argillite", "argillaceous", 
+            "flysch", "pelit", "turbidite", "tasmanite")
+        carb = ("carbonate", "limestone", "dolo", "marl", "chalk", "coquina", "biogenic", 
+            "travertine", "tavertine", "tufa", "calcarenite", "teravertine")
+        chert = ("chert", "opal", "porcellanite", "diatomite", "novaculite", "iron", "taconite", 
+            "banded iron")
+        evaporite = ("evaporite", "anhydrite", "gypsum", "trona", "halite", "sylvite", 
+            "salt flat", "caliche")
+        phosphorite = ("phosphorite", "phosphate")
+        coal = ("coal", "anthracite", "peat", "lignite", "bitumen")
+        volcaniclastic = ("tonstein", "peperite", "volcaniclastic")
 
-        sed = (("sediment", "fluv", "clast", "gravel", "pebble", "boulder", "diamict",
-            "tillite", "stream", "beach", "terrace",  "marine deposits",  "paleosol")...,
-            siliciclast..., shale..., carb..., chert..., evaporite..., coal...
+        sed = unique(("sediment", "clast", "diamict","tillite", "stream  deposits", "beach deposits", 
+            "terrace",  "marine deposits",  "paleosol", "spiculite", "glauconite")...,
+            siliciclast..., shale..., carb..., chert..., evaporite..., coal..., 
+            phosphorite..., volcaniclastic...,
         )
 
         # Igneous
-        volc = ("volcan", "lava", "lahar", "ignimbrite", "ashfall", "tuff", "diatreme",
-            "pipe", "basalt", "andesit", "dacit", "rhyolit", "pillow", "carbonatite", 
-            "tephra", "obsidian", "ash fall", "scoria", "pumice", "cinder", "latite", 
-            "basanite", "phonolite", "fonolito", "trachyte", "palagonite", "mugearite", 
-            "kimberlite", "ultramafitite", "komatiite",)
-        plut = (
-            # "True" plutonic rocks
-            ("pluton", "batholith", "granit", "tonalit", "gabbro", "norite", 
-            "diorit", "monzonit", "syenit", "peridot", "dunit", "harzburg", "anorthosite", 
-            "mangerite", "charnockite", "pegmatite", "aplite", "trond", "essexite", 
-            "pyroxenite", "adamellite", "porphyry", "megacryst", "rapakivi", "bronzitite", 
-            "alaskite", "troctolite")..., 
-            # Hypabyssal rocks
-            ("intrus", "hypabyssal", "sill", "dike", "stock", "laccolith", "lopolith", 
-            "dolerit", "diabase", "porphyry", "microgranite")...
+        volc = ("volcanic", "extrusive", "tuff", "basalt", "andesit", "dacit", "rhyolit", 
+            "pillow", "glass", "tephra", "obsidian", "ash", "scoria", "pumice", "cinder", 
+            "lahar", "lava", "lenticulite", "absarokite", "adakite", "alnoite", "alvikite", 
+            "analcimite", "anamesite", "ankaramite", "ankaratrite", "augitite", "basanit", 
+            "benmoreite", "bergalite", "boninite", "breunneritite", "buchonite", "campanite", 
+            "camptonite", "ciminite", "damkjernite", "dellenite", "domite", "etindite", 
+            "eutaxite", "felsite", "foidite", "fortunite", "gauteite", "grazinite", "hauynophyre", 
+            "hawaiite", "icelandite", "ignimbrite", "kalsilit", "katungite", "kenyte", 
+            "keratophyre", "kersantite", "kimberlite", "kivite", "komatiite", "lampro", "latite", 
+            "leucitite", "liparite", "limburgite", "linosaite", "madupite", "mafite", "mafraite", 
+            "mafurite", "marianite", "meimechite", "melafoidite", "melilit", "melnoite", 
+            "minette", "monchiquite", "mondhaldeite", "mugearite", "murambite", "nephelinite", 
+            "oceanite", "orangeite", "ordanchite", "orendite", "picrite", "phonolite", 
+            "pantellerite", "polzenite", "palagonite", "sannaite", "santorinite", "shoshonite", 
+            "tachylyte", "tahitite", "tephrite", "tholeiite", "trachyte", "tristanite", 
+            "vicoite", "vitrophere", "vitrophyre", "vulsinite", "wyomingite", "volcan", 
+            "ashfall", "diatreme", "pipe", "carbonatite", "ash fall", "basanite", "fonolito", 
+            "ultramafitite")
+        plut = ("plutonic", "intrusive", "granit", "tonalit", "gabbro", "diorit", "monzonit", 
+            "syenit", "adamellite", "alaskite", "allivalite", "anorthosite", "apatitite", 
+            "aplite", "biotitite", "borolanite", "bostonite", "bronzitite", "chromitite", 
+            "comendite", "corganite", "corgaspinite", "cortlandite", "crinanite", "charnockite", 
+            "diabase", "dolerit", "dunit", "durbachite", "enderbite", "essexite", "fergusite", 
+            "foyaite", "glenmuirite", "glimmerite", "granophyre", "hypabyssal", "harzburg", 
+            "hauynite", "hornblendite", "ijolite", "jacupirangite", "jotunite", "juvite", 
+            "kaersutitite", "kamafugite", "kentallenite", "kullaite", "labradorite", "larvikite", 
+            "lestiwarite", "lherzolite", "lujavrite", "luscladite", "marscoite", "melteigite", 
+            "megacryst", "missourite", "norite", "nordmarkite", "olivinite", "orthoclasite", 
+            "ottajanite", "pegmat", "peridot", "pyroxenite", "porphyry", "porphyrite", "puglianite",
+            "riedenite", "sanukite", "sebastianite", "shonkinite", "sommaite", "sovite", 
+            "tannbuschite", "teschenite", "theralite", "tinguaite", "trond", "vsbergite", 
+            "topazite", "troctolite", "turjaite", "ugandite", "uncompahgrite", "urtite", 
+            "vaugnerite", "vibetoite", "websterite", "wehrlite", "yamaskite", "pluton", 
+            "batholith", "mangerite", "pegmatite", "rapakivi", "intrus", "sill", "dike", 
+            "stock", "laccolith", "lopolith", "microgranite")
+        ign = unique(("igneous", "silicic ", "mafic", "felsic", "basite", "phoscorite", "rauhaugite", 
+            "beforsite")..., volc..., plut...
         )
 
-        ign = (("igneous", "silicic ", "mafic", "felsic", "basite",)..., volc..., plut...)
-
         # Metamorphic
-        metased = ("para", "metased", "meta-sed", "quartzite", "marble", "slate", "phyllite",)
-        metaign = ("ortho", "metaign", "meta-ign", "serpentin", "amphibolit", "greenstone", 
-            "eclogite", "metabasite",)
+        metased = ("para", "metased", "quartzite", "marble", "slate", "leptite", "phyllite", 
+        "porcellanite", "meta-sed")
+        metaign = ("orthogneiss", "metaign", "serpentin", "amphibolit", "greenstone", "eclogite", 
+            "basite", "greisen", "halleflinta", "leucophyre", "melaphyre", "propylite", "spilite", 
+            "ultramafitite", "alkremite", "ortho", "meta-ign", "metabasite")
         lowgrade = ("slate", "phyllite", "serpentin", "greenstone", "greenschist", "zeolite", 
             "gossan", "alter", "hydrothermal", "palagonite",)
-        highgrade = ("crystalline", "basement", "marble", "skarn", "schist", "blueschist", "gneiss", 
-            "amphibolit", "eclogite", "granulit", "hornfels", "granofels", "sanidinite", "migma", 
-            "enderbite", "anorthosite", "charnockite", "pyroxenite", "peridot", "dunit", "harzburg", 
-            "high grade metamorphic")
+        highgrade = ("crystalline", "basement", "marble", "skarn", "schist", "blueschist", 
+            "gneiss", "amphibolit", "eclogite", "granulit", "hornfels", "granofels", "sanidinite", 
+            "migma", "enderbite", "anorthosite", "charnockite", "pyroxenite", "peridot", "dunit", 
+            "harzburg", "high grade metamorphic")
         cataclastic = ("mylonit", "cataclasite", "melange", "gouge", "tecton",)
-
-        met = (cataclastic..., ("meta", "calc silicate",)...,  metased..., metaign..., lowgrade..., 
-            highgrade..., cataclastic...
+        
+        met = unique(("meta", "garnet", "buchite", "epidot", "fenite", "albitite", "chloritite", 
+            "phlogopitite", "calc silicate", "calcsilicate", "rodingite", "sericitite", 
+            "tactite", "soapstone", "talc", "tourmalinite", "unakite", "vogesite")..., 
+            metased..., metaign..., lowgrade..., highgrade..., cataclastic...
         )
 
         # Cover
-        cover = ("cover", "unconsolidated", "quaternary", "lluv", "soil", "regolith", 
-            "laterite", "surficial deposits", "talus", "scree", "mass-wasting", "slide", 
-            "peat", "swamp", "marsh", "water", "ice", "glaci", "till", "loess", "gravel", 
-            "debris"
+        cover = ("lluv", "fluv", "boulder", "gravel", "aleurite", "glaci", "till", "loess", 
+            "regolith", "debris", "fill", "slide", "unconsolidated", "talus", "stream", "beach",
+            "terrace", "placer", "paleosol", "mass-wasting", "pebble", "cover", "quaternary", 
+            "soil", "laterite", "surficial deposits", "scree", "peat", "swamp", "marsh", 
+            "water", "ice"
         )
 
         # Initialize type lists and BitVectors

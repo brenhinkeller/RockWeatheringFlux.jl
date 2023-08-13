@@ -30,17 +30,18 @@
     close(macrofid)
     # macro_cats = match_rocktype(macrostrat.type)
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
-        macrostrat.rockdescrip, multimatch=:off
+        macrostrat.rockdescrip, unmultimatch=false, source=:macrostrat
     )
     
 ## --- Load Earthchem bulk geochemical data
-    bulkfid = h5open("output/bulk.h5", "r")
+    bulkfid = h5open("output/bulk_new.h5", "r")
 
     # Bulk
     header = read(bulkfid["bulk"]["header"])
     data = read(bulkfid["bulk"]["data"])
+    type = read(bulkfid["bulk"]["type"])
     bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
-    bulk_cats = match_earthchem(bulk.Type, major=false)
+    bulk_cats = match_rocktype(type)
 
     # Bulk rock name, type, and material
     path = bulkfid["bulktext"]["sampledata"]
@@ -165,10 +166,6 @@
         # Get EarthChem data for that type
         bulksamples = falses(length(bulk_cats[1]))           # EarthChem BitVector
         for t in type
-            if t==:cover
-                bulksamples .|= bulk_cats.alluvium
-                continue
-            end
             bulksamples .|= bulk_cats[t]
         end
 

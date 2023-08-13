@@ -20,9 +20,10 @@
     bulkfid = h5open("output/bulk.h5", "r")
         header = read(bulkfid["bulk"]["header"])
         data = read(bulkfid["bulk"]["data"])
+        type = read(bulkfid["bulk"]["type"])
         bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
     close(bulkfid)
-    bulk_cats = match_earthchem(bulk.Type, major=false)
+    bulk_cats = match_rocktype(type)
 
 
 ## --- Do stuff (resample)

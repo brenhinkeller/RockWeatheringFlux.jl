@@ -10,32 +10,38 @@
 
     """
     ```julia
-    match_rocktype(rocktype, rockname, rockdescrip; major=false, [multimatch::Symbol])
+    match_rocktype(primary, secondary, tertiary; 
+        source::Symbol, 
+        [major::Bool], 
+        [unmultimatch::Bool])
     ```
 
-    Return a `NamedTuple` of `BitVector`s catagorizing Macrostrat `rocktype`, 
-    `rockname`, and `rockdescrip` as sedimentary, igneous, metamorphic, or cover. 
-    Alternatively, return types already stored as strings in `writtentype`.
+    Classify rock samples as sedimentary, igneous, or metamorphic (and associated subtypes)
+    based on `primary`, `secondary`, and `tertiary` sample metadata. Classify samples using
+    `primary` metadata first; if no matches are made, attempt to classify sample using 
+    `secondary` metadata, etc. 
+
+    ### Required kwarg `source`
+    Specify the source of the samples as `:macrostrat` or `:earthchem`.
+
+    Recommended `primary`, `secondary`, and `tertiary` sample metadata for:
+      * Macrostrat: `match_rocktype(rocktype, rockname, rockdescrip; source=:macrostrat)`
+      * Earthchem: `match_rocktype(Rock_Name, Type, Material; source=:earthchem)`
 
     ### Optional kwarg `major`
-    This argument is only valid when parsing data directly from Macrostrat responses.
-
     `true` returns: `sed, ign, met`
 
     `false` returns: `siliciclast, shale, carb, chert, evaporite, coal, sed, volc, plut, 
     ign, metased, metaign, met, cover`
 
-    Note that major rock types include more granular subcategories; i.e. `ign` includes 
-    all rock catagorized as `volc` and `plut`, as well as rocks that do not fall into 
-    either of those subcategories. To match the catagorization to the EarthChem system, 
-    `plut` includes hypabyssal rocks, and `chert` includes banded iron formations.
+    Major rock types include subclasses; i.e. `ign` includes volcanic and plutonic samples.
 
-    ### Optional kwarg `multimatch`
-    Setting `multimatch=:off` will not remove multiply-matched samples.
+    ### Optional kwarg `unmultimatch`
+    Setting `unmultimatch=false` will not remove multiply-matched samples. Defaults to `true`.
 
     # Example
     ```julia
-    cats = match_rocktype(rocktype, rockname, rockdescrip, major=true)
+    cats = match_rocktype(rocktype, rockname, rockdescrip, source=:macrostrat, major=true)
     NamedTuple with 4 elements:
     sed    = BitVector(50000,)    [true ... true]
     ign    = BitVector(50000,)    [false ... false]
@@ -43,28 +49,38 @@
     cover  = BitVector(50000,)    [false ... false]
     ```
     """
-    function match_rocktype(rocktype::AbstractArray, rockname::AbstractArray, 
-        rockdescrip::AbstractArray; major=false, multimatch::Symbol=:on)
+    function match_rocktype(rocktype::AbstractArray, rockname::AbstractArray, rockdescrip::AbstractArray; 
+            major::Bool=false, 
+            unmultimatch::Bool=true, 
+            source::Symbol
+        )
 
         # Get rock type classifications and initialized BitVector
         typelist, cats = get_rock_class(major, length(rocktype))
 
-        # If you can't improve the algorithm the least you can do is add a progress bar
-        p = Progress(length(typelist)*4+1, desc="Finding Macrostrat rock types...")
-        next!(p)
-
-        # Check major lithology first
-        for j in eachindex(typelist)
-            for i = eachindex(typelist[j])
-                for k in eachindex(cats[j])
-                    cats[j][k] = match(r"major.*?{(.*?)}", rocktype[k]) |> x -> isa(x,RegexMatch) ? containsi(x[1], typelist[j][i]) : false
-                end
-            end
+        # Check major lithology if samples are from Macrostrat
+        if source==:macrostrat
+            p = Progress(length(typelist)*4+1, desc="Finding Macrostrat rock types...")
             next!(p)
+
+            for j in eachindex(typelist)
+                for i = eachindex(typelist[j])
+                    for k in eachindex(cats[j])
+                        cats[j][k] = match(r"major.*?{(.*?)}", rocktype[k]) |> x -> 
+                        isa(x,RegexMatch) ? containsi(x[1], typelist[j][i]) : false
+                    end
+                end
+                next!(p)
+            end
+        elseif source==:earthchem 
+            p = Progress(length(typelist)*3+1, desc="Finding Earthchem rock types...")
+            next!(p)
+        else
+            error("Source $source not recognized.Specify :macrostrat or :earthchem")
         end
 
         # Check the rest of rocktype
-        not_matched = find_unmatched(cats, major=major)
+        not_matched = find_unmatched(cats)
         @inbounds for j in eachindex(typelist)
             for i = eachindex(typelist[j])
                 for k in eachindex(cats[j])
@@ -75,7 +91,7 @@
         end
 
         # Then rockname
-        not_matched = find_unmatched(cats, major=major)
+        not_matched = find_unmatched(cats)
         @inbounds for j in eachindex(typelist)
             for i = eachindex(typelist[j])
                 for k in eachindex(cats[j])
@@ -86,7 +102,7 @@
         end
 
         # Then rockdescrip
-        not_matched = find_unmatched(cats, major=major)
+        not_matched = find_unmatched(cats)
         @inbounds for j in eachindex(typelist)
             for i = eachindex(typelist[j])
                 for k in eachindex(cats[j])
@@ -110,7 +126,7 @@
             end
         end
 
-        multimatch==:on && return un_multimatch!(cats, major)
+        unmultimatch && return un_multimatch!(cats, major)
         return cats
     end
 
@@ -127,7 +143,7 @@
     function match_rocktype(writtentype::AbstractArray{String})
         cats = get_rock_class(false, length(writtentype))[2]
 
-        # Get all of the written types into their proper place
+        # Parse all of the written types into cats
         for i in eachindex(writtentype)
             try
                 cats[Symbol(writtentype[i])][i] = true
@@ -136,7 +152,7 @@
             end
         end
 
-        # Make sure that sed / ign / met are true when their subtypes are true
+        # Define sed / ign / met as true when their subtypes are true
         minorsed, minorign, minormet = get_minor_types()
         minortypes = (
             sed = minorsed,
@@ -260,78 +276,6 @@
         end
 
         return cats
-    end
-
-
-    """
-    ```julia
-    match_earthchem(type; major=false)
-    ```
-    Classify EarthChem bulk.mat `type` codes to rock types. Returns a `NamedTuple` of `BitVector`s. 
-
-    ### Optional Keyword Argument `major`
-    `true` returns 
-
-        sed, ign, met
-
-    `false` returns
-
-        alluvium, siliciclast, shale, carb, chert, evaporite, phosphorite, coal, volcaniclast, sed, volc, plut, ign, metased, metaign, met
-
-    """
-    function match_earthchem(type; major=false)
-        npoints = length(type)
-
-        # Preallocate
-        cats = (
-            alluvium = falses(npoints),
-            siliciclast = falses(npoints),
-            shale = falses(npoints),
-            carb = falses(npoints),
-            chert = falses(npoints),
-            evaporite = falses(npoints),
-            phosphorite = falses(npoints),
-            coal = falses(npoints),
-            volcaniclast = falses(npoints),
-            sed = falses(npoints),
-
-            volc = falses(npoints),
-            plut = falses(npoints),
-            ign = falses(npoints),
-
-            metased = falses(npoints),
-            metaign = falses(npoints),
-            met = falses(npoints),
-        )
-
-        # Codes for types *in the order they appear in cats*
-        codes = [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 1.0, 
-            3.1, 3.2, 3.0,
-            2.1, 2.3, 2.0, 
-        ]
-
-        # Find all types
-        for i in eachindex(codes)
-            cats[i][findall(==(codes[i]), type)] .= true
-        end
-        
-        # Assign all subtypes to parent type as appropriate. Alluvium is roughly equivilent to cover
-        if major
-        # To match Macrostrat, metaseds are seds, metaigns are igns
-            cats.sed .= cats.sed .| cats.siliciclast .| cats.shale .| cats.carb .| cats.chert .| 
-                cats.evaporite .| cats.phosphorite .| cats.coal .| cats.volcaniclast .| cats.metased
-            cats.ign .= cats.ign .| cats.volc .| cats.plut .| cats.metaign
-
-            majorcats = (sed=cats.sed, ign=cats.ign, met=cats.met)
-            return majorcats
-        else
-            cats.sed .= cats.sed .| cats.siliciclast .| cats.shale .| cats.carb .| cats.chert .| 
-                cats.evaporite .| cats.phosphorite .| cats.coal .| cats.volcaniclast
-            cats.ign .= cats.ign .| cats.volc .| cats.plut
-            cats.met .= cats.met .| cats.metased .| cats.metaign
-
-            return cats
-        end
     end
 
 

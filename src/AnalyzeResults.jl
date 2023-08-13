@@ -23,14 +23,10 @@
     # Macrostrat, if there's matched EarthChem data
     macrofid = h5open("$macrostrat_io", "r")
     macrostrat = (
-        rocktype = read(macrofid["rocktype"])[t],
-        rockname = read(macrofid["rockname"])[t],
-        rockdescrip = read(macrofid["rockdescrip"])[t]
+        type = read(macrofid["typecategory"])[t],
     )
     close(macrofid)
-    macro_cats = match_rocktype(macrostrat.rocktype[t], macrostrat.rockname[t], 
-        macrostrat.rockdescrip[t]
-    )
+    macro_cats = match_rocktype(macrostrat.type)
     subcats = collect(keys(macro_cats))
     deleteat!(subcats, findall(x->x==:cover,subcats))
 

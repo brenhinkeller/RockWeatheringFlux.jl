@@ -113,7 +113,8 @@
     parsed = parse_macrostrat_responses(responses, npoints)
 
     types = Array{String}(undef, npoints, 1)
-    macro_cats = match_rocktype(parsed.rocktype, parsed.rockname, parsed.rockdescrip, major=false)
+    macro_cats = match_rocktype(parsed.rocktype, parsed.rockname, parsed.rockdescrip, 
+        major=false, source=:macrostrat)
     for i in eachindex(types)
         types[i] = string(get_type(macro_cats, i))
     end

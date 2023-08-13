@@ -107,26 +107,26 @@
 
 
 ## --- Rock type classifications
-
     """
     ```julia
-    get_rock_class(major::Bool, npoints::Int64)
+    get_rock_class([major::Bool], [inclusive::Bool])
     ```
-    
-    Define sedimentary, igneous, and metamorphic rock types and subtypes, and initialize a
-    NamedTuple of `npoints`-element BitVectors for each defined rock type.
-    
-    If `major` is `true`, only major types are defined. If `major` is `false`, all subtypes
-    are defined.
 
-    See also: `get_minor_types`
+    Define sedimentary, igneous, and metamorphic rock types and subtypes.
 
-    # Example
-    ```julia
-    typelist, cats = get_rock_class(true, 10)
-    ```
+    ### Optional kwargs
+        
+        major
+    
+    Return only Tuples for sedimentary, metamorphic, and igneous types. Boolean; defaults 
+    to `false`
+
+        inclusive
+    
+    Sedimentary, igneous, and metamorphic lists include terms for all included subtypes. 
+    Boolean; defaults to `false` unless `major` is `true`.
     """
-    function get_rock_class(major::Bool, npoints::Int64)
+    function get_rock_class(major::Bool=false, inclusive::Bool=false)
         # Sedimentary
         siliciclast = ("siliciclast", "conglomerat", "sand", "psamm", "arenit", "arkos", "silt")
         shale = ("lutite", "mud", "clay", "shale", "wacke", "argillite", "argillaceous", 
@@ -184,20 +184,22 @@
 
         # Metamorphic
         metased = ("para", "metased", "quartzite", "marble", "slate", "leptite", "phyllite", 
-            "porcellanite", "meta-sed")
+            "porcellanite", "meta-sed", "hornfels")
         metaign = ("orthogneiss", "metaign", "serpentin", "amphibolit", "greenstone", "eclogite", 
             "basite", "greisen", "halleflinta", "leucophyre", "melaphyre", "propylite", "spilite", 
             "ultramafitite", "alkremite", "ortho", "meta-ign", "metabasite")
         lowgrade = ("slate", "phyllite", "serpentin", "greenstone", "greenschist", "zeolite", 
             "gossan", "alter", "hydrothermal", "palagonite",)
         highgrade = ("crystalline", "basement", "marble", "skarn", "schist", "blueschist", 
-            "gneiss", "amphibolit", "eclogite", "granulit", "hornfels", "granofels", "sanidinite", 
+            "gneiss", "amphibolit", "eclogite", "granulit", "granofels", "sanidinite", 
             "migma", "enderbite", "anorthosite", "charnockite", "pyroxenite", "peridot", "dunit", 
             "harzburg", "high grade metamorphic")
         cataclastic = ("mylonit", "cataclasite", "melange", "gouge", "tecton",)
-        met = ("meta", "garnet", "buchite", "epidot", "fenite", "albitite", "chloritite", 
+        met = (("meta", "garnet", "buchite", "epidot", "fenite", "albitite", "chloritite", 
             "phlogopitite", "calc silicate", "calcsilicate", "rodingite", "sericitite", 
-            "tactite", "soapstone", "talc", "tourmalinite", "unakite", "vogesite")
+            "tactite", "soapstone", "talc", "tourmalinite", "unakite", "vogesite")...,
+            lowgrade..., highgrade..., cataclastic...,
+        )
 
         # Cover
         cover = ("lluv", "fluv", "boulder", "gravel", "aleurite", "glaci", "till", "loess", 
@@ -206,25 +208,46 @@
             "soil", "laterite", "surficial deposits", "scree", "peat", "swamp", "marsh", 
             "water", "ice")
 
-        # Initialize type lists and BitVectors
-        if major
-            typelist = (
-                sed = (sed..., siliciclast..., shale..., carb..., chert..., evaporite..., 
-                    coal..., phosphorite..., volcaniclast...,), 
-                ign = (ign..., volc..., plut...), 
-                met = (met..., metased..., metaign..., lowgrade..., highgrade..., 
-                    cataclastic...), 
-                cover=cover
-            )
-        else
-            typelist = (siliciclast = siliciclast, shale = shale, carb = carb, chert = chert, 
-                    evaporite = evaporite, coal = coal, phosphorite = phosphorite, 
-                    volcaniclast = volcaniclast, sed = sed, 
-                volc = volc, plut = plut, ign = ign, 
-                metased = metased, metaign = metaign, met = met, 
-                cover = cover
-            )
+        # If inclusive or major classes only, include subtypes
+        if inclusive || major
+            sed = (sed..., siliciclast..., shale..., carb..., chert..., evaporite..., coal..., 
+                phosphorite..., volcaniclast...,)
+            ign = (ign..., volc..., plut...)
+            met = (met..., metased..., metaign..., lowgrade..., highgrade..., cataclastic...)
+
+            # If major elements only, return major elements
+            major && return (sed=sed, ign=ign, met=met, cover=cover)
         end
+
+        # Otherwise, return Tuple where major types do not include subtypes
+        return (siliciclast = siliciclast, shale = shale, carb = carb, chert = chert, 
+            evaporite = evaporite, coal = coal, phosphorite = phosphorite, 
+            volcaniclast = volcaniclast, sed = sed, 
+            volc = volc, plut = plut, ign = ign, 
+            metased = metased, metaign = metaign, met = met, 
+            cover = cover
+        )
+    end
+
+    """
+    ```julia
+    get_cats(major::Bool, npoints::Int64)
+    ```
+    
+    Initialize a NamedTuple of `npoints`-element BitVectors for each defined rock type.
+    
+    If `major` is `true`, only major types are defined. If `major` is `false`, all subtypes
+    are defined.
+
+    See also: `get_minor_types`
+
+    # Example
+    ```julia
+    typelist, cats = get_cats(true, 10)
+    ```
+    """
+    function get_cats(major::Bool, npoints::Int64)
+        typelist = get_rock_class(major)
 
         return typelist, NamedTuple{keys(typelist)}([falses(npoints) for _ in 1:length(typelist)]) 
     end
@@ -239,7 +262,7 @@
     Return types nested under the sed, ign, and met "major" types.
 
     **Important: this function will break if major types are listed before minor types in
-    the `get_rock_class` function, and if sedimentary types are not listed first!**
+    the `get_cats` function, and if sedimentary types are not listed first!**
 
     ### Minor Types:
       * Sed: siliciclast, shale, carb, chert, evaporite, coal, phosphorite, volcaniclast
@@ -252,7 +275,7 @@
     ```
     """
     function get_minor_types()
-        types = get_rock_class(false, 1)[2]
+        types = get_cats(false, 1)[2]
         allkeys = collect(keys(types))
 
         sed = findfirst(==(:sed), allkeys)

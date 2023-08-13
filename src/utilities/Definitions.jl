@@ -133,12 +133,8 @@
         phosphorite = ("phosphorite", "phosphate")
         coal = ("coal", "anthracite", "peat", "lignite", "bitumen")
         volcaniclastic = ("tonstein", "peperite", "volcaniclastic")
-
-        sed = unique(("sediment", "clast", "diamict","tillite", "stream  deposits", "beach deposits", 
-            "terrace",  "marine deposits",  "paleosol", "spiculite", "glauconite")...,
-            siliciclast..., shale..., carb..., chert..., evaporite..., coal..., 
-            phosphorite..., volcaniclastic...,
-        )
+        sed = ("sediment", "clast", "diamict","tillite", "stream  deposits", "beach deposits", 
+            "terrace",  "marine deposits",  "paleosol", "spiculite", "glauconite")
 
         # Igneous
         volc = ("volcanic", "extrusive", "tuff", "basalt", "andesit", "dacit", "rhyolit", 
@@ -176,13 +172,12 @@
             "vaugnerite", "vibetoite", "websterite", "wehrlite", "yamaskite", "pluton", 
             "batholith", "mangerite", "pegmatite", "rapakivi", "intrus", "sill", "dike", 
             "stock", "laccolith", "lopolith", "microgranite")
-        ign = unique(("igneous", "silicic ", "mafic", "felsic", "basite", "phoscorite", "rauhaugite", 
-            "beforsite")..., volc..., plut...
-        )
+        ign = ("igneous", "silicic ", "mafic", "felsic", "basite", "phoscorite", "rauhaugite", 
+            "beforsite")
 
         # Metamorphic
         metased = ("para", "metased", "quartzite", "marble", "slate", "leptite", "phyllite", 
-        "porcellanite", "meta-sed")
+            "porcellanite", "meta-sed")
         metaign = ("orthogneiss", "metaign", "serpentin", "amphibolit", "greenstone", "eclogite", 
             "basite", "greisen", "halleflinta", "leucophyre", "melaphyre", "propylite", "spilite", 
             "ultramafitite", "alkremite", "ortho", "meta-ign", "metabasite")
@@ -193,24 +188,27 @@
             "migma", "enderbite", "anorthosite", "charnockite", "pyroxenite", "peridot", "dunit", 
             "harzburg", "high grade metamorphic")
         cataclastic = ("mylonit", "cataclasite", "melange", "gouge", "tecton",)
-        
-        met = unique(("meta", "garnet", "buchite", "epidot", "fenite", "albitite", "chloritite", 
+        met = ("meta", "garnet", "buchite", "epidot", "fenite", "albitite", "chloritite", 
             "phlogopitite", "calc silicate", "calcsilicate", "rodingite", "sericitite", 
-            "tactite", "soapstone", "talc", "tourmalinite", "unakite", "vogesite")..., 
-            metased..., metaign..., lowgrade..., highgrade..., cataclastic...
-        )
+            "tactite", "soapstone", "talc", "tourmalinite", "unakite", "vogesite")
 
         # Cover
         cover = ("lluv", "fluv", "boulder", "gravel", "aleurite", "glaci", "till", "loess", 
             "regolith", "debris", "fill", "slide", "unconsolidated", "talus", "stream", "beach",
             "terrace", "placer", "paleosol", "mass-wasting", "pebble", "cover", "quaternary", 
             "soil", "laterite", "surficial deposits", "scree", "peat", "swamp", "marsh", 
-            "water", "ice"
-        )
+            "water", "ice")
 
         # Initialize type lists and BitVectors
         if major
-            typelist = (sed=sed, ign=ign, met=met, cover=cover)
+            typelist = (
+                sed = unique(sed..., siliciclast..., shale..., carb..., chert..., evaporite..., 
+                    coal..., phosphorite..., volcaniclastic...,), 
+                ign = unique(ign..., volc..., plut...), 
+                met = unique(met..., metased..., metaign..., lowgrade..., highgrade..., 
+                    cataclastic...), 
+                cover=cover
+            )
         else
             typelist = (siliciclast=siliciclast, shale=shale, carb=carb, chert=chert, 
                 evaporite=evaporite, coal=coal, sed=sed, volc=volc, plut=plut, ign=ign, 

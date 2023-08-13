@@ -1,52 +1,24 @@
 ## -- Test functions from Utilities.jl
     using Test
 
-## --- match_earthchem
-    codes = [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 
-        2.0, 2.1, 2.3, 
-        3.0, 3.1, 3.2
+
+## --- Match rock names / types / descriptions to defined rock classes
+    rocktype = ["sedimentary rocks", "sedimentary rocks", "sedimentary rocks",
+        "flood basalt(s); mafic volcanic rocks", "sedimentary rocks", 
+        "crystalline metamorphic rocks", "", "", "intrusive igneous rocks", 
+        "crystalline metamorphic rocks", "na"
     ]
-    testset = rand(codes, 1000);
+    rockname = ["cenozoic sedimentary rocks", "precambrian sedimentary rocks", 
+        "paleozoic sedimentary rocks", "mesozoic volcanic rocks", 
+        "neoproterozoic sedimentary rocks", "archean crystalline metamorphic rocks", "", 
+        "hodgkinson formation - hornfelsed", "archean intrusive rocks", 
+        "paleoproterozoic crystalline metamorphic rocks", "na"
+    ]
+    rockdescrip = ["", "", "", "", "", "", "", "hornfelsed arenite and mudstone", "", "","na"]
 
-    catsmj = match_earthchem(testset, major=true);
-    cats = match_earthchem(testset, major=false);
-
-    # Sedimentary counts
-    @test count(cats.alluvium) == length(findall(==(1.1), testset))
-    @test count(cats.siliciclast) == length(findall(==(1.2), testset))
-    @test count(cats.shale) == length(findall(==(1.3), testset))
-    @test count(cats.carb) == length(findall(==(1.4), testset))
-    @test count(cats.chert) == length(findall(==(1.5), testset))
-    @test count(cats.evaporite) == length(findall(==(1.6), testset))
-    @test count(cats.phosphorite) == length(findall(==(1.7), testset))
-    @test count(cats.coal) == length(findall(==(1.8), testset))
-    @test count(cats.volcaniclast) == length(findall(==(1.9), testset))
-
-    # Igneous counts
-    @test count(cats.volc) == length(findall(==(3.1), testset))
-    @test count(cats.plut) == length(findall(==(3.2), testset))
-
-    # Metamorphic counts
-    @test count(cats.metased) == length(findall(==(2.1), testset))
-    @test count(cats.metaign) == length(findall(==(2.3), testset))
-
-    # Major classifications
-    @test catsmj.sed == cats.sed .| cats.metased
-    @test catsmj.ign == cats.ign .| cats.metaign
-    @test catsmj.met == cats.met .& .!cats.metased .& .!cats.metaign
-
-    # Sub-type classifications
-    @test count(cats.sed) == length(findall(==(1.0), testset)) + (count(cats.siliciclast) +
-        count(cats.shale) + count(cats.carb) + count(cats.chert) + count(cats.evaporite) + 
-        count(cats.phosphorite) + count(cats.coal) + count(cats.volcaniclast)
-    )
-    @test count(cats.ign) == length(findall(==(3.0), testset)) + (count(cats.volc) +
-        count(cats.plut)
-    )
-    @test count(cats.met) == length(findall(==(2.0), testset)) + (count(cats.metased) + 
-        count(cats.metaign)
-    )
-
+    cats = match_rocktype([rocktype[8]], [rockname[8]], [rockdescrip[8]]; source=:macrostrat)
+    @test cats.met == [true]
+    @test cats.metased == [true]
 
 ## --- Points in polygon
     # Define simple shape
@@ -88,7 +60,6 @@
     lon_in, lat_in, = coords_in_shape(polylons, polylats, lon, lat)
     @test lat_in == [90, 90, 85, -88]
     @test lon_in == [0, -80, 36, 156]
-
 
 
 ## --- End of file

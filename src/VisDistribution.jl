@@ -32,7 +32,7 @@
         rocklat = read(macrofid["rocklat"])[t],
         rocklon = read(macrofid["rocklon"])[t],
         age = read(macrofid["age"])[t],
-        type = read(macrofid["typecategory"])[t]
+        type = read(macrofid["type"])[t]
     )
     close(macrofid)
     macro_cats = match_rocktype(macrostrat.type)
@@ -118,7 +118,7 @@
 
 ## --- Resampled SiO₂ distribution by rock type
     # All igneous
-    c, n, = bincounts(rs_ign.SiO2, 40, 80, 160)
+    c, n, = bincounts(rs_ign.SiO2, 40, 80, 80)
     n = float(n) ./ nansum(float(n) .* step(c))
     h = plot(c, n, seriestype=:bar, framestyle=:box, color=clr_rs, linecolor=clr_rs,
         label="All Igneous (resample); n = $(length(rs_ign.SiO2))", 
@@ -128,7 +128,7 @@
     savefig("c_rs_ign.png")
 
     # Volcanic
-    c, n, = bincounts(rs_volc.SiO2, 40, 80, 160)
+    c, n, = bincounts(rs_volc.SiO2, 40, 80, 80)
     n = float(n) ./ nansum(float(n) .* step(c))
     h = plot(c, n, seriestype=:bar, framestyle=:box, color=clr_rs, linecolor=clr_rs,
         label="Volcanic (resample); n = $(length(rs_volc.SiO2))", 
@@ -138,7 +138,7 @@
     savefig("c_rs_volc.png")
 
     # Plutonic
-    c, n, = bincounts(rs_plut.SiO2, 40, 80, 160)
+    c, n, = bincounts(rs_plut.SiO2, 40, 80, 80)
     n = float(n) ./ nansum(float(n) .* step(c))
     h = plot(c, n, seriestype=:bar, framestyle=:box, color=clr_rs, linecolor=clr_rs,
         label="Plutonic (resample); n = $(length(rs_plut.SiO2))", 
@@ -148,7 +148,7 @@
     savefig("c_rs_plut.png")
 
     # All sedimentary
-    c, n, = bincounts(rs_sed.SiO2, 0, 100, 100)
+    c, n, = bincounts(rs_sed.SiO2, 0, 100, 200)
     n = float(n) ./ nansum(float(n) .* step(c))
     h = plot(c, n, seriestype=:bar, framestyle=:box, color=clr_rs, linecolor=clr_rs,
         label="Sedimentary (resample); n = $(length(rs_sed.SiO2))", 

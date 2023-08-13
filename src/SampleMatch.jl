@@ -22,7 +22,7 @@
         rocklat = read(macrofid["rocklat"]),
         rocklon = read(macrofid["rocklon"]),
         age = read(macrofid["age"]),
-        type = read(macrofid["typecategory"]),
+        type = read(macrofid["type"]),
         rocktype = read(macrofid["rocktype"]),
         rockname = read(macrofid["rockname"]),
         rockdescrip = read(macrofid["rockdescrip"]),

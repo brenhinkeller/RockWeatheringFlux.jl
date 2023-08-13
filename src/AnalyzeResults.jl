@@ -23,7 +23,7 @@
     # Macrostrat, if there's matched EarthChem data
     macrofid = h5open("$macrostrat_io", "r")
     macrostrat = (
-        type = read(macrofid["typecategory"])[t],
+        type = read(macrofid["type"])[t],
     )
     close(macrofid)
     macro_cats = match_rocktype(macrostrat.type)

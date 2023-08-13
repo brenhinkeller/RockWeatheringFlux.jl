@@ -33,7 +33,7 @@
     macrostrat = (     
         rocklat = read(macrofid["rocklat"]),
         rocklon = read(macrofid["rocklon"]),
-        typecategory = read(macrofid["typecategory"]),
+        typecategory = read(macrofid["type"]),
     )
     close(macrofid)
     macro_cats = match_rocktype(macrostrat.typecategory[t])

@@ -238,7 +238,7 @@
         # Check major lithology first
         for i in eachindex(typelist)
             for j in eachindex(rocktype)
-                cats[i] .= match(r"major.*?{(.*?)}", rocktype[j]) |> x -> isa(x,RegexMatch) ? 
+                cats[i][j] |= match(r"major.*?{(.*?)}", rocktype[j]) |> x -> isa(x,RegexMatch) ? 
                 containsi(x[1], typelist[i]) : false
             end
             next!(p)
@@ -246,7 +246,7 @@
 
         # Check the rest of rocktype
         not_matched = find_unmatched(cats)
-        @inbounds for i in typelist
+        @inbounds for i in eachindex(typelist)
             for j in eachindex(rocktype)
                 not_matched[j] && (cats[i][j] |= containsi(rocktype[j], typelist[i]))
             end
@@ -255,7 +255,7 @@
 
         # Then rockname
         not_matched = find_unmatched(cats)
-        @inbounds for i in typelist
+        @inbounds for i in eachindex(typelist)
             for j in eachindex(rockname)
                 not_matched[j] && (cats[i][j] |= containsi(rockname[j], typelist[i]))
             end
@@ -264,7 +264,7 @@
 
         # Then rockdescrip
         not_matched = find_unmatched(cats)
-        @inbounds for i in typelist
+        @inbounds for i in eachindex(typelist)
             for j in eachindex(rockdescrip)
                 not_matched[j] && (cats[i][j] |= containsi(rockdescrip[j], typelist[i]))
             end

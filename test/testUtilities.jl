@@ -1,24 +1,46 @@
 ## -- Test functions from Utilities.jl
     using Test
 
+    
+## --- Rock name matching
+    rocktype = ["sedimentary and volcanic rocks", "major: {limestone},minor: {slate}", "", "",]
+    rockname = ["precambrian-phanerozoic sedimentary and volcanic rocks", "rabbitkettle fm", 
+        "hodgkinson formation - hornfelsed", "",]
+    rockdescrip = ["", "", "hornfelsed arenite and mudstone", "silt, sand, sandstone",]
 
-## --- Match rock names / types / descriptions to defined rock classes
-    rocktype = ["sedimentary rocks", "sedimentary rocks", "sedimentary rocks",
-        "flood basalt(s); mafic volcanic rocks", "sedimentary rocks", 
-        "crystalline metamorphic rocks", "", "", "intrusive igneous rocks", 
-        "crystalline metamorphic rocks", "na"
-    ]
-    rockname = ["cenozoic sedimentary rocks", "precambrian sedimentary rocks", 
-        "paleozoic sedimentary rocks", "mesozoic volcanic rocks", 
-        "neoproterozoic sedimentary rocks", "archean crystalline metamorphic rocks", "", 
-        "hodgkinson formation - hornfelsed", "archean intrusive rocks", 
-        "paleoproterozoic crystalline metamorphic rocks", "na"
-    ]
-    rockdescrip = ["", "", "", "", "", "", "", "hornfelsed arenite and mudstone", "", "","na"]
+    # Match to classes
+    cats = match_rocktype(rocktype, rockname, rockdescrip; source=:macrostrat, unmultimatch=false)
 
-    cats = match_rocktype([rocktype[8]], [rockname[8]], [rockdescrip[8]]; source=:macrostrat)
-    @test cats.met == [true]
-    @test cats.metased == [true]
+    @test cats.siliciclast == [false, false, false, true]
+    @test cats.shale == [false, false, false, false, ]
+    @test cats.carb == [false, true, false, false, ]
+    @test cats.chert == [false, false, false, false, ]
+    @test cats.evaporite == [false, false, false, false, ]
+    @test cats.coal == [false, false, false, false, ]
+    @test cats.phosphorite == [false, false, false, false, ]
+    @test cats.volcaniclast == [false, false, false, false, ]
+    @test cats.sed == [true, true, false, true,]
+    @test cats.volc == [true, false, false, false, ]
+    @test cats.plut == [false, false, false, false, ]
+    @test cats.ign == [true, false, false, false, ]
+    @test cats.metased == [false, false, true, false, ]
+    @test cats.metaign == [false, false, false, false, ]
+    @test cats.met == [false, false, true, false, ]
+    @test cats.cover == [false, false, false, false, ]
+
+    @test all(get_type(cats, 1, all_keys=true) == (:sed, :volc, :ign))
+    @test all(get_type(cats, 2, all_keys=true) == (:carb, :sed))
+    @test all(get_type(cats, 3, all_keys=true) == (:metased, :met))
+    @test all(get_type(cats, 4, all_keys=true) == (:siliciclast, :sed))
+
+    # Match rock names to names
+    cats = match_rockname(rocktype, rockname, rockdescrip)
+
+    @test all(get_type(cats, 1, all_keys=true) == (:sediment, :volcanic, :volcan))
+    @test all(get_type(cats, 2, all_keys=true) == (:limestone,))
+    @test all(get_type(cats, 3, all_keys=true) == (:hornfels,))
+    @test all(get_type(cats, 4, all_keys=true) == (:sand, :silt))
+
 
 ## --- Points in polygon
     # Define simple shape

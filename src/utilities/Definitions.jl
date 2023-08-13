@@ -132,7 +132,7 @@
             "salt flat", "caliche")
         phosphorite = ("phosphorite", "phosphate")
         coal = ("coal", "anthracite", "peat", "lignite", "bitumen")
-        volcaniclastic = ("tonstein", "peperite", "volcaniclastic")
+        volcaniclast = ("tonstein", "peperite", "volcaniclastic")
         sed = ("sediment", "clast", "diamict","tillite", "stream  deposits", "beach deposits", 
             "terrace",  "marine deposits",  "paleosol", "spiculite", "glauconite")
 
@@ -202,17 +202,21 @@
         # Initialize type lists and BitVectors
         if major
             typelist = (
-                sed = unique(sed..., siliciclast..., shale..., carb..., chert..., evaporite..., 
-                    coal..., phosphorite..., volcaniclastic...,), 
-                ign = unique(ign..., volc..., plut...), 
-                met = unique(met..., metased..., metaign..., lowgrade..., highgrade..., 
+                sed = (sed..., siliciclast..., shale..., carb..., chert..., evaporite..., 
+                    coal..., phosphorite..., volcaniclast...,), 
+                ign = (ign..., volc..., plut...), 
+                met = (met..., metased..., metaign..., lowgrade..., highgrade..., 
                     cataclastic...), 
                 cover=cover
             )
         else
-            typelist = (siliciclast=siliciclast, shale=shale, carb=carb, chert=chert, 
-                evaporite=evaporite, coal=coal, sed=sed, volc=volc, plut=plut, ign=ign, 
-                metased=metased, metaign=metaign, met=met, cover=cover)
+            typelist = (siliciclast = siliciclast, shale = shale, carb = carb, chert = chert, 
+                    evaporite = evaporite, coal = coal, phosphorite = phosphorite, 
+                    volcaniclast = volcaniclast, sed = sed, 
+                volc = volc, plut = plut, ign = ign, 
+                metased = metased, metaign = metaign, met = met, 
+                cover = cover
+            )
         end
 
         return typelist, NamedTuple{keys(typelist)}([falses(npoints) for _ in 1:length(typelist)]) 
@@ -226,8 +230,11 @@
 
     Return types nested under the sed, ign, and met "major" types.
 
+    **Important: this function will break if major types are listed before minor types in
+    the `get_rock_class` function, and if sedimentary types are not listed first!**
+
     ### Minor Types:
-      * Sed: siliciclast, shale, carb, chert, evaporite, coal
+      * Sed: siliciclast, shale, carb, chert, evaporite, coal, phosphorite, volcaniclast
       * Ign: volc, plut
       * Met: metased, metaign
     
@@ -236,9 +243,16 @@
     minorsed, minorign, minormet = get_minor_types()
     ```
     """
-    get_minor_types() = (:siliciclast, :shale, :carb, :chert, :evaporite, :coal), 
-        (:volc, :plut), (:metased, :metaign)
+    function get_minor_types()
+        types = get_rock_class(false, 1)[2]
+        allkeys = collect(keys(types))
 
+        sed = findfirst(==(:sed), allkeys)
+        ign = findfirst(==(:ign), allkeys)
+        met = findfirst(==(:met), allkeys)
+
+        return allkeys[1:sed-1], allkeys[sed+1:ign-1], allkeys[ign+1:met-1]
+    end
 
 ## --- Macrostrat type exclusions to avoid multi-matching
     """

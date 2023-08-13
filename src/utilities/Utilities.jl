@@ -155,7 +155,7 @@
 
     """
     ```julia
-    find_unmatched(cats; [major])
+    find_unmatched(cats)
     ```
 
     Given a `Tuple` of `BitVectors`, return a `BitVector` that is `true` at index `i` iff 
@@ -180,25 +180,11 @@
     1
     ```
     """
-    function find_unmatched(cats; major::Bool)
-        if major
-            return .!(cats.sed .| cats.ign .| cats.met .| cats.cover)
-        else
-            cats.sed .= cats.sed .| cats.siliciclast .| cats.shale .| cats.carb .| cats.chert .| 
-                cats.evaporite .| cats.coal
-            cats.ign .= cats.ign .| cats.volc .| cats.plut
-            cats.met .= cats.met .| cats.metased .| cats.metaign
-
-            return .!(cats.sed .| cats.ign .| cats.met .| cats.cover)
-        end
-    end
-
     function find_unmatched(cats)
         matched = falses(length(cats[1]))
-        for i in eachindex(cats)
+        @inbounds for i in eachindex(cats)
             matched .|= cats[i]
         end
-
         return .!matched
     end
 

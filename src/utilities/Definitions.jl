@@ -1,4 +1,7 @@
+# Definitions, file names, etc. Contains most hard-coded values.
+
 ## --- File names
+
     # 500 Macrostrat samples
         # macrostrat_io = "output/toy_responses.h5"
         # matchedbulk_io = "output/toy_bulkidx.tsv"
@@ -37,6 +40,7 @@
 
 
 ## --- Color names for visualization
+
     clr_gradient = :jet1
 
     # Observed samples by rock type
@@ -50,6 +54,7 @@
 
 
 ## --- Major and minor elements
+
     """
     ```julia
     get_elements()
@@ -86,6 +91,7 @@
 
 
 ## --- Igneous rock classifications by silica content
+
     """
     ```
     get_ignsilica()
@@ -100,7 +106,8 @@
     get_ignsilica() = return (fel = (62, 74), int = (51, 62), maf = (43, 51))
 
 
-## --- Rock type classifications based on EarthChem system in RockNameInference.m
+## --- Rock type classifications
+
     """
     ```julia
     get_rock_class(major::Bool, npoints::Int64)
@@ -223,6 +230,7 @@
     end
 
 ## --- Define minor types
+
     """
     ```julia
     get_minor_types()
@@ -251,16 +259,18 @@
         ign = findfirst(==(:ign), allkeys)
         met = findfirst(==(:met), allkeys)
 
-        return allkeys[1:sed-1], allkeys[sed+1:ign-1], allkeys[ign+1:met-1]
+        return Tuple(allkeys[1:sed-1]), Tuple(allkeys[sed+1:ign-1]), Tuple(allkeys[ign+1:met-1])
     end
 
-## --- Macrostrat type exclusions to avoid multi-matching
+
+## --- Rock type exclusions to avoid multi-matching
+
     """
     ```julia
     un_multimatch!(cats, major::Bool)
     ```
 
-    Exclude Macrostrat matches from each other so each sample is only classified as one
+    Exclude rock type matches from each other so each sample is only classified as one
     rock type.
 
     If `major` is `true`: 
@@ -349,4 +359,5 @@
         return cats
     end
 
+    
 ## --- End of file

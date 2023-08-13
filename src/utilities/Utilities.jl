@@ -5,149 +5,15 @@
     include("Macrostrat.jl")
     include("Analysis.jl")
 
-    
-## --- Generate random points on the continental crust
-    """
-    ```julia
-    gen_continental_points(npoints, etopo)
-    ```
 
-    Generate an `npoints` element-long lists of latitudes, longitudes, and elevations for
-    points randomly and uniformly distributed across the continental crust. 
-
-    Requires `etopo` matrix of 1 arc minute resolution global relief model. Units are 
-    meters of elevation and decimal degrees of latitude and longitude.
-
-    See also: `get_etopo`.
-    """
-    function gen_continental_points(npoints, etopo)
-        # Initialize
-        rocklat = Array{Float64}(undef, npoints)
-        rocklon = Array{Float64}(undef, npoints)
-        elevations = Array{Float64}(undef, npoints)
-
-        # Number of points added to lat / lon arrays
-        currentpoints = 0
-
-        while currentpoints < npoints
-            # Generate some random latitudes and longitudes with uniform spatial density on the globe
-            (randlat, randlon) = randlatlon(length(rocklat))
-
-            # Find points above sea level
-            elev = find_etopoelev(etopo,randlat,randlon)
-            abovesea = elev .> 0
-            newpoints = min(count(abovesea), length(rocklat) - currentpoints)
-
-            # Concatenate together all the points that represent exposed crust
-            rocklat[(currentpoints+1):(currentpoints+newpoints)] = randlat[abovesea][1:newpoints]
-            rocklon[(currentpoints+1):(currentpoints+newpoints)] = randlon[abovesea][1:newpoints]
-            elevations[(currentpoints+1):(currentpoints+newpoints)] = elev[abovesea][1:newpoints]
-
-            currentpoints += newpoints
-        end
-
-        return rocklat, rocklon, elevations
-    end
-
-## --- Slope and erosion rate relationship
-    """
-    ```julia
-    emmkyr(slp)
-    ```
-
-    Find erosion rate in mm/kyr given slope `slp`.
-    """
-    emmkyr(slp) = exp(slp * (0.0091 ± 0.0095) + (3.1 ± 1.9))
-
-    # Previously 10^(slp*0.00567517 + 0.971075)
-
-
-## --- Find the average value of slope over an area
-    """
-    ```julia
-    avg_over_area(data::Matrix, lat::Vector, lon::Vector, sf::Number=240; 
-        halfwidth::Number=1, 
-        maxpossible::Number=0xffff)
-    ```
-    Find the average value of `data` over an area with radius `halfwidth` (units of gridcells) at 
-    coordinates `lat` and `lon`.
-
-    This is distinct from `StatGeochem`'s `aveslope`. This function finds the average over an 
-    area, not the average slope for a specific point. For example, this might be given a matrix 
-    of maximum slope at each point on Earth, and would return the _average maximum slope_ at 
-    each point of interest.
-
-    ### Defaults and Other Keyword Arguments:
-
-    * `sf::Number=240`: Scale factor (cells per degree) for the SRTM15+ data. For 15 arc-second 
-       resolution, the scale factor is 240, because 15 arc-seconds go into 1 arc-degree 60 * 4 = 
-       240 times.
-
-    * `maxpossible::Number=0xffff`: The maximum possible value for the variable of interest; 
-       variables with values greater than this are ignored.
-
-    """
-    function avg_over_area(data::Matrix, lat::Vector, lon::Vector, sf::Number=240;
-        halfwidth::Number=1, 
-        maxpossible::Number=0xffff)
-
-        # Make sure we will never index out of bounds
-        @assert eachindex(lat) == eachindex(lon)
-
-        # Make sure data has values that cover all of Earth
-        (nrows, ncols) = size(data)
-        @assert nrows == 180 * sf + 1   # Why 180 instead of 360?
-        @assert ncols == 360 * sf + 1
-        
-
-        # Preallocate
-        out = fill(NaN, length(lat))
-
-        # Find result by indexing into the varname matrix
-        for i in eachindex(lat)
-            if isnan(lat[i]) || isnan(lon[i]) || lat[i]>90 || lat[i]<-90 || lon[i]>180 || lon[i]<-180
-                # Result is NaN if either input is NaN or out of bounds
-                continue
-
-            else
-                # Convert latitude and longitude into indicies 
-                row = 1 + round(Int,(90 + lat[i]) * sf)
-                col = 1 + round(Int,(180 + lon[i]) * sf)
-
-                # Index into the array - could I use @turbo here? It currently gets mad
-                k = 0           # Generic counter
-                out[i] = 0      # Starting value
-                for r = (row-halfwidth):(row+halfwidth)
-                    for c = (col-halfwidth):(col+halfwidth)
-                        # Only do the computation if we are in bounds
-                        if 1 <= r <= nrows
-                            res = data[r, mod(c-1,ncols-1)+1]
-
-                            # Ignore values that are larger than the max possible value
-                            if res < maxpossible
-                                k +=1
-                                out[i] += res
-                            end
-                        end
-                    end
-                end
-
-                # Save the average value
-                out[i] /= k
-            end
-        end
-
-        return out
-    end
-
+## --- Match rock names / types / descriptions to defined rock classes
 
     """
     ```julia
-    match_rocktype(rocktype, rockname, rockdescrip; major=false, [multimatch])
-    match_rocktype(writtentype::AbstractArray{String})
+    match_rocktype(rocktype, rockname, rockdescrip; major=false, [multimatch::Symbol])
     ```
 
-    Return the `NamedTuple` of `BitVector`s catagorizing Macrostrat `rocktype`, 
+    Return a `NamedTuple` of `BitVector`s catagorizing Macrostrat `rocktype`, 
     `rockname`, and `rockdescrip` as sedimentary, igneous, metamorphic, or cover. 
     Alternatively, return types already stored as strings in `writtentype`.
 
@@ -230,12 +96,36 @@
             next!(p)
         end
 
+        # If subtypes are true, major types must also be true
+        if major==false
+            minorsed, minorign, minormet = get_minor_types()
+            for type in minorsed
+                cats.sed .|= cats[type]
+            end
+            for type in minorign
+                cats.ign .|= cats[type]
+            end
+            for type in minormet
+                cats.met .|= cats[type]
+            end
+        end
+
         multimatch==:on && return un_multimatch!(cats, major)
         return cats
     end
 
+
+    """
+    ```julia
+    match_rocktype(writtentype::AbstractArray{String})
+    ```
+
+    Return a `NamedTuple` of `BitVector`s catagorizing Macrostrat samples as sedimentary, 
+    igneous, metamorphic (and associated subtypes), or cover from types stored as strings 
+    in `writtentype`.
+    """
     function match_rocktype(writtentype::AbstractArray{String})
-        typelist, cats = get_rock_class(false, length(writtentype))
+        cats = get_rock_class(false, length(writtentype))[2]
 
         # Get all of the written types into their proper place
         for i in eachindex(writtentype)
@@ -313,8 +203,6 @@
     end
 
 
-## --- Return a list of matching rock names
-
     """
     ```
     match_rockname(rocktype::AbstractArray, rockname::AbstractArray, 
@@ -389,7 +277,118 @@
     end
 
 
-## --- More Stuff. Maybe one day this file will be organized
+    """
+    ```julia
+    match_earthchem(type; major=false)
+    ```
+    Classify EarthChem bulk.mat `type` codes to rock types. Returns a `NamedTuple` of `BitVector`s. 
+
+    ### Optional Keyword Argument `major`
+    `true` returns 
+
+        sed, ign, met
+
+    `false` returns
+
+        alluvium, siliciclast, shale, carb, chert, evaporite, phosphorite, coal, volcaniclast, sed, volc, plut, ign, metased, metaign, met
+
+    """
+    function match_earthchem(type; major=false)
+        npoints = length(type)
+
+        # Preallocate
+        cats = (
+            alluvium = falses(npoints),
+            siliciclast = falses(npoints),
+            shale = falses(npoints),
+            carb = falses(npoints),
+            chert = falses(npoints),
+            evaporite = falses(npoints),
+            phosphorite = falses(npoints),
+            coal = falses(npoints),
+            volcaniclast = falses(npoints),
+            sed = falses(npoints),
+
+            volc = falses(npoints),
+            plut = falses(npoints),
+            ign = falses(npoints),
+
+            metased = falses(npoints),
+            metaign = falses(npoints),
+            met = falses(npoints),
+        )
+
+        # Codes for types *in the order they appear in cats*
+        codes = [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 1.0, 
+            3.1, 3.2, 3.0,
+            2.1, 2.3, 2.0, 
+        ]
+
+        # Find all types
+        for i in eachindex(codes)
+            cats[i][findall(==(codes[i]), type)] .= true
+        end
+        
+        # Assign all subtypes to parent type as appropriate. Alluvium is roughly equivilent to cover
+        if major
+        # To match Macrostrat, metaseds are seds, metaigns are igns
+            cats.sed .= cats.sed .| cats.siliciclast .| cats.shale .| cats.carb .| cats.chert .| 
+                cats.evaporite .| cats.phosphorite .| cats.coal .| cats.volcaniclast .| cats.metased
+            cats.ign .= cats.ign .| cats.volc .| cats.plut .| cats.metaign
+
+            majorcats = (sed=cats.sed, ign=cats.ign, met=cats.met)
+            return majorcats
+        else
+            cats.sed .= cats.sed .| cats.siliciclast .| cats.shale .| cats.carb .| cats.chert .| 
+                cats.evaporite .| cats.phosphorite .| cats.coal .| cats.volcaniclast
+            cats.ign .= cats.ign .| cats.volc .| cats.plut
+            cats.met .= cats.met .| cats.metased .| cats.metaign
+
+            return cats
+        end
+    end
+
+
+## --- Find all EarthChem samples matching a Macrostrat sample
+
+    """
+    ```julia
+    find_earthchem(name::String, rockname::AbstractArray, rocktype::AbstractArray, 
+        rockmaterial::AbstractArray)
+    ```
+
+    Given a rock `name` (e.g. "basalt"), find all matching EarthChem samples from `rockname`,
+    `rocktype`, and `rockmaterial`, where:
+    * `rockname`s are rock names (e.g., sandstone, shale, chert)
+    * `rocktype`s are "specialized" rock classes (e.g., volcanic, plutonic, breccia)
+    * `rockmaterial`s are "generalized" rock classes (e.g., igneous, sedimentary, 
+        metamorphic)
+    Returns a `BitVector`.
+
+    General rock names should return general results: i.e., "igneous" should return _all_
+    igneous rocks. Therefore, EarthChem fields are searched from most to least general.
+    All EarthChem fields are searched for all samples (unlike `match_rocktype` and 
+    `match_rockname`, which stop searching when a sample is matched).
+
+    """
+    function find_earthchem(name::String, rockname::AbstractArray, rocktype::AbstractArray, 
+        rockmaterial::AbstractArray)
+
+        # Preallocate
+        matches = falses(length(rockname))
+
+        # Material, type, name for each sample
+        for i in eachindex(rockmaterial)
+            matches[i] = containsi(rockmaterial[i], name)
+            matches[i] |= containsi(rocktype[i], name)
+            matches[i] |= containsi(rockname[i], name)
+        end
+
+        return matches
+    end
+
+
+## --- Metadata for a specific sample
 
     """
     ```julia
@@ -475,78 +474,8 @@
         return nothing
     end
 
-    """
-    ```julia
-    match_earthchem(type; major=false)
-    ```
-    Classify EarthChem bulk.mat `type` codes to rock types. Returns a `NamedTuple` of `BitVector`s. 
 
-    ### Optional Keyword Argument `major`
-    `true` returns 
-
-        sed, ign, met
-
-    `false` returns
-
-        alluvium, siliciclast, shale, carb, chert, evaporite, phosphorite, coal, volcaniclast, sed, volc, plut, ign, metased, metaign, met
-
-    """
-    function match_earthchem(type; major=false)
-        npoints = length(type)
-
-        # Preallocate
-        cats = (
-            alluvium = falses(npoints),
-            siliciclast = falses(npoints),
-            shale = falses(npoints),
-            carb = falses(npoints),
-            chert = falses(npoints),
-            evaporite = falses(npoints),
-            phosphorite = falses(npoints),
-            coal = falses(npoints),
-            volcaniclast = falses(npoints),
-            sed = falses(npoints),
-
-            volc = falses(npoints),
-            plut = falses(npoints),
-            ign = falses(npoints),
-
-            metased = falses(npoints),
-            metaign = falses(npoints),
-            met = falses(npoints),
-        )
-
-        # Codes for types *in the order they appear in cats*
-        codes = [1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 1.0, 
-            3.1, 3.2, 3.0,
-            2.1, 2.3, 2.0, 
-        ]
-
-        # Find all types
-        for i in eachindex(codes)
-            cats[i][findall(==(codes[i]), type)] .= true
-        end
-        
-        # Assign all subtypes to parent type as appropriate. Alluvium is roughly equivilent to cover
-        if major
-        # To match Macrostrat, metaseds are seds, metaigns are igns
-            cats.sed .= cats.sed .| cats.siliciclast .| cats.shale .| cats.carb .| cats.chert .| 
-                cats.evaporite .| cats.phosphorite .| cats.coal .| cats.volcaniclast .| cats.metased
-            cats.ign .= cats.ign .| cats.volc .| cats.plut .| cats.metaign
-
-            majorcats = (sed=cats.sed, ign=cats.ign, met=cats.met)
-            return majorcats
-        else
-            cats.sed .= cats.sed .| cats.siliciclast .| cats.shale .| cats.carb .| cats.chert .| 
-                cats.evaporite .| cats.phosphorite .| cats.coal .| cats.volcaniclast
-            cats.ign .= cats.ign .| cats.volc .| cats.plut
-            cats.met .= cats.met .| cats.metased .| cats.metaign
-
-            return cats
-        end
-
-    end
-
+## --- Geochemistry
 
     """
     ```julia
@@ -567,45 +496,22 @@
     end
 
 
-## --- Find all EarthChem samples matching a Macrostrat sample
     """
     ```julia
-    find_earthchem(name::String, rockname::AbstractArray, rocktype::AbstractArray, 
-        rockmaterial::AbstractArray)
+    normalize!(A::AbstractVector)
     ```
 
-    Given a rock `name` (e.g. "basalt"), find all matching EarthChem samples from `rockname`,
-    `rocktype`, and `rockmaterial`, where:
-       * `rockname`s are rock names (e.g., sandstone, shale, chert)
-       * `rocktype`s are "specialized" rock classes (e.g., volcanic, plutonic, breccia)
-       * `rockmaterial`s are "generalized" rock classes (e.g., igneous, sedimentary, 
-           metamorphic)
-    Returns a `BitVector`.
-
-    General rock names should return general results: i.e., "igneous" should return _all_
-    igneous rocks. Therefore, EarthChem fields are searched from most to least general.
-    All EarthChem fields are searched for all samples (unlike `match_rocktype` and 
-    `match_rockname`, which stop searching when a sample is matched).
-
+    Normalize the percentage values in `A` to 100%.
     """
-    function find_earthchem(name::String, rockname::AbstractArray, rocktype::AbstractArray, 
-        rockmaterial::AbstractArray)
-
-        # Preallocate
-        matches = falses(length(rockname))
-
-        # Material, type, name for each sample
-        for i in eachindex(rockmaterial)
-            matches[i] = containsi(rockmaterial[i], name)
-            matches[i] |= containsi(rocktype[i], name)
-            matches[i] |= containsi(rockname[i], name)
+    function normalize!(A::AbstractVector)
+        sum_a = nansum(A)
+        @turbo for i in eachindex(A)
+            A[i] = A[i] / sum_a * 100
         end
-
-        return matches
+        return A
     end
 
 
-## --- Correct units to wt.%
     """
     ```julia
     standardize_units!(bulkdata::AbstractArray{Float64}, bulkunits::AbstractArray{String}, 
@@ -674,7 +580,8 @@
     end
 
 
-## --- Find likelihoods
+## --- Sample matching
+
     """
     ```julia
     likelihood(bulkage::AbstractArray, sampleage::Number,
@@ -696,7 +603,7 @@
         npoints = length(bulkage)
         ll_age = Array{Float64}(undef, npoints, 1)
         ll_dist = Array{Float64}(undef, npoints, 1)
-        ll_total = Array{Float64}(undef, npoints, 1)
+        ll_total = zeros(npoints)
 
         # Replace missing values: this will penalize but not exclude missing data
         @inbounds for i in 1:npoints
@@ -719,7 +626,7 @@
             ll_dist[i] = -((haversine(samplelat, samplelon, bulklat[i], bulklon[i]))^2)/(1.8^2)
         end
 
-        @. ll_total = ll_age + ll_dist
+        # @. ll_total = ll_age + ll_dist
         
         # Geochemical log-likelihoods
         for elem in eachindex(bulkgeochem)
@@ -733,7 +640,6 @@
     end
 
 
-## --- Randomly select a sample, weighted based on likelihood
     """
     ```julia
     rand_prop_liklihood(ll)
@@ -756,6 +662,7 @@
         end
         return lastindex(ll)
     end
+
 
     """
     ```julia
@@ -780,82 +687,8 @@
     end
 
 
-## --- Calculate wt.% and flux by rock type
-    # """
-    # ```julia
-    # function flux_source(bulk::AbstractArray, bulkidx::Vector{Int64}, erosion::NamedTuple, 
-    #     macro_cats::NamedTuple, crustal_area::NamedTuple; 
-    #     unitcodes::AbstractMatrix, unitdecoder::AbstractMatrix, crustal_density::Number=2750, 
-    #     elem::String="")
-    # ```
+## --- Measurements
 
-    # For a specified element in `bulk`, calculate the average wt.% and flux (kg/yr) by rocktype. 
-    # Calculate the total global flux of that element (kg/yr). Return the number of samples `n`.
-
-    # Note that `erosion`, `macro_cats`, and `crustal_area` _must_ contain at minimum the keys:
-    # ```
-    # :siliciclast, :shale, :carb, :chert, :evaporite, :coal, :sed, :volc, :plut, :ign, :metased, 
-    # :metaign, :met
-    # ```
-    # Keys must be type `Symbol`.
-
-    # ### Optional Keyword Arguments
-    # - `crustal_density::Number=2750`: Average crustal density (kg/m³).
-    # - `elem::String=""`: Element being analyzed, for terminal printout.
-
-    # # Example
-    # ```julia-repl
-    # julia> wt, flux, global_flux, n = flux_source(bulk.P2O5, bulkidx, erosion, macro_cats, crustal_area, elem="phosphorus")
-    # [ Info: 44307 of 50000 phosphorus samples (1%) are not NaN
-    # ```
-    # """
-    # function flux_source(bulk::AbstractArray, bulkidx::Vector{Int64}, erosion::NamedTuple, 
-    #     macro_cats::NamedTuple, crustal_area::NamedTuple; 
-    #     crustal_density::Number=2750, elem::String="", printinfo=false)
-
-    #     # Preallocate
-    #     allkeys = collect(keys(macro_cats))
-    #     deleteat!(allkeys, findall(x->x==:cover,allkeys))       # Do not compute cover
-
-    #     allinitvals = fill(NaN ± NaN, length(allkeys))
-    #     npoints = length(bulkidx)
-
-    #     wt = Dict(zip(allkeys, allinitvals))
-    #     flux = Dict(zip(allkeys, allinitvals))
-    #     bulkdata = Array{Float64}(undef, npoints, 1)
-
-    #     # Get EarthChem samples, if present
-    #     for i in eachindex(bulkidx)
-    #         (bulkidx[i] != 0) ? (bulkdata[i] = bulk[bulkidx[i]]) : (bulkdata[i] = NaN)
-    #     end
-
-    #     # Find how many samples have data for the element of interest
-    #     n = length(findall(!isnan, bulkdata))
-    #     if printinfo
-    #         @info "$n of $npoints $elem samples ($(round(n/npoints*100, sigdigits=3))%) are not NaN"
-    #     end
-
-    #     # Calculate average wt.% for each rock type
-    #     # TO DO: Maybe set no data to 0 instead of NaN? Would require re-writing a bit...
-    #     for i in keys(wt)
-    #         wt[i] = nanmean(bulkdata[macro_cats[i]]) ± nanstd(bulkdata[macro_cats[i]])
-    #     end
-    #     wt = NamedTuple{Tuple(keys(wt))}(values(wt))
-
-    #     # Calculate provenance by rock type
-    #     for i in keys(flux)
-    #         flux[i] = erosion[i] * crustal_area[i] * wt[i] * crustal_density* 1e-8
-    #     end
-    #     flux = NamedTuple{Tuple(keys(flux))}(values(flux))
-
-    #     # Compute global flux
-    #     global_flux = nansum([flux.sed, flux.ign, flux.met])
-
-    #     return wt, flux, global_flux, n
-    # end
-    
-
-## --- Functions for dealing with measurements
     """
     ```julia
         unmeasurementify(A::AbstractArray{Measurement{Float64}})
@@ -895,25 +728,9 @@
         return val, err
     end
 
-    
-## --- Normalize compositions to 100%
-    """
-    ```julia
-    normalize!(A::AbstractVector)
-    ```
 
-    Normalize the percentage values in `A` to 100%.
-    """
-    function normalize!(A::AbstractVector)
-        sum_a = nansum(A)
-        @turbo for i in eachindex(A)
-            A[i] = A[i] / sum_a * 100
-        end
-        return A
-    end
+## --- (Coordinate) point in polygon
 
-
-## --- Get points inside a polygon
     """
     ```julia
     points_in_shape(poly_x::AbstractArray, poly_y::AbstractArray,  
@@ -1000,7 +817,6 @@
     end
 
 
-## --- Find coordinates in polygon
     """
     ```julia
     coords_in_shape(polylons::AbstractArray, polylats::AbstractArray, 

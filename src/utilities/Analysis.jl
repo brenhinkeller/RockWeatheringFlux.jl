@@ -1,6 +1,7 @@
 # Functions for data analysis and meta-analysis
 
 ## --- Modal bin / sample functions
+
     """
     ```julia
     modal(data::AbstractArray)
@@ -200,7 +201,6 @@
             )
         end
     end
-
 
 
 ## --- End of file

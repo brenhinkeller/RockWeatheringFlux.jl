@@ -56,7 +56,7 @@
         )
 
         # Get rock type classifications and initialized BitVector
-        typelist, cats = get_rock_class(major, length(rocktype))
+        typelist, cats = get_cats(major, length(rocktype))
 
         # Check major lithology if samples are from Macrostrat
         if source==:macrostrat
@@ -141,7 +141,7 @@
     in `writtentype`.
     """
     function match_rocktype(writtentype::AbstractArray{String})
-        cats = get_rock_class(false, length(writtentype))[2]
+        cats = get_cats(false, length(writtentype))[2]
 
         # Parse all of the written types into cats
         for i in eachindex(writtentype)
@@ -177,7 +177,7 @@
     Given a `Tuple` of `BitVectors`, return a `BitVector` that is `true` at index `i` iff 
     all elements of the `Tuple` are `false` at index `i`.
 
-    If `cats` is a `NamedTuple` of rock types defined by `get_rock_class`, specify `major` 
+    If `cats` is a `NamedTuple` of rock types defined by `get_cats`, specify `major` 
     as `true` or `false` to decrease runtime. `major` is `true` if `cats` contains only 
     `sed`, `ign`, `met`, and `cover`.
 
@@ -224,7 +224,7 @@
         rockdescrip::AbstractArray)
 
         # Get rock names as one long list, excluding cover
-        typelist = get_rock_class(true, length(rocktype))[1]
+        typelist = get_rock_class(true)
         typelist = unique((typelist.sed..., typelist.met..., typelist.ign...))
 
         # Initialize a NamedTuple with a BitVector for each rock name
@@ -369,7 +369,7 @@
     ```
 
     Find the rock type category for `name`. The `name` must be included in the rock name
-    `typelist` returned by `get_rock_class`.
+    `typelist` returned by `get_cats`.
 
     # Example
     ```julia-repl

@@ -128,17 +128,19 @@
 
 
 ## --- Alternatively, load spatial weights from a file
-    fid = h5open("output/invspatial.h5", "r")
-        header = read(fid["header"])
-        k = read(fid["k"])
-    close(fid)
-    # p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    p = 1.0 ./ k
-    zeronan!(p)
-    spatial_lookup = NamedTuple{Tuple(Symbol.(header))}(p[:,i] for i in eachindex(header))
+    # fid = h5open("output/invspatial.h5", "r")
+    #     header = read(fid["header"])
+    #     k = read(fid["k"])
+    # close(fid)
+    # # p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+    # p = 1.0 ./ k
+    # zeronan!(p)
+    # spatial_lookup = NamedTuple{Tuple(Symbol.(header))}(p[:,i] for i in eachindex(header))
+    # header = collect(rocknames)
+    # spatial_lookup = NamedTuple{Tuple(Symbol.(header))}(ones(nbulk) for _ in eachindex(header))
 
 
-# ## --- Find matching Earthchem sample for each Macrostrat sample
+## --- Find matching Earthchem sample for each Macrostrat sample
     # Preallocate
     matches = zeros(Int64, length(macro_cats.sed))
     geochemkeys, = get_elements()               # Major elements
@@ -155,7 +157,7 @@
     @timev for i in eachindex(matches)
         # Get the rock type and randomly select one sample rock name
         type = get_type(macro_cats, i, all_keys=true)
-        if type==(:cover,) || type==nothing
+        if type==(:cover,) || type===nothing
             next!(p)
             continue
         end
@@ -196,7 +198,8 @@
         # assumption of this method is that there are enough samples of each name that 
         # outliers get ironed out.
         name = rand(get_type(name_cats, i, all_keys=true))
-        randsample = bulk_idxs[weighted_rand(spatial_lookup[name])]
+        t = @. bulk_lookup[name] & bulksamples
+        randsample = rand(bulk_idxs[t])
 
         geochemdata = geochem_lookup[name]
         errs = NamedTuple{Tuple(geochemkeys)}([abs(randn()*geochemdata[i].e) for i in geochemkeys])

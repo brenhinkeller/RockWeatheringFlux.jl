@@ -30,18 +30,17 @@
     close(macrofid)
     # macro_cats = match_rocktype(macrostrat.type)
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
-        macrostrat.rockdescrip, unmultimatch=false, source=:macrostrat
+        macrostrat.rockdescrip, unmultimatch=false, inclusive=false, source=:macrostrat
     )
     
 ## --- Load Earthchem bulk geochemical data
-    bulkfid = h5open("output/bulk_new.h5", "r")
+    bulkfid = h5open("output/bulk.h5", "r")
 
     # Bulk
     header = read(bulkfid["bulk"]["header"])
     data = read(bulkfid["bulk"]["data"])
-    type = read(bulkfid["bulk"]["type"])
+    # bulktype = read(bulkfid["bulk"]["type"])
     bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
-    bulk_cats = match_rocktype(type)
 
     # Bulk rock name, type, and material
     path = bulkfid["bulktext"]["sampledata"]
@@ -55,6 +54,9 @@
         [lowercase.(read(path["elements"][target[i]]))[index[:,targetind[i]]] for i in eachindex(target)]
     )
     close(bulkfid)
+    bulk_cats = match_rocktype(bulktext.Rock_Name, bulktext.Type, bulktext.Material; 
+        unmultimatch=false, inclusive=false, source=:earthchem
+    )
 
 
 ## --- Create average geochemistry lookup table for each rock name
@@ -63,7 +65,7 @@
     rocknames = string.(keys(name_cats))
 
     # Get EarthChem samples for each rock name
-    typelist = get_rock_class(false, 1)[1]
+    typelist = get_rock_class(false, true)      # Get subtypes, major types inclusive
     nbulk = length(bulktext.Rock_Name)
     bulk_lookup = NamedTuple{keys(name_cats)}([falses(nbulk) for _ in eachindex(name_cats)])
 
@@ -196,6 +198,8 @@
         # outliers get ironed out.
         name = rand(get_type(name_cats, i, all_keys=true))
         t = @. bulk_lookup[name] & bulksamples
+        @assert count(t) > 0 "$i"
+
         randsample = rand(bulk_idxs[t])
 
         geochemdata = geochem_lookup[name]

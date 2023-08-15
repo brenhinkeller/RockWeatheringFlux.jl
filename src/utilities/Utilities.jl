@@ -45,8 +45,11 @@
     ```
     """
     match_rocktype(primary::AbstractArray, secondary::AbstractArray, tertiary::AbstractArray; 
-        major::Bool=false, unmultimatch::Bool=true, source::Symbol
-    ) = _match_rocktype(primary, secondary, tertiary, major, unmultimatch, static(source))
+        major::Bool=false, 
+        unmultimatch::Bool=true,
+        inclusive::Bool=true, 
+        source::Symbol
+    ) = _match_rocktype(primary, secondary, tertiary, major, unmultimatch, inclusive, static(source))
 
     """
     ```julia
@@ -55,9 +58,10 @@
 
     Match Macrostrat rock names to defined rock classes.
     """
-    function _match_rocktype(rocktype, rockname, rockdescrip, major, unmultimatch, 
+    function _match_rocktype(rocktype, rockname, rockdescrip, major, unmultimatch, inclusive,
             source::StaticSymbol{:macrostrat}
         )
+
         # Get rock type classifications and initialized BitVector
         typelist, cats = get_cats(major, length(rocktype))
         p = Progress(length(typelist)*4+1, desc="Finding Macrostrat rock types...")
@@ -108,7 +112,7 @@
         end
 
         # If subtypes are true, major types must also be true
-        if major==false
+        if !major && inclusive
             minorsed, minorign, minormet = get_minor_types()
             for type in minorsed
                 cats.sed .|= cats[type]
@@ -132,9 +136,10 @@
 
     Match Earthchem rock names to defined rock classes.
     """
-    function _match_rocktype(Rock_Name, Type, Material, major, unmultimatch, 
+    function _match_rocktype(Rock_Name, Type, Material, major, unmultimatch, inclusive,
             source::StaticSymbol{:earthchem}
         )
+
         # Get rock type classifications and initialized BitVector
         typelist, cats = get_cats(major, length(Rock_Name))
         p = Progress(length(typelist)*3+1, desc="Finding Earthchem rock types...")
@@ -186,7 +191,7 @@
         end
 
         # If subtypes are true, major types must also be true
-        if major==false
+        if !major && inclusive
             minorsed, minorign, minormet = get_minor_types()
             for type in minorsed
                 cats.sed .|= cats[type]

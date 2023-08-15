@@ -42,6 +42,7 @@
         # Data
         header = read(bulkfid["bulk"]["header"])
         data = read(bulkfid["bulk"]["data"])
+        bulktype = read(bulkfid["bulk"]["type"])
 
         # Metadata
         path = bulkfid["bulktext"]["sampledata"]
@@ -58,6 +59,8 @@
     # Matched samples and all data
     mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
     bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    bulk_cats = match_rocktype(bulktype)
+    mbulk_cats = match_rocktype(bulktype[bulkidx[t]])
 
 
 ## --- SiO₂ distribution by rock type
@@ -68,7 +71,12 @@
         label="All Igneous; n = $(count(macro_cats.ign))",      
         ylabel="Weight", xlabel="SiO2 [wt.%]",
         ylims=(0, round(maximum(n), digits=2)+0.01) 
-    ) 
+    )
+
+    mᵤ = nanmean(bulk.SiO2[bulk_cats.ign])
+    mₘ = nanmean(mbulk.SiO2[mbulk_cats.ign])
+    vline!([mᵤ], linestyle=:dashdot, linecolor=:grey, linewidth=3, label="Unmatched bulk mean")
+    vline!([mₘ], linestyle=:dash, linecolor=:black, linewidth=3, label="Matched bulk mean")
     display(h)
     savefig("c_ign.png")
 
@@ -80,6 +88,11 @@
         ylabel="Weight", xlabel="SiO2 [wt.%]", 
         ylims=(0, round(maximum(n), digits=2)+0.01)
     )
+
+    mᵤ = nanmean(bulk.SiO2[bulk_cats.volc])
+    mₘ = nanmean(mbulk.SiO2[mbulk_cats.volc])
+    vline!([mᵤ], linestyle=:dashdot, linecolor=:grey, linewidth=3, label="Unmatched bulk mean")
+    vline!([mₘ], linestyle=:dash, linecolor=:black, linewidth=3, label="Matched bulk mean")
     display(h)
     savefig("c_volc.png")
 
@@ -91,6 +104,11 @@
         ylabel="Weight", xlabel="SiO2 [wt.%]", 
         ylims=(0, round(maximum(n), digits=2)+0.01),
     )
+
+    mᵤ = nanmean(bulk.SiO2[bulk_cats.plut])
+    mₘ = nanmean(mbulk.SiO2[mbulk_cats.plut])
+    vline!([mᵤ], linestyle=:dashdot, linecolor=:grey, linewidth=3, label="Unmatched bulk mean")
+    vline!([mₘ], linestyle=:dash, linecolor=:black, linewidth=3, label="Matched bulk mean")
     display(h)
     savefig("c_plut.png")
 
@@ -102,6 +120,11 @@
         ylabel="Weight", xlabel="SiO2 [wt.%]",
         ylims=(0, round(maximum(n), digits=2)+0.01),
     )
+
+    mᵤ = nanmean(bulk.SiO2[bulk_cats.sed])
+    mₘ = nanmean(mbulk.SiO2[mbulk_cats.sed])
+    vline!([mᵤ], linestyle=:dashdot, linecolor=:grey, linewidth=3, label="Unmatched bulk mean")
+    vline!([mₘ], linestyle=:dash, linecolor=:black, linewidth=3, label="Matched bulk mean")
     display(h)
     savefig("c_sed.png")
 

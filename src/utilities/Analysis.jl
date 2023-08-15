@@ -88,16 +88,16 @@
         @info """
         Type: $type
         Modal bin: $i ($(c[i]-s)-$(c[i]+s) wt.% SiO₂)
-        Modal index count: $f of $(length(ind)) ($(round(f/length(ind)*100, digits=2))%)
+        Modal index count: $f of $(length(ind)) ($(round(f/length(ind)*100, sigdigits=3))%)
         Index: $(j)
 
-        This sample represents $(round(totalcount/totalindex*100, digits=2))% of all $type matches.
+        This sample represents $(round(totalcount/totalindex*100, digits=3))% of all $type matches.
         ---
         Sample information:
 
         Age: $(bulk.Age[j])
         Lat, Lon: $(bulk.Latitude[j]), $(bulk.Longitude[j])
-        SiO₂: $(round(bulk.SiO2[j], digits=2))%
+        SiO₂: $(round(bulk.SiO2[j], sigdigits=3))%
 
         Name: $(bulktext.Rock_Name[j])
         Type: $(bulktext.Type[j])

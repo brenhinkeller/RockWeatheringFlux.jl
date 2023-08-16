@@ -100,48 +100,6 @@
         for i in eachindex(bulk_lookup)]
     )
 
-## --- Calculate inverse spatial weight for each rock name
-    # This current method means samples without a latitude or longitude will never get picked.
-    # In theory, I could undo that by assigning a weight to samples without spatial data;
-    # probably the mean of the weights (although this could cause some weird statistical
-    # behavior depending on the distribution...). In any case, it may not end up mattering
-    # if there's enough samples to choose from.
-
-    # # Preallocate
-    # spatial_lookup = NamedTuple{keys(name_cats)}([fill(NaN, nbulk) for _ in eachindex(name_cats)])
-
-    # @info "Calculating inverse spatial weights for each rock name"
-    # for n in eachindex(keys(spatial_lookup))
-    #     println("$n ($n/$(length(rocknames))) \n")
-    #     spatial_lookup[n][bulk_lookup[n]] .= invweight_location(bulk.Latitude[bulk_lookup[n]], 
-    #         bulk.Latitude[bulk_lookup[n]]
-    #     )
-    # end
-
-    # # Save to file
-    # A = Array{Float64}(undef, nbulk, length(spatial_lookup))
-    # for i in eachindex(keys(spatial_lookup))
-    #     A[:,i] = spatial_lookup[i]
-    # end
-
-    # fid = h5open("output/invspatial.h5", "w")
-    #     fid["header"] = collect(rocknames)
-    #     fid["k"] = A
-    # close(fid)
-
-
-## --- Alternatively, load spatial weights from a file
-    # fid = h5open("output/invspatial.h5", "r")
-    #     header = read(fid["header"])
-    #     k = read(fid["k"])
-    # close(fid)
-    # # p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    # p = 1.0 ./ k
-    # zeronan!(p)
-    # spatial_lookup = NamedTuple{Tuple(Symbol.(header))}(p[:,i] for i in eachindex(header))
-    # header = collect(rocknames)
-    # spatial_lookup = NamedTuple{Tuple(Symbol.(header))}(ones(nbulk) for _ in eachindex(header))
-
 
 ## --- Find matching Earthchem sample for each Macrostrat sample
     # Preallocate

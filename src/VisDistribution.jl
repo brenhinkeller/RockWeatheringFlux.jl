@@ -72,11 +72,6 @@
         ylabel="Weight", xlabel="SiO2 [wt.%]",
         ylims=(0, round(maximum(n), digits=2)+0.01) 
     )
-
-    mᵤ = nanmean(bulk.SiO2[bulk_cats.ign])
-    mₘ = nanmean(mbulk.SiO2[mbulk_cats.ign])
-    vline!([mᵤ], linestyle=:dashdot, linecolor=:grey, linewidth=3, label="Unmatched bulk mean")
-    vline!([mₘ], linestyle=:dash, linecolor=:black, linewidth=3, label="Matched bulk mean")
     display(h)
     savefig("c_ign.png")
 
@@ -88,11 +83,6 @@
         ylabel="Weight", xlabel="SiO2 [wt.%]", 
         ylims=(0, round(maximum(n), digits=2)+0.01)
     )
-
-    mᵤ = nanmean(bulk.SiO2[bulk_cats.volc])
-    mₘ = nanmean(mbulk.SiO2[mbulk_cats.volc])
-    vline!([mᵤ], linestyle=:dashdot, linecolor=:grey, linewidth=3, label="Unmatched bulk mean")
-    vline!([mₘ], linestyle=:dash, linecolor=:black, linewidth=3, label="Matched bulk mean")
     display(h)
     savefig("c_volc.png")
 
@@ -104,11 +94,6 @@
         ylabel="Weight", xlabel="SiO2 [wt.%]", 
         ylims=(0, round(maximum(n), digits=2)+0.01),
     )
-
-    mᵤ = nanmean(bulk.SiO2[bulk_cats.plut])
-    mₘ = nanmean(mbulk.SiO2[mbulk_cats.plut])
-    vline!([mᵤ], linestyle=:dashdot, linecolor=:grey, linewidth=3, label="Unmatched bulk mean")
-    vline!([mₘ], linestyle=:dash, linecolor=:black, linewidth=3, label="Matched bulk mean")
     display(h)
     savefig("c_plut.png")
 
@@ -117,14 +102,9 @@
     n = float(n) ./ nansum(float(n) .* step(c))
     h = plot(c, n, seriestype=:bar, framestyle=:box, color=clr_sed, linecolor=clr_sed, 
         label="All Sedimentary; n = $(count(macro_cats.sed))", 
-        ylabel="Weight", xlabel="SiO2 [wt.%]",
+        ylabel="Weight", xlabel="SiO2 [wt.%]", legend=:topleft,
         ylims=(0, round(maximum(n), digits=2)+0.01),
     )
-
-    mᵤ = nanmean(bulk.SiO2[bulk_cats.sed])
-    mₘ = nanmean(mbulk.SiO2[mbulk_cats.sed])
-    vline!([mᵤ], linestyle=:dashdot, linecolor=:grey, linewidth=3, label="Unmatched bulk mean")
-    vline!([mₘ], linestyle=:dash, linecolor=:black, linewidth=3, label="Matched bulk mean")
     display(h)
     savefig("c_sed.png")
 

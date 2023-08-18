@@ -15,6 +15,12 @@
     include("utilities/Utilities.jl")
 
 
+## --- Start timer
+    start = now()
+    @info """
+    Start: $(Dates.Date(start)) $(Dates.format(start, "HH:MM"))
+    """
+
 ## --- Load Macrostrat data
     @info "Loading Macrostrat lithologic data ($macrostrat_io)"
     macrofid = h5open("$macrostrat_io", "r")
@@ -101,11 +107,28 @@
     )
 
 
+## --- Get the relative abundance of minor types in Macrostrat
+    minorsed, minorign, minormet = get_minor_types()
+    minortypes = (sed = minorsed, ign = minorign, met = minormet)
+    pw = (
+        sed = float.([count(macro_cats[i]) for i in minorsed]),
+        ign = float.([count(macro_cats[i]) for i in minorign]),
+        met = float.([count(macro_cats[i]) for i in minormet])
+    )
+
+    pw.sed ./= nansum(pw.sed)
+    pw.ign ./= nansum(pw.ign)
+    pw.met ./= nansum(pw.met)
+
+
 ## --- Find matching Earthchem sample for each Macrostrat sample
     # Preallocate
     matches = zeros(Int64, length(macro_cats.sed))
-    geochemkeys, = get_elements()               # Major elements
-    bulk_idxs = collect(1:length(bulk.SiO2))    # Indices of bulk
+
+    # Define
+    geochemkeys, = get_elements()                       # Major elements
+    bulk_idxs = collect(1:length(bulk.SiO2))            # Indices of bulk
+    minorlist = (minortypes.sed..., minortypes.ign..., minortypes.met...)
 
     # Zero-NaN version of the major elements in bulk
     bulkzero = deepcopy(bulk)
@@ -122,6 +145,46 @@
             next!(p)
             continue
         end
+
+        # Randomly select one EarthChem sample from the randomly selected sample name. 
+        # Assign an error sampled from a normal distribution with mean and standard 
+        # deviation equal to the mean and standard deviation of that rock name.
+        #
+        # This will represent the assumed geochemistry of the Macrostrat sample. The
+        # assumption of this method is that there are enough samples of each name that 
+        # outliers get ironed out.
+        # 
+        # First step: get rid of major types. 
+        # 
+        # If there are only major types, randomly pick a minor type with likelihood of 
+        # selecting a given type proportional to its abundance in the Macrostrat dataset. 
+        # If there are major and minor types, remove the major type and pick a random name
+        # from that type.
+        # 
+        # If there are minor types, just remove the major types
+        if no_minor_types(type, minorlist)
+            type = replace_major(type, minortypes, pw)
+            name = rand(typelist[rand(type)])
+
+        else
+            m = trues(length(type))
+            for j in eachindex(type)
+                m[j] = (type[j]==:sed || type[j]==:ign || type[j]==:met)
+            end
+            type = type[.!m]
+            name = rand(get_type(name_cats, i, all_keys=true))
+        end
+        
+        t = @. bulk_lookup[name] & bulksamples
+        @assert count(t) > 0 "$i"
+        randsample = rand(bulk_idxs[t])
+
+        geochemdata = geochem_lookup[name]
+        errs = NamedTuple{Tuple(geochemkeys)}([abs(randn()*geochemdata[i].e) for i in geochemkeys])
+
+        geochemdata = NamedTuple{Tuple(geochemkeys)}([NamedTuple{(:m, :e)}(
+            tuple.((bulkzero[i][randsample]), errs[i])) for i in geochemkeys]
+        )
 
         # Get EarthChem data for that type
         bulksamples = falses(length(bulk_cats[1]))           # EarthChem BitVector
@@ -146,27 +209,6 @@
             [bulkzero[i][bulksamples] for i in geochemkeys]
         )
 
-        # Randomly select one EarthChem sample from a randomly selected sample name, 
-        # proportional to it's spatial weight. Assign an error sampled from a normal 
-        # distribution with mean and standard deviation equal to the mean and standard 
-        # deviation of that rock name.
-        #
-        # This will represent the assumed geochemistry of the Macrostrat sample. The
-        # assumption of this method is that there are enough samples of each name that 
-        # outliers get ironed out.
-        name = rand(get_type(name_cats, i, all_keys=true))
-        t = @. bulk_lookup[name] & bulksamples
-        @assert count(t) > 0 "$i"
-
-        randsample = rand(bulk_idxs[t])
-
-        geochemdata = geochem_lookup[name]
-        errs = NamedTuple{Tuple(geochemkeys)}([abs(randn()*geochemdata[i].e) for i in geochemkeys])
-
-        geochemdata = NamedTuple{Tuple(geochemkeys)}([NamedTuple{(:m, :e)}(
-            tuple.((bulkzero[i][randsample]), errs[i])) for i in geochemkeys]
-        )
-
         # Find match
         matches[i] = likelihood(EC.bulkage, macrostrat.age[i], EC.bulklat, EC.bulklon, 
             macrostrat.rocklat[i], macrostrat.rocklon[i], bulkgeochem, geochemdata, 
@@ -178,6 +220,14 @@
 
     # Write data to a file
     writedlm("$matchedbulk_io", matches, '\t')
+
+## --- End timer
+    stop = now()
+    @info """
+    Stop: $(Dates.Date(stop)) $(Dates.format(stop, "HH:MM")).
+
+    Total runtime: $(canonicalize(round(stop - start, Dates.Minute))).
+    """
 
 
 ## --- End of File

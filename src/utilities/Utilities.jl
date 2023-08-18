@@ -438,6 +438,7 @@
         return catkeys[keymatches]
     end
 
+
     """
     ```julia
     class_up(typelist, name::String)
@@ -691,6 +692,68 @@
         return lastindex(p)
     end
 
+
+    """
+    ```julia
+    replace_major(type::Tuple, minortypes::NamedTuple, p::NamedTuple)
+    ```
+
+    Replace `:sed`, `:ign`, and `:met` types in `type` with a weighted-random selection 
+    of a subtype from `minortypes` based on the weights in `p`. Remove duplicate types.
+
+    `minortypes` and `p` must be have keys `sed`, `ign`, and `met`.
+
+    # Example
+    ```julia-repl
+    julia> minortypes = (
+           sed = (:siliciclast, :shale),
+           ign = (:volc, :plut),
+           met = (:metased, :metaign),
+       );
+
+    julia> p = (
+            sed = [0.6, 0.4],
+            ign = [0.5, 0.5],
+            met = [0.3, 0.7],
+        );
+
+    julia> type = (:ign, :met, :carb, :plut,);
+
+    julia> replace_major(type, minortypes, p)
+    (:volc, :metaign, :carb, :plut)
+    ```
+    """
+    function replace_major(type::Tuple, minortypes::NamedTuple, p::NamedTuple)
+        newtype = Array{Symbol}(undef, length(type))
+        for i in eachindex(newtype)
+            if type[i] == :sed
+                newtype[i] = minortypes.sed[weighted_rand(p.sed)]
+            elseif type[i] == :ign
+                newtype[i] = minortypes.ign[weighted_rand(p.ign)]
+            elseif type[i] == :met
+                newtype[i] = minortypes.met[weighted_rand(p.met)]
+            else
+                newtype[i] = type[i]
+            end
+        end
+
+        return Tuple(unique(newtype))
+    end
+
+    """
+    ```julia
+    no_minor_types(type::Tuple, minortypes::Tuple)
+    ````
+
+    Return `true` if `type` does not contain minor types.
+    """
+    function no_minor_types(type::Tuple, minortypes::Tuple)
+        for t in type
+            t in minor && return false
+        end
+        return true
+    end
+    
 
 ## --- Measurements
 

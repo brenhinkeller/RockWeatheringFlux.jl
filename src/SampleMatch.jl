@@ -137,6 +137,19 @@
         [zeronan!(bulkzero[i]) for i in geochemkeys]
     )
 
+    # As part of this process, we'll need to assume the geochemistry of the Macrostrat 
+    # sample.
+    # 
+    # To do this and preserve any multi-modal distributions in the data, we'll randomly 
+    # pick one rock name matched with the sample, and randomly select one EarthChem sample
+    # that was also matched with that rock name.
+    # 
+    # The error for each major element will be randomly sampled from a normal distribution 
+    # with a mean and standard deviation equal to the mean and standard deviation for that
+    # major element within the selected rock name.
+    # 
+    # This method assumes there are enough samples for outliers to get ironed out.
+
     p = Progress(length(matches)+1, desc="Matching samples...")
     next!(p)
     @timev for i in eachindex(matches)
@@ -147,50 +160,23 @@
             continue
         end
 
-        # Randomly select one EarthChem sample from the randomly selected sample name. 
-        # Assign an error sampled from a normal distribution with mean and standard 
-        # deviation equal to the mean and standard deviation of that rock name.
-        #
-        # This will represent the assumed geochemistry of the Macrostrat sample. The
-        # assumption of this method is that there are enough samples of each name that 
-        # outliers get ironed out.
-        # 
-        # First step: get rid of major types. 
-        # 
-        # If there are only major types, randomly pick a minor type with likelihood of 
-        # selecting a given type proportional to its abundance in the Macrostrat dataset. 
-        # If there are major and minor types, remove the major type and pick a random name
-        # from that type.
-        # 
-        # If there are minor types, just remove the major types
-        if no_minor_types(type, minorlist)
-            type = replace_major(type, minortypes, pw)
-            name = rand(typelist[rand(type)])
+        # Pick a random sample to act as the geochemistry for that sample
+        names = get_type(name_cats, i, all_keys=true)
+        randname = rand(name)
+        randsample = rand(bulk_idxs[bulk_lookup[randname]])
+        geochemdata = geochem_lookup[randname]
 
-        else
-            m = trues(length(type))
-            for j in eachindex(type)
-                m[j] = (type[j]==:sed || type[j]==:ign || type[j]==:met)
-            end
-            type = type[.!m]
-            name = rand(get_type(name_cats, i, all_keys=true))
-        end
-        
-        t = @. bulk_lookup[name] & bulksamples
-        @assert count(t) > 0 "$i"
-        randsample = rand(bulk_idxs[t])
-
-        geochemdata = geochem_lookup[name]
-        errs = NamedTuple{Tuple(geochemkeys)}([abs(randn()*geochemdata[i].e) for i in geochemkeys])
-
+        errs = NamedTuple{Tuple(geochemkeys)}([abs(randn()*geochemdata[i].e) 
+            for i in geochemkeys]
+        )
         geochemdata = NamedTuple{Tuple(geochemkeys)}([NamedTuple{(:m, :e)}(
             tuple.((bulkzero[i][randsample]), errs[i])) for i in geochemkeys]
         )
 
         # Get EarthChem data for that type
-        bulksamples = falses(length(bulk_cats[1]))           # EarthChem BitVector
-        for t in type
-            bulksamples .|= bulk_cats[t]
+        bulksamples = falses(length(bulk_lookup[1]))
+        for n in names
+            bulksamples .|= bulk_cats[n]
         end
 
         if count(bulksamples) == 0

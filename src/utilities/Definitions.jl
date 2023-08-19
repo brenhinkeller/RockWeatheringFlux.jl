@@ -140,7 +140,7 @@
         phosphorite = ("phosphorite", "phosphate")
         coal = ("coal", "anthracite", "peat", "lignite", "bitumen")
         volcaniclast = ("tonstein", "peperite", "volcaniclastic")
-        sed = ("sediment", "clast", "diamict","tillite", "stream  deposits", "beach deposits", 
+        sed = ("sediment", "clast", "diamict", "tillite", "stream deposits", "beach deposits", 
             "terrace",  "marine deposits",  "paleosol", "spiculite", "glauconite")
 
         # Igneous

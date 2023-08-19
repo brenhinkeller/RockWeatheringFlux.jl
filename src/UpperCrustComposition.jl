@@ -26,7 +26,7 @@
         rocklat = read(macrofid["rocklat"])[t],
         rocklon = read(macrofid["rocklon"])[t],
         age = read(macrofid["age"])[t],
-        type = read(macrofid["typecategory"])[t]
+        type = read(macrofid["type"])[t]
     )
     macro_cats = match_rocktype(macrostrat.type)
     close(macrofid)

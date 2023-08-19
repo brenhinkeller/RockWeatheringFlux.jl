@@ -42,6 +42,7 @@
         # Data
         header = read(bulkfid["bulk"]["header"])
         data = read(bulkfid["bulk"]["data"])
+        bulktype = read(bulkfid["bulk"]["type"])
 
         # Metadata
         path = bulkfid["bulktext"]["sampledata"]
@@ -58,6 +59,8 @@
     # Matched samples and all data
     mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
     bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    bulk_cats = match_rocktype(bulktype)
+    mbulk_cats = match_rocktype(bulktype[bulkidx[t]])
 
 
 ## --- SiO₂ distribution by rock type
@@ -68,7 +71,7 @@
         label="All Igneous; n = $(count(macro_cats.ign))",      
         ylabel="Weight", xlabel="SiO2 [wt.%]",
         ylims=(0, round(maximum(n), digits=2)+0.01) 
-    ) 
+    )
     display(h)
     savefig("c_ign.png")
 
@@ -99,7 +102,7 @@
     n = float(n) ./ nansum(float(n) .* step(c))
     h = plot(c, n, seriestype=:bar, framestyle=:box, color=clr_sed, linecolor=clr_sed, 
         label="All Sedimentary; n = $(count(macro_cats.sed))", 
-        ylabel="Weight", xlabel="SiO2 [wt.%]",
+        ylabel="Weight", xlabel="SiO2 [wt.%]", legend=:topleft,
         ylims=(0, round(maximum(n), digits=2)+0.01),
     )
     display(h)

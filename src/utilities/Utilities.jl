@@ -45,8 +45,11 @@
     ```
     """
     match_rocktype(primary::AbstractArray, secondary::AbstractArray, tertiary::AbstractArray; 
-        major::Bool=false, unmultimatch::Bool=true, source::Symbol
-    ) = _match_rocktype(primary, secondary, tertiary, major, unmultimatch, static(source))
+        major::Bool=false, 
+        unmultimatch::Bool=true,
+        inclusive::Bool=true, 
+        source::Symbol
+    ) = _match_rocktype(primary, secondary, tertiary, major, unmultimatch, inclusive, static(source))
 
     """
     ```julia
@@ -55,9 +58,10 @@
 
     Match Macrostrat rock names to defined rock classes.
     """
-    function _match_rocktype(rocktype, rockname, rockdescrip, major, unmultimatch, 
+    function _match_rocktype(rocktype, rockname, rockdescrip, major, unmultimatch, inclusive,
             source::StaticSymbol{:macrostrat}
         )
+
         # Get rock type classifications and initialized BitVector
         typelist, cats = get_cats(major, length(rocktype))
         p = Progress(length(typelist)*4+1, desc="Finding Macrostrat rock types...")
@@ -108,7 +112,7 @@
         end
 
         # If subtypes are true, major types must also be true
-        if major==false
+        if !major && inclusive
             minorsed, minorign, minormet = get_minor_types()
             for type in minorsed
                 cats.sed .|= cats[type]
@@ -132,9 +136,10 @@
 
     Match Earthchem rock names to defined rock classes.
     """
-    function _match_rocktype(Rock_Name, Type, Material, major, unmultimatch, 
+    function _match_rocktype(Rock_Name, Type, Material, major, unmultimatch, inclusive,
             source::StaticSymbol{:earthchem}
         )
+
         # Get rock type classifications and initialized BitVector
         typelist, cats = get_cats(major, length(Rock_Name))
         p = Progress(length(typelist)*3+1, desc="Finding Earthchem rock types...")
@@ -186,7 +191,7 @@
         end
 
         # If subtypes are true, major types must also be true
-        if major==false
+        if !major && inclusive
             minorsed, minorign, minormet = get_minor_types()
             for type in minorsed
                 cats.sed .|= cats[type]
@@ -432,6 +437,7 @@
         count(keymatches)==0 && return nothing
         return catkeys[keymatches]
     end
+
 
     """
     ```julia
@@ -686,6 +692,68 @@
         return lastindex(p)
     end
 
+
+    """
+    ```julia
+    replace_major(type::Tuple, minortypes::NamedTuple, p::NamedTuple)
+    ```
+
+    Replace `:sed`, `:ign`, and `:met` types in `type` with a weighted-random selection 
+    of a subtype from `minortypes` based on the weights in `p`. Remove duplicate types.
+
+    `minortypes` and `p` must be have keys `sed`, `ign`, and `met`.
+
+    # Example
+    ```julia-repl
+    julia> minortypes = (
+           sed = (:siliciclast, :shale),
+           ign = (:volc, :plut),
+           met = (:metased, :metaign),
+       );
+
+    julia> p = (
+            sed = [0.6, 0.4],
+            ign = [0.5, 0.5],
+            met = [0.3, 0.7],
+        );
+
+    julia> type = (:ign, :met, :carb, :plut,);
+
+    julia> replace_major(type, minortypes, p)
+    (:volc, :metaign, :carb, :plut)
+    ```
+    """
+    function replace_major(type::Tuple, minortypes::NamedTuple, p::NamedTuple)
+        newtype = Array{Symbol}(undef, length(type))
+        for i in eachindex(newtype)
+            if type[i] == :sed
+                newtype[i] = minortypes.sed[weighted_rand(p.sed)]
+            elseif type[i] == :ign
+                newtype[i] = minortypes.ign[weighted_rand(p.ign)]
+            elseif type[i] == :met
+                newtype[i] = minortypes.met[weighted_rand(p.met)]
+            else
+                newtype[i] = type[i]
+            end
+        end
+
+        return Tuple(unique(newtype))
+    end
+
+    """
+    ```julia
+    no_minor_types(type::Tuple, minortypes::Tuple)
+    ````
+
+    Return `true` if `type` does not contain minor types.
+    """
+    function no_minor_types(type::Tuple, minortypes::Tuple)
+        for t in type
+            t in minor && return false
+        end
+        return true
+    end
+    
 
 ## --- Measurements
 

@@ -210,10 +210,11 @@
 
         # If inclusive or major classes only, include subtypes
         if inclusive || major
-            sed = (sed..., siliciclast..., shale..., carb..., chert..., evaporite..., coal..., 
-                phosphorite..., volcaniclast...,)
-            ign = (ign..., volc..., plut...)
-            met = (met..., metased..., metaign..., lowgrade..., highgrade..., cataclastic...)
+            sed = unique((sed..., siliciclast..., shale..., carb..., chert..., evaporite..., 
+                coal..., phosphorite..., volcaniclast...,))
+            ign = unique((ign..., volc..., plut...))
+            met = unique((met..., metased..., metaign..., lowgrade..., highgrade..., 
+                cataclastic...))
 
             # If major elements only, return major elements
             major && return (sed=sed, ign=ign, met=met, cover=cover)

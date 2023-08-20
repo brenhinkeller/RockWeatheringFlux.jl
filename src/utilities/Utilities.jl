@@ -728,24 +728,35 @@
         for i in eachindex(type)
             if type[i]==:ign 
                 type[i] = minortypes.ign[weighted_rand(p.ign)]
+            elseif type[i]==:sed
+                type[i] = minortypes.sed[weighted_rand(p.sed)]
+            elseif type[i]==:met 
+                type[i] = minortypes.met[weighted_rand(p.met)]
             end
         end
-        
-        return unique(type)
+
+        return Tuple(unique(type))
     end
+
 
     """
     ```julia
-    no_minor_types(type::Tuple, minortypes::Tuple)
-    ````
-
-    Return `true` if `type` does not contain minor types.
+    ```
     """
-    function no_minor_types(type::Tuple, minortypes::Tuple)
-        for t in type
-            t in minor && return false
+    function get_descriptive_name(samplenames::Tuple, typelist::NamedTuple)
+        t = trues(length(samplenames))
+        nondescript = (typelist.sed..., typelist.met..., typelist.ign...)
+
+        for i in eachindex(samplenames)
+            t[i] = ifelse(string(samplenames[i]) in nondescript, false, true)
         end
-        return true
+
+        # If no names are left, weighted-random selection of a name
+        if count(t) == 0
+
+        else
+            return rand(samplenames[t])
+        end
     end
     
 

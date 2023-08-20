@@ -41,6 +41,17 @@
     data = @. data > 0
     bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
 
+    # minorsed, minorign, minormet = get_minor_types()
+    # for type in minorsed
+    #     bulk_cats.sed .|= bulk_cats[type]
+    # end
+    # for type in minorign
+    #     bulk_cats.ign .|= bulk_cats[type]
+    # end
+    # for type in minormet
+    #     bulk_cats.met .|= bulk_cats[type]
+    # end
+
     # EarthChem rock names
     rocknames = read(fid["vars"]["bulk_lookup_head"])
     data = read(fid["vars"]["bulk_lookup"])
@@ -105,7 +116,7 @@
     # rocknames = string.(keys(name_cats))
 
     # # Get EarthChem samples for each rock name
-    # typelist = get_rock_class(false, true)      # Get subtypes, major types inclusive
+    # typelist = get_rock_class(false, true)      # Subtypes, major types include minors
     # nbulk = length(bulktext.Rock_Name)
     # bulk_lookup = NamedTuple{keys(name_cats)}([falses(nbulk) for _ in eachindex(name_cats)])
 
@@ -160,8 +171,9 @@
     matches = zeros(Int64, length(macro_cats.sed))
 
     # Define
-    geochemkeys, = get_elements()                       # Major elements
-    bulk_idxs = collect(1:length(bulk.SiO2))            # Indices of bulk
+    geochemkeys, = get_elements()               # Major elements
+    bulk_idxs = collect(1:length(bulk.SiO2))    # Indices of bulk samples
+    typelist = get_rock_class(false, false)     # Types, majors do not include minors
 
     # Zero-NaN version of the major elements in bulk
     bulkzero = deepcopy(bulk)
@@ -193,9 +205,6 @@
             continue
         end
 
-        # Sanitize matched types
-        # type = replace_major(type, minortypes, pw)
-
         # Pick a random sample to act as the geochemistry for that sample
         samplenames = get_type(name_cats, i, all_keys=true)
         randname = rand(samplenames)
@@ -211,6 +220,7 @@
 
         # Get EarthChem data for that type
         bulksamples = falses(length(bulk_cats[1]))
+        type = replace_major(type, minortypes, pw)
         for t in type
             bulksamples .|= bulk_cats[t]
         end

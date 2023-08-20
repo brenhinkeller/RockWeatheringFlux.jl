@@ -215,7 +215,7 @@
     ```
 
     Return a `NamedTuple` of `BitVector`s catagorizing Macrostrat samples as sedimentary, 
-    igneous, metamorphic (and associated subtypes), or cover from types stored as strings 
+    igneous, metamorphic, and associated subtypes, or cover from types stored as strings 
     in `writtentype`.
     """
     function match_rocktype(writtentype::AbstractArray{String})
@@ -424,7 +424,7 @@
         return nothing
     end
 
-    function _get_type(cats, i, allkeys::True)
+    function _get_type(cats, i, all_keys::True)
         @assert 0 < i <= length(cats[1]) "Index $i out of bounds."
 
         catkeys = keys(cats)
@@ -724,20 +724,14 @@
     ```
     """
     function replace_major(type::Tuple, minortypes::NamedTuple, p::NamedTuple)
-        newtype = Array{Symbol}(undef, length(type))
-        for i in eachindex(newtype)
-            if type[i] == :sed
-                newtype[i] = minortypes.sed[weighted_rand(p.sed)]
-            elseif type[i] == :ign
-                newtype[i] = minortypes.ign[weighted_rand(p.ign)]
-            elseif type[i] == :met
-                newtype[i] = minortypes.met[weighted_rand(p.met)]
-            else
-                newtype[i] = type[i]
+        type = collect(type)
+        for i in eachindex(type)
+            if type[i]==:ign 
+                type[i] = minortypes.ign[weighted_rand(p.ign)]
             end
         end
-
-        return Tuple(unique(newtype))
+        
+        return unique(type)
     end
 
     """

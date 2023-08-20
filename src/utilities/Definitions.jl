@@ -41,16 +41,19 @@
 
 ## --- Color names for visualization
 
-    clr_gradient = :jet1
+    c_gradient = :jet1
 
     # Observed samples by rock type
-    clr_ign = :crimson
-    clr_volc = :tomato 
-    clr_plut = :darkred
-    clr_sed = :green
+    colors = (
+        ign = :crimson, volc = :tomato, plut = :darkred,
+        sed = :royalblue, siliciclast = :dodgerblue, shale = :cadetblue, carb = :aqua,
+            chert = :mediumblue, evaporite = :lightskyblue, coal = :midnightblue, 
+            phosphorite = :turquoise, volcaniclast = :rebeccapurple,
+        met = :gold, metased = :yellowgreen, metaign = :darkorange,
+    )
 
     # Resampled
-    clr_rs = :grey
+    c_rs = :grey
 
 
 ## --- Major and minor elements
@@ -179,7 +182,7 @@
             "vaugnerite", "vibetoite", "websterite", "wehrlite", "yamaskite", "pluton", 
             "batholith", "mangerite", "pegmatite", "rapakivi", "intrus", "sill", "dike", 
             "stock", "laccolith", "lopolith", "microgranite")
-        ign = ("igneous", "silicic ", "mafic", "felsic", "basite", "phoscorite", "rauhaugite", 
+        ign = ("igneous", "silicic", "mafic", "felsic", "basite", "phoscorite", "rauhaugite", 
             "beforsite")
 
         # Metamorphic
@@ -188,17 +191,21 @@
         metaign = ("orthogneiss", "metaign", "serpentin", "amphibolit", "greenstone", "eclogite", 
             "basite", "greisen", "halleflinta", "leucophyre", "melaphyre", "propylite", "spilite", 
             "ultramafitite", "alkremite", "ortho", "meta-ign", "metabasite")
-        lowgrade = ("slate", "phyllite", "serpentin", "greenstone", "greenschist", "zeolite", 
-            "gossan", "alter", "hydrothermal", "palagonite",)
-        highgrade = ("crystalline", "basement", "marble", "skarn", "schist", "blueschist", 
-            "gneiss", "amphibolit", "eclogite", "granulit", "granofels", "sanidinite", 
-            "migma", "enderbite", "anorthosite", "charnockite", "pyroxenite", "peridot", "dunit", 
-            "harzburg", "high grade metamorphic")
+        # lowgrade = ("slate", "phyllite", "serpentin", "greenstone", "greenschist", "zeolite", 
+        #     "gossan", "alter", "hydrothermal", "palagonite",)
+        # highgrade = ("crystalline", "basement", "marble", "skarn", "schist", "blueschist", 
+        #     "gneiss", "amphibolit", "eclogite", "granulit", "granofels", "sanidinite", 
+        #     "migma", "enderbite", "anorthosite", "charnockite", "pyroxenite", "peridot", "dunit", 
+        #     "harzburg", "high grade metamorphic")
         cataclastic = ("mylonit", "cataclasite", "melange", "gouge", "tecton",)
         met = (("meta", "garnet", "buchite", "epidot", "fenite", "albitite", "chloritite", 
             "phlogopitite", "calc silicate", "calcsilicate", "rodingite", "sericitite", 
-            "tactite", "soapstone", "talc", "tourmalinite", "unakite", "vogesite")...,
-            lowgrade..., highgrade..., cataclastic...,
+            "tactite", "soapstone", "talc", "tourmalinite", "unakite", "vogesite", 
+            "greenschist", "zeolite", "gossan", "alter", "hydrothermal", "palagonite", 
+            "crystalline", "basement", "skarn", "schist", "blueschist", "gneiss", "granulit", 
+            "granofels", "sanidinite", "migma", "enderbite", "anorthosite", "charnockite", 
+            "pyroxenite", "peridot", "dunit", "harzburg", "high grade metamorphic")...,
+            cataclastic...,
         )
 
         # Cover
@@ -213,8 +220,7 @@
             sed = unique((sed..., siliciclast..., shale..., carb..., chert..., evaporite..., 
                 coal..., phosphorite..., volcaniclast...,))
             ign = unique((ign..., volc..., plut...))
-            met = unique((met..., metased..., metaign..., lowgrade..., highgrade..., 
-                cataclastic...))
+            met = unique((met..., metased..., metaign...))
 
             # If major elements only, return major elements
             major && return (sed=sed, ign=ign, met=met, cover=cover)
@@ -232,15 +238,37 @@
 
     """
     ```julia
+    nondescriptive()
+    ```
+
+    Return a list of broad (non-descriptive) metamorphic rock names.
+    """
+    function nondescriptive()
+        ("sediment", "clast", "diamict", "tillite", "stream deposits", "beach deposits", "terrace", 
+        "marine deposits", "paleosol", "spiculite", "glauconite")
+        ("meta", "buchite", "albitite", "chloritite", "phlogopitite", "rodingite", "sericitite", 
+        "tactite",  "unakite", "vogesite", "slate", "phyllite", "serpentin", "greenstone", 
+        "greenschist", "zeolite", "gossan", "alter", "hydrothermal", "palagonite", "crystalline", 
+        "basement", "marble", "skarn", "schist", "blueschist", "gneiss", "amphibolit", "eclogite", 
+        "granulit", "granofels", "sanidinite", "migma", "enderbite", "anorthosite", "charnockite", 
+        "pyroxenite", "peridot", "dunit", "harzburg", "high grade metamorphic", "mylonit", 
+        "cataclasite", "melange", "gouge", "tecton")
+        ("igneous", "silicic", "basite")
+    end
+
+
+    """
+    ```julia
     get_cats(major::Bool, npoints::Int64)
     ```
     
-    Initialize a NamedTuple of `npoints`-element BitVectors for each defined rock type.
+    Meow! 🐈 Initialize a NamedTuple of `npoints`-element BitVectors for each defined rock 
+    type.
     
     If `major` is `true`, only major types are defined. If `major` is `false`, all subtypes
     are defined.
 
-    See also: `get_minor_types`
+    See also: `get_minor_types` and `get_rock_class`.
 
     # Example
     ```julia

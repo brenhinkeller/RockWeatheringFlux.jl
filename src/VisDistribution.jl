@@ -64,49 +64,39 @@
 
 
 ## --- SiO₂ distribution by rock type
-    # All igneous
-    c, n = bincounts(mbulk.SiO2[macro_cats.ign], 40, 80, 40)
-    n = float(n) ./ nansum(float(n) .* step(c))
-    h = plot(c, n, seriestype=:bar, framestyle=:box, color=clr_ign, linecolor=clr_ign,
-        label="All Igneous; n = $(count(macro_cats.ign))",      
-        ylabel="Weight", xlabel="SiO2 [wt.%]",
-        ylims=(0, round(maximum(n), digits=2)+0.01) 
-    )
-    display(h)
-    savefig("c_ign.png")
+    fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(macro_cats) - 1)
+    bins = (ign = (40, 80, 40), sed = (0, 100, 100), met = (25, 100, 75))
+    minorsed, minorign, minormet = get_minor_types()
 
-    # Volcanic
-    c, n = bincounts(mbulk.SiO2[macro_cats.volc], 40, 80, 40)
-    n = float(n) ./ nansum(float(n) .* step(c))
-    h = plot(c, n, seriestype=:bar, framestyle=:box, color=clr_volc, linecolor=clr_volc,
-        label="Volcanic; n = $(count(macro_cats.volc))", 
-        ylabel="Weight", xlabel="SiO2 [wt.%]", 
-        ylims=(0, round(maximum(n), digits=2)+0.01)
-    )
-    display(h)
-    savefig("c_volc.png")
+    # Create all plots
+    rocks = collect(keys(macro_cats))
+    for i in eachindex(rocks)
+        r = rocks[i]
+        if r == :cover
+            continue
+        elseif r == :sed || r == :ign || r == :met
+            type = r
+        else
+            r in minorsed && (type = :sed)
+            r in minorign && (type = :ign)
+            r in minormet && (type = :met)
+        end
 
-    # Plutonic
-    c, n = bincounts(mbulk.SiO2[macro_cats.plut], 40, 80, 40)
-    n = float(n) ./ nansum(float(n) .* step(c))
-    h = plot(c, n, seriestype=:bar, framestyle=:box, color=clr_plut, linecolor=clr_plut,
-        label="Plutonic; n = $(count(macro_cats.plut))", 
-        ylabel="Weight", xlabel="SiO2 [wt.%]", 
-        ylims=(0, round(maximum(n), digits=2)+0.01),
-    )
-    display(h)
-    savefig("c_plut.png")
+        c, n = bincounts(mbulk.SiO2[macro_cats[r]], bins[type]...)
+        n = float(n) ./ nansum(float(n) .* step(c))
+        h = plot(c, n, seriestype=:bar, framestyle=:box, color=colors[r], linecolor=colors[r],
+            label="$(string(r)); n = $(count(macro_cats[r]))",      
+            # ylabel="Weight", xlabel="SiO2 [wt.%]",
+            ylims=(0, round(maximum(n), digits=2)+0.01) 
+        )
 
-    # All sedimentary
-    c, n = bincounts(mbulk.SiO2[macro_cats.sed], 0, 100, 100)
-    n = float(n) ./ nansum(float(n) .* step(c))
-    h = plot(c, n, seriestype=:bar, framestyle=:box, color=clr_sed, linecolor=clr_sed, 
-        label="All Sedimentary; n = $(count(macro_cats.sed))", 
-        ylabel="Weight", xlabel="SiO2 [wt.%]", legend=:topleft,
-        ylims=(0, round(maximum(n), digits=2)+0.01),
-    )
+        fig[i] = h
+    end
+
+    # Put into a layout
+    h = plot(fig..., layout=(5,3), size=(2000, 2000))
     display(h)
-    savefig("c_sed.png")
+    savefig(h, "distributions.png")
 
 
 ## --- [DATA] Resampled EarthChem SiO₂ (spatial density only)
@@ -123,7 +113,7 @@
     # All igneous
     c, n, = bincounts(rs_ign.SiO2, 40, 80, 80)
     n = float(n) ./ nansum(float(n) .* step(c))
-    h = plot(c, n, seriestype=:bar, framestyle=:box, color=clr_rs, linecolor=clr_rs,
+    h = plot(c, n, seriestype=:bar, framestyle=:box, color=c_rs, linecolor=c_rs,
         label="All Igneous (resample); n = $(length(rs_ign.SiO2))", 
         ylabel="Weight", xlabel="SiO2 [wt.%]", 
         ylims=(0, round(maximum(n), digits=2)+0.01))
@@ -133,7 +123,7 @@
     # Volcanic
     c, n, = bincounts(rs_volc.SiO2, 40, 80, 80)
     n = float(n) ./ nansum(float(n) .* step(c))
-    h = plot(c, n, seriestype=:bar, framestyle=:box, color=clr_rs, linecolor=clr_rs,
+    h = plot(c, n, seriestype=:bar, framestyle=:box, color=c_rs, linecolor=c_rs,
         label="Volcanic (resample); n = $(length(rs_volc.SiO2))", 
         ylabel="Weight", xlabel="SiO2 [wt.%]",
         ylims=(0, round(maximum(n), digits=2)+0.01))
@@ -143,7 +133,7 @@
     # Plutonic
     c, n, = bincounts(rs_plut.SiO2, 40, 80, 80)
     n = float(n) ./ nansum(float(n) .* step(c))
-    h = plot(c, n, seriestype=:bar, framestyle=:box, color=clr_rs, linecolor=clr_rs,
+    h = plot(c, n, seriestype=:bar, framestyle=:box, color=c_rs, linecolor=c_rs,
         label="Plutonic (resample); n = $(length(rs_plut.SiO2))", 
         ylabel="Weight", xlabel="SiO2 [wt.%]",
         ylims=(0, round(maximum(n), digits=2)+0.01))
@@ -153,7 +143,7 @@
     # All sedimentary
     c, n, = bincounts(rs_sed.SiO2, 0, 100, 200)
     n = float(n) ./ nansum(float(n) .* step(c))
-    h = plot(c, n, seriestype=:bar, framestyle=:box, color=clr_rs, linecolor=clr_rs,
+    h = plot(c, n, seriestype=:bar, framestyle=:box, color=c_rs, linecolor=c_rs,
         label="Sedimentary (resample); n = $(length(rs_sed.SiO2))", 
         ylabel="Weight", xlabel="SiO2 [wt.%]",
         ylims=(0, round(maximum(n), digits=2)+0.01))

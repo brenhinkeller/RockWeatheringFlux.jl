@@ -152,35 +152,28 @@
     )
 
 
-## --- Get the relative abundance of minor types in Macrostrat
+## --- Get weights for weighted-random selection of rock types and names
+    typelist = get_rock_class()                         # Major types exclude minor types
     minorsed, minorign, minormet = get_minor_types()
-    minortypes = (sed = minorsed, ign = minorign, met = minormet)
-    pw = (
+    minortypes = (minorsed..., minorign..., minormet...)
+
+    # Minor rock types
+    p_type = (
         sed = float.([count(macro_cats[i]) for i in minorsed]),
         ign = float.([count(macro_cats[i]) for i in minorign]),
         met = float.([count(macro_cats[i]) for i in minormet])
     )
+    [p_type[i] ./= sum(p_type[i]) for i in keys(p_type)]
 
-    pw.sed ./= nansum(pw.sed)
-    pw.ign ./= nansum(pw.ign)
-    pw.met ./= nansum(pw.met)
+    # Descriptive rock names
+    p_name = NamedTuple{minortypes}(
+        [[float.(count(name_cats[Symbol(typelist[i][j])])) for j in eachindex(typelist[i])] 
+            for i in minortypes
+    ])
+    [p_name[i] ./= sum(p_name[i]) for i in keys(p_name)]
 
 
 ## --- Find matching Earthchem sample for each Macrostrat sample
-    # Preallocate
-    matches = zeros(Int64, length(macro_cats.sed))
-
-    # Define
-    geochemkeys, = get_elements()               # Major elements
-    bulk_idxs = collect(1:length(bulk.SiO2))    # Indices of bulk samples
-    typelist = get_rock_class(false, false)     # Types, majors do not include minors
-
-    # Zero-NaN version of the major elements in bulk
-    bulkzero = deepcopy(bulk)
-    bulkzero = NamedTuple{Tuple(geochemkeys)}(
-        [zeronan!(bulkzero[i]) for i in geochemkeys]
-    )
-
     # As part of this process, we'll need to assume the geochemistry of the Macrostrat 
     # sample.
     # 
@@ -194,8 +187,21 @@
     # 
     # This method assumes there are enough samples for outliers to get ironed out.
 
-    @info "Starting sample matching $(Dates.format(now(), "HH:MM"))"
+    # Preallocate
+    matches = zeros(Int64, length(macro_cats.sed))
 
+    # Definitions
+    geochemkeys = get_elements()[1]                             # Major elements
+    bulk_idxs = collect(1:length(bulk.SiO2))                    # Indices of bulk samples
+    minortypes = (sed = minorsed, ign=minorign, met=minormet)   # Tuple minor types
+
+    # Zero-NaN version of the major elements in bulk
+    bulkzero = deepcopy(bulk)
+    bulkzero = NamedTuple{Tuple(geochemkeys)}(
+        [zeronan!(bulkzero[i]) for i in geochemkeys]
+    )
+
+    @info "Starting sample matching $(Dates.format(now(), "HH:MM"))"
     p = Progress(length(matches), desc="Matching samples...")
     @timev for i in eachindex(matches)
         # Get the rock type and randomly select one sample rock name
@@ -207,10 +213,12 @@
 
         # Pick a random sample to act as the geochemistry for that sample
         samplenames = get_type(name_cats, i, all_keys=true)
-        randname = rand(samplenames)
+        randname, type = get_descriptive_name(samplenames, p_name, type, p_type, typelist, 
+            minortypes
+        )
         randsample = rand(bulk_idxs[bulk_lookup[randname]])
+        
         geochemdata = geochem_lookup[randname]
-
         errs = NamedTuple{Tuple(geochemkeys)}([abs(randn()*geochemdata[i].e) 
             for i in geochemkeys]
         )
@@ -220,7 +228,6 @@
 
         # Get EarthChem data for that type
         bulksamples = falses(length(bulk_cats[1]))
-        type = replace_major(type, minortypes, pw)
         for t in type
             bulksamples .|= bulk_cats[t]
         end

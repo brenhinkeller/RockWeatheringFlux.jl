@@ -701,15 +701,20 @@
     Replace `:sed`, `:ign`, and `:met` types in `type` with a weighted-random selection 
     of a subtype from `minortypes` based on the weights in `p`. Remove duplicate types.
 
-    `minortypes` and `p` must be have keys `sed`, `ign`, and `met`.
+    Weights `p` must have the keys `sed`, `ign`, and `met`.
+
+    ### Kwargs `ign`, `sed`, and `met`
+
+    Minor rock types classified under the igneous, sedimentary, and metamorphic major 
+    types.
 
     # Example
     ```julia-repl
     julia> minortypes = (
-           sed = (:siliciclast, :shale),
-           ign = (:volc, :plut),
-           met = (:metased, :metaign),
-       );
+            sed=(:carb, :shale), 
+            ign=(:volc, :plut), 
+            met=(:metased, :metaign)
+        );
 
     julia> p = (
             sed = [0.6, 0.4],
@@ -719,11 +724,11 @@
 
     julia> type = (:ign, :met, :carb, :plut,);
 
-    julia> replace_major(type, minortypes, p)
+    julia> replace_major(type, p, minortypes)
     (:volc, :metaign, :carb, :plut)
     ```
     """
-    function replace_major(type::Tuple, minortypes::NamedTuple, p::NamedTuple)
+    function replace_major(type::Tuple, p::NamedTuple, minortypes::NamedTuple)
         type = collect(type)
         for i in eachindex(type)
             if type[i]==:ign 
@@ -741,22 +746,45 @@
 
     """
     ```julia
+    get_descriptive_name(samplenames::Tuple, p_name::NamedTuple, sampletypes::Tuple,
+            p_type::NamedTuple, typelist::NamedTuple, minortypes::NamedTuple
+        )
+    ```
+
+    Given matched rock names `samplenames` and matched rock types `sampletypes`, return a 
+    list of minor types and a randomly-selected descriptive rock name.
+
+    # Example
+    ```julia-repl
+    name, types = get_descriptive_name(samplenames, p_name, sampletypes, p_type, typelist, minortypes)
     ```
     """
-    function get_descriptive_name(samplenames::Tuple, typelist::NamedTuple)
-        t = trues(length(samplenames))
-        nondescript = (typelist.sed..., typelist.met..., typelist.ign...)
+    function get_descriptive_name(samplenames::Tuple, p_name::NamedTuple, sampletypes::Tuple,
+            p_type::NamedTuple, typelist::NamedTuple, minortypes::NamedTuple
+        )
 
-        for i in eachindex(samplenames)
-            t[i] = ifelse(string(samplenames[i]) in nondescript, false, true)
-        end
+        # Randomly pick a matched type
+        i = rand(1:length(sampletypes))
+        t = sampletypes[i]
 
-        # If no names are left, weighted-random selection of a name
-        if count(t) == 0
+        if t==:sed || t==:ign || t==:met 
+        # If the type is a major type, replace type and select a rock name
+            t = minortypes[t][weighted_rand(p_type[t])]
+            name = typelist[t][weighted_rand(p_name[t])]
 
+            # Replace any other majors, but keep the already-replaced type
+            sampletypes = collect(sampletypes)
+            sampletypes[i] = t
+            sampletypes = replace_major(Tuple(sampletypes), p_type, minortypes)
+
+            return Symbol(name), sampletypes
+            
         else
-            return rand(samplenames[t])
-        end
+        # If the type is a minor type, randomly pick a matched name that maps to that type
+            q = [string(n) in typelist[t] for n in samplenames]
+
+            return rand(samplenames[q]), replace_major(sampletypes, p_type, minortypes)
+        end 
     end
     
 

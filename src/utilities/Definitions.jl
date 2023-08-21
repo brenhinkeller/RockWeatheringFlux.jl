@@ -236,26 +236,6 @@
         )
     end
 
-    """
-    ```julia
-    nondescriptive()
-    ```
-
-    Return a list of broad (non-descriptive) metamorphic rock names.
-    """
-    function nondescriptive()
-        ("sediment", "clast", "diamict", "tillite", "stream deposits", "beach deposits", "terrace", 
-        "marine deposits", "paleosol", "spiculite", "glauconite")
-        ("meta", "buchite", "albitite", "chloritite", "phlogopitite", "rodingite", "sericitite", 
-        "tactite",  "unakite", "vogesite", "slate", "phyllite", "serpentin", "greenstone", 
-        "greenschist", "zeolite", "gossan", "alter", "hydrothermal", "palagonite", "crystalline", 
-        "basement", "marble", "skarn", "schist", "blueschist", "gneiss", "amphibolit", "eclogite", 
-        "granulit", "granofels", "sanidinite", "migma", "enderbite", "anorthosite", "charnockite", 
-        "pyroxenite", "peridot", "dunit", "harzburg", "high grade metamorphic", "mylonit", 
-        "cataclasite", "melange", "gouge", "tecton")
-        ("igneous", "silicic", "basite")
-    end
-
 
     """
     ```julia

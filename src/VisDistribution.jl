@@ -99,6 +99,27 @@
     savefig(h, "distributions.png")
 
 
+## --- [FN CALL] modal index and Macrostrat data
+    # Igneous
+    ignbin = (40, 80, 40)
+    iᵢ = sameindex(:ign, macro_cats, bulk, bulktext, bulkidx[t], bins=ignbin, hist=:off)
+    # get_matched_samples(iᵢ, bulkidx[t], macrostrat, filter=macro_cats.ign, desc="Igneous")
+
+    iᵥ = sameindex(:volc, macro_cats, bulk, bulktext, bulkidx[t], bins=ignbin, hist=:off)
+    # iᵢ != iᵥ && get_matched_samples(iᵥ, bulkidx[t], macrostrat, filter=macro_cats.volc, desc="Volcanic")
+
+    iₚ = sameindex(:plut, macro_cats, bulk, bulktext, bulkidx[t], bins=ignbin, hist=:off)
+    # iᵢ != iₚ && get_matched_samples(iₚ, bulkidx[t], macrostrat, filter=macro_cats.plut, desc="Plutonic")
+
+    # Sedimentary
+    sedbin = (0, 100, 100)
+    iₛ = sameindex(:sed, macro_cats, bulk, bulktext, bulkidx[t], bins=sedbin, hist=:off)     # All sed
+    # get_matched_samples(iₛ, bulkidx[t], macrostrat, filter=macro_cats.sed, desc="Sedimentary")
+
+    # Query Macrostrat at that location:
+    # https://macrostrat.org/api/mobile/map_query?lat=LAT&lng=LON&z=11
+
+    @assert 1==3
 ## --- [DATA] Resampled EarthChem SiO₂ (spatial density only)
     # Igneous
     rs_ign = importdataset("output/resampled/rs_ign.tsv", '\t', importas=:Tuple)
@@ -150,25 +171,5 @@
     display(h)
     savefig("c_rs_sed.png")
 
-
-## --- [FN CALL] modal index and Macrostrat data
-    # Igneous
-    ignbin = (40, 80, 40)
-    iᵢ = sameindex(:ign, macro_cats, bulk, bulktext, bulkidx[t], bins=ignbin, hist=:off)
-    get_matched_samples(iᵢ, bulkidx[t], macrostrat, filter=macro_cats.ign, desc="Igneous")
-
-    iᵥ = sameindex(:volc, macro_cats, bulk, bulktext, bulkidx[t], bins=ignbin, hist=:off)
-    iᵢ != iᵥ && get_matched_samples(iᵥ, bulkidx[t], macrostrat, filter=macro_cats.volc, desc="Volcanic")
-
-    iₚ = sameindex(:plut, macro_cats, bulk, bulktext, bulkidx[t], bins=ignbin, hist=:off)
-    iᵢ != iₚ && get_matched_samples(iₚ, bulkidx[t], macrostrat, filter=macro_cats.plut, desc="Plutonic")
-
-    # Sedimentary
-    sedbin = (0, 100, 100)
-    iₛ = sameindex(:sed, macro_cats, bulk, bulktext, bulkidx[t], bins=sedbin, hist=:off)     # All sed
-    get_matched_samples(iₛ, bulkidx[t], macrostrat, filter=macro_cats.sed, desc="Sedimentary")
-
-    # Query Macrostrat at that location:
-    # https://macrostrat.org/api/mobile/map_query?lat=LAT&lng=LON&z=11
 
 ## --- End of file

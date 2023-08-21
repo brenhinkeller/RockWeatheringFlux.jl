@@ -64,8 +64,7 @@
 
         # Get rock type classifications and initialized BitVector
         typelist, cats = get_cats(major, length(rocktype))
-        p = Progress(length(typelist)*4+1, desc="Finding Macrostrat rock types...")
-        next!(p)
+        p = Progress(length(typelist)*4, desc="Finding Macrostrat rock types...")
 
         # Check major lithology 
         for j in eachindex(typelist)
@@ -142,8 +141,7 @@
 
         # Get rock type classifications and initialized BitVector
         typelist, cats = get_cats(major, length(Rock_Name))
-        p = Progress(length(typelist)*3+1, desc="Finding Earthchem rock types...")
-        next!(p)
+        p = Progress(length(typelist)*3, desc="Finding Earthchem rock types...")
 
         # Check rock name
         @inbounds for j in eachindex(typelist)

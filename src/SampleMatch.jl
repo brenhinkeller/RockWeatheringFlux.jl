@@ -20,7 +20,7 @@
 
 
 ## --- Load matches
-    @info "Loading matched tuples $(Dates.format(now(), "HH:MM"))"
+    @info "Loading matched Tuples $(Dates.format(now(), "HH:MM"))"
     fid = h5open("output/matches.h5", "r")
 
     # Macrostrat rock types
@@ -41,17 +41,6 @@
     data = @. data > 0
     bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
 
-    # minorsed, minorign, minormet = get_minor_types()
-    # for type in minorsed
-    #     bulk_cats.sed .|= bulk_cats[type]
-    # end
-    # for type in minorign
-    #     bulk_cats.ign .|= bulk_cats[type]
-    # end
-    # for type in minormet
-    #     bulk_cats.met .|= bulk_cats[type]
-    # end
-
     # EarthChem rock names
     rocknames = read(fid["vars"]["bulk_lookup_head"])
     data = read(fid["vars"]["bulk_lookup"])
@@ -63,17 +52,17 @@
 
 ## --- Load Macrostrat data
     @info "Loading Macrostrat data ($macrostrat_io) $(Dates.format(now(), "HH:MM"))"
-    macrofid = h5open("$macrostrat_io", "r")
+    fid = h5open("$macrostrat_io", "r")
     macrostrat = (
-        rocklat = read(macrofid["rocklat"]),
-        rocklon = read(macrofid["rocklon"]),
-        age = read(macrofid["age"]),
-        type = read(macrofid["type"]),
-        rocktype = read(macrofid["rocktype"]),
-        rockname = read(macrofid["rockname"]),
-        rockdescrip = read(macrofid["rockdescrip"]),
+        rocklat = read(fid["rocklat"]),
+        rocklon = read(fid["rocklon"]),
+        age = read(fid["age"]),
+        type = read(fid["type"]),
+        rocktype = read(fid["rocktype"]),
+        rockname = read(fid["rockname"]),
+        rockdescrip = read(fid["rockdescrip"]),
     )
-    close(macrofid)
+    close(fid)
 
     # macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
     #     macrostrat.rockdescrip, unmultimatch=false, inclusive=false, source=:macrostrat
@@ -81,15 +70,15 @@
     
 ## --- Load Earthchem bulk geochemical data
     @info "Loading EarthChem data $(Dates.format(now(), "HH:MM"))"
-    bulkfid = h5open("output/bulk.h5", "r")
+    fid = h5open("output/bulk.h5", "r")
 
     # Bulk
-    header = read(bulkfid["bulk"]["header"])
-    data = read(bulkfid["bulk"]["data"])
+    header = read(fid["bulk"]["header"])
+    data = read(fid["bulk"]["data"])
     bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
 
     # Bulk rock name, type, and material
-    path = bulkfid["bulktext"]["sampledata"]
+    path = fid["bulktext"]["sampledata"]
     header = read(path["header"])
     index = read(path["index"])
 
@@ -101,7 +90,7 @@
             for i in eachindex(target)
         ]
     )
-    close(bulkfid)
+    close(fid)
 
     # bulk_cats = match_rocktype(bulktext.Rock_Name, bulktext.Type, bulktext.Material; 
     #     unmultimatch=false, inclusive=false, source=:earthchem
@@ -171,6 +160,21 @@
             for i in minortypes
     ])
     [p_name[i] ./= sum(p_name[i]) for i in keys(p_name)]
+
+
+## --- Remove all multimatches from major types
+    for type in minorsed
+        macro_cats.sed .&= .!macro_cats[type]
+        bulk_cats.sed .&= .!bulk_cats[type]
+    end
+    for type in minorign
+        macro_cats.ign .&= .!macro_cats[type]
+        bulk_cats.ign .&= .!bulk_cats[type]
+    end
+    for type in minormet
+        macro_cats.met .&= .!macro_cats[type]
+        bulk_cats.met .&= .!bulk_cats[type]
+    end
 
 
 ## --- Find matching Earthchem sample for each Macrostrat sample
@@ -281,6 +285,5 @@
 
     Total runtime: $(canonicalize(round(stop - start, Dates.Minute))).
     """
-
 
 ## --- End of File

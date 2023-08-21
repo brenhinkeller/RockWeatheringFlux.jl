@@ -238,9 +238,10 @@
             tuple.((bulkzero[i][randsample]), errs[i])) for i in geochemkeys]
         )
 
-        # Get EarthChem data for that type
+        # Get EarthChem data for all types
+        majtype = unique([class_up(typelist, string(t)) for t in type])
         bulksamples = falses(length(bulk_cats[1]))
-        for t in type
+        for t in majtype
             bulksamples .|= bulk_cats[t]
         end
 

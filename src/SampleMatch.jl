@@ -204,13 +204,25 @@
     @info "Starting sample matching $(Dates.format(now(), "HH:MM"))"
     p = Progress(length(matches), desc="Matching samples...")
     @timev for i in eachindex(matches)
-        # Get the rock type and randomly select one sample rock name
+        # Get the rock type. Remove cover as a matched type, if it's there
         type = get_type(macro_cats, i, all_keys=true)
-        if type==(:cover,) || type===nothing
+        if type===nothing
             next!(p)
             continue
-        end
+        else
+            t = trues(length(type))
+            for i in eachindex(type)
+                t[i] = type[i] != :cover
+            end
 
+            if count(t)==0
+                next!(p)
+                continue
+            else
+                type = type[t]
+            end
+        end
+        
         # Pick a random sample to act as the geochemistry for that sample
         samplenames = get_type(name_cats, i, all_keys=true)
         randname, type = get_descriptive_name(samplenames, p_name, type, p_type, typelist, 

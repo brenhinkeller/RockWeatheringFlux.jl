@@ -141,6 +141,21 @@
     )
 
 
+## --- Remove all multimatches from major types
+    for type in minorsed
+        macro_cats.sed .&= .!macro_cats[type]
+        bulk_cats.sed .&= .!bulk_cats[type]
+    end
+    for type in minorign
+        macro_cats.ign .&= .!macro_cats[type]
+        bulk_cats.ign .&= .!bulk_cats[type]
+    end
+    for type in minormet
+        macro_cats.met .&= .!macro_cats[type]
+        bulk_cats.met .&= .!bulk_cats[type]
+    end
+
+
 ## --- Get weights for weighted-random selection of rock types and names
     typelist = get_rock_class()                         # Major types exclude minor types
     minorsed, minorign, minormet = get_minor_types()
@@ -178,21 +193,6 @@
         spatial_lookup[k][bulk_cats[k]] .= invweight_location(bulk.Latitude[bulk_cats[k]], 
             bulk.Latitude[bulk_cats[k]]
         )
-    end
-
-
-## --- Remove all multimatches from major types
-    for type in minorsed
-        macro_cats.sed .&= .!macro_cats[type]
-        bulk_cats.sed .&= .!bulk_cats[type]
-    end
-    for type in minorign
-        macro_cats.ign .&= .!macro_cats[type]
-        bulk_cats.ign .&= .!bulk_cats[type]
-    end
-    for type in minormet
-        macro_cats.met .&= .!macro_cats[type]
-        bulk_cats.met .&= .!bulk_cats[type]
     end
 
 

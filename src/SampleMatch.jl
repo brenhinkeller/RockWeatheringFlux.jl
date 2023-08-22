@@ -163,13 +163,22 @@
 
 
 ## --- Load spatial weights
-    fid = h5open("output/invspatial.h5", "r")
-        header = read(fid["header"])
-        k = read(fid["k"])
-    close(fid)
-    p = 1.0 ./ k
-    zeronan!(p)
-    spatial_lookup = NamedTuple{Tuple(Symbol.(header))}(p[:,i] for i in eachindex(header))
+    # fid = h5open("output/invspatial.h5", "r")
+    #     header = read(fid["header"])
+    #     k = read(fid["k"])
+    # close(fid)
+    # p = 1.0 ./ k
+    # zeronan!(p)
+    # spatial_lookup = NamedTuple{Tuple(Symbol.(header))}(p[:,i] for i in eachindex(header))
+    rocktypes = keys(macro_cats)
+    spatial_lookup = NamedTuple{rocktypes}([fill(NaN, nbulk) for _ in eachindex(rocktypes)])
+    for k in keys(spatial_lookup)
+        println("$k\n")
+
+        spatial_lookup[k][bulk_cats[k]] .= invweight_location(bulk.Latitude[bulk_cats[k]], 
+            bulk.Latitude[bulk_cats[k]]
+        )
+    end
 
 
 ## --- Remove all multimatches from major types
@@ -242,7 +251,7 @@
         randname, type = get_descriptive_name(samplenames, p_name, type, p_type, typelist, 
             minortypes
         )
-        randsample = bulk_idxs[weighted_rand(spatial_lookup[randname][bulk_lookup[randname]])]
+        randsample = bulk_idxs[weighted_rand(spatial_lookup[rand(type)][bulk_lookup[randname]])]
         
         geochemdata = geochem_lookup[randname]
         errs = NamedTuple{Tuple(geochemkeys)}([abs(randn()*geochemdata[i].e) 

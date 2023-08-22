@@ -766,7 +766,7 @@
         t = sampletypes[i]
 
         if t==:sed || t==:ign || t==:met 
-        # If the type is a major type, replace type and select a rock name
+        # If the type is a major type, replace type and pick a rock name from mapped names
             t = minortypes[t][weighted_rand(p_type[t])]
             name = typelist[t][weighted_rand(p_name[t])]
 

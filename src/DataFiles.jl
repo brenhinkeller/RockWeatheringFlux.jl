@@ -143,15 +143,17 @@
     bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
     nbulk = length(bulk[1])
 
-    # Matched rock names , really only needed for the names and not the matches
+    # Matched rock names--no sense calculating spatial weights for rocks that aren't matched
     fid = h5open("output/matches.h5", "r")
-        rocknames = read(fid["vars"]["name_cats_head"])
+        rocknames = read(fid["vars"]["bulk_lookup_head"])
+        data = read(fid["vars"]["bulk_lookup"])
+        data = @. data > 0
     close(fid)
+    bulk_lookup = NamedTuple{Tuple(Symbol.(rocknames))}([data[:,i] for i in eachindex(rocknames)])
 
     # Preallocate
-    spatial_lookup = NamedTuple{Tuple(rocknames)}([fill(NaN, nbulk) for _ in eachindex(rocknames)])
-
     @info "Calculating inverse spatial weights for each rock name"
+    spatial_lookup = NamedTuple{Tuple(Symbol.(rocknames))}([fill(NaN, nbulk) for _ in eachindex(rocknames)])
     for n in eachindex(keys(spatial_lookup))
         println("$n ($n/$(length(rocknames))) \n")
         spatial_lookup[n][bulk_lookup[n]] .= invweight_location(bulk.Latitude[bulk_lookup[n]], 

@@ -142,6 +142,8 @@
 
 
 ## --- Remove all multimatches from major types
+    minorsed, minorign, minormet = get_minor_types()
+    
     for type in minorsed
         macro_cats.sed .&= .!macro_cats[type]
         bulk_cats.sed .&= .!bulk_cats[type]
@@ -158,7 +160,6 @@
 
 ## --- Get weights for weighted-random selection of rock types and names
     typelist = get_rock_class()                         # Major types exclude minor types
-    minorsed, minorign, minormet = get_minor_types()
     minortypes = (minorsed..., minorign..., minormet...)
 
     # Minor rock types
@@ -185,15 +186,16 @@
     # p = 1.0 ./ k
     # zeronan!(p)
     # spatial_lookup = NamedTuple{Tuple(Symbol.(header))}(p[:,i] for i in eachindex(header))
-    rocktypes = keys(macro_cats)
-    spatial_lookup = NamedTuple{rocktypes}([fill(NaN, nbulk) for _ in eachindex(rocktypes)])
-    for k in keys(spatial_lookup)
-        println("$k\n")
 
-        spatial_lookup[k][bulk_cats[k]] .= invweight_location(bulk.Latitude[bulk_cats[k]], 
-            bulk.Latitude[bulk_cats[k]]
-        )
-    end
+    # rocktypes = keys(macro_cats)
+    # spatial_lookup = NamedTuple{rocktypes}([fill(NaN, nbulk) for _ in eachindex(rocktypes)])
+    # for k in keys(spatial_lookup)
+    #     println("$k\n")
+
+    #     spatial_lookup[k][bulk_cats[k]] .= invweight_location(bulk.Latitude[bulk_cats[k]], 
+    #         bulk.Latitude[bulk_cats[k]]
+    #     )
+    # end
 
 
 ## --- Find matching Earthchem sample for each Macrostrat sample
@@ -251,7 +253,8 @@
         randname, type = get_descriptive_name(samplenames, p_name, type, p_type, typelist, 
             minortypes
         )
-        randsample = bulk_idxs[weighted_rand(spatial_lookup[rand(type)][bulk_lookup[randname]])]
+        # randsample = bulk_idxs[weighted_rand(spatial_lookup[rand(type)][bulk_lookup[randname]])]
+        randsample = rand(bulk_idxs[bulk_lookup[randname]])
         
         geochemdata = geochem_lookup[randname]
         errs = NamedTuple{Tuple(geochemkeys)}([abs(randn()*geochemdata[i].e) 
@@ -262,9 +265,9 @@
         )
 
         # Get EarthChem data for all types
-        majtype = unique([class_up(typelist, string(t)) for t in type])
+        # majtype = unique([class_up(typelist, string(t)) for t in type])
         bulksamples = falses(length(bulk_cats[1]))
-        for t in majtype
+        for t in type
             bulksamples .|= bulk_cats[t]
         end
 

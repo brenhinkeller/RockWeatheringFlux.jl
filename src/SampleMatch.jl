@@ -271,6 +271,13 @@
             bulksamples .|= bulk_cats[t]
         end
 
+        for t in type
+            if t==:metased || t==:metaign 
+                bulksamples .|= bulk_cats.met
+                break
+            end
+        end
+
         if count(bulksamples) == 0
             next!(p)
             continue

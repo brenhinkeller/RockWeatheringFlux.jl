@@ -116,10 +116,13 @@
     iₛ = sameindex(:sed, macro_cats, bulk, bulktext, bulkidx[t], bins=sedbin, hist=:off)     # All sed
     # get_matched_samples(iₛ, bulkidx[t], macrostrat, filter=macro_cats.sed, desc="Sedimentary")
 
+    metbin = (0, 100, 100)
+    iₘ = sameindex(:met, macro_cats, bulk, bulktext, bulkidx[t], bins=metbin, hist=:off)     # All met
+
     # Query Macrostrat at that location:
     # https://macrostrat.org/api/mobile/map_query?lat=LAT&lng=LON&z=11
 
-    @assert 1==3
+    exit()
 ## --- [DATA] Resampled EarthChem SiO₂ (spatial density only)
     # Igneous
     rs_ign = importdataset("output/resampled/rs_ign.tsv", '\t', importas=:Tuple)

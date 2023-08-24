@@ -236,6 +236,44 @@
         )
     end
 
+    """
+    ```julia
+    nondescriptive()
+    ```
+
+    Get a list of rock names that do not provide useful information about the geochemical
+    composition of the rock. Organized as a `NamedTuple` by rock type.
+
+    # Example
+    ```julia-repl
+    julia> nondescriptive()
+    NamedTuple with 4 elements:
+      sed   = NTuple{11, String}
+      volc  = NTuple{5, String}
+      plut  = NTuple{11, String}
+      met   = NTuple{21, String}
+    ```
+    """
+    function nondescriptive()
+        # Sedimentary
+        sed = ("sediment", "clast", "diamict", "tillite", "stream deposits", "beach deposits", 
+            "terrace",  "marine deposits",  "paleosol", "spiculite", "glauconite")
+
+        # Igneous
+        volc = ("volcanic", "extrusive", "volcan", "diatreme", "pipe",)
+        plut = ("plutonic", "intrusive", "pluton", "batholith", "pegmatite", "intrus", "sill", "dike", 
+            "stock", "laccolith", "lopolith",)
+        ign = ("igneous", "silicic", "basite",)
+
+        # Metamorphic
+        met = (("meta", "buchite", "tactite","greenschist", "alter", "hydrothermal",
+            "crystalline", "basement", "skarn", "schist", "gneiss", "granulit", 
+            "granofels", "sanidinite", "migma", "high grade metamorphic")...,
+            "mylonit", "cataclasite", "melange", "gouge", "tecton",
+        )
+
+        return (sed=sed, volc=volc, plut=plut, met=met)
+    end
 
     """
     ```julia

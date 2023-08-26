@@ -17,6 +17,10 @@
     # Local utilities
     include("utilities/Utilities.jl")
 
+    # More definitions
+    bins = (ign = (40, 80, 40), sed = (0, 100, 100), met = (25, 100, 75))
+    minorsed, minorign, minormet = get_minor_types()
+
 
 ## --- [DATA] Matched EarthChem and Macrostrat samples
     # Get indicies of matched samples
@@ -65,8 +69,6 @@
 
 ## --- SiO₂ distribution by rock type
     fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(macro_cats) - 1)
-    bins = (ign = (40, 80, 40), sed = (0, 100, 100), met = (25, 100, 75))
-    minorsed, minorign, minormet = get_minor_types()
 
     # Create all plots
     rocks = collect(keys(macro_cats))
@@ -122,7 +124,45 @@
     # Query Macrostrat at that location:
     # https://macrostrat.org/api/mobile/map_query?lat=LAT&lng=LON&z=11
 
-    exit()
+    # exit()
+
+
+## --- Igneous SiO₂ by rock age
+    t = @. (mbulk.Age > 2500) & macro_cats.ign
+    c, n = bincounts(mbulk.SiO2[t], bins.ign...)
+    n = float(n) ./ nansum(float(n) .* step(c))
+    h1 = plot(c, n, seriestype=:bar, framestyle=:box, color=colors.ign, linecolor=colors.ign,
+        label="Archean; n = $(count(t))",      
+        # ylabel="Weight", xlabel="SiO2 [wt.%]",
+        ylims=(0, round(maximum(n), digits=2)+0.01) 
+    )
+
+    t = @. (2500 > mbulk.Age > 541) & macro_cats.ign
+    c, n = bincounts(mbulk.SiO2[t], bins.ign...)
+    n = float(n) ./ nansum(float(n) .* step(c))
+    h2 = plot(c, n, seriestype=:bar, framestyle=:box, color=colors.ign, linecolor=colors.ign,
+        label="Proterozoic; n = $(count(t))",      
+        # ylabel="Weight", xlabel="SiO2 [wt.%]",
+        ylims=(0, round(maximum(n), digits=2)+0.01) 
+    )
+
+    t = @. (541 > mbulk.Age) & macro_cats.ign
+    c, n = bincounts(mbulk.SiO2[t], bins.ign...)
+    n = float(n) ./ nansum(float(n) .* step(c))
+    h3 = plot(c, n, seriestype=:bar, framestyle=:box, color=colors.ign, linecolor=colors.ign,
+        label="Phanerozoic; n = $(count(t))",      
+        # ylabel="Weight", xlabel="SiO2 [wt.%]",
+        ylims=(0, round(maximum(n), digits=2)+0.01) 
+    )
+
+    # Compile
+    h = plot(h1, h2, h3, layout=(1,3), size=(2000, 450), bottom_margin=(50, :px), 
+        xlabel="SiO₂ [wt.%]"
+    )
+    display(h)
+    savefig(h, "ign_ages.png")
+
+
 ## --- [DATA] Resampled EarthChem SiO₂ (spatial density only)
     # Igneous
     rs_ign = importdataset("output/resampled/rs_ign.tsv", '\t', importas=:Tuple)

@@ -272,7 +272,7 @@
             "mylonit", "cataclasite", "melange", "gouge", "tecton",
         )
 
-        return (sed=sed, volc=volc, plut=plut, met=met)
+        return (sed=sed, volc=volc, plut=plut, ign=ign, met=met)
     end
 
     """

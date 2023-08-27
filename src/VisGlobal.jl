@@ -20,7 +20,7 @@
     include("utilities/Utilities.jl")
 
     
-## --- Location and age of EarthChem (bulk) points
+## --- [DATA, PLOT] Location and age of EarthChem (bulk) points
     # Additional packages
     using MAT
 
@@ -34,11 +34,11 @@
     f = Figure(resolution = (1200, 600))
     ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
     h = CairoMakie.scatter!(ax, bulk.Longitude, bulk.Latitude, color=bulk.Age,
-        colormap=clr_gradient, markersize = 3
+        colormap=c_gradient, markersize = 3
     )
     Colorbar(f[1,2], h, label = "Age [Ma]", height = Relative(0.9))
     display(f)
-    save("bulk_restricted.png", f)
+    save("results/figures/bulk_restricted.png", f)
 
     # All data
     bulk = matread("data/bulk.mat")["bulk"]
@@ -47,89 +47,80 @@
     f = Figure(resolution = (1200, 600))
     ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
     h = CairoMakie.scatter!(ax, vec(bulk.Longitude), vec(bulk.Latitude), color=vec(bulk.Age),
-        colormap=clr_gradient, markersize = 3
+        colormap=c_gradient, markersize = 3
     )
     Colorbar(f[1,2], h, label = "Age [Ma]", height = Relative(0.9))
     display(f)
-    save("bulk_all.png", f)
+    save("results/figures/bulk_all.png", f)
 
 
-## --- Location and age of bulk points matched to Macrostrat samples
-    # Get indices of matched samples
+## --- [DATA] Macrostrat and matched EarthChem samples
+    # Indices
     bulkidx = Int.(vec(readdlm("$matchedbulk_io")))
     t = @. bulkidx != 0
 
-    # Get matched Earthchem (bulk) samples
-    bulkfid = h5open("output/bulk.h5", "r")
-    header = read(bulkfid["bulk"]["header"])
-    data = read(bulkfid["bulk"]["data"])
-    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
-    close(bulkfid)
-
-    # Plot
-    f = Figure(resolution = (1200, 600))
-    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
-    h = CairoMakie.scatter!(ax, vec(bulk.Longitude), vec(bulk.Latitude), color=vec(bulk.Age),
-        colormap=clr_gradient, markersize = 3
-    )
-    Colorbar(f[1,2], h, label = "Age [Ma]", height = Relative(0.9))
-    display(f)
-    save("bulk_matched.png", f)
-
-
-## --- Location and age of Macrostrat samples
-    # Get indices of matched samples
-    bulkidx = Int.(vec(readdlm("$matchedbulk_io")))
-    t = @. bulkidx != 0
-
-    # Get Macrostrat samples with a known match
+    # Macrostrat
     macrofid = h5open("$macrostrat_io", "r")
     macrostrat = (
-        rocklat = read(macrofid["rocklat"])[t],
-        rocklon = read(macrofid["rocklon"])[t],
-        age = read(macrofid["age"])[t]
+        rocklat = read(macrofid["vars"]["rocklat"])[t],
+        rocklon = read(macrofid["vars"]["rocklon"])[t],
+        age = read(macrofid["vars"]["age"])[t],
     )
     close(macrofid)
 
-    # Plot
+    # Matched EarthChem
+    bulkfid = h5open("output/bulk.h5", "r")
+    header = Tuple(Symbol.(read(bulkfid["bulk"]["header"])))
+    data = read(bulkfid["bulk"]["data"])c_gradient
+    mbulk = NamedTuple{header}([data[:,i][bulkidx[t]] for i in eachindex(header)])
+    close(bulkfid)
+
+
+## --- Location and age of bulk points matched to Macrostrat samples
     f = Figure(resolution = (1200, 600))
     ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
-    h = CairoMakie.scatter!(ax, macrostrat.rocklon, macrostrat.rocklat, 
-        color=macrostrat.age, colormap=clr_gradient, markersize = 3
+    h = CairoMakie.scatter!(ax, vec(bulk.Longitude), vec(bulk.Latitude), color=vec(bulk.Age),
+        colormap=c_gradient, markersize = 3
     )
     Colorbar(f[1,2], h, label = "Age [Ma]", height = Relative(0.9))
     display(f)
-    save("macrostrat.png", f)
+    save("results/figures/bulk_matched.png", f)
 
 
-## --- [DATA MISSING] Difference in SiO₂ and location between bulk and Macrostrat
-    # # Location data
-    # data = importdataset("dist.csv", ',', importas=:Tuple)
-    # macrostrat = (rocklat = data.lat_m, rocklon = data.lon_m)
-    # dist = data.dist
+## --- Location and age of Macrostrat samples
+    f = Figure(resolution = (1200, 600))
+    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
+    h = CairoMakie.scatter!(ax, macrostrat.rocklon, macrostrat.rocklat, 
+        color=macrostrat.age, colormap=c_gradient, markersize = 3
+    )
+    Colorbar(f[1,2], h, label = "Age [Ma]", height = Relative(0.9))
+    display(f)
+    save("results/figures/macrostrat.png", f)
 
-    # # silica data
-    # silica = importdataset("silica.csv", ',', importas=:Tuple)
 
-    # # Distance between sample and matched point
-    # f = Figure(resolution = (1200, 600))
-    # ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
-    # h = CairoMakie.scatter!(ax, macrostrat.rocklon, macrostrat.rocklat, color=dist,
-    #     markersize = 3, alpha=0.5
-    # )
-    # Colorbar(f[1,2], h, label = "Arc Degrees from Matched Point", height = Relative(0.9))
-    # display(f)
+## --- Visualize the distribution of matched EarthChem samples
+    # SiO₂ content
+    f = Figure(resolution = (1200, 600))
+    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
+    h = CairoMakie.scatter!(ax, macrostrat.rocklon, macrostrat.rocklat, 
+        color=mbulk.SiO2, colormap=c_gradient, markersize = 3
+    )
+    Colorbar(f[1,2], h, label = "SiO₂ [wt.%]", height = Relative(0.9))
+    display(f)
+    save("results/figures/globalsilica.png", f)
 
-    # # Silica content of matched samples
-    # t = silica.SiO2 .> 50
+    # Distance between Macrostrat and matched EarthChem sample
+    distance = Array{Float64}(undef, count(t), 1)
+    distance .= haversine.(macrostrat.rocklat, macrostrat.rocklon, mbulk.Latitude, mbulk.Longitude)
 
-    # f = Figure(resolution = (1200, 600))
-    # ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
-    # h = CairoMakie.scatter!(ax, silica.lon[t], silica.lat[t], color=silica.SiO2[t],
-    #     markersize = 3, alpha=0.5
-    # )
-    # Colorbar(f[1,2], h, label = "SiO₂ [wt/%]", height = Relative(0.9))
-    # display(f)
+    f = Figure(resolution = (1200, 600))
+    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
+    h = CairoMakie.scatter!(ax, macrostrat.rocklon, macrostrat.rocklat, 
+        color=distance, colormap=c_gradient, markersize = 3
+    )
+    Colorbar(f[1,2], h, label = "Distance to EarthChem sample [decimal degrees]", height = Relative(0.9))
+    display(f)
+    save("results/figures/distance.png", f)
 
 
 ## --- End of file

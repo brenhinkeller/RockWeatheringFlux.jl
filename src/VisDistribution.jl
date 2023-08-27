@@ -13,6 +13,7 @@
     using ProgressMeter
 
     using Plots
+    using StatsPlots
 
     # Local utilities
     include("utilities/Utilities.jl")
@@ -41,7 +42,7 @@
     header = read(macrofid["type"]["macro_cats_head"])
     data = read(macrofid["type"]["macro_cats"])
     data = @. data > 0
-    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
 
     for type in minorsed
         macro_cats.sed .|= macro_cats[type]
@@ -118,7 +119,7 @@
     # Put into a layout
     h = plot(fig..., layout=(5,3), size=(2000, 2000))
     display(h)
-    savefig(h, "distributions.png")
+    savefig(h, "results/figures/distributions.png")
 
 
 ## --- [FN CALL] modal index and Macrostrat data
@@ -148,7 +149,7 @@
 
 
 ## --- Igneous SiO₂ by rock age
-    t = @. (mbulk.Age > 2500) & macro_cats.ign
+    t = @. (mbulk.Age >= 2500) & macro_cats.ign
     c, n = bincounts(mbulk.SiO2[t], bins.ign...)
     n = float(n) ./ nansum(float(n) .* step(c))
     h1 = plot(c, n, seriestype=:bar, framestyle=:box, color=colors.ign, linecolor=colors.ign,
@@ -157,7 +158,7 @@
         ylims=(0, round(maximum(n), digits=2)+0.01) 
     )
 
-    t = @. (2500 > mbulk.Age > 541) & macro_cats.ign
+    t = @. (2500 > mbulk.Age >= 541) & macro_cats.ign
     c, n = bincounts(mbulk.SiO2[t], bins.ign...)
     n = float(n) ./ nansum(float(n) .* step(c))
     h2 = plot(c, n, seriestype=:bar, framestyle=:box, color=colors.ign, linecolor=colors.ign,
@@ -180,7 +181,36 @@
         xlabel="SiO₂ [wt.%]"
     )
     display(h)
-    savefig(h, "ign_ages.png")
+    savefig(h, "results/figures/ign_ages.png")
+
+
+## --- Alternate (Stacked) representation of igneous SiO₂ distribution
+    # Important!! The distributions are normalized **before** getting sent to the stacked 
+    # bar chart, meaning that this isn't the actual distribution of igneous silica: this
+    # shows the relative distribution of silica **for each age distribution**. This is
+    # necessary because there are so few Archean and Proterozoic rocks compared to 
+    # Phanerozoic rocks. Great Unconformity strikes again.
+
+    t = @. (mbulk.Age >= 2500) & macro_cats.ign
+    c, nₐ = bincounts(mbulk.SiO2[t], bins.ign...)
+    nₐ = float(nₐ) ./ nansum(float(nₐ) .* step(c))
+
+    t = @. (2500 > mbulk.Age >= 541) & macro_cats.ign
+    c, nᵣ = bincounts(mbulk.SiO2[t], bins.ign...)
+    nᵣ = float(nᵣ) ./ nansum(float(nᵣ) .* step(c))
+
+    t = @. (541 > mbulk.Age) & macro_cats.ign
+    c, nₚ = bincounts(mbulk.SiO2[t], bins.ign...)
+    nₚ = float(nₚ) ./ nansum(float(nₚ) .* step(c))
+
+    ticklabel = bins.ign[1]:5:bins.ign[2]
+    ticklabel = string.(collect(ticklabel))
+    h = groupedbar([nₐ nᵣ nₚ], bar_position=:stack, bar_width=1.0,
+        xticks=(1:5:length(c)+1, ticklabel), framestyle=:box, legend=:topright,
+        xlabel="SiO₂ [wt.%]", ylabel="Weight", label=["Archean" "Proterozoic" "Phanerozoic"],
+        ylims=(0, round(maximum(nₐ.+nᵣ.+nₚ), digits=2)+0.01),
+        color=["firebrick" "seagreen" "cyan"],
+    )
 
 
 ## --- [DATA] Resampled EarthChem SiO₂ (spatial density only)
@@ -202,7 +232,7 @@
         ylabel="Weight", xlabel="SiO2 [wt.%]", 
         ylims=(0, round(maximum(n), digits=2)+0.01))
     display(h)
-    savefig("c_rs_ign.png")
+    savefig("results/figures/c_rs_ign.png")
 
     # Volcanic
     c, n, = bincounts(rs_volc.SiO2, 40, 80, 80)
@@ -212,7 +242,7 @@
         ylabel="Weight", xlabel="SiO2 [wt.%]",
         ylims=(0, round(maximum(n), digits=2)+0.01))
     display(h)
-    savefig("c_rs_volc.png")
+    savefig("results/figures/c_rs_volc.png")
 
     # Plutonic
     c, n, = bincounts(rs_plut.SiO2, 40, 80, 80)
@@ -222,7 +252,7 @@
         ylabel="Weight", xlabel="SiO2 [wt.%]",
         ylims=(0, round(maximum(n), digits=2)+0.01))
     display(h)
-    savefig("c_rs_plut.png")
+    savefig("results/figures/c_rs_plut.png")
 
     # All sedimentary
     c, n, = bincounts(rs_sed.SiO2, 0, 100, 200)
@@ -232,7 +262,7 @@
         ylabel="Weight", xlabel="SiO2 [wt.%]",
         ylims=(0, round(maximum(n), digits=2)+0.01))
     display(h)
-    savefig("c_rs_sed.png")
+    savefig("results/figures/c_rs_sed.png")
 
 
 ## --- End of file

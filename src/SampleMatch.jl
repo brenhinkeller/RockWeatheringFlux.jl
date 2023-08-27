@@ -177,6 +177,25 @@
     ])
     [p_name[i] ./= sum(p_name[i]) for i in keys(p_name)]
 
+    # rocktypes = collect(keys(macro_cats))[1:end-1]      # No cover!
+    # p_name = NamedTuple{Tuple(rocktypes)}(
+    #     [[float.(count(name_cats[Symbol(typelist[i][j])])) for j in eachindex(typelist[i])] 
+    #         for i in rocktypes
+    # ])
+
+    # ... That are actually descriptive. Zero nondescriptive names
+    # Technically now the goal would be to remove the requirement that the algo. picks
+    # major types, since there are some names in major types that are actually useful....
+    # nondesc = nondescriptive()
+    # for k in keys(nondesc)
+    #     for i in eachindex(typelist[k])
+    #         if typelist[k][i] in nondesc[k]
+    #             p_name[k][i] = 0.0
+    #         end
+    #     end
+    # end
+    # [p_name[i] ./= sum(p_name[i]) for i in keys(p_name)]
+
 
 ## --- Load spatial weights
     # fid = h5open("output/invspatial.h5", "r")
@@ -266,16 +285,13 @@
 
         # Get EarthChem data for all types
         # majtype = unique([class_up(typelist, string(t)) for t in type])
+        if :metased in type || :metaign in type
+            type = (type..., :met)
+        end
+
         bulksamples = falses(length(bulk_cats[1]))
         for t in type
             bulksamples .|= bulk_cats[t]
-        end
-
-        for t in type
-            if t==:metased || t==:metaign 
-                bulksamples .|= bulk_cats.met
-                break
-            end
         end
 
         if count(bulksamples) == 0

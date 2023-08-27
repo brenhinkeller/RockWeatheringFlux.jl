@@ -30,41 +30,61 @@
     # Matched Macrostrat samples
     macrofid = h5open("$macrostrat_io", "r")
     macrostrat = (
-        rocktype = read(macrofid["rocktype"])[t],
-        rockname = read(macrofid["rockname"])[t],
-        rockdescrip = read(macrofid["rockdescrip"])[t],
-        rocklat = read(macrofid["rocklat"])[t],
-        rocklon = read(macrofid["rocklon"])[t],
-        age = read(macrofid["age"])[t],
-        type = read(macrofid["type"])[t]
+        rocktype = read(macrofid["vars"]["rocktype"])[t],
+        rockname = read(macrofid["vars"]["rockname"])[t],
+        rockdescrip = read(macrofid["vars"]["rockdescrip"])[t],
+        rocklat = read(macrofid["vars"]["rocklat"])[t],
+        rocklon = read(macrofid["vars"]["rocklon"])[t],
+        age = read(macrofid["vars"]["age"])[t],
     )
+
+    header = read(macrofid["type"]["macro_cats_head"])
+    data = read(macrofid["type"]["macro_cats"])
+    data = @. data > 0
+    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+
+    for type in minorsed
+        macro_cats.sed .|= macro_cats[type]
+    end
+    for type in minorign
+        macro_cats.ign .|= macro_cats[type]
+    end
+    for type in minormet
+        macro_cats.met .|= macro_cats[type]
+    end
+
     close(macrofid)
-    macro_cats = match_rocktype(macrostrat.type)
 
     # Earthchem data
     bulkfid = h5open("output/bulk.h5", "r")
-        # Data
-        header = read(bulkfid["bulk"]["header"])
-        data = read(bulkfid["bulk"]["data"])
-        bulktype = read(bulkfid["bulk"]["type"])
 
-        # Metadata
-        path = bulkfid["bulktext"]["sampledata"]
-        headertext = read(path["header"])
-        index = read(path["index"])
-        target = ["Rock_Name", "Type", "Material"]
-        targetind = [findall(==(i), headertext)[1] for i in target]
-        bulktext = NamedTuple{Tuple(Symbol.(target))}(
-            [lowercase.(read(path["elements"][target[i]]))[index[:,targetind[i]]] 
-                for i in eachindex(target)]
-        )
-    close(bulkfid)
+    header = read(bulkfid["bulk"]["header"])
+    data = read(bulkfid["bulk"]["data"])
 
-    # Matched samples and all data
+    # Metadata
+    path = bulkfid["bulktext"]["sampledata"]
+    headertext = read(path["header"])
+    index = read(path["index"])
+    target = ["Rock_Name", "Type", "Material"]
+    targetind = [findall(==(i), headertext)[1] for i in target]
+    bulktext = NamedTuple{Tuple(Symbol.(target))}(
+        [lowercase.(read(path["elements"][target[i]]))[index[:,targetind[i]]] 
+            for i in eachindex(target)]
+    )
+
+    # Data
     mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
     bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
-    bulk_cats = match_rocktype(bulktype)
-    mbulk_cats = match_rocktype(bulktype[bulkidx[t]])
+
+    # Matches
+    header = read(bulkfid["bulktypes"]["bulk_cats_head"])
+    data = read(bulkfid["bulktypes"]["bulk_cats"])
+    data = @. data > 0
+
+    bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    mbulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
+
+    close(bulkfid)
 
 
 ## --- SiO₂ distribution by rock type

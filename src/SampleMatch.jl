@@ -19,54 +19,37 @@
     @info "Start: $(Dates.Date(start)) $(Dates.format(start, "HH:MM"))"
 
 
-## --- Load matches
-    @info "Loading matched Tuples $(Dates.format(now(), "HH:MM"))"
-    fid = h5open("output/matches.h5", "r")
-
-    # Macrostrat rock types
-    header = read(fid["vars"]["macro_cats_head"])
-    data = read(fid["vars"]["macro_cats"])
-    data = @. data > 0
-    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
-
-    # Macrostrat rock names
-    header = read(fid["vars"]["name_cats_head"])
-    data = read(fid["vars"]["name_cats"])
-    data = @. data > 0
-    name_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
-
-    # EarthChem rock types
-    header = read(fid["vars"]["bulk_cats_head"])
-    data = read(fid["vars"]["bulk_cats"])
-    data = @. data > 0
-    bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
-
-    # EarthChem rock names
-    rocknames = read(fid["vars"]["bulk_lookup_head"])
-    data = read(fid["vars"]["bulk_lookup"])
-    data = @. data > 0
-    bulk_lookup = NamedTuple{Tuple(Symbol.(rocknames))}([data[:,i] for i in eachindex(rocknames)])
-
-    close(fid)
-
-
 ## --- Load Macrostrat data
     @info "Loading Macrostrat data ($macrostrat_io) $(Dates.format(now(), "HH:MM"))"
     fid = h5open("$macrostrat_io", "r")
+    
+    # Data
     macrostrat = (
-        rocklat = read(fid["rocklat"]),
-        rocklon = read(fid["rocklon"]),
-        age = read(fid["age"]),
-        type = read(fid["type"]),
-        rocktype = read(fid["rocktype"]),
-        rockname = read(fid["rockname"]),
-        rockdescrip = read(fid["rockdescrip"]),
+        rocklat = read(fid["vars"]["rocklat"]),
+        rocklon = read(fid["vars"]["rocklon"]),
+        age = read(fid["vars"]["age"]),
+        rocktype = read(fid["vars"]["rocktype"]),
+        rockname = read(fid["vars"]["rockname"]),
+        rockdescrip = read(fid["vars"]["rockdescrip"]),
     )
-    close(fid)
+    
+    # Matches
+    header = read(fid["type"]["macro_cats_head"])
+    data = read(fid["type"]["macro_cats"])
+    data = @. data > 0
+    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
 
     # macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
     #     macrostrat.rockdescrip, unmultimatch=false, inclusive=false, source=:macrostrat
     # )
+
+    # Macrostrat rock names
+    header = read(fid["type"]["name_cats_head"])
+    data = read(fid["type"]["name_cats"])
+    data = @. data > 0
+    name_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+
+    close(fid)
     
 ## --- Load Earthchem bulk geochemical data
     @info "Loading EarthChem data $(Dates.format(now(), "HH:MM"))"
@@ -90,12 +73,25 @@
             for i in eachindex(target)
         ]
     )
-    close(fid)
+
+    # Matches
+    header = read(fid["bulktypes"]["bulk_cats_head"])
+    data = read(fid["bulktypes"]["bulk_cats"])
+    data = @. data > 0
+    bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
 
     # bulk_cats = match_rocktype(bulktext.Rock_Name, bulktext.Type, bulktext.Material; 
     #     unmultimatch=false, inclusive=false, source=:earthchem
     # )
 
+    # EarthChem rock names
+    rocknames = read(fid["bulktypes"]["bulk_lookup_head"])
+    data = read(fid["bulktypes"]["bulk_lookup"])
+    data = @. data > 0
+    bulk_lookup = NamedTuple{Tuple(Symbol.(rocknames))}([data[:,i] for i in eachindex(rocknames)])
+
+    close(fid)
+    
 
 ## --- Create average geochemistry lookup table for each rock name
     @info "Creating EarthChem lookup tables $(Dates.format(now(), "HH:MM"))"

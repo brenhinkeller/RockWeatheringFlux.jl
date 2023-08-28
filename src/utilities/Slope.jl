@@ -94,45 +94,46 @@
 
     """
     ```julia
-    window_avg(data::Matrix, lat::Vector, lon::Vector, sf::Number=240; 
-        halfwidth::Int=1, 
-        maxpossible::Number=0xffff
-    )
+    avg_over_area(data::Matrix, lat::Vector, lon::Vector, sf::Number=240; 
+        halfwidth::Number=1, 
+        maxpossible::Number=0xffff)
     ```
-    Find the average value of geospatial `data` in a window with side lengths of 2 * 
-    `halfwidth`, centered on the coordinates (`lat`, `lon`).
+    Find the average value of `data` over an area with radius `halfwidth` (units of gridcells) at 
+    coordinates `lat` and `lon`.
 
-    ### Scale Factor
+    This is distinct from `StatGeochem`'s `aveslope`. This function finds the average over an 
+    area, not the average slope for a specific point. For example, this might be given a matrix 
+    of maximum slope at each point on Earth, and would return the _average maximum slope_ at 
+    each point of interest.
 
-      * `sf::Number=240`: Scale factor, or cells per degree, for the geospatial `data`. 
-        For 15 arc-second resolution, the scale factor is 240, because 15 arc-seconds go 
-        into 1 arc-degree 60 * 4 = 240 times.
+    ### Defaults and Other Keyword Arguments:
 
-    ### Optional Kwargs:
+    * `sf::Number=240`: Scale factor (cells per degree) for the SRTM15+ data. For 15 arc-second 
+    resolution, the scale factor is 240, because 15 arc-seconds go into 1 arc-degree 60 * 4 = 
+    240 times.
 
-      * `halfwidth::Int=1`: Defines the size of the window. The default value of 1 defines 
-        a halfwidth of 1 cell (for a scale factor of 240, 15 arc-seconds), for a window 
-        size of 30 arc-seconds.
-
-      * `maxpossible::Number=0xffff`: The maximum possible value for the variable of interest; 
-        variables with values greater than this are ignored.
+    * `maxpossible::Number=0xffff`: The maximum possible value for the variable of interest; 
+    variables with values greater than this are ignored.
 
     """
-    function window_avg(data::Matrix, lat::Vector, lon::Vector, sf::Number=240;
-            halfwidth::Int=1, 
-            maxpossible::Number=0xffff
-        )
+    function avg_over_area(data::Matrix, lat::Vector, lon::Vector, sf::Number=240;
+        halfwidth::Number=1, 
+        maxpossible::Number=0xffff)
+
+        # Make sure we will never index out of bounds
+        @assert eachindex(lat) == eachindex(lon)
 
         # Make sure data has values that cover all of Earth
         (nrows, ncols) = size(data)
-        @assert nrows == 180 * sf + 1   # Latitude
-        @assert ncols == 360 * sf + 1   # Longitude
+        @assert nrows == 180 * sf + 1   # Why 180 instead of 360?
+        @assert ncols == 360 * sf + 1
+        
 
         # Preallocate
-        out = fill(NaN ± NaN, length(lat))
+        out = fill(NaN, length(lat))
 
         # Find result by indexing into the varname matrix
-        for i in eachindex(lat, lon)
+        for i in eachindex(lat)
             if isnan(lat[i]) || isnan(lon[i]) || lat[i]>90 || lat[i]<-90 || lon[i]>180 || lon[i]<-180
                 # Result is NaN if either input is NaN or out of bounds
                 continue
@@ -142,11 +143,9 @@
                 row = 1 + round(Int,(90 + lat[i]) * sf)
                 col = 1 + round(Int,(180 + lon[i]) * sf)
 
-                # Preallocate
-                s = fill(NaN, (2*halfwidth+1)^2)   # Data values we'll use
-                k = 0                              # Counter
-
-                # Index into the array
+                # Index into the array - could I use @turbo here? It currently gets mad
+                k = 0           # Generic counter
+                out[i] = 0      # Starting value
                 for r = (row-halfwidth):(row+halfwidth)
                     for c = (col-halfwidth):(col+halfwidth)
                         # Only do the computation if we are in bounds
@@ -156,14 +155,14 @@
                             # Ignore values that are larger than the max possible value
                             if res < maxpossible
                                 k +=1
-                                s[k] = res
+                                out[i] += res
                             end
                         end
                     end
                 end
 
                 # Save the average value
-                out[i] = (nansum(s) / k) ± (nanstd(s))
+                out[i] /= k
             end
         end
 

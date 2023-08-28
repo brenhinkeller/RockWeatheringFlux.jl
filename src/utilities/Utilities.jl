@@ -607,7 +607,7 @@
         npoints = length(bulkage)
         ll_age = Array{Float64}(undef, npoints, 1)
         ll_dist = Array{Float64}(undef, npoints, 1)
-        ll_total = zeros(npoints)
+        ll_total = Array{Float64}(undef, npoints, 1)
 
         # Replace missing values: this will penalize but not exclude missing data
         @inbounds for i in 1:npoints
@@ -630,7 +630,7 @@
             ll_dist[i] = -((haversine(samplelat, samplelon, bulklat[i], bulklon[i]))^2)/(1.8^2)
         end
 
-        # @. ll_total = ll_age + ll_dist
+        @. ll_total = ll_age + ll_dist
         
         # Geochemical log-likelihoods
         for elem in eachindex(bulkgeochem)

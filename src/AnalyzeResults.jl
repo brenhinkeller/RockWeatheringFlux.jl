@@ -22,11 +22,24 @@
 
     # Macrostrat, if there's matched EarthChem data
     macrofid = h5open("$macrostrat_io", "r")
-    macrostrat = (
-        type = read(macrofid["type"])[t],
-    )
+    header = read(macrofid["type"]["macro_cats_head"])
+    data = read(macrofid["type"]["macro_cats"])
+    data = @. data > 0
+    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
+
+    # Major types include minor types
+    minorsed, minorign, minormet = get_minor_types()
+    for type in minorsed
+        macro_cats.sed .|= macro_cats[type]
+    end
+    for type in minorign
+        macro_cats.ign .|= macro_cats[type]
+    end
+    for type in minormet
+        macro_cats.met .|= macro_cats[type]
+    end
     close(macrofid)
-    macro_cats = match_rocktype(macrostrat.type)
+
     subcats = collect(keys(macro_cats))
     deleteat!(subcats, findall(x->x==:cover,subcats))
 

@@ -3,10 +3,10 @@
     using StatGeochem
     using DelimitedFiles
     using ProgressMeter
-    using Measurements
     using HDF5
     using LoopVectorization
     using Static
+    using Measurements
 
     # Local utilities
     include("utilities/Utilities.jl")
@@ -30,13 +30,27 @@
 
     # Load and match
     macrofid = h5open("$macrostrat_io", "r")
-    macrostrat = (     
-        rocklat = read(macrofid["rocklat"]),
-        rocklon = read(macrofid["rocklon"]),
-        typecategory = read(macrofid["type"]),
+    macrostrat = (
+        rocklat = read(macrofid["vars"]["rocklat"])[t],
+        rocklon = read(macrofid["vars"]["rocklon"])[t],
+        age = read(macrofid["vars"]["age"])[t],
     )
-    close(macrofid)
-    macro_cats = match_rocktype(macrostrat.typecategory[t])
+    header = read(macrofid["type"]["macro_cats_head"])
+    data = read(macrofid["type"]["macro_cats"])
+    data = @. data > 0
+    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
+
+    # Major types include minor types
+    minorsed, minorign, minormet = get_minor_types()
+    for type in minorsed
+        macro_cats.sed .|= macro_cats[type]
+    end
+    for type in minorign
+        macro_cats.ign .|= macro_cats[type]
+    end
+    for type in minormet
+        macro_cats.met .|= macro_cats[type]
+    end
 
     # Figure out how many data points weren't matched
     known_rocks = macro_cats.sed .| macro_cats.ign .| macro_cats.met
@@ -83,8 +97,8 @@
 
     # Get slope at each coordinate point with a known EarthChem sample
     # Modify this function to return an error as well
-    rockslope = avg_over_area(srtm15_slope, macrostrat.rocklat[t], macrostrat.rocklon[t], 
-        srtm15_sf, halfwidth=7
+    rockslope = window_avg(srtm15_slope, macrostrat.rocklat, macrostrat.rocklon, 
+        srtm15_sf, halfwidth=5
     )
 
     # Calculate all erosion rates (mm/kyr)
@@ -141,5 +155,41 @@
     end
 
     close(fid)
+
+
+## --- Open the file. Stop having it be closed.
+    fid = h5open("$eroded_out", "r")
+
+    # Bulk denundation at each point in kg/yr
+    path = fid["bulk_denundation"]
+    bulk_denundation = read(path["values"]) .± read(path["errors"])
+
+    # Global flux of each element at each point in kg/yr
+    path = fid["element_flux"]
+    vals = read(path["values"])
+    errs = read(path["errors"])
+    header = Tuple(Symbol.(read(path["header"])))
+    elementflux = NamedTuple{header}([vals[:,i] .± errs[:,i] for i in eachindex(header)])
+
+    close(fid)
+
+
+## --- Calculate absolute and relative flux
+    # Conversion for kg to Gt. Data file is in units of kg/yr
+    const kg_gt = 1e12
+
+    # Global denundation in Gt/yr
+    global_denun = nansum(bulk_denundation) / kg_gt
+    
+    # Total global flux for each element in Gt/yr
+    totalelementflux = NamedTuple{keys(elementflux)}([nansum(i) / kg_gt for i in elementflux])
+
+    # Sum of all element fluxes in Gt/yr
+    globalflux = nansum(totalelementflux)
+
+    # Print to terminal
+    @info """
+    Total global denundation: $global_denun Gt/yr
+    """
 
 ## --- End of File

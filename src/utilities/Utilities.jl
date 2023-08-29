@@ -784,10 +784,6 @@
             return rand(samplenames[q]), replace_major(sampletypes, p_type, minortypes)
         end 
     end
-
-    function get_descriptive_name()
-
-    end
     
 
 ## --- Measurements

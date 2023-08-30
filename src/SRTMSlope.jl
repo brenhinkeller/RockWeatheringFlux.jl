@@ -17,7 +17,7 @@
 
 ## --- Calculate maximum slope and save data set
     @info "Calculating slope. This may take up to 30 minutes. Started $(Dates.format(now(), "HH:MM"))"
-    slope = maxslope(srtm["elevation"], srtm["x_lon_cntr"], srtm["y_lat_cntr"], srtm["cellsize"], minmatval=-32768)
+    slope = maxslope(srtm["elevation"], srtm["x_lon_cntr"], srtm["y_lat_cntr"], srtm["cellsize"], minmatval=-12000)
 
     # Save results to the data folder
     @info "Saving slope to HDF5 file"

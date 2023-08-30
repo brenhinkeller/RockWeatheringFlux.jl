@@ -71,7 +71,7 @@
     # Matched EarthChem
     bulkfid = h5open("output/bulk.h5", "r")
     header = Tuple(Symbol.(read(bulkfid["bulk"]["header"])))
-    data = read(bulkfid["bulk"]["data"])c_gradient
+    data = read(bulkfid["bulk"]["data"])
     mbulk = NamedTuple{header}([data[:,i][bulkidx[t]] for i in eachindex(header)])
     close(bulkfid)
 
@@ -79,8 +79,8 @@
 ## --- Location and age of bulk points matched to Macrostrat samples
     f = Figure(resolution = (1200, 600))
     ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
-    h = CairoMakie.scatter!(ax, vec(bulk.Longitude), vec(bulk.Latitude), color=vec(bulk.Age),
-        colormap=c_gradient, markersize = 3
+    h = CairoMakie.scatter!(ax, vec(mbulk.Longitude), vec(mbulk.Latitude), 
+        color=vec(mbulk.Age), colormap=c_gradient, markersize = 3
     )
     Colorbar(f[1,2], h, label = "Age [Ma]", height = Relative(0.9))
     display(f)
@@ -122,5 +122,43 @@
     display(f)
     save("results/figures/distance.png", f)
 
+
+## --- [DATA] SRTM15+ data
+    # SRTM
+    fid = h5open("output/srtm15plus_maxslope.h5", "r")
+    srtm = read(fid["vars"])
+    srtm = NamedTuple{Tuple(Symbol.(keys(srtm)))}(values(srtm))
+    close(fid)
+
+## --- OCTOPUS basins, or the most computationally intensive plot you've ever seen
+    # Basin polygons
+    fid = h5open("output/basin_coordinates.h5", "r")
+
+    f = Figure(resolution = (1200, 600))
+    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
+
+    p = Progress(length(keys(fid["vars"])))
+    for obj in fid["vars"]
+        data = read(obj)
+
+        col, row = find_grid_inpolygon(srtm.x_lon_cntr, srtm.y_lat_cntr, data[:,2], data[:,1])
+        if length(row) > 0
+            slope = [srtm.slope[row[i],col[i]] for i in eachindex(row,col)]
+                CairoMakie.plot!(ax, srtm.x_lon_cntr[col], srtm.y_lat_cntr[row], color=slope
+            )
+        end
+        next!(p)
+
+        # the only problem with this is that I want the slope color maps to all be normalized
+        # to the same scale... so I would want to plot all of this at once. problem is that there's
+        # no way to actually allocate memory for that... sad! :(
+        
+        # although it might be worth it not to even bother with slope, since it's not that much 
+        # of the earth that's matched, so not possible to see?
+    end
+    display(f)
+    # save("results/figures/octopus_basins.png", f)
+
+    close(fid)
 
 ## --- End of file

@@ -159,6 +159,7 @@
 
 ## --- Open the file. Stop having it be closed.
     fid = h5open("$eroded_out", "r")
+    # fid = h5open("output\\250K_erodedmaterial1.h5", "r")
 
     # Bulk denundation at each point in kg/yr
     path = fid["bulk_denundation"]
@@ -191,5 +192,29 @@
     @info """
     Total global denundation: $global_denun Gt/yr
     """
+
+
+## --- Export crustal composition results
+    # Preallocate
+    result = zeros(length(header), length(macro_cats))
+    rows = string.(header)
+    cols = hcat("", string.(reshape(subcats, 1, length(subcats))), "global")
+
+    # Absolute contribution of each rock type to element flux
+    for i in eachindex(header)          # Filter by element (row)
+        for j in eachindex(subcats)     # Filter by rock type (column)
+            result[i,j] = nansum(elementflux[i][macro_cats[subcats[j]]]).val / kg_gt
+        end
+    end
+
+    TEFval = unmeasurementify(totalelementflux)[1]
+    result[:,end] = TEFval
+
+    # Absolute contribution
+    writedlm("$erodedabs_out", vcat(cols, hcat(collect(rows), result)), ',')
+
+    # Relative contribution
+    writedlm("$erodedrel_out", vcat(cols, hcat(collect(rows), result ./ TEFval)), ',')
+
 
 ## --- End of File

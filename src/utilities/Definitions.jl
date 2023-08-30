@@ -8,8 +8,8 @@
 
         # ucc_out = "results/toy_exposedcrust.tsv"
         # eroded_out = "output/toy_erodedmaterial.h5"
-        # erodedabs_out = "results/toy_erodedmaterial_abs.tsv"
-        # erodedrel_out = "results/toy_erodedmaterial_rel.tsv"
+        # erodedabs_out = "results/toy_erodedmaterial_abs.csv"
+        # erodedrel_out = "results/toy_erodedmaterial_rel.csv"
 
     # 50_000 Macrostrat samples (note: .tsv filetype is deprecated)
         # macrostrat_io = "output/pregenerated_responses.tsv"
@@ -17,8 +17,8 @@
 
         # ucc_out = "results/exposedcrust.tsv"
         # eroded_out = "output/erodedmaterial.h5"
-        # erodedabs_out = "results/erodedmaterial_abs.tsv"
-        # erodedrel_out = "results/erodedmaterial_rel.tsv"
+        # erodedabs_out = "results/erodedmaterial_abs.csv"
+        # erodedrel_out = "results/erodedmaterial_rel.csv"
 
     # 250_000 Macrostrat samples
         macrostrat_io = "output/250K_responses.h5"
@@ -26,8 +26,8 @@
 
         ucc_out = "results/250K_exposedcrust.tsv"
         eroded_out = "output/250K_erodedmaterial.h5"
-        erodedabs_out = "results/250K_erodedmaterial_abs.tsv"
-        erodedrel_out = "results/250K_erodedmaterial_rel.tsv"
+        erodedabs_out = "results/250K_erodedmaterial_abs.csv"
+        erodedrel_out = "results/250K_erodedmaterial_rel.csv"
 
     # 1_000_000 Macrostrat samples
         # macrostrat_io = "output/1M_responses.h5"
@@ -35,8 +35,8 @@
 
         # ucc_out = "results/1M_exposedcrust.tsv"
         # eroded_out = "output/1M_erodedmaterial.h5"
-        # erodedabs_out = "results/1M_erodedmaterial_abs.tsv"
-        # erodedrel_out = "results/1M_erodedmaterial_rel.tsv"
+        # erodedabs_out = "results/1M_erodedmaterial_abs.csv"
+        # erodedrel_out = "results/1M_erodedmaterial_rel.csv"
 
 
 ## --- Color names for visualization

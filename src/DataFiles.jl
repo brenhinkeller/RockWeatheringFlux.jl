@@ -298,4 +298,21 @@
     #     fid["k"] = A
     # close(fid)
 
+
+## --- Save basin lat / lon coordinates to a file
+    # Get stuff
+    run(`gunzip data/octopus/crn_basins_global.kml.gz`);
+    (str, isfirstcoord, nbasins, subbasins) = load_octopus_kml("data/octopus/crn_basins_global.kml");
+    run(`gzip data/octopus/crn_basins_global.kml`);  
+
+    (basin_polygon_n, basin_polygon_lat, basin_polygon_lon) = parse_octopus_polygon_outlines(str,isfirstcoord)
+
+    # File time!
+    fid = h5open("output/basin_coordinates.h5", "w")
+    g = create_group(fid, "vars")
+    for i in eachindex(basin_polygon_lat, basin_polygon_lon)
+        g[lpad(i, 4, "0")] = hcat(basin_polygon_lat[i], basin_polygon_lon[i])
+    end
+    close(fid)
+
 ## --- End of File

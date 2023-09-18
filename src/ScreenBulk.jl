@@ -1,13 +1,10 @@
-# This file will read bulk.mat and bulktext.mat and standardize all units as wt.%
-# Data will be saved as a new file
-    # Currently a new .mat file
+# This file will read bulk.mat and bulktext.mat and standardize all units as wt.%, save
+# data as a new file.
 
 # TO DO: 
-    # save as an .h5 file. Requires re-writing other files so putting off for now.
     # Re-read in old files, and figure out what to do for parsing / correcting element 
         # oxide weights. For example, some samples may have different values for CaO and 
         # CaCO3, but Mg and MgO represent the same data.
-    # Consider making multiple utilities files...
     # Read in raw data files. Useful code:
         # # Filter ages younger than 0 or greater than the age of the earth
         # invalid_age = vcat(findall(>(4000), bulk.Age), findall(<(0), bulk.Age))
@@ -41,8 +38,8 @@
     bulktext = matread("data/bulktext.mat")["bulktext"]
 
     # Type stabilize sample metadata
-    firstshell = unique([String.(bulktext["elements"]); ["Units", "Methods"]])
-    for n in firstshell
+    elements = unique([String.(bulktext["elements"]); ["Units", "Methods"]])
+    for n in elements
         bulktext[n] = String.(bulktext[n])
     end
 
@@ -92,7 +89,7 @@
     majors, minors = get_elements()
 
     # Collect major and minor elements together. Make sure to keep rock type!
-    allelements = [majors; minors]
+    allelements = [majors; minors; :H2O; :CO2; :Loi]
     allkeys = [allelements; [:Type, :Latitude, :Longitude, :Age]]
     ndata = length(allelements)
 
@@ -119,12 +116,12 @@
 
 
 ## --- Restrict bulk to 84-104 wt.% analyzed
-    bulkweight = zeros(length(bulk.SiO2));
+    bulkweight = zeros(length(bulk.SiO2))
     t = falses(length(bulkweight))
     bounds = (84, 104)
     @time for i in eachindex(bulkweight)
         bulkweight[i] = nansum([bulk[j][i] for j in allelements])
-        t[i] = ifelse(bounds[1] < bulkweight < bounds[2], true, false)
+        t[i] = ifelse(bounds[1] < bulkweight[i] < bounds[2], true, false)
     end
     
     nsamples = round(count(t)/length(t)*100, digits=2)

@@ -123,42 +123,63 @@
     save("results/figures/distance.png", f)
 
 
-## --- [DATA] SRTM15+ data
-    # SRTM
-    fid = h5open("output/srtm15plus_maxslope.h5", "r")
-    srtm = read(fid["vars"])
-    srtm = NamedTuple{Tuple(Symbol.(keys(srtm)))}(values(srtm))
-    close(fid)
+## --- [DATA] SRTM15+ data in OCTOPUS basin polygons
+#     # SRTM
+#     fid = h5open("output/srtm15plus_maxslope.h5", "r")
+#     srtm = read(fid["vars"])
+#     srtm = NamedTuple{Tuple(Symbol.(keys(srtm)))}(values(srtm))
+#     close(fid)
 
-## --- OCTOPUS basins, or the most computationally intensive plot you've ever seen
-    # Basin polygons
-    fid = h5open("output/basin_coordinates.h5", "r")
+#     # Basin polygons
+#     fid = h5open("output/basin_coordinates.h5", "r+")
+#     g = create_group(fid, "basins")
 
-    f = Figure(resolution = (1200, 600))
-    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
+#     p = Progress(length(keys(fid["vars"])))
+#     i = 0
+#     for obj in fid["vars"]
+#         data = read(obj)
 
-    p = Progress(length(keys(fid["vars"])))
-    for obj in fid["vars"]
-        data = read(obj)
+#         col, row = find_grid_inpolygon(srtm.x_lon_cntr, srtm.y_lat_cntr, data[:,2], data[:,1])
+#         if length(row) > 0
+#             val = [srtm.slope[row[i],col[i]] for i in eachindex(row,col)]
+#             g[lpad(i, 4, "0")] = hcat(srtm.x_lon_cntr[col], srtm.y_lat_cntr[row], val)
+#         end
+#         i += 1
+#         next!(p)
+#     end
+#     close(fid)
 
-        col, row = find_grid_inpolygon(srtm.x_lon_cntr, srtm.y_lat_cntr, data[:,2], data[:,1])
-        if length(row) > 0
-            slope = [srtm.slope[row[i],col[i]] for i in eachindex(row,col)]
-                CairoMakie.plot!(ax, srtm.x_lon_cntr[col], srtm.y_lat_cntr[row], color=slope
-            )
-        end
-        next!(p)
 
-        # the only problem with this is that I want the slope color maps to all be normalized
-        # to the same scale... so I would want to plot all of this at once. problem is that there's
-        # no way to actually allocate memory for that... sad! :(
-        
-        # although it might be worth it not to even bother with slope, since it's not that much 
-        # of the earth that's matched, so not possible to see?
-    end
-    display(f)
-    # save("results/figures/octopus_basins.png", f)
+# ## --- OCTOPUS basins, or the most computationally intensive plot you've ever seen
+#     fid = h5open("output/basin_coordinates.h5", "r")
+#     npoints = 0
+#     for obj in fid["basins"]
+#         npoints += length(read(obj))
+#     end
 
-    close(fid)
+#     lat = Array{Float64}(undef, npoints)
+#     lon = Array{Float64}(undef, npoints)
+#     slope = Array{Float64}(undef, npoints)
+
+#     start = stop = 1
+#     for obj in fid["basins"]
+#         data = read(obj)
+#         stop = start + length(data[:,1]) - 1
+
+#         lon[start:stop] .= data[:,1]
+#         lat[start:stop] .= data[:,2]
+#         slope[start:stop] .= data[:,3]
+
+#         start = stop + 1
+#     end
+#     close(fid)
+
+#     f = Figure(resolution = (1200, 600))
+#     ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
+#     CairoMakie.plot!(ax, lon, lat, color=slope, colormap=c_gradient, markersize = 3)
+#     display(f)
+#     save("results/figures/octopus_basins.pdf", f)
+
+    
 
 ## --- End of file

@@ -88,6 +88,12 @@
     npoints = count(t)
     subcats = collect(keys(macro_cats))
     deleteat!(subcats, findall(x->x==:cover,subcats))
+
+    # Get relative proportion of all rock types
+    nmajors = count(macro_cats.sed) + count(macro_cats.met) + count(macro_cats.ign)
+    rel_proportion = NamedTuple{Tuple(subcats)}(
+        float.([count(macro_cats[i]) for i in subcats]) / nmajors
+    )
     
 
 ## --- Calculate erosion rate at each coordinate point of interest	
@@ -103,19 +109,6 @@
 
     # Calculate all erosion rates (mm/kyr)
     rock_ersn = emmkyr.(rockslope)
-
-
-## --- Get erosion and continental area for each rock type
-    # Average erosion by rock type (m/Myr)
-    erosion = NamedTuple{Tuple(subcats)}(
-        [nanmean(rock_ersn[macro_cats[i]]) for i in subcats]
-    )
-
-    # Crustal area (m²), assume proportional distribution of rock types under cover
-    const contl_area = 148940000 * 1000000    # Area of continents (m²)
-    crustal_area = NamedTuple{Tuple(subcats)}(
-        [count(macro_cats[i]) / total_known * contl_area for i in subcats]
-    )
 
 
 ## --- Calculate denundation at each point
@@ -145,7 +138,7 @@
 
     for i in eachindex(allelements)
         # Since each Macrostrat point has a corresponding EarthChem sample, use that 
-        # sample to calculate flux
+        # sample to calculate flux of eachelement at each point
         elementflux = [sampleflux[j] * bulk[i][j] * 1e-2 for j = 1:npoints]
 
         # Save to file
@@ -157,11 +150,10 @@
     close(fid)
 
 
-## --- Open the file. Stop having it be closed.
+## --- Open, the file. Stop, having it be closed.
     fid = h5open("$eroded_out", "r")
-    # fid = h5open("output\\250K_erodedmaterial1.h5", "r")
 
-    # Bulk denundation at each point in kg/yr
+    # Total / bulk denundation at each point in kg/yr
     path = fid["bulk_denundation"]
     bulk_denundation = read(path["values"]) .± read(path["errors"])
 
@@ -191,30 +183,82 @@
     # Print to terminal
     @info """
     Total global denundation: $global_denun Gt/yr
+    Sum of all element fluxes: $globalflux Gt/yr
     """
+    if globalflux.val > global_denun.val
+        @warn """
+        Mass of total eroded material from all elements is greater than bulk eroded mass. 
+        """
+    end
 
 
 ## --- Export crustal composition results
     # Preallocate
-    result = zeros(length(header), length(macro_cats))
+    result = zeros(length(header), length(macro_cats))  # Element row, rock type column
     rows = string.(header)
     cols = hcat("", string.(reshape(subcats, 1, length(subcats))), "global")
 
-    # Absolute contribution of each rock type to element flux
-    for i in eachindex(header)          # Filter by element (row)
-        for j in eachindex(subcats)     # Filter by rock type (column)
-            result[i,j] = nansum(elementflux[i][macro_cats[subcats[j]]]).val / kg_gt
+    # Absolute contribution of each rock type to element flux, calculated as the sum of
+    # the individual contributions of each point
+    p = Progress(npoints ÷ 100, desc="Calculating absolute element fluxes...")
+    @time for i = 1:npoints
+        # Get the rock types matched with the point, and classify as major / minor
+        type = get_type(macro_cats, i, all_keys=true)
+        mtype = Dict(zip((:sed, :ign, :met), zeros(Int, 3)))
+        ntypes = 0
+
+        for j in eachindex(type)
+            t = class_up(type[j], minorsed, minorign, minormet)
+            t===nothing && continue
+            mtype[t] += 1
+        end
+        for j in keys(mtype)
+            ntypes += ifelse(mtype[j]>1, mtype[j]-1, mtype[j])
+        end
+        
+        # The contribution of the point should be split between the number of types matched
+        # to that point
+        for j in eachindex(header)
+            contrib = (elementflux[header[j]][i] / ntypes).val
+            contrib = ifelse(isnan(contrib), 0, contrib)
+
+            # Get column number for the results table from subcats 
+            col_n = zeros(Int, length(type))
+            for t in eachindex(type)
+                for s in eachindex(subcats)
+                    if type[t]==subcats[s]
+                        col_n[t]=s
+                        break
+                    end
+                end
+            end
+
+            # Assign!
+            t = col_n .!= 0
+            for c in col_n[t]
+                result[j,c] += contrib
+            end
+        end
+
+        if i % 100 == 0
+            next!(p)
         end
     end
 
-    TEFval = unmeasurementify(totalelementflux)[1]
-    result[:,end] = TEFval
+    result = result ./ kg_gt
+
+    # Add the global total to the last row
+    global_by_element = unmeasurementify(totalelementflux)[1]
+    result[:,end] = global_by_element
 
     # Absolute contribution
     writedlm("$erodedabs_out", vcat(cols, hcat(collect(rows), result)), ',')
 
     # Relative contribution
-    writedlm("$erodedrel_out", vcat(cols, hcat(collect(rows), result ./ TEFval)), ',')
+    # total_absolute = nansum(result[1:end,1:end-1], dims=2)
+    # writedlm("$erodedrel_out", vcat(cols, hcat(collect(rows), result[:,1:end-1] ./ total_absolute, 
+    #     result[:,end] ./ TEFval)), ','
+    # )
 
 
 ## --- End of File

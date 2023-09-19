@@ -445,7 +445,7 @@
     Find the rock type category for `name`. The `name` must be included in the rock name
     `typelist` returned by `get_cats`.
 
-    # Example
+    # Examples
     ```julia-repl
     julia> class_up(typelist, "dacit")
     :volc
@@ -455,9 +455,10 @@
     ```
     """
     function class_up(typelist, name::String)
-        @assert name != "sed" || "ign" || "met" "No upwards class for $name"
+        @assert name != "sed" || name != "ign" || name != "met" "No upwards class for $name"
 
         # Check if name is a minor type which will not correctly class upwards
+        # TO DO: get_minor_types is really slow, pass as an argument instead?
         minorsed, minorign, minormet = get_minor_types()
         @inbounds for k in string.(minorsed)
             name==k && return :sed
@@ -476,6 +477,40 @@
         end
 
         return nothing
+    end
+
+    """
+    ```julia
+    class_up(name::Symbol, minorsed, minorign, minormet)
+    ```
+
+    Get the major rock type that describes the minor type `name`.
+
+    ### Examples
+    ```julia-repl
+    julia> class_up(:volc, minorsed, minorign, minormet)
+    :ign
+
+    julia> class_up(:ign, minorsed, minorign, minormet)
+    :ign
+    ```
+    """
+    function class_up(name::Symbol, minorsed, minorign, minormet)
+        if name==:sed || name==:ign || name==:met
+            return name
+        end
+    
+        @inbounds for k in minorsed
+            name==k && return :sed
+        end
+        @inbounds for k in minorign
+            name==k && return :ign 
+        end
+        @inbounds for k in minormet
+            name==k && return :met 
+        end
+    
+        error("Could not classify type $name")
     end
 
 

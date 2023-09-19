@@ -198,46 +198,46 @@
     rows = string.(header)
     cols = hcat("", string.(reshape(subcats, 1, length(subcats))), "global")
 
+    # Column numbers for rock types
+    colnumbers = NamedTuple{Tuple(subcats)}(1:length(subcats))
+
     # Absolute contribution of each rock type to element flux, calculated as the sum of
     # the individual contributions of each point
     p = Progress(npoints ÷ 100, desc="Calculating absolute element fluxes...")
-    @time for i = 1:npoints
-        # Get the rock types matched with the point, and classify as major / minor
+    # @time for i = 1:npoints
+    @timev for i = 1:1
+        # Get the rock types matched with the point, ignoring cover
         type = get_type(macro_cats, i, all_keys=true)
-        mtype = Dict(zip((:sed, :ign, :met), zeros(Int, 3)))
-        ntypes = 0
+        t = collect(type) .!= :cover
+        type = type[t]
 
+        # Classify types as major / minor
+        maj = similar(collect(type))
+        ismaj = falses(length(maj))
         for j in eachindex(type)
-            t = class_up(type[j], minorsed, minorign, minormet)
-            t===nothing && continue
-            mtype[t] += 1
+            maj[j] = class_up(type[j], minorsed, minorign, minormet)
+            ismaj[j] = maj[j] == type[j]
         end
-        for j in keys(mtype)
-            ntypes += ifelse(mtype[j]>1, mtype[j]-1, mtype[j])
-        end
-        
-        # The contribution of the point should be split between the number of types matched
-        # to that point
+        utype = unique(maj)
+        ntypes = length(utype)
+        ctypes = NamedTuple{Tuple(utype)}([count(==(i), maj) for i in utype] .- 1)
+
+        # The contribution of the point should be split between the number of major types
+        # matched to that point
         for j in eachindex(header)
             contrib = (elementflux[header[j]][i] / ntypes).val
             contrib = ifelse(isnan(contrib), 0, contrib)
 
-            # Get column number for the results table from subcats 
-            col_n = zeros(Int, length(type))
+            # Assign value to results table. Minor types contribute the contribution of the 
+            # major type split between the number of minor types
             for t in eachindex(type)
-                for s in eachindex(subcats)
-                    if type[t]==subcats[s]
-                        col_n[t]=s
-                        break
-                    end
-                end
+                cnum = colnumbers[type[t]]
+                result[j,cnum] += ifelse(ismaj[t], contrib, contrib / ctypes[maj[t]])
             end
 
-            # Assign!
-            t = col_n .!= 0
-            for c in col_n[t]
-                result[j,c] += contrib
-            end
+            check = nansum(elementflux[header[j]][1:i]).val
+            check = ifelse(isnan(check), 0, check)
+            @assert isapprox(sum(result[j,[9,12,15]]), check) "i=$i, j=$j"
         end
 
         if i % 100 == 0

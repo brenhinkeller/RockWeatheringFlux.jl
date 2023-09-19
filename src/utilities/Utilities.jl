@@ -509,8 +509,8 @@
         @inbounds for k in minormet
             name==k && return :met 
         end
-    
-        error("Could not classify type $name")
+
+        return nothing
     end
 
 

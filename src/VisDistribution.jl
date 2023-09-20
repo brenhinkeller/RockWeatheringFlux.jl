@@ -122,7 +122,7 @@
     savefig(h, "results/figures/distributions.png")
 
 
-## --- [FN CALL] modal index and Macrostrat data
+## --- [FN CALL] Modal index and Macrostrat data
     # Igneous
     ignbin = (40, 80, 40)
     iᵢ = sameindex(:ign, macro_cats, bulk, bulktext, bulkidx[t], bins=ignbin, hist=:off)
@@ -265,4 +265,49 @@
     savefig("results/figures/c_rs_sed.png")
 
 
-## --- End of file
+## --- [DATA] Composition of eroded material
+    abs = importdataset("$erodedabs_out", ',', importas=:Tuple)
+    rel = importdataset("$erodedrel_out", ',', importas=:Tuple)
+
+    # Grab only the data for the extended major elements (majors + P₂O₅)
+    majors, minors = get_elements()
+    modmajors = [majors; :P2O5]
+    row = Array{Int64}(undef, length(modmajors))
+    rowname = Symbol.(abs[1])
+    for i in eachindex(modmajors)
+        for j in eachindex(rowname)
+            if modmajors[i]==rowname[j]
+                row[i] = j
+                break
+            end
+        end
+    end
+
+
+## --- Composition of eroded material
+    ticklabel = string.(modmajors)
+
+    # Absolute
+    h = groupedbar([abs.sed[row] abs.ign[row] abs.met[row]], bar_position=:stack, 
+        bar_width=0.85, framestyle=:box, legend=:topright, 
+        xticks=(1:length(ticklabel), ticklabel), 
+        xlabel="Major oxide", ylabel="Absolute Denudation [Gt/yr]", 
+        label = ["Sedimentary" "Igneous" "Metamorphic"],
+        ylims=(0, round(maximum(abs.sed[row] .+ abs.ign[row] .+ abs.met[row]), digits=2)+1),
+        color = [colors.sed colors.ign colors.met]
+    )
+    savefig(h, "results/figures/absdenudation.png")
+
+    # Relative
+    h = groupedbar([rel.sed[row] rel.ign[row] rel.met[row]], bar_position=:stack, 
+        bar_width=0.85, framestyle=:box, legend=:topright, 
+        xticks=(1:length(ticklabel), ticklabel), 
+        xlabel="Major oxide", ylabel="Relative Denudation [Gt/yr]", 
+        label = ["Sedimentary" "Igneous" "Metamorphic"],
+        ylims=(0, 1.3),
+        color = [colors.sed colors.ign colors.met]
+    )
+    savefig(h, "results/figures/reldenudation.png")
+
+
+    ## --- End of file

@@ -25,6 +25,7 @@
     using HDF5
     using Static
     using Measurements
+    using ProgressMeter
 
     # Local utilities
     include("utilities/Utilities.jl")
@@ -115,7 +116,8 @@
     end
 
 
-## --- Restrict bulk to 84-104 wt.% analyzed
+## --- Restrict bulk to whole rock analysis of continental crust
+    # Samples are 84-104 wt.% analyzed
     bulkweight = zeros(length(bulk.SiO2))
     t = falses(length(bulkweight))
     bounds = (84, 104)
@@ -124,6 +126,14 @@
         t[i] = ifelse(bounds[1] < bulkweight[i] < bounds[2], true, false)
     end
     
+    # Samples are on land
+    etopo = h5read("data/etopo/etopo1.h5", "vars/elevation")
+    elev = find_etopoelev(etopo, bulk.Latitude, bulk.Longitude)
+    abovesea = elev .> 0
+    t .&= abovesea
+
+
+## --- Terminal print, normalization, restriction
     nsamples = round(count(t)/length(t)*100, digits=2)
     @info "Saving $nsamples% samples between $(bounds[1])% and $(bounds[2])% analyzed wt.%"
 
@@ -138,7 +148,6 @@
             bulk[allelements[j]][i] = sample[j]
         end
     end
-
 
 ## --- Restrict bulktext to in-bounds only data for elements of interest
     restrictunits = Symbol.(string.(allelements) .* "_Unit")
@@ -164,7 +173,7 @@
     )
 
 
-## --- Write to an HDF5 file
+## --- Write data to an HDF5 file
     fid = h5open("output/bulk.h5", "w")
     data = create_group(fid, "bulk")
     text = create_group(fid, "bulktext")
@@ -207,6 +216,74 @@
     for i in eachindex(textkeys)
         index[:,i] = bulktext.index[textkeys[i]]
     end
+
+
+## --- Find rock type and rock name matches
+    # Interpret index / element formation of bulktext
+    bulkrockname = lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name])
+    bulkrocktype = lowercase.(bulktext.elements.Type[bulktext.index.Type])
+    bulkmaterial = lowercase.(bulktext.elements.Material[bulktext.index.Material])
+
+    # Rock types
+    bulk_cats = match_rocktype(bulkrockname, bulkrocktype, bulkmaterial; unmultimatch=false, 
+        inclusive=false, source=:earthchem
+    )
+    
+    # Rock names
+    rocknames = get_rock_class(true)
+    rocknames = unique((rocknames.sed..., rocknames.met..., rocknames.ign...))
+
+    typelist = get_rock_class(false, true)      # Subtypes, major types include minors
+    nbulk = length(bulkrockname)
+    bulk_lookup = NamedTuple{Symbol.(Tuple(rocknames))}([falses(nbulk) for _ in eachindex(rocknames)])
+    
+    p = Progress(length(rocknames)+1, desc="Finding EarthChem samples for each rock name")
+    next!(p)
+    for i in eachindex(rocknames)
+        bulk_lookup[i] .= find_earthchem(rocknames[i], bulkrockname, bulkrocktype, bulkmaterial)
+    
+        # If no matches, jump up a class
+        if count(bulk_lookup[i]) == 0
+            newsearch = class_up(typelist, rocknames[i])
+            newsearch==:carb && (newsearch=="carbonate")    # No carbonatites!
+            bulk_lookup[i] .= find_earthchem(string(newsearch), bulkrockname, bulkrocktype,
+                bulkmaterial
+            )
+    
+            # If still no matches, jump up a class again
+            if count(bulk_lookup[i]) == 0
+                newsearch = class_up(typelist, string(newsearch))
+                bulk_lookup[i] .= find_earthchem(string(newsearch), bulkrockname, bulkrocktype,
+                bulkmaterial
+            )
+            end
+        end
+        next!(p)
+    end
+
+
+## --- Write matches to file 
+    bulktypes = create_group(fid, "bulktypes")
+
+    # Rock types
+    a = Array{Int64}(undef, length(bulk_cats[1]), length(bulk_cats))
+    for i in eachindex(keys(bulk_cats))
+        for j in eachindex(bulk_cats[i])
+            a[j,i] = ifelse(bulk_cats[i][j], 1, 0)
+        end
+    end
+    bulktypes["bulk_cats"] = a
+    bulktypes["bulk_cats_head"] = string.(collect(keys(bulk_cats))) 
+
+    # Rock names
+    a = Array{Int64}(undef, length(bulk_lookup[1]), length(bulk_lookup))
+    for i in eachindex(keys(bulk_lookup))
+        for j in eachindex(bulk_lookup[i])
+            a[j,i] = ifelse(bulk_lookup[i][j], 1, 0)
+        end
+    end
+    bulktypes["bulk_lookup"] = a
+    bulktypes["bulk_lookup_head"] = string.(collect(keys(bulk_lookup)))
 
     close(fid)
 

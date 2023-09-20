@@ -204,40 +204,26 @@
     # Absolute contribution of each rock type to element flux, calculated as the sum of
     # the individual contributions of each point
     p = Progress(npoints ÷ 100, desc="Calculating absolute element fluxes...")
-    # @time for i = 1:npoints
-    @timev for i = 1:1
+    @time for i = 1:npoints
         # Get the rock types matched with the point, ignoring cover
         type = get_type(macro_cats, i, all_keys=true)
         t = collect(type) .!= :cover
         type = type[t]
 
         # Classify types as major / minor
-        maj = similar(collect(type))
-        ismaj = falses(length(maj))
-        for j in eachindex(type)
-            maj[j] = class_up(type[j], minorsed, minorign, minormet)
-            ismaj[j] = maj[j] == type[j]
-        end
-        utype = unique(maj)
-        ntypes = length(utype)
-        ctypes = NamedTuple{Tuple(utype)}([count(==(i), maj) for i in utype] .- 1)
+        maj, ismaj, ctypes = majorminor(type, minorsed, minorign, minormet)
 
         # The contribution of the point should be split between the number of major types
         # matched to that point
         for j in eachindex(header)
-            contrib = (elementflux[header[j]][i] / ntypes).val
+            contrib = (elementflux[header[j]][i] / count(ismaj)).val
             contrib = ifelse(isnan(contrib), 0, contrib)
 
             # Assign value to results table. Minor types contribute the contribution of the 
             # major type split between the number of minor types
-            for t in eachindex(type)
-                cnum = colnumbers[type[t]]
-                result[j,cnum] += ifelse(ismaj[t], contrib, contrib / ctypes[maj[t]])
+            @inbounds for t in eachindex(type)
+                result[j,colnumbers[type[t]]] += ifelse(ismaj[t], contrib, contrib / ctypes[maj[t]])
             end
-
-            check = nansum(elementflux[header[j]][1:i]).val
-            check = ifelse(isnan(check), 0, check)
-            @assert isapprox(sum(result[j,[9,12,15]]), check) "i=$i, j=$j"
         end
 
         if i % 100 == 0
@@ -255,10 +241,6 @@
     writedlm("$erodedabs_out", vcat(cols, hcat(collect(rows), result)), ',')
 
     # Relative contribution
-    # total_absolute = nansum(result[1:end,1:end-1], dims=2)
-    # writedlm("$erodedrel_out", vcat(cols, hcat(collect(rows), result[:,1:end-1] ./ total_absolute, 
-    #     result[:,end] ./ TEFval)), ','
-    # )
-
+    writedlm("$erodedrel_out", vcat(cols, hcat(collect(rows), result ./ global_by_element)), ',')
 
 ## --- End of File

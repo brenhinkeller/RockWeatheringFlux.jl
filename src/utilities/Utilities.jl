@@ -513,6 +513,25 @@
         return nothing
     end
 
+    """
+    """
+    function majorminor(type, minorsed, minorign, minormet)
+        # Preallocate
+        maj = similar(collect(type))
+        ismaj = falses(length(maj))
+
+        # Assign
+        for j in eachindex(type)
+            maj[j] = class_up(type[j], minorsed, minorign, minormet)
+            ismaj[j] = maj[j] == type[j]
+        end
+
+        utype = unique(maj)
+        ctypes = NamedTuple{Tuple(utype)}([count(==(i), maj) for i in utype] .- 1)
+
+        return maj, ismaj, ctypes
+    end
+
 
 ## --- Geochemistry
 

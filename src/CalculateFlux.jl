@@ -196,7 +196,7 @@
     # Preallocate
     result = zeros(length(header), length(macro_cats))  # Element row, rock type column
     rows = string.(header)
-    cols = hcat("", string.(reshape(subcats, 1, length(subcats))), "global")
+    cols = hcat("", string.(reshape(subcats, 1, length(subcats))), "total")
 
     # Column numbers for rock types
     colnumbers = NamedTuple{Tuple(subcats)}(1:length(subcats))
@@ -231,6 +231,7 @@
         end
     end
 
+    # Unit conversion
     result = result ./ kg_gt
 
     # Add the global total to the last row

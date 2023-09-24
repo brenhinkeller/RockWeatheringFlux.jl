@@ -7,12 +7,13 @@
     using DelimitedFiles
     using Plots
     using NetCDF
-    using Isoplot: yorkfit
+    using Isoplot
     using LoopVectorization
     using Static
 
     # Local utilities
     include("utilities/Utilities.jl")
+    # include("utilities/yorkfit.jl")
 
 
 ## --- Get OCTOPUS basin polygon outlines
@@ -106,6 +107,7 @@
         
     )
     display(h)
+    savefig("results/figures/erosionslope.pdf")
 
 
 ## --- Model erosion as the product of slope and precipitation

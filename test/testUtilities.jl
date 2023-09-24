@@ -66,7 +66,6 @@
     @test cats.cover == [false, false, false]
 
 
-
 ## --- Points in polygon
     # Define simple shape
     polyx = [0, 10, 10, 0, 0]

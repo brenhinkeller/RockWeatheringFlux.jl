@@ -31,8 +31,8 @@
     include("utilities/Utilities.jl")
     
     # Load and parse data files
-    bulk = matread("data/bulk.mat")["bulk"]
-    bulk = NamedTuple{Tuple(Symbol.(keys(bulk)))}(values(bulk))
+    bulk = matread("data/bulk.mat")["bulk"];
+    bulk = NamedTuple{Tuple(Symbol.(keys(bulk)))}(values(bulk));
 
 
 ## --- Load and parse metadata
@@ -90,7 +90,7 @@
     majors, minors = get_elements()
 
     # Collect major and minor elements together. Make sure to keep rock type!
-    allelements = [majors; minors; :H2O; :CO2; :Loi]
+    allelements = [majors; minors]
     allkeys = [allelements; [:Type, :Latitude, :Longitude, :Age]]
     ndata = length(allelements)
 
@@ -116,24 +116,61 @@
     end
 
 
-## --- Restrict bulk to whole rock analysis of continental crust
-    # Samples are 84-104 wt.% analyzed
-    bulkweight = zeros(length(bulk.SiO2))
-    t = falses(length(bulkweight))
-    bounds = (84, 104)
-    @time for i in eachindex(bulkweight)
-        bulkweight[i] = nansum([bulk[j][i] for j in allelements])
-        t[i] = ifelse(bounds[1] < bulkweight[i] < bounds[2], true, false)
+## --- Convert CaCO₃ → CaO + CO₂
+    # Preallocate
+    CaO = Array{Float64}(undef, length(bulk.CaCO3), 1)
+    CO2 = Array{Float64}(undef, length(bulk.CaCO3), 1)
+
+    # Conversion factors
+    CaCO3_to_CaO = (40.078+15.999)/(40.078+15.999*3+12.01)
+    CaCO3_to_CO2 = (15.999*2+12.01)/(40.078+15.999*3+12.01)
+
+    # Compute!
+    @turbo for i in eachindex(bulk.CaCO3)
+        CaO[i] = ifelse(bulk.CaCO3[i] > 0, CaCO3_to_CaO * bulk.CaCO3[i], 0)
+        CO2[i] = ifelse(bulk.CaCO3[i] > 0, CaCO3_to_CO2 * bulk.CaCO3[i], 0)
     end
-    
-    # Samples are on land
+
+    # Make sure existing CaO + CO₂ values are not already converted from CaCO₃
+        # Count how many CaO, CO₂ values are within 1 wt% of already existing values 
+
+
+    # Compute H₂O, CO₂, and LOI values to add to the wt.%
+    # CO2 values are added to already reported CO2 values, since it seems like CO2 values
+    # come from something different. If I re-read in the data, this is probably worth revisting
+    volatiles = Array{Float64}(undef, length(CaO), 1)
+    @time @turbo for i in eachindex(volatiles)
+        CO2H2O = nanadd(bulk.CO2[i], bulk.H2O[i]) + CO2[i]
+        volatiles[i] = ifelse(bulk.Loi[i] > CO2H2O, bulk.Loi[i], CO2H2O)
+    end
+
+
+## --- Restrict bulk to whole rock analysis of continental crust
+    # Samples must be on land; same methodology used to generate continental lat, lon 
+    # points for Macrostrat API query
     etopo = h5read("data/etopo/etopo1.h5", "vars/elevation")
     elev = find_etopoelev(etopo, bulk.Latitude, bulk.Longitude)
     abovesea = elev .> 0
-    t .&= abovesea
+
+    # Samples must be 84-104 total wt.% analyzed
+    bulkweight = zeros(length(bulk.SiO2))
+    t = falses(length(bulkweight))
+    bounds = (84, 104)
+
+    p = Progress(length(bulkweight), desc="Calculating wt.% ...")
+    @time @inbounds for i in eachindex(bulkweight)
+        if abovesea[i]
+            bulkweight[i] = nansum([bulk[j][i] for j in allelements])
+            t[i] = (bounds[1] <= bulkweight[i] <= bounds[2])
+        else
+            bulkweight[i] = NaN
+            t[i] = false
+        end
+        next!(p)
+    end
 
 
-## --- Terminal print, normalization, restriction
+## --- Printout, normalization, restriction
     nsamples = round(count(t)/length(t)*100, digits=2)
     @info "Saving $nsamples% samples between $(bounds[1])% and $(bounds[2])% analyzed wt.%"
 

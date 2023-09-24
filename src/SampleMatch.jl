@@ -51,6 +51,7 @@
 
     close(fid)
     
+
 ## --- Load Earthchem bulk geochemical data
     @info "Loading EarthChem data $(Dates.format(now(), "HH:MM"))"
     fid = h5open("output/bulk.h5", "r")
@@ -138,6 +139,8 @@
 
 
 ## --- Remove all multimatches from major types
+    # This means that major types should be ONLY those samples which cannot be matched
+    # with any minor types
     minorsed, minorign, minormet = get_minor_types()
     
     for type in minorsed
@@ -191,7 +194,6 @@
     #     end
     # end
     # [p_name[i] ./= sum(p_name[i]) for i in keys(p_name)]
-
 
 
 ## --- Find matching Earthchem sample for each Macrostrat sample
@@ -261,7 +263,8 @@
         )
 
         # Get EarthChem data for all types
-        # majtype = unique([class_up(typelist, string(t)) for t in type])
+        # Metamorphic rock names don't give a lot of information about type, so just give
+        # the matching algorithm everything
         if :metased in type || :metaign in type
             type = (type..., :met)
         end
@@ -300,6 +303,7 @@
     # Write data to a file
     writedlm("$matchedbulk_io", matches, '\t')
 
+
 ## --- End timer
     stop = now()
     @info """
@@ -308,4 +312,5 @@
     Total runtime: $(canonicalize(round(stop - start, Dates.Minute))).
     """
 
+    
 ## --- End of File

@@ -90,8 +90,11 @@
     majors, minors = get_elements()
 
     # Collect major and minor elements together. Make sure to keep rock type!
+    # CaCO3 values will be preserved in the final bulk.h5 file, but CaCO3 is converted
+    # to CaO and CO2 for analyzed wt.% calculations
     allelements = [majors; minors]
-    allkeys = [allelements; [:Type, :Latitude, :Longitude, :Age]]
+    extendelements = [allelements; :CaCO3]
+    allkeys = [extendelements; [:Type, :Latitude, :Longitude, :Age]]
     ndata = length(allelements)
 
     # Get all units present in bulktext
@@ -105,7 +108,7 @@
 
 ## --- Convert all units to wt.%
     # This method is resistant to changes in element order
-    for i in allelements
+    for i in extendelements
         # Check unit is present, and convert indices to a list of units
         unit_i = string(i) * "_Unit"
         @assert contains(presentunits, unit_i) "$unit_i not present"
@@ -117,32 +120,29 @@
 
 
 ## --- Convert CaCO₃ → CaO + CO₂
-    # Preallocate
-    CaO = Array{Float64}(undef, length(bulk.CaCO3), 1)
-    CO2 = Array{Float64}(undef, length(bulk.CaCO3), 1)
-
-    # Conversion factors
+    # Pre-compute conversion factors
     CaCO3_to_CaO = (40.078+15.999)/(40.078+15.999*3+12.01)
     CaCO3_to_CO2 = (15.999*2+12.01)/(40.078+15.999*3+12.01)
 
-    # Compute!
+    # Compute and replace! If there is reported CaCO3...
     @turbo for i in eachindex(bulk.CaCO3)
-        CaO[i] = ifelse(bulk.CaCO3[i] > 0, CaCO3_to_CaO * bulk.CaCO3[i], 0)
-        CO2[i] = ifelse(bulk.CaCO3[i] > 0, CaCO3_to_CO2 * bulk.CaCO3[i], 0)
+        # Replace the existing CaO value with the computed CaO value
+        bulk.CaO[i] = ifelse(bulk.CaCO3[i] > 0, CaCO3_to_CaO * bulk.CaCO3[i], bulk.CaO[i])
+
+        # Add the existing CO2 value and the computed CO2 values (may be worth re-visiting
+        # if I re-read in the data from the text files?)
+        bulk.CO2[i] = ifelse(bulk.CaCO3[i] > 0, CaCO3_to_CO2 * bulk.CaCO3[i] + bulk.CO2[i],
+            bulk.CO2[i]
+        )
     end
 
-    # Make sure existing CaO + CO₂ values are not already converted from CaCO₃
-        # Count how many CaO, CO₂ values are within 1 wt% of already existing values 
-
-
-    # Compute H₂O, CO₂, and LOI values to add to the wt.%
-    # CO2 values are added to already reported CO2 values, since it seems like CO2 values
-    # come from something different. If I re-read in the data, this is probably worth revisting
-    volatiles = Array{Float64}(undef, length(CaO), 1)
-    @time @turbo for i in eachindex(volatiles)
-        CO2H2O = nanadd(bulk.CO2[i], bulk.H2O[i]) + CO2[i]
-        volatiles[i] = ifelse(bulk.Loi[i] > CO2H2O, bulk.Loi[i], CO2H2O)
+    # Compute the larger of H₂O + CO₂ or LOI to add to the total wt.%
+    volatiles = Array{Float64}(undef, length(bulk.H2O), 1)
+    @turbo for i in eachindex(volatiles)
+        CO₂H₂O = nanadd(bulk.CO2[i], bulk.H2O[i])
+        volatiles[i] = ifelse(bulk.Loi[i] > CO₂H₂O, CO₂H₂O, bulk.Loi[i])
     end
+    zeronan!(volatiles)
 
 
 ## --- Restrict bulk to whole rock analysis of continental crust
@@ -160,7 +160,7 @@
     p = Progress(length(bulkweight), desc="Calculating wt.% ...")
     @time @inbounds for i in eachindex(bulkweight)
         if abovesea[i]
-            bulkweight[i] = nansum([bulk[j][i] for j in allelements])
+            bulkweight[i] = nansum([bulk[j][i] for j in allelements]) + volatiles[i]
             t[i] = (bounds[1] <= bulkweight[i] <= bounds[2])
         else
             bulkweight[i] = NaN

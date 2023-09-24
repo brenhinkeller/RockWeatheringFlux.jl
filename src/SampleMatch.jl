@@ -193,25 +193,6 @@
     # [p_name[i] ./= sum(p_name[i]) for i in keys(p_name)]
 
 
-## --- Load spatial weights
-    # fid = h5open("output/invspatial.h5", "r")
-    #     header = read(fid["header"])
-    #     k = read(fid["k"])
-    # close(fid)
-    # p = 1.0 ./ k
-    # zeronan!(p)
-    # spatial_lookup = NamedTuple{Tuple(Symbol.(header))}(p[:,i] for i in eachindex(header))
-
-    # rocktypes = keys(macro_cats)
-    # spatial_lookup = NamedTuple{rocktypes}([fill(NaN, nbulk) for _ in eachindex(rocktypes)])
-    # for k in keys(spatial_lookup)
-    #     println("$k\n")
-
-    #     spatial_lookup[k][bulk_cats[k]] .= invweight_location(bulk.Latitude[bulk_cats[k]], 
-    #         bulk.Latitude[bulk_cats[k]]
-    #     )
-    # end
-
 
 ## --- Find matching Earthchem sample for each Macrostrat sample
     # As part of this process, we'll need to assume the geochemistry of the Macrostrat 

@@ -135,24 +135,25 @@
     include("utilities/Utilities.jl")
 
     # Macrostrat
-    mfid = h5open("$macrostrat_io", "r")
-    # macrostrat = (
-    #     rocktype = read(mfid["rocktype"]),
-    #     rockname = read(mfid["rockname"]),
-    #     rockdescrip = read(mfid["rockdescrip"]),
-    # )
-    # macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
-    #     macrostrat.rockdescrip, unmultimatch=false, inclusive=false, source=:macrostrat
-    # )
-    # 
-    # name_cats = match_rockname(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
-    # rocknames = string.(keys(name_cats))
-    
-    # Types
-    fid = h5open("output/matches.h5", "r")
+    # mfid = h5open("$macrostrat_io", "r")
+    mfid = h5open("output/1M_responses.h5", "r")
 
-    # New Macrostrat
-    newfid = h5open("output/250K_responses_new.h5", "w")
+    # Get matches
+    macrostrat = (
+        rocktype = read(mfid["rocktype"]),
+        rockname = read(mfid["rockname"]),
+        rockdescrip = read(mfid["rockdescrip"]),
+    )
+    macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
+        macrostrat.rockdescrip, unmultimatch=false, inclusive=false, source=:macrostrat
+    )
+    
+    name_cats = match_rockname(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
+    
+    # New Macrostrat file
+    newfid = h5open("output/temp_new_macrostrat.h5", "w")
+
+    # Copy over existing data
     g = create_group(newfid, "vars")
         copy_object(mfid["age"], g, "age")
         copy_object(mfid["agemax"], g, "agemax")
@@ -167,12 +168,30 @@
         copy_object(mfid["rockname"], g, "rockname")
         copy_object(mfid["rockstratname"], g, "rockstratname")
         copy_object(mfid["rocktype"], g, "rocktype")
-    g = create_group(newfid, "type")
-        copy_object(fid["vars"]["macro_cats"], g, "macro_cats")
-        copy_object(fid["vars"]["macro_cats_head"], g, "macro_cats_head")
-        copy_object(fid["vars"]["name_cats"], g, "name_cats")
-        copy_object(fid["vars"]["name_cats_head"], g, "name_cats_head")
-    close(fid)
+
+    # Rock types and rock names
+    bulktypes = create_group(newfid, "type")
+
+    # Rock types
+    a = Array{Int64}(undef, length(macro_cats[1]), length(macro_cats))
+    for i in eachindex(keys(macro_cats))
+        for j in eachindex(macro_cats[i])
+            a[j,i] = ifelse(macro_cats[i][j], 1, 0)
+        end
+    end
+    bulktypes["macro_cats"] = a
+    bulktypes["macro_cats_head"] = string.(collect(keys(macro_cats))) 
+
+    # Rock names
+    a = Array{Int64}(undef, length(name_cats[1]), length(name_cats))
+    for i in eachindex(keys(name_cats))
+        for j in eachindex(name_cats[i])
+            a[j,i] = ifelse(name_cats[i][j], 1, 0)
+        end
+    end
+    bulktypes["name_cats"] = a
+    bulktypes["name_cats_head"] = string.(collect(keys(name_cats)))
+
     close(newfid)
     close(mfid)
     

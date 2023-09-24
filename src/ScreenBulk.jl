@@ -170,7 +170,7 @@
     end
 
 
-## --- Printout, normalization, restriction
+## --- Print to terminal and normalize compositions
     nsamples = round(count(t)/length(t)*100, digits=2)
     @info "Saving $nsamples% samples between $(bounds[1])% and $(bounds[2])% analyzed wt.%"
 
@@ -186,16 +186,10 @@
         end
     end
 
-## --- Restrict bulktext to in-bounds only data for elements of interest
-    restrictunits = Symbol.(string.(allelements) .* "_Unit")
-    restrictmethods = Symbol.(string.(allelements) .* "_Meth")
+## --- Restrict bulktext to in-bounds only data for data we're keeping in the final file
+    # We don't need to keep units because everything is in wt.% now
+    restrictmethods = Symbol.(string.(extendelements) .* "_Meth")
 
-    bulktext_units = (
-        units = bulktext_units.units,
-        index = NamedTuple{Tuple(restrictunits)}(
-            [bulktext_units.index[i][t] for i in restrictunits]
-        )
-    )
     bulktext_methods = (
         methods = bulktext_methods.methods,
         index = NamedTuple{Tuple(restrictmethods)}(

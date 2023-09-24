@@ -4,7 +4,7 @@
 # TO DO: 
     # Re-read in old files, and figure out what to do for parsing / correcting element 
         # oxide weights. For example, some samples may have different values for CaO and 
-        # CaCO3, but Mg and MgO represent the same data.
+        # CaCO3, but Mg and MgO may represent the same data.
     # Read in raw data files. Useful code:
         # # Filter ages younger than 0 or greater than the age of the earth
         # invalid_age = vcat(findall(>(4000), bulk.Age), findall(<(0), bulk.Age))
@@ -93,7 +93,7 @@
     # CaCO3 values will be preserved in the final bulk.h5 file, but CaCO3 is converted
     # to CaO and CO2 for analyzed wt.% calculations
     allelements = [majors; minors]
-    extendelements = [allelements; :CaCO3]
+    extendelements = [allelements; [:CaCO3, :H2O, :CO2]]
     allkeys = [extendelements; [:Type, :Latitude, :Longitude, :Age]]
     ndata = length(allelements)
 
@@ -172,7 +172,7 @@
 
 ## --- Print to terminal and normalize compositions
     nsamples = round(count(t)/length(t)*100, digits=2)
-    @info "Saving $nsamples% samples between $(bounds[1])% and $(bounds[2])% analyzed wt.%"
+    @info "Saving $(count(t)) samples ($nsamples%) with $(bounds[1])-$(bounds[2]) analyzed wt.%"
 
     # Restrict bulk to in-bounds only
     bulk = NamedTuple{Tuple(allkeys)}([bulk[i][t] for i in allkeys])
@@ -186,16 +186,18 @@
         end
     end
 
-## --- Restrict bulktext to in-bounds only data for data we're keeping in the final file
-    # We don't need to keep units because everything is in wt.% now
-    restrictmethods = Symbol.(string.(extendelements) .* "_Meth")
 
+## --- Restrict bulktext to data we're keeping in the final output file
+    # Methods
+    restrictmethods = Symbol.(string.(extendelements) .* "_Meth")
     bulktext_methods = (
         methods = bulktext_methods.methods,
         index = NamedTuple{Tuple(restrictmethods)}(
             [bulktext_methods.index[i][t] for i in restrictmethods]
         )
     )
+
+    # Other / general elements
     bulktext = (
         elements = bulktext.elements,
         index = NamedTuple{Tuple(keys(bulktext.index))}(
@@ -204,72 +206,34 @@
     )
 
 
-## --- Write data to an HDF5 file
-    fid = h5open("output/bulk.h5", "w")
-    data = create_group(fid, "bulk")
-    text = create_group(fid, "bulktext")
-
-    # Bulk
-    write(data, "header", string.(allkeys))
-    writebulk = create_dataset(data, "data", Float64, (count(t), length(allkeys)))
-    for i in eachindex(allkeys)
-        writebulk[:,i] = bulk[allkeys[i]]
-    end
-
-    # Bulktext units
-    units = create_group(text, "units")
-    write(units, "units", bulktext_units.units)
-    write(units, "header", string.(restrictunits))
-    index = create_dataset(units, "index", Int64, (count(t), length(restrictunits)))
-    for i in eachindex(restrictunits)
-        index[:,i] = bulktext_units.index[restrictunits[i]]
-    end
-
-    # Bulktext methods
-    methods = create_group(text, "methods")
-    write(methods, "methods", bulktext_methods.methods)
-    write(methods, "header", string.(restrictmethods))
-    index = create_dataset(methods, "index", Int64, (count(t), length(restrictmethods)))
-    for i in eachindex(restrictmethods)
-        index[:,i] = bulktext_methods.index[restrictmethods[i]]
-    end
-
-    # Bulk text sample data
-    sampledata = create_group(text, "sampledata")
-    elements = create_group(sampledata, "elements")
-    for i in keys(bulktext.elements)
-        write(elements, string(i), bulktext.elements[i])
-    end
-    
-    textkeys = collect(keys(bulktext.index))
-    write(sampledata, "header", string.(textkeys))
-    index = create_dataset(sampledata, "index", Int64, (count(t), length(textkeys)))
-    for i in eachindex(textkeys)
-        index[:,i] = bulktext.index[textkeys[i]]
-    end
-
-
-## --- Find rock type and rock name matches
-    # Interpret index / element formation of bulktext
+## --- Initialize metadata for rock name / type matching
+    # Name + Type + Material from index / element format of bulktext
     bulkrockname = lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name])
     bulkrocktype = lowercase.(bulktext.elements.Type[bulktext.index.Type])
     bulkmaterial = lowercase.(bulktext.elements.Material[bulktext.index.Material])
 
-    # Rock types
-    bulk_cats = match_rocktype(bulkrockname, bulkrocktype, bulkmaterial; unmultimatch=false, 
-        inclusive=false, source=:earthchem
-    )
-    
     # Rock names
     rocknames = get_rock_class(true)
     rocknames = unique((rocknames.sed..., rocknames.met..., rocknames.ign...))
 
-    typelist = get_rock_class(false, true)      # Subtypes, major types include minors
+    # Rock subtypes, major types include minors (for class_up function call)
+    typelist = get_rock_class(false, true)
+
+
+## --- Find rock type / name matches
+    # Match rock types
+    bulk_cats = match_rocktype(bulkrockname, bulkrocktype, bulkmaterial; unmultimatch=false, 
+        inclusive=false, source=:earthchem
+    )
+
+    # Preallocate for rock names
     nbulk = length(bulkrockname)
-    bulk_lookup = NamedTuple{Symbol.(Tuple(rocknames))}([falses(nbulk) for _ in eachindex(rocknames)])
+    bulk_lookup = NamedTuple{Symbol.(Tuple(rocknames))}(
+        [falses(nbulk) for _ in eachindex(rocknames)]
+    )
     
-    p = Progress(length(rocknames)+1, desc="Finding EarthChem samples for each rock name")
-    next!(p)
+    # Match rock names
+    p = Progress(length(rocknames), desc="Finding EarthChem samples for each rock name")
     for i in eachindex(rocknames)
         bulk_lookup[i] .= find_earthchem(rocknames[i], bulkrockname, bulkrocktype, bulkmaterial)
     
@@ -293,7 +257,44 @@
     end
 
 
-## --- Write matches to file 
+## --- Write data to an HDF5 file
+    @info "Saving new bulk.h5 file."
+
+    fid = h5open("output/bulk.h5", "w")
+    data = create_group(fid, "bulk")
+    text = create_group(fid, "bulktext")
+
+    # Bulk
+    write(data, "header", string.(allkeys))
+    writebulk = create_dataset(data, "data", Float64, (count(t), length(allkeys)))
+    for i in eachindex(allkeys)
+        writebulk[:,i] = bulk[allkeys[i]]
+    end
+
+    # Bulktext methods
+    methods = create_group(text, "methods")
+    write(methods, "methods", bulktext_methods.methods)
+    write(methods, "header", string.(restrictmethods))
+    index = create_dataset(methods, "index", Int64, (count(t), length(restrictmethods)))
+    for i in eachindex(restrictmethods)
+        index[:,i] = bulktext_methods.index[restrictmethods[i]]
+    end
+
+    # Bulk text sample data
+    sampledata = create_group(text, "sampledata")
+    elements = create_group(sampledata, "elements")
+    for i in keys(bulktext.elements)
+        write(elements, string(i), bulktext.elements[i])
+    end
+
+    textkeys = collect(keys(bulktext.index))
+    write(sampledata, "header", string.(textkeys))
+    index = create_dataset(sampledata, "index", Int64, (count(t), length(textkeys)))
+    for i in eachindex(textkeys)
+        index[:,i] = bulktext.index[textkeys[i]]
+    end
+
+    # Rock types and rock names
     bulktypes = create_group(fid, "bulktypes")
 
     # Rock types

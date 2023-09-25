@@ -156,20 +156,38 @@
 
 
 ## --- Convert CaCO₃ → CaO + CO₂
-    # Pre-compute conversion factors
+    # Pre-compute some conversion factors
     CaCO3_to_CaO = (40.078+15.999)/(40.078+15.999*3+12.01)
     CaCO3_to_CO2 = (15.999*2+12.01)/(40.078+15.999*3+12.01)
 
-    # Compute and replace! If there is reported CaCO3...
-    @turbo for i in eachindex(bulk.CaCO3)
-        # Replace the existing CaO value with the computed CaO value
-        bulk.CaO[i] = ifelse(bulk.CaCO3[i] > 0, CaCO3_to_CaO * bulk.CaCO3[i], bulk.CaO[i])
+    CaO_to_CO2 = (15.999*2+12.01)/(40.078+15.999)
+    CaO_to_CaCO3 = (40.078+15.999*3+12.01)/(40.078+15.999)
 
-        # Add the existing CO2 value and the computed CO2 values (may be worth re-visiting
-        # if I re-read in the data from the text files?)
+    # Convert CaCO₃ to CaO and CO₂
+    # Replace the existing CaO value with the computed CaO value
+    # Add the existing CO2 value and the computed CO2 values 
+    @turbo for i in eachindex(bulk.CaCO3)
+        bulk.CaO[i] = ifelse(bulk.CaCO3[i] > 0, CaCO3_to_CaO * bulk.CaCO3[i], bulk.CaO[i])
         bulk.CO2[i] = ifelse(bulk.CaCO3[i] > 0, CaCO3_to_CO2 * bulk.CaCO3[i] + bulk.CO2[i],
             bulk.CO2[i]
         )
+    end
+
+    # FOR CARBONATES ONLY: Convert CaO to CaCO₃ and CO₂
+    #
+    # There are a lot of limestones with only CaO... this seems perhaps not correct, but
+    # there are no CO2 values, so they all have analyzed wt.%'s that are too low :(
+    #
+    # It doesn't matter if existing CaCO₃ values are replaced with CaCO₃ values calculated
+    # from CaO, because the CaO values were calculated from the existing CaCO₃ values so 
+    # everything works (paste this code into the REPL to check):
+    #
+    # a = @. !isnan(bulk.CaCO3) & bulk_cats.carb;
+    # b = @. !isapprox(bulk.CaCO3[a], CaCO3[a]);
+    # [bulk.CaCO3[a][b] CaCO3[a][b] bulk.CaO[a][b]]
+    @turbo for i in eachindex(bulk.CaO)
+        bulk.CO2[i] = ifelse(bulk_cats.carb[i], bulk.CaO[i]*CaO_to_CO2, NaN)
+        bulk.CaCO3[i] = ifelse(bulk_cats.carb[i], bulk.CaO[i]*CaO_to_CaCO3, NaN)
     end
 
 

@@ -30,7 +30,8 @@
     # Local utilities
     include("utilities/Utilities.jl")
     
-    # Load and parse data files
+
+## --- Load and parse data file
     bulk = matread("data/bulk.mat")["bulk"];
     bulk = NamedTuple{Tuple(Symbol.(keys(bulk)))}(values(bulk));
 
@@ -86,6 +87,36 @@
     )
 
 
+## --- Get rock type matches for all samples
+    # DIY and save to a file
+    bulkrockname = lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name])
+    bulkrocktype = lowercase.(bulktext.elements.Type[bulktext.index.Type])
+    bulkmaterial = lowercase.(bulktext.elements.Material[bulktext.index.Material])
+
+    bulk_cats = match_rocktype(bulkrockname, bulkrocktype, bulkmaterial; unmultimatch=false, 
+        inclusive=false, source=:earthchem
+    )
+
+    fid = h5open("output/bulk_unrestricted_types.h5", "w")
+    a = Array{Int64}(undef, length(bulk_cats[1]), length(bulk_cats))
+    for i in eachindex(keys(bulk_cats))
+        for j in eachindex(bulk_cats[i])
+            a[j,i] = ifelse(bulk_cats[i][j], 1, 0)
+        end
+    end
+    fid["bulk_cats"] = a
+    fid["bulk_cats_head"] = string.(collect(keys(bulk_cats)))
+    close(fid)
+
+    # Or save yourself the time and load from a file
+    # fid = h5open("output/bulk_unrestricted_types.h5", "r")
+    # header = read(fid["bulk_cats_head"])
+    # data = read(fid["bulk_cats"])
+    # data = @. data > 0
+    # bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    # close(fid)
+
+
 ## --- Define and organize elements to correct
     majors, minors = get_elements()
 
@@ -136,14 +167,6 @@
         )
     end
 
-    # Compute the larger of H₂O + CO₂ or LOI to add to the total wt.%
-    volatiles = Array{Float64}(undef, length(bulk.H2O), 1)
-    @turbo for i in eachindex(volatiles)
-        CO₂H₂O = nanadd(bulk.CO2[i], bulk.H2O[i])
-        volatiles[i] = ifelse(bulk.Loi[i] > CO₂H₂O, CO₂H₂O, bulk.Loi[i])
-    end
-    zeronan!(volatiles)
-
 
 ## --- Restrict bulk to whole rock analysis of continental crust
     # Samples must be on land; same methodology used to generate continental lat, lon 
@@ -152,18 +175,23 @@
     elev = find_etopoelev(etopo, bulk.Latitude, bulk.Longitude)
     abovesea = elev .> 0
 
+    # Compute the larger of H₂O + CO₂ or LOI to add to the total wt.%
+    bulkweight = Array{Float64}(undef, length(bulk.SiO2), 1)
+    @turbo for i in eachindex(bulkweight)
+        volatiles = nanadd(bulk.CO2[i], bulk.H2O[i])
+        bulkweight[i] = ifelse(bulk.Loi[i] > volatiles, volatiles, bulk.Loi[i])
+    end
+
     # Samples must be 84-104 total wt.% analyzed
-    bulkweight = zeros(length(bulk.SiO2))
     t = falses(length(bulkweight))
     bounds = (84, 104)
 
     p = Progress(length(bulkweight), desc="Calculating wt.% ...")
     @time @inbounds for i in eachindex(bulkweight)
         if abovesea[i]
-            bulkweight[i] = nansum([bulk[j][i] for j in allelements]) + volatiles[i]
+            bulkweight[i] += nansum([bulk[j][i] for j in allelements])
             t[i] = (bounds[1] <= bulkweight[i] <= bounds[2])
         else
-            bulkweight[i] = NaN
             t[i] = false
         end
         next!(p)

@@ -70,7 +70,7 @@
 
         
     Minor elements:
-    * Ag, As, Au, B, Ba, Be, Bi, C, CaCO3, Cd, Ce, Cl, Co, Cr2O3, Cs, Cu, Dy, Er, Eu, 
+    * Ag, As, Au, B, Ba, Be, Bi, C, Cd, Ce, Cl, Co, Cr2O3, Cs, Cu, Dy, Er, Eu, 
         F, Ga, Gd, Hf, Hg, Ho, I, In, Ir, La, Li, Lu, MnO, Mo, Nb, Nd, NiO, Os, P2O5, Pb, 
         Pd, Pt, Pr, Re, Rb, Sb, Sc, Se, S, Sm, Sn, Sr, Ta, Tb, Te, Th, Tl, Tm, U, V, W, Y, 
         Yb, Zn, Zr
@@ -139,7 +139,7 @@
         chert = ("chert", "opal", "porcellanite", "diatomite", "novaculite", "iron", "taconite", 
             "banded iron")
         evaporite = ("evaporite", "anhydrite", "gypsum", "trona", "halite", "sylvite", 
-            "salt flat", "caliche", "exhalite")
+            "salt flat", "caliche")
         phosphorite = ("phosphorite", "phosphate")
         coal = ("coal", "anthracite", "peat", "lignite", "bitumen")
         volcaniclast = ("tonstein", "peperite", "volcaniclastic")

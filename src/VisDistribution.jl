@@ -122,7 +122,7 @@
     savefig(h, "results/figures/distributions.png")
 
 
-## --- [FN CALL] Modal index and Macrostrat data
+## --- [FN CALL] Igneous modal index and Macrostrat data
     # Igneous
     ignbin = (40, 80, 40)
     iᵢ = sameindex(:ign, macro_cats, bulk, bulktext, bulkidx[t], bins=ignbin, hist=:off)
@@ -134,19 +134,25 @@
     iₚ = sameindex(:plut, macro_cats, bulk, bulktext, bulkidx[t], bins=ignbin, hist=:off)
     # iᵢ != iₚ && get_matched_samples(iₚ, bulkidx[t], macrostrat, filter=macro_cats.plut, desc="Plutonic")
 
+    # Query Macrostrat at that location:
+    # https://macrostrat.org/api/mobile/map_query?lat=LAT&lng=LON&z=11
+
+
+## --- [FN CALL] Sedimentary + metamorphic modal index
     # Sedimentary
     sedbin = (0, 100, 100)
     iₛ = sameindex(:sed, macro_cats, bulk, bulktext, bulkidx[t], bins=sedbin, hist=:off)     # All sed
     # get_matched_samples(iₛ, bulkidx[t], macrostrat, filter=macro_cats.sed, desc="Sedimentary")
 
+    sameindex(:shale, macro_cats, bulk, bulktext, bulkidx[t], bins=sedbin, hist=:off)
+    sameindex(:carb, macro_cats, bulk, bulktext, bulkidx[t], bins=sedbin, hist=:off)
+    sameindex(:chert, macro_cats, bulk, bulktext, bulkidx[t], bins=sedbin, hist=:off)
+    sameindex(:evaporite, macro_cats, bulk, bulktext, bulkidx[t], bins=sedbin, hist=:off)
+    sameindex(:coal, macro_cats, bulk, bulktext, bulkidx[t], bins=sedbin, hist=:off)
+
     metbin = (0, 100, 100)
     iₘ = sameindex(:met, macro_cats, bulk, bulktext, bulkidx[t], bins=metbin, hist=:off)     # All met
-
-    # Query Macrostrat at that location:
-    # https://macrostrat.org/api/mobile/map_query?lat=LAT&lng=LON&z=11
-
-    # exit()
-
+    
 
 ## --- Igneous SiO₂ by rock age
     t = @. (mbulk.Age >= 2500) & macro_cats.ign

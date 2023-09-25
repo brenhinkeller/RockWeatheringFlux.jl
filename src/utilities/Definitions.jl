@@ -139,7 +139,7 @@
         chert = ("chert", "opal", "porcellanite", "diatomite", "novaculite", "iron", "taconite", 
             "banded iron")
         evaporite = ("evaporite", "anhydrite", "gypsum", "trona", "halite", "sylvite", 
-            "salt flat", "caliche")
+            "salt flat", "caliche", "exhalite")
         phosphorite = ("phosphorite", "phosphate")
         coal = ("coal", "anthracite", "peat", "lignite", "bitumen")
         volcaniclast = ("tonstein", "peperite", "volcaniclastic")

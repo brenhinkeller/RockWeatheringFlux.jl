@@ -85,36 +85,41 @@
             [bulktext["index"][i] for i in keys(bulktext["index"])]
         )
     )
-
-
-## --- Get rock type matches for all samples
-    # DIY and save to a file
-    bulkrockname = lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name])
-    bulkrocktype = lowercase.(bulktext.elements.Type[bulktext.index.Type])
-    bulkmaterial = lowercase.(bulktext.elements.Material[bulktext.index.Material])
-
-    bulk_cats = match_rocktype(bulkrockname, bulkrocktype, bulkmaterial; unmultimatch=false, 
-        inclusive=false, source=:earthchem
-    )
-
-    fid = h5open("output/bulk_unrestricted_types.h5", "w")
-    a = Array{Int64}(undef, length(bulk_cats[1]), length(bulk_cats))
-    for i in eachindex(keys(bulk_cats))
-        for j in eachindex(bulk_cats[i])
-            a[j,i] = ifelse(bulk_cats[i][j], 1, 0)
-        end
-    end
-    fid["bulk_cats"] = a
-    fid["bulk_cats_head"] = string.(collect(keys(bulk_cats)))
+    fid = h5open("output/bulk_unrestricted_types.h5", "r")
+    header = read(fid["bulk_cats_head"])
+    data = read(fid["bulk_cats"])
+    data = @. data > 0
+    bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
     close(fid)
 
-    # Or save yourself the time and load from a file
-    # fid = h5open("output/bulk_unrestricted_types.h5", "r")
-    # header = read(fid["bulk_cats_head"])
-    # data = read(fid["bulk_cats"])
-    # data = @. data > 0
-    # bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+## --- Get rock type matches for all samples
+    # # DIY and save to a file
+    # bulkrockname = lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name])
+    # bulkrocktype = lowercase.(bulktext.elements.Type[bulktext.index.Type])
+    # bulkmaterial = lowercase.(bulktext.elements.Material[bulktext.index.Material])
+
+    # bulk_cats = match_rocktype(bulkrockname, bulkrocktype, bulkmaterial; unmultimatch=false, 
+    #     inclusive=false, source=:earthchem
+    # )
+
+    # fid = h5open("output/bulk_unrestricted_types.h5", "w")
+    # a = Array{Int64}(undef, length(bulk_cats[1]), length(bulk_cats))
+    # for i in eachindex(keys(bulk_cats))
+    #     for j in eachindex(bulk_cats[i])
+    #         a[j,i] = ifelse(bulk_cats[i][j], 1, 0)
+    #     end
+    # end
+    # fid["bulk_cats"] = a
+    # fid["bulk_cats_head"] = string.(collect(keys(bulk_cats)))
     # close(fid)
+
+    # Or save yourself the time and load from a file
+    fid = h5open("output/bulk_unrestricted_types.h5", "r")
+    header = read(fid["bulk_cats_head"])
+    data = read(fid["bulk_cats"])
+    data = @. data > 0
+    bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    close(fid)
 
 
 ## --- Define and organize elements to correct
@@ -181,6 +186,7 @@
         volatiles = nanadd(bulk.CO2[i], bulk.H2O[i])
         bulkweight[i] = ifelse(bulk.Loi[i] > volatiles, volatiles, bulk.Loi[i])
     end
+    zeronan!(bulkweight)
 
     # Samples must be 84-104 total wt.% analyzed
     t = falses(length(bulkweight))
@@ -188,12 +194,13 @@
 
     p = Progress(length(bulkweight), desc="Calculating wt.% ...")
     @time @inbounds for i in eachindex(bulkweight)
-        if abovesea[i]
-            bulkweight[i] += nansum([bulk[j][i] for j in allelements])
-            t[i] = (bounds[1] <= bulkweight[i] <= bounds[2])
-        else
-            t[i] = false
-        end
+        # if abovesea[i]
+        #     bulkweight[i] += nansum([bulk[j][i] for j in allelements])
+        #     t[i] = (bounds[1] <= bulkweight[i] <= bounds[2])
+        # else
+        #     t[i] = false
+        # end
+        bulkweight[i] += nansum([bulk[j][i] for j in allelements])
         next!(p)
     end
 

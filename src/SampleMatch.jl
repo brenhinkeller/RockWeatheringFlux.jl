@@ -86,10 +86,10 @@
     # )
 
     # EarthChem rock names
-    rocknames = read(fid["bulktypes"]["bulk_lookup_head"])
-    data = read(fid["bulktypes"]["bulk_lookup"])
-    data = @. data > 0
-    bulk_lookup = NamedTuple{Tuple(Symbol.(rocknames))}([data[:,i] for i in eachindex(rocknames)])
+    # rocknames = read(fid["bulktypes"]["bulk_lookup_head"])
+    # data = read(fid["bulktypes"]["bulk_lookup"])
+    # data = @. data > 0
+    # bulk_lookup = NamedTuple{Tuple(Symbol.(rocknames))}([data[:,i] for i in eachindex(rocknames)])
 
     close(fid)
     
@@ -99,38 +99,37 @@
 
     # # Get rock names for each Macrostrat sample
     # name_cats = match_rockname(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
-    # rocknames = string.(keys(name_cats))
+    rocknames = string.(keys(name_cats))
 
-    # # Get EarthChem samples for each rock name
-    # typelist = get_rock_class(false, true)      # Subtypes, major types include minors
-    # nbulk = length(bulktext.Rock_Name)
-    # bulk_lookup = NamedTuple{keys(name_cats)}([falses(nbulk) for _ in eachindex(name_cats)])
+    # Get EarthChem samples for each rock name
+    typelist = get_rock_class(false, true)      # Subtypes, major types include minors
+    nbulk = length(bulktext.Rock_Name)
+    bulk_lookup = NamedTuple{keys(name_cats)}([falses(nbulk) for _ in eachindex(name_cats)])
 
-    # p = Progress(length(rocknames)+1, desc="Finding EarthChem samples for each rock name")
-    # next!(p)
-    # for i in eachindex(rocknames)
-    #     bulk_lookup[i] .= find_earthchem(rocknames[i], bulktext.Rock_Name, bulktext.Type, 
-    #         bulktext.Material
-    #     )
+    p = Progress(length(rocknames), desc="Finding EarthChem samples for each rock name")
+    for i in eachindex(rocknames)
+        bulk_lookup[i] .= find_earthchem(rocknames[i], bulktext.Rock_Name, bulktext.Type, 
+            bulktext.Material
+        )
 
-    #     # If no matches, jump up a class
-    #     if count(bulk_lookup[i]) == 0
-    #         newsearch = class_up(typelist, rocknames[i])
-    #         newsearch==:carb && (newsearch=="carbonate")    # No carbonatites!
-    #         bulk_lookup[i] .= find_earthchem(string(newsearch), bulktext.Rock_Name, 
-    #             bulktext.Type, bulktext.Material
-    #         )
+        # # If no matches, jump up a class
+        # if count(bulk_lookup[i]) == 0
+        #     newsearch = class_up(typelist, rocknames[i])
+        #     newsearch==:carb && (newsearch=="carbonate")    # No carbonatites!
+        #     bulk_lookup[i] .= find_earthchem(string(newsearch), bulktext.Rock_Name, 
+        #         bulktext.Type, bulktext.Material
+        #     )
 
-    #         # If still no matches, jump up a class again
-    #         if count(bulk_lookup[i]) == 0
-    #             newsearch = class_up(typelist, string(newsearch))
-    #             bulk_lookup[i] .= find_earthchem(string(newsearch), bulktext.Rock_Name, 
-    #                 bulktext.Type, bulktext.Material
-    #             )
-    #         end
-    #     end
-    #     next!(p)
-    # end
+        #     # If still no matches, jump up a class again
+        #     if count(bulk_lookup[i]) == 0
+        #         newsearch = class_up(typelist, string(newsearch))
+        #         bulk_lookup[i] .= find_earthchem(string(newsearch), bulktext.Rock_Name, 
+        #             bulktext.Type, bulktext.Material
+        #         )
+        #     end
+        # end
+        next!(p)
+    end
 
     # Get average geochemistry for each rock name
     geochem_lookup = NamedTuple{keys(name_cats)}([major_elements(bulk, bulk_lookup[i]) 
@@ -175,25 +174,6 @@
             for i in minortypes
     ])
     [p_name[i] ./= sum(p_name[i]) for i in keys(p_name)]
-
-    # rocktypes = collect(keys(macro_cats))[1:end-1]      # No cover!
-    # p_name = NamedTuple{Tuple(rocktypes)}(
-    #     [[float.(count(name_cats[Symbol(typelist[i][j])])) for j in eachindex(typelist[i])] 
-    #         for i in rocktypes
-    # ])
-
-    # ... That are actually descriptive. Zero nondescriptive names
-    # Technically now the goal would be to remove the requirement that the algo. picks
-    # major types, since there are some names in major types that are actually useful....
-    # nondesc = nondescriptive()
-    # for k in keys(nondesc)
-    #     for i in eachindex(typelist[k])
-    #         if typelist[k][i] in nondesc[k]
-    #             p_name[k][i] = 0.0
-    #         end
-    #     end
-    # end
-    # [p_name[i] ./= sum(p_name[i]) for i in keys(p_name)]
 
 
 ## --- Find matching Earthchem sample for each Macrostrat sample
@@ -246,12 +226,20 @@
             end
         end
         
-        # Pick a random sample to act as the geochemistry for that sample
+        # Pick a random sample to act as the geochemistry for that sample:
+        # Replace all major types with a randomly selected minor type, proportional to that
+        # minor type's abundance
         samplenames = get_type(name_cats, i, all_keys=true)
         randname, type = get_descriptive_name(samplenames, p_name, type, p_type, typelist, 
             minortypes
         )
-        # randsample = bulk_idxs[weighted_rand(spatial_lookup[rand(type)][bulk_lookup[randname]])]
+        # If there aren't any matched samples in bulk_lookup, just move on
+        # Not perfect but see if it helps?
+        if count(bulk_lookup[randname])==0
+            next!(p)
+            continue
+        end
+
         randsample = rand(bulk_idxs[bulk_lookup[randname]])
         
         geochemdata = geochem_lookup[randname]
@@ -312,5 +300,5 @@
     Total runtime: $(canonicalize(round(stop - start, Dates.Minute))).
     """
 
-    
+
 ## --- End of File

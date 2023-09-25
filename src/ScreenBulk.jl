@@ -85,12 +85,7 @@
             [bulktext["index"][i] for i in keys(bulktext["index"])]
         )
     )
-    fid = h5open("output/bulk_unrestricted_types.h5", "r")
-    header = read(fid["bulk_cats_head"])
-    data = read(fid["bulk_cats"])
-    data = @. data > 0
-    bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
-    close(fid)
+
 
 ## --- Get rock type matches for all samples
     # # DIY and save to a file

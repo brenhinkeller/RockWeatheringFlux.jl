@@ -156,6 +156,8 @@
 
 
 ## --- Convert CaCO₃ → CaO + CO₂
+    @warn "Did you remember to re-load bulk before running this block?" 
+
     # Pre-compute some conversion factors
     CaCO3_to_CaO = (40.078+15.999)/(40.078+15.999*3+12.01)
     CaCO3_to_CO2 = (15.999*2+12.01)/(40.078+15.999*3+12.01)
@@ -202,7 +204,7 @@
     bulkweight = Array{Float64}(undef, length(bulk.SiO2), 1)
     @turbo for i in eachindex(bulkweight)
         volatiles = nanadd(bulk.CO2[i], bulk.H2O[i])
-        bulkweight[i] = ifelse(bulk.Loi[i] > volatiles, volatiles, bulk.Loi[i])
+        bulkweight[i] = ifelse(bulk.Loi[i] > volatiles, bulk.Loi[i], volatiles)
     end
     zeronan!(bulkweight)
 

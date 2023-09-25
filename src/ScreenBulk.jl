@@ -214,13 +214,12 @@
 
     p = Progress(length(bulkweight), desc="Calculating wt.% ...")
     @time @inbounds for i in eachindex(bulkweight)
-        # if abovesea[i]
-        #     bulkweight[i] += nansum([bulk[j][i] for j in allelements])
-        #     t[i] = (bounds[1] <= bulkweight[i] <= bounds[2])
-        # else
-        #     t[i] = false
-        # end
-        bulkweight[i] += nansum([bulk[j][i] for j in allelements])
+        if abovesea[i]
+            bulkweight[i] += nansum([bulk[j][i] for j in allelements])
+            t[i] = (bounds[1] <= bulkweight[i] <= bounds[2])
+        else
+            t[i] = false
+        end
         next!(p)
     end
 

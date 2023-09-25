@@ -150,7 +150,7 @@
     end
 
 
-## --- Convert CaCO₃ → CaO + CO₂
+## --- Carbonates: Convert CaCO₃ → CaO + CO₂, and get CO₂ from CaO
     @warn "Did you remember to re-load bulk before running this block?" 
 
     # Pre-compute some conversion factors
@@ -188,6 +188,25 @@
     end
 
 
+## --- Gypsum: get H₂O from CaO and assume SO₄
+    @warn "Did you remember to re-load bulk before running this block?" 
+
+    # Pre-compute conversion factors
+    CaO_to_H2O = 2*(2*1.00784+15.999)/(40.078+15.999)
+    CaO_to_SO4 = (32.065+4*15.999)/(40.078+15.999)
+
+    # Preallocate
+    SO4 = Array{Float64}(undef, length(bulk.SiO2), 1)
+
+    # Compute
+    bulkrockname = bulktext.elements.Rock_Name[bulktext.index.Rock_Name]
+    isgypsum = bulkrockname.=="GYPSUM"
+    @turbo for i in eachindex(bulk.H2O)
+        bulk.H2O[i] = ifelse(isgypsum[i], bulk.CaO[i]*CaO_to_H2O, 0)
+        SO4[i] = ifelse(isgypsum[i], bulk.CaO[i]*CaO_to_SO4, 0)
+    end
+
+
 ## --- Restrict bulk to whole rock analysis of continental crust
     # Samples must be on land; same methodology used to generate continental lat, lon 
     # points for Macrostrat API query
@@ -203,6 +222,9 @@
     end
     zeronan!(bulkweight)
 
+    # Add calculated SO₄ to the total wt.%
+    bulkweight .+= SO4
+
     # Samples must be 84-104 total wt.% analyzed
     t = falses(length(bulkweight))
     bounds = (84, 104)
@@ -215,6 +237,7 @@
         else
             t[i] = false
         end
+        # bulkweight[i] += nansum([bulk[j][i] for j in allelements])
         next!(p)
     end
 
@@ -245,7 +268,7 @@
             [bulktext_methods.index[i][t] for i in restrictmethods]
         )
     )
-
+    bulkrockname = lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name])
     # Other / general elements
     bulktext = (
         elements = bulktext.elements,

@@ -313,9 +313,11 @@
         # If no matches, jump up a class. Find everything within that class
         if count(bulk_lookup[i]) == 0
             # If the name is the name of a class, DON'T jump up a class
-            searchlist = ifelse(rocknames[i] in classnames, typelist[Symbol(rocknames[i])], 
-                typelist[class_up(typelist, rocknames[i])]
-            )
+            if rocknames[i] in classnames
+                searchlist = typelist[Symbol(rocknames[i])]
+            else
+                searchlist = typelist[class_up(typelist, rocknames[i])]
+            end
 
             # Search all of those names; each class should at least have something
             for j in eachindex(searchlist)

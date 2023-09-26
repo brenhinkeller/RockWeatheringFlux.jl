@@ -129,7 +129,7 @@
     Sedimentary, igneous, and metamorphic lists include terms for all included subtypes. 
     Boolean; defaults to `false` unless `major` is `true`.
     """
-    function get_rock_class(major::Bool=false, inclusive::Bool=false)
+    function get_rock_class(; major::Bool=false, inclusive::Bool=false)
         # Sedimentary
         siliciclast = ("siliciclast", "conglo", "sand", "psamm", "arenit", "arkos", "silt")
         shale = ("lutite", "mud", "clay", "shale", "wacke", "argillite", "argillaceous", 
@@ -294,7 +294,7 @@
     ```
     """
     function get_cats(major::Bool, npoints::Int64)
-        typelist = get_rock_class(major)
+        typelist = get_rock_class(major=major)
 
         return typelist, NamedTuple{keys(typelist)}([falses(npoints) for _ in 1:length(typelist)]) 
     end

@@ -50,7 +50,7 @@
     # rocknames = string.(keys(name_cats))
 
     # # Get EarthChem samples for each rock name
-    # typelist = get_rock_class(false, true)      # Subtypes, major types include minors
+    # typelist = get_rock_class(major=false, inclusive=true)      # Subtypes, major types include minors
     # nbulk = length(bulktext.Rock_Name)
     # bulk_lookup = NamedTuple{keys(name_cats)}([falses(nbulk) for _ in eachindex(name_cats)])
 
@@ -222,7 +222,7 @@
     #     unmultimatch=false, inclusive=false, source=:earthchem
     # )
     # 
-    # typelist = get_rock_class(false, true)      # Subtypes, major types include minors
+    # typelist = get_rock_class(major=false, inclusive=true)      # Subtypes, major types include minors
     # nbulk = length(bulktext.Rock_Name)
     # bulk_lookup = NamedTuple{keys(name_cats)}([falses(nbulk) for _ in eachindex(name_cats)])
     # 

@@ -285,11 +285,11 @@
     bulkmaterial = lowercase.(bulktext.elements.Material[bulktext.index.Material])
 
     # Rock names
-    rocknames = get_rock_class(true)
+    rocknames = get_rock_class(major=true)
     rocknames = unique((rocknames.sed..., rocknames.met..., rocknames.ign...))
 
     # Rock subtypes, major types include minors (for class_up function call)
-    typelist = get_rock_class(false, true)
+    typelist = get_rock_class(major=false, inclusive=true)
     classnames = string.(collect(keys(typelist)))
 
 

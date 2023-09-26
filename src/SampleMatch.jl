@@ -99,7 +99,7 @@
     # )
     
     # Get EarthChem samples for each rock name
-    # typelist = get_rock_class(false, true)      # Subtypes, major types include minors
+    # typelist = get_rock_class(inclusive=true)      # Subtypes, major types include minors
     # classnames = string.(collect(keys(typelist)))
     # bulk_lookup = NamedTuple{keys(name_cats)}([falses(length(bulktext.Rock_Name)) 
     #     for _ in eachindex(name_cats)]
@@ -158,7 +158,7 @@
 
 ## --- Get weights for weighted-random selection of rock types and names
     # Major types exclude minor types
-    typelist = get_rock_class()
+    typelist = get_rock_class(inclusive=false)
     minortypes = (minorsed..., minorign..., minormet...)
 
     # Minor rock types
@@ -175,6 +175,31 @@
             for i in minortypes
     ])
     [p_name[i] ./= sum(p_name[i]) for i in keys(p_name)]
+
+
+## --- Remove all multimatches and major matches from Macrostrat rocks
+    # Each sample can technically only be one rock type, and samples matched with major
+    # types are technically a minor type (e.g. an igneous rock is either volcanic or 
+    # plutonic).
+
+    # Preallocate
+    types = Array{Tuple{Symbol, Symbol}}(undef, length(macrostrat.age), 1)
+
+    for i in eachindex(types)
+        # Unweighted random selection of a rock name
+        samplenames = get_type(name_cats, i, all_keys=true)
+
+        
+    end
+    
+
+    # Assign the sample the corresponding rock type. If the name maps to more than one
+    # type, pick randomly. If the name maps to a major type, assign a minor type and 
+    # corresponding rock name with a weighted-random selection, where weights are 
+    # proportional to the abundance of that type / name in the Macrostrat samples
+
+    
+    
 
 
 ## --- Find matching Earthchem sample for each Macrostrat sample

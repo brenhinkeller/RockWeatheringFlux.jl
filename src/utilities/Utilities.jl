@@ -300,7 +300,7 @@
         rockdescrip::AbstractArray)
 
         # Get rock names as one long list, excluding cover
-        typelist = get_rock_class(true)
+        typelist = get_rock_class(major=true)
         typelist = unique((typelist.sed..., typelist.met..., typelist.ign...))
 
         # Initialize a NamedTuple with a BitVector for each rock name
@@ -439,11 +439,18 @@
 
     """
     ```julia
-    class_up(typelist, name::String)
+    class_up(typelist, name::String; 
+        [all_types:Bool=false]
+    )
     ```
 
-    Find the rock type category for `name`. The `name` must be included in the rock name
-    `typelist` returned by `get_cats`.
+    Get the rock type which describes the rock name `name`. The rock name must be an
+    _exact_ match with the names in `typelist`. 
+    
+    Optionally specify `all_types` as `true` to return all types which match with `name`: 
+    some names may be mapped to more than one rock type.
+
+    See also: `get_cats` to return `typelist`.
 
     # Examples
     ```julia-repl
@@ -451,28 +458,26 @@
     :volc
 
     julia> class_up(typelist, "evaporite")
-    :sed
+    :evaporite
     ```
     """
-    function class_up(typelist, name::String)
-        @assert name != "sed" || name != "ign" || name != "met" "No upwards class for $name"
+    function class_up(typelist, name::String; all_types::Bool=false)
+        if all_types
+            rocktypes = keys(typelist)
+            keymatches = falses(length(rocktypes))
 
-        # Check if name is a minor type which will not correctly class upwards
-        # TO DO: get_minor_types is really slow, pass as an argument instead?
-        minorsed, minorign, minormet = get_minor_types()
-        @inbounds for k in string.(minorsed)
-            name==k && return :sed
-        end
-        @inbounds for k in string.(minorign)
-            name==k && return :ign 
-        end
-        @inbounds for k in string.(minormet) 
-            name==k && return :met 
-        end
+            for k in eachindex(rocktypes)
+                for i in eachindex(typelist[rocktypes[k]])
+                    keymatches[k] |= (name == typelist[rocktypes[k]][i])
+                end
+            end
 
-        @inbounds for k in keys(typelist)
-            for i in typelist[k]
-                name == i && return k
+            return ifelse(count(keymatches)==0, nothing, rocktypes[keymatches])
+        else
+            @inbounds for k in keys(typelist)
+                for i in typelist[k]
+                    name == i && return k
+                end
             end
         end
 
@@ -486,7 +491,7 @@
 
     Get the major rock type that describes the minor type `name`.
 
-    ### Examples
+    # Examples
     ```julia-repl
     julia> class_up(:volc, minorsed, minorign, minormet)
     :ign

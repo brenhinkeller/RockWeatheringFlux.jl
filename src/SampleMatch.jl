@@ -229,16 +229,28 @@
 
 
 ## -- Initialize for EarthChem sample matching
-    # Preallocate
-    matches = zeros(Int64, length(macro_cats.sed))
-
     # Definitions
-    geochemkeys, = get_elements()                               # Major elements
-    bulk_idxs = collect(1:length(bulk.SiO2))                    # Indices of bulk samples
+    geochemkeys, = get_elements()                   # Major elements
+    bulk_idxs = collect(1:length(bulk.SiO2))        # Indices of bulk samples
 
     # Zero-NaN version of the major elements in bulk
     bulkzero = deepcopy(bulk)
     bulkzero = NamedTuple{Tuple(geochemkeys)}([zeronan!(bulkzero[i]) for i in geochemkeys])
+
+
+## --- TEMPORARY: what happens when we just randomly pick an EarthChem sample
+    # p = Progress(length(matches), desc="Matching samples...")
+    # @timev for i in eachindex(matches)
+    #     type = sampletypes[i]
+    #     name = samplenames[i]
+    #     if type==:none 
+    #         next!(p)
+    #         continue
+    #     end
+    #     matches[i] = rand(bulk_idxs[bulk_lookup[name]])
+    #     next!(p)
+    # end
+    # writedlm("$matchedbulk_io", [matches string.(sampletypes)], '\t')
 
 
 ## --- Find matching EarthChem sample for each Macrostrat sample
@@ -254,6 +266,10 @@
     # major element within the selected rock name.
     # 
     # This method assumes there are enough samples for outliers to get ironed out.
+
+    # Preallocate
+    matches = zeros(Int64, length(macro_cats.sed))
+
     @info "Starting sample matching $(Dates.format(now(), "HH:MM"))"
     p = Progress(length(matches), desc="Matching samples...")
     @timev for i in eachindex(matches)
@@ -269,9 +285,8 @@
         
         geochemdata = geochem_lookup[name]
         errs = NamedTuple{Tuple(geochemkeys)}(
-            [abs(randn()*geochemdata[i].e) for i in geochemkeys]
+            zeronan!([abs(randn()*geochemdata[i].e) for i in geochemkeys])
         )
-        # zeronan!(errs)
         geochemdata = NamedTuple{Tuple(geochemkeys)}([NamedTuple{(:m, :e)}(
             tuple.((bulkzero[i][randsample]), errs[i])) for i in geochemkeys]
         )

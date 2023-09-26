@@ -300,14 +300,14 @@
     )
 
     # Preallocate for rock names
-    bulk_lookup = NamedTuple{keys(name_cats)}([falses(length(bulktext.Rock_Name)) 
+    bulk_lookup = NamedTuple{keys(name_cats)}([falses(length(bulkrockname)) 
         for _ in eachindex(name_cats)]
     )
 
     p = Progress(length(rocknames), desc="Finding EarthChem samples for each rock name")
     for i in eachindex(rocknames)
-        bulk_lookup[i] .= find_earthchem(rocknames[i], bulktext.Rock_Name, bulktext.Type, 
-            bulktext.Material
+        bulk_lookup[i] .= find_earthchem(rocknames[i], bulkrockname, bulkrocktype, 
+            bulkmaterial
         )
 
         # If no matches, jump up a class. Find everything within that class
@@ -321,8 +321,8 @@
 
             # Search all of those names; each class should at least have something
             for j in eachindex(searchlist)
-                bulk_lookup[i] .|= find_earthchem(searchlist[j], bulktext.Rock_Name, 
-                    bulktext.Type, bulktext.Material
+                bulk_lookup[i] .|= find_earthchem(searchlist[j], bulkrockname, bulkrocktype, 
+                    bulkmaterial
                 )
             end
         end

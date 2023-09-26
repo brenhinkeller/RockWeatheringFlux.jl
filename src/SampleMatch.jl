@@ -33,17 +33,13 @@
         rockdescrip = read(fid["vars"]["rockdescrip"]),
     )
     
-    # Matches
+    # Rock type matches
     header = read(fid["type"]["macro_cats_head"])
     data = read(fid["type"]["macro_cats"])
     data = @. data > 0
     macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
 
-    # macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
-    #     macrostrat.rockdescrip, unmultimatch=false, inclusive=false, source=:macrostrat
-    # )
-
-    # Macrostrat rock names
+    # Rock name matches
     header = read(fid["type"]["name_cats_head"])
     data = read(fid["type"]["name_cats"])
     data = @. data > 0
@@ -75,65 +71,67 @@
         ]
     )
 
-    # Matches
+    # Rock type matches
     header = read(fid["bulktypes"]["bulk_cats_head"])
     data = read(fid["bulktypes"]["bulk_cats"])
     data = @. data > 0
     bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
 
-    # bulk_cats = match_rocktype(bulktext.Rock_Name, bulktext.Type, bulktext.Material; 
-    #     unmultimatch=false, inclusive=false, source=:earthchem
-    # )
-
-    # EarthChem rock names
-    # rocknames = read(fid["bulktypes"]["bulk_lookup_head"])
-    # data = read(fid["bulktypes"]["bulk_lookup"])
-    # data = @. data > 0
-    # bulk_lookup = NamedTuple{Tuple(Symbol.(rocknames))}([data[:,i] for i in eachindex(rocknames)])
+    # Rock name matches
+    rocknames = read(fid["bulktypes"]["bulk_lookup_head"])
+    data = read(fid["bulktypes"]["bulk_lookup"])
+    data = @. data > 0
+    bulk_lookup = NamedTuple{Tuple(Symbol.(rocknames))}([data[:,i] for i in eachindex(rocknames)])
 
     close(fid)
     
 
-## --- Create average geochemistry lookup table for each rock name
-    @info "Creating EarthChem lookup tables $(Dates.format(now(), "HH:MM"))"
+## --- Alternatively, do the matching yourself
+    # macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
+    #     macrostrat.rockdescrip, unmultimatch=false, inclusive=false, source=:macrostrat
+    # )
 
-    # # Get rock names for each Macrostrat sample
     # name_cats = match_rockname(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
-    rocknames = string.(keys(name_cats))
+    # rocknames = string.(keys(name_cats))
 
+    # bulk_cats = match_rocktype(bulktext.Rock_Name, bulktext.Type, bulktext.Material; 
+    #     unmultimatch=false, inclusive=false, source=:earthchem
+    # )
+    
     # Get EarthChem samples for each rock name
-    typelist = get_rock_class(false, true)      # Subtypes, major types include minors
-    classnames = string.(collect(keys(typelist)))
-    bulk_lookup = NamedTuple{keys(name_cats)}([falses(length(bulktext.Rock_Name)) 
-        for _ in eachindex(name_cats)]
-    )
+    # typelist = get_rock_class(false, true)      # Subtypes, major types include minors
+    # classnames = string.(collect(keys(typelist)))
+    # bulk_lookup = NamedTuple{keys(name_cats)}([falses(length(bulktext.Rock_Name)) 
+    #     for _ in eachindex(name_cats)]
+    # )
 
-    p = Progress(length(rocknames), desc="Finding EarthChem samples for each rock name")
-    for i in eachindex(rocknames)
-        bulk_lookup[i] .= find_earthchem(rocknames[i], bulktext.Rock_Name, bulktext.Type, 
-            bulktext.Material
-        )
+    # p = Progress(length(rocknames), desc="Finding EarthChem samples for each rock name")
+    # for i in eachindex(rocknames)
+    #     bulk_lookup[i] .= find_earthchem(rocknames[i], bulktext.Rock_Name, bulktext.Type, 
+    #         bulktext.Material
+    #     )
 
-        # If no matches, jump up a class. Find everything within that class
-        if count(bulk_lookup[i]) == 0
-            # If the name is the name of a class, DON'T jump up a class
-            if rocknames[i] in classnames
-                searchlist = typelist[Symbol(rocknames[i])]
-            else
-                searchlist = typelist[class_up(typelist, rocknames[i])]
-            end
+    #     # If no matches, jump up a class. Find everything within that class
+    #     if count(bulk_lookup[i]) == 0
+    #         # If the name is the name of a class, DON'T jump up a class
+    #         if rocknames[i] in classnames
+    #             searchlist = typelist[Symbol(rocknames[i])]
+    #         else
+    #             searchlist = typelist[class_up(typelist, rocknames[i])]
+    #         end
 
-            # Search all of those names; each class should at least have something
-            for j in eachindex(searchlist)
-                bulk_lookup[i] .|= find_earthchem(searchlist[j], bulktext.Rock_Name, 
-                    bulktext.Type, bulktext.Material
-                )
-            end
-        end
-        next!(p)
-    end
+    #         # Search all of those names; each class should at least have something
+    #         for j in eachindex(searchlist)
+    #             bulk_lookup[i] .|= find_earthchem(searchlist[j], bulktext.Rock_Name, 
+    #                 bulktext.Type, bulktext.Material
+    #             )
+    #         end
+    #     end
+    #     next!(p)
+    # end
 
-    # Get average geochemistry for each rock name
+
+## --- Get average geochemistry for each rock name
     geochem_lookup = NamedTuple{keys(name_cats)}([major_elements(bulk, bulk_lookup[i]) 
         for i in eachindex(bulk_lookup)]
     )

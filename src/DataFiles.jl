@@ -136,13 +136,13 @@
 
     # Macrostrat
     # mfid = h5open("$macrostrat_io", "r")
-    mfid = h5open("output/1M_responses.h5", "r")
+    mfid = h5open("output/250K_responses.h5", "r")
 
     # Get matches
     macrostrat = (
-        rocktype = read(mfid["rocktype"]),
-        rockname = read(mfid["rockname"]),
-        rockdescrip = read(mfid["rockdescrip"]),
+        rocktype = read(mfid["vars"]["rocktype"]),
+        rockname = read(mfid["vars"]["rockname"]),
+        rockdescrip = read(mfid["vars"]["rockdescrip"]),
     )
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
         macrostrat.rockdescrip, unmultimatch=false, inclusive=false, source=:macrostrat
@@ -155,19 +155,19 @@
 
     # Copy over existing data
     g = create_group(newfid, "vars")
-        copy_object(mfid["age"], g, "age")
-        copy_object(mfid["agemax"], g, "agemax")
-        copy_object(mfid["agemin"], g, "agemin")
-        copy_object(mfid["elevation"], g, "elevation")
-        copy_object(mfid["npoints"], g, "npoints")
-        copy_object(mfid["reference"], g, "reference")
-        copy_object(mfid["rockcomments"], g, "rockcomments")
-        copy_object(mfid["rockdescrip"], g, "rockdescrip")
-        copy_object(mfid["rocklat"], g, "rocklat")
-        copy_object(mfid["rocklon"], g, "rocklon")
-        copy_object(mfid["rockname"], g, "rockname")
-        copy_object(mfid["rockstratname"], g, "rockstratname")
-        copy_object(mfid["rocktype"], g, "rocktype")
+        copy_object(mfid["vars"]["age"], g, "age")
+        copy_object(mfid["vars"]["agemax"], g, "agemax")
+        copy_object(mfid["vars"]["agemin"], g, "agemin")
+        copy_object(mfid["vars"]["elevation"], g, "elevation")
+        copy_object(mfid["vars"]["npoints"], g, "npoints")
+        copy_object(mfid["vars"]["reference"], g, "reference")
+        copy_object(mfid["vars"]["rockcomments"], g, "rockcomments")
+        copy_object(mfid["vars"]["rockdescrip"], g, "rockdescrip")
+        copy_object(mfid["vars"]["rocklat"], g, "rocklat")
+        copy_object(mfid["vars"]["rocklon"], g, "rocklon")
+        copy_object(mfid["vars"]["rockname"], g, "rockname")
+        copy_object(mfid["vars"]["rockstratname"], g, "rockstratname")
+        copy_object(mfid["vars"]["rocktype"], g, "rocktype")
 
     # Rock types and rock names
     bulktypes = create_group(newfid, "type")

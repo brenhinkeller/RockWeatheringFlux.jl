@@ -459,6 +459,12 @@
 
     julia> class_up(typelist, "evaporite")
     :evaporite
+
+    julia> class_up(typelist, "pyroxenite")
+    :plut
+
+    julia> class_up(typelist, "pyroxenite", all_types=true)
+    (:plut, :met)
     ```
     """
     function class_up(typelist, name::String; all_types::Bool=false)

@@ -154,8 +154,7 @@
 ## --- Get weights for weighted-random selection of rock types and names
     # Major types exclude minor types
     typelist = get_rock_class(inclusive=false)
-    minortypes = (minorsed..., minorign..., minormet...)
-
+    
     # Minor rock types
     p_type = (
         sed = float.([count(macro_cats[i]) for i in minorsed]),
@@ -165,6 +164,7 @@
     [p_type[i] ./= sum(p_type[i]) for i in keys(p_type)]
 
     # Descriptive rock names
+    minortypes = (minorsed..., minorign..., minormet...)
     p_name = NamedTuple{minortypes}(
         [[float.(count(name_cats[Symbol(typelist[i][j])])) for j in eachindex(typelist[i])] 
             for i in minortypes
@@ -178,23 +178,36 @@
     # plutonic).
 
     # Preallocate
-    types = Array{Tuple{Symbol, Symbol}}(undef, length(macrostrat.age), 1)
+    sampletypes = Array{Symbol}(undef, length(macrostrat.age), 1)
+    samplenames = Array{Symbol}(undef, length(macrostrat.age), 1)
+
+    # Metamorphic rock names without useful geochemical information
+    ambig_met = nondescriptive()
+
+    # Major types should not include minor types, otherwise class_up will give majors
+    typelist = get_rock_class(inclusive=false)
+    minortypes = (sed = minorsed, ign=minorign, met=minormet)
 
     for i in eachindex(types)
-        # Unweighted random selection of a rock name
-        samplenames = get_type(name_cats, i, all_keys=true)
-
+        # Unweighted random selection of a rock name and associated type
+        sname = rand(get_type(name_cats, i, all_keys=true))
+        stype = rand(class_up(typelist, string(samplename), all_types=true))
         
-    end
-    
-
-    # Assign the sample the corresponding rock type. If the name maps to more than one
-    # type, pick randomly. If the name maps to a major type, assign a minor type and 
-    # corresponding rock name with a weighted-random selection, where weights are 
-    # proportional to the abundance of that type / name in the Macrostrat samples
-
-    
-    
+        # Ign and sed types get weighted-random assignment to a minor type and name.
+        # Metamorphic rocks get re-assigned only if the name gives no useful information 
+        # about its geochemistry
+        if stype==:ign || stype==:sed
+            stype = minortypes[stype][weighted_rand(p_type[stype])]
+            sname = typelist[stype][weighted_rand(p_name[stype])]
+        elseif stype==:met && string(sname) in ambig_met
+            stype = minortypes.met[weighted_rand(p_type.met)]
+            sname = typelist[stype][weighted_rand(p_name[stype])]
+        end
+        
+        # Assign
+        sampletypes[i] = stype
+        samplenames[i] = sname
+    end    
 
 
 ## --- Find matching Earthchem sample for each Macrostrat sample
@@ -217,7 +230,6 @@
     # Definitions
     geochemkeys = get_elements()[1]                             # Major elements
     bulk_idxs = collect(1:length(bulk.SiO2))                    # Indices of bulk samples
-    minortypes = (sed = minorsed, ign=minorign, met=minormet)   # Tuple minor types
 
     # Zero-NaN version of the major elements in bulk
     bulkzero = deepcopy(bulk)

@@ -112,22 +112,15 @@
             bulktext.Material
         )
 
-        # # If no matches, jump up a class
-        # if count(bulk_lookup[i]) == 0
-        #     newsearch = class_up(typelist, rocknames[i])
-        #     newsearch==:carb && (newsearch=="carbonate")    # No carbonatites!
-        #     bulk_lookup[i] .= find_earthchem(string(newsearch), bulktext.Rock_Name, 
-        #         bulktext.Type, bulktext.Material
-        #     )
-
-        #     # If still no matches, jump up a class again
-        #     if count(bulk_lookup[i]) == 0
-        #         newsearch = class_up(typelist, string(newsearch))
-        #         bulk_lookup[i] .= find_earthchem(string(newsearch), bulktext.Rock_Name, 
-        #             bulktext.Type, bulktext.Material
-        #         )
-        #     end
-        # end
+        # If no matches, jump up a class. Find everything within that class
+        if count(bulk_lookup[i]) == 0
+            searchlist = typelist[class_up(typelist, rocknames[i])]
+            for j in eachindex(searchlist)
+                bulk_lookup[i] .|= find_earthchem(searchlist[j], bulktext.Rock_Name, 
+                    bulktext.Type, bulktext.Material
+                )
+            end
+        end
         next!(p)
     end
 
@@ -157,7 +150,8 @@
 
 
 ## --- Get weights for weighted-random selection of rock types and names
-    typelist = get_rock_class()                         # Major types exclude minor types
+    # Major types exclude minor types
+    typelist = get_rock_class()
     minortypes = (minorsed..., minorign..., minormet...)
 
     # Minor rock types

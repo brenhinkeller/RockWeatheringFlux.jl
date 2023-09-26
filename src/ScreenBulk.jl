@@ -309,20 +309,13 @@
     for i in eachindex(rocknames)
         bulk_lookup[i] .= find_earthchem(rocknames[i], bulkrockname, bulkrocktype, bulkmaterial)
     
-        # If no matches, jump up a class
+        # If no matches, jump up a class. Find everything within that class
         if count(bulk_lookup[i]) == 0
-            newsearch = class_up(typelist, rocknames[i])
-            newsearch==:carb && (newsearch=="carbonate")    # No carbonatites!
-            bulk_lookup[i] .= find_earthchem(string(newsearch), bulkrockname, bulkrocktype,
-                bulkmaterial
-            )
-    
-            # If still no matches, jump up a class again
-            if count(bulk_lookup[i]) == 0
-                newsearch = class_up(typelist, string(newsearch))
-                bulk_lookup[i] .= find_earthchem(string(newsearch), bulkrockname, bulkrocktype,
-                bulkmaterial
-            )
+            searchlist = typelist[class_up(typelist, rocknames[i])]
+            for j in eachindex(searchlist)
+                bulk_lookup[i] .|= find_earthchem(searchlist[j], bulkrockname, bulkrocktype, 
+                    bulkmaterial
+                )
             end
         end
         next!(p)

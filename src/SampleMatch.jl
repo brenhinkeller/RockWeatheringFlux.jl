@@ -100,7 +100,7 @@
     
     # Get EarthChem samples for each rock name
     # typelist = get_rock_class(inclusive=true)      # Subtypes, major types include minors
-    # classnames = string.(collect(keys(typelist)))
+    # class_names = string.(collect(keys(typelist)))
     # bulk_lookup = NamedTuple{keys(name_cats)}([falses(length(bulktext.Rock_Name)) 
     #     for _ in eachindex(name_cats)]
     # )
@@ -188,25 +188,35 @@
     typelist = get_rock_class(inclusive=false)
     minortypes = (sed = minorsed, ign=minorign, met=minormet)
 
-    for i in eachindex(types)
+    p = Progress(length(sampletypes) ÷ 10, desc="Sanitizing types...")
+    for i in eachindex(sampletypes)
+        alltypes = get_type(name_cats, i, all_keys=true)
+        if alltypes===nothing
+            sampletypes[i] = :none
+            samplenames[i] = :none
+            continue
+        end
+
         # Unweighted random selection of a rock name and associated type
-        sname = rand(get_type(name_cats, i, all_keys=true))
-        stype = rand(class_up(typelist, string(samplename), all_types=true))
+        s_name = rand(alltypes)
+        s_type = rand(class_up(typelist, string(s_name), all_types=true))
         
         # Ign and sed types get weighted-random assignment to a minor type and name.
         # Metamorphic rocks get re-assigned only if the name gives no useful information 
         # about its geochemistry
-        if stype==:ign || stype==:sed
-            stype = minortypes[stype][weighted_rand(p_type[stype])]
-            sname = typelist[stype][weighted_rand(p_name[stype])]
-        elseif stype==:met && string(sname) in ambig_met
-            stype = minortypes.met[weighted_rand(p_type.met)]
-            sname = typelist[stype][weighted_rand(p_name[stype])]
+        if s_type==:ign || s_type==:sed
+            s_type = minortypes[s_type][weighted_rand(p_type[s_type])]
+            s_name = typelist[s_type][weighted_rand(p_name[s_type])]
+        elseif s_type==:met && string(s_name) in ambig_met
+            s_type = minortypes.met[weighted_rand(p_type.met)]
+            s_name = typelist[s_type][weighted_rand(p_name[s_type])]
         end
         
         # Assign
-        sampletypes[i] = stype
-        samplenames[i] = sname
+        sampletypes[i] = s_type
+        samplenames[i] = Symbol(s_name)
+
+        i%10==0 && next!(p)
     end    
 
 

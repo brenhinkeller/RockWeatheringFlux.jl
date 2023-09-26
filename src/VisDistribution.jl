@@ -24,9 +24,14 @@
 
 
 ## --- [DATA] Matched EarthChem and Macrostrat samples
+    data = readdlm("$matchedbulk_io")
+
     # Get indicies of matched samples
-    bulkidx = Int.(vec(readdlm("$matchedbulk_io")))
+    bulkidx = Int.(vec(data[:,1]))
     t = @. bulkidx != 0
+
+    wtype = string.(vec(data[:,2]))
+    macro_cats = match_rocktype(wtype[t])
 
     # Matched Macrostrat samples
     macrofid = h5open("$macrostrat_io", "r")
@@ -39,20 +44,20 @@
         age = read(macrofid["vars"]["age"])[t],
     )
 
-    header = read(macrofid["type"]["macro_cats_head"])
-    data = read(macrofid["type"]["macro_cats"])
-    data = @. data > 0
-    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
+    # header = read(macrofid["type"]["macro_cats_head"])
+    # data = read(macrofid["type"]["macro_cats"])
+    # data = @. data > 0
+    # macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
 
-    for type in minorsed
-        macro_cats.sed .|= macro_cats[type]
-    end
-    for type in minorign
-        macro_cats.ign .|= macro_cats[type]
-    end
-    for type in minormet
-        macro_cats.met .|= macro_cats[type]
-    end
+    # for type in minorsed
+    #     macro_cats.sed .|= macro_cats[type]
+    # end
+    # for type in minorign
+    #     macro_cats.ign .|= macro_cats[type]
+    # end
+    # for type in minormet
+    #     macro_cats.met .|= macro_cats[type]
+    # end
 
     close(macrofid)
 

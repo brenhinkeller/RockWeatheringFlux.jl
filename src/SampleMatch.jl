@@ -190,17 +190,25 @@
 
     p = Progress(length(sampletypes) ÷ 10, desc="Sanitizing types...")
     for i in eachindex(sampletypes)
-        alltypes = get_type(name_cats, i, all_keys=true)
-        if alltypes===nothing
-            sampletypes[i] = :none
-            samplenames[i] = :none
+        # Unweighted random selection of a rock name
+        allnames = get_type(name_cats, i, all_keys=true)
+        if allnames===nothing
+            sampletypes[i] = samplenames[i] = :none
+            i%10==0 && next!(p)
             continue
         end
+        s_name = rand(allnames)
 
-        # Unweighted random selection of a rock name and associated type
-        s_name = rand(alltypes)
-        s_type = rand(class_up(typelist, string(s_name), all_types=true))
-        
+        # Unweighted random selection of a corresponding type. If the type is cover, pick again
+        alltypes = class_up(typelist, string(s_name), all_types=true)
+        notcover = .![t==:cover for t in alltypes]
+        if count(notcover)==0
+            sampletypes[i] = samplenames[i] = :none
+            i%10==0 && next!(p)
+            continue
+        end
+        s_type = rand(alltypes[notcover])
+
         # Ign and sed types get weighted-random assignment to a minor type and name.
         # Metamorphic rocks get re-assigned only if the name gives no useful information 
         # about its geochemistry
@@ -217,10 +225,23 @@
         samplenames[i] = Symbol(s_name)
 
         i%10==0 && next!(p)
-    end    
+    end
 
 
-## --- Find matching Earthchem sample for each Macrostrat sample
+## -- Initialize for EarthChem sample matching
+    # Preallocate
+    matches = zeros(Int64, length(macro_cats.sed))
+
+    # Definitions
+    geochemkeys, = get_elements()                               # Major elements
+    bulk_idxs = collect(1:length(bulk.SiO2))                    # Indices of bulk samples
+
+    # Zero-NaN version of the major elements in bulk
+    bulkzero = deepcopy(bulk)
+    bulkzero = NamedTuple{Tuple(geochemkeys)}([zeronan!(bulkzero[i]) for i in geochemkeys])
+
+
+## --- Find matching EarthChem sample for each Macrostrat sample
     # As part of this process, we'll need to assume the geochemistry of the Macrostrat 
     # sample.
     # 
@@ -233,82 +254,32 @@
     # major element within the selected rock name.
     # 
     # This method assumes there are enough samples for outliers to get ironed out.
-
-    # Preallocate
-    matches = zeros(Int64, length(macro_cats.sed))
-
-    # Definitions
-    geochemkeys = get_elements()[1]                             # Major elements
-    bulk_idxs = collect(1:length(bulk.SiO2))                    # Indices of bulk samples
-
-    # Zero-NaN version of the major elements in bulk
-    bulkzero = deepcopy(bulk)
-    bulkzero = NamedTuple{Tuple(geochemkeys)}(
-        [zeronan!(bulkzero[i]) for i in geochemkeys]
-    )
-
     @info "Starting sample matching $(Dates.format(now(), "HH:MM"))"
     p = Progress(length(matches), desc="Matching samples...")
     @timev for i in eachindex(matches)
-        # Get the rock type. Remove cover as a matched type, if it's there
-        type = get_type(macro_cats, i, all_keys=true)
-        if type===nothing
+        type = sampletypes[i]
+        name = samplenames[i]
+        if type==:none 
             next!(p)
             continue
-        else
-            t = trues(length(type))
-            for i in eachindex(type)
-                t[i] = type[i] != :cover
-            end
-
-            if count(t)==0
-                next!(p)
-                continue
-            else
-                type = type[t]
-            end
         end
-        
+
         # Pick a random sample to act as the geochemistry for that sample:
-        # Replace all major types with a randomly selected minor type, proportional to that
-        # minor type's abundance
-        samplenames = get_type(name_cats, i, all_keys=true)
-        randname, type = get_descriptive_name(samplenames, p_name, type, p_type, typelist, 
-            minortypes
-        )
-        # If there aren't any matched samples in bulk_lookup, just move on
-        # Not perfect but see if it helps?
-        if count(bulk_lookup[randname])==0
-            next!(p)
-            continue
-        end
-
-        randsample = rand(bulk_idxs[bulk_lookup[randname]])
+        randsample = rand(bulk_idxs[bulk_lookup[name]])
         
-        geochemdata = geochem_lookup[randname]
-        errs = NamedTuple{Tuple(geochemkeys)}([abs(randn()*geochemdata[i].e) 
-            for i in geochemkeys]
+        geochemdata = geochem_lookup[name]
+        errs = NamedTuple{Tuple(geochemkeys)}(
+            [abs(randn()*geochemdata[i].e) for i in geochemkeys]
         )
+        # zeronan!(errs)
         geochemdata = NamedTuple{Tuple(geochemkeys)}([NamedTuple{(:m, :e)}(
             tuple.((bulkzero[i][randsample]), errs[i])) for i in geochemkeys]
         )
 
-        # Get EarthChem data for all types
-        # Metamorphic rock names don't give a lot of information about type, so just give
-        # the matching algorithm everything
-        if :metased in type || :metaign in type
-            type = (type..., :met)
-        end
-
-        bulksamples = falses(length(bulk_cats[1]))
-        for t in type
-            bulksamples .|= bulk_cats[t]
-        end
-
-        if count(bulksamples) == 0
-            next!(p)
-            continue
-        end
+        # Get EarthChem data. EarthChem major types are not inclusive of minor types. As 
+        # a treat, also send any uncategorized (major) types along with the selected type
+        major = class_up(type, minorsed, minorign, minormet)
+        bulksamples = bulk_cats[type] .| bulk_cats[major]
 
         EC = (
             bulklat = bulk.Latitude[bulksamples],            # EarthChem latitudes
@@ -318,8 +289,8 @@
         )
 
         # Get all EarthChem samples for that rock type
-        bulkgeochem = NamedTuple{Tuple(geochemkeys)}(
-            [bulkzero[i][bulksamples] for i in geochemkeys]
+        bulkgeochem = NamedTuple{Tuple(geochemkeys)}([bulkzero[i][bulksamples] 
+            for i in geochemkeys]
         )
 
         # Find match
@@ -332,10 +303,9 @@
     end
 
     # Write data to a file
-    writedlm("$matchedbulk_io", matches, '\t')
+    writedlm("$matchedbulk_io", [matches string.(sampletypes)], '\t')
 
-
-## --- End timer
+    # End timer
     stop = now()
     @info """
     Stop: $(Dates.Date(stop)) $(Dates.format(stop, "HH:MM")).

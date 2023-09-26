@@ -16,51 +16,84 @@
     # Local utilities
     include("utilities/Utilities.jl")
 
-    # Get bulk data (normalized to 100%)
-    bulkfid = h5open("output/bulk.h5", "r")
-        header = read(bulkfid["bulk"]["header"])
-        data = read(bulkfid["bulk"]["data"])
-        type = read(bulkfid["bulk"]["type"])
-        bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
-    close(bulkfid)
-    bulk_cats = match_rocktype(type)
+## --- Load EarthChem data 
+    # Filtered and normalized to 100%
+    fid = h5open("output/bulk.h5", "r")
+
+    # Bulk
+    header = read(fid["bulk"]["header"])
+    data = read(fid["bulk"]["data"])
+    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+
+    # Rock type matches
+    header = read(fid["bulktypes"]["bulk_cats_head"])
+    data = read(fid["bulktypes"]["bulk_cats"])
+    data = @. data > 0
+    bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    close(fid)
 
 
-## --- Do stuff (resample)
-    # Types to resample. Resample alluvium too, why not
-    sed, ign, met = get_minor_types()
-    types = (sed..., :sed, ign..., :ign, met..., :met, :alluvium)
-
-    for t in types
-        # Terminal printout
-        println("Saving $t")
-
-        if length(bulk.Latitude[bulk_cats[t]])==0
-            @warn "No samples for $t type"
-            continue
-        end
-
-        # Calculate resampling weights based on spatial distribution only
-        # I'm a fool! There's a specific function just for location
-        k = invweight_location(bulk.Latitude[bulk_cats[t]], bulk.Longitude[bulk_cats[t]])
-
-        # Keep ~ 1/5 of the data in each resampling
-        p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-        s = @. !isnan(p)
-
-        # Assume error ± 0 wt.%
-        nrows = 1_000_000
-        e = zeros(count(s))
-        silica = bsresample(bulk.SiO2[bulk_cats[t]][s], zeros(length(bulk.SiO2[bulk_cats[t]][s])),
-            nrows, p[s]
-        )         
-
-        # Save data to file
-        gap = length(silica) - length(k)
-        k = vcat(k, fill(NaN, gap))
-        p = vcat(p, fill(NaN, gap))
-        writedlm("output/resampled/rs_$t.tsv", vcat(["k" "p" "SiO2"], hcat(k, p, silica)))
+## --- Definitions we'll need for resampling
+    # Major types are inclusive of all minor types
+    minorsed, minorign, minormet = get_minor_types()
+    for type in minorsed
+        bulk_cats.sed .|= bulk_cats[type]
+    end
+    for type in minorign
+        bulk_cats.ign .|= bulk_cats[type]
+    end
+    for type in minormet
+        bulk_cats.met .|= bulk_cats[type]
     end
 
+    # Get the data we'll use in resampling. Exclude type, age, lat/lon
+    bulkmatrix = unelementify(bulk)[2:end,1:end-4]    # Also exclude header row
+    header = collect(keys(bulk))[1:end-4]
 
+
+## --- Resample based on spatial weights
+    types = keys(bulk_cats)
+
+    # Everyone's favorite file format!
+    fid = h5open("output/resampled/resampled.h5", "w")
+    g = create_group(fid, "vars")
+
+    for t in types
+        println("Starting $t")
+
+        # Calculate spatial weights, keep ∼1/5 of the data in each resampling
+        k = invweight_location(bulk.Latitude[bulk_cats[t]], bulk.Longitude[bulk_cats[t]])
+        p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+
+        # Get all the data we'll use in the resampling
+        data = @view bulkmatrix[bulk_cats[t][:],:]
+        uncert = zeros(size(data))
+
+        # Final dataset size should be proportional to the starting dataset, just because
+        # we have 270K igneous samples and 6 evaporite samples. Minimum 500 samples
+        nrows = max(count(bulk_cats[t]) * 5, 500)
+
+        sim = bsresample(data[bulk_cats[t]], uncert, nrows, p)
+
+        # Save the data to the file, or whatever
+        g₀ = create_group(g, "$t")
+        g₀["data"] = sim
+        g₀["k"] = k
+
+    end
+
+    # May as well just resample the everything too, as a treat
+    k = invweight_location(bulk.Latitude, bulk.Longitude)
+    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+    uncert = zeros(size(bulkmatrix))
+    sim = bsresample(bulkmatrix, uncert, 1_500_000, p)
+
+    # And save
+    g₀ = create_group(g, "bulk")
+    g₀["data"] = sim
+    g₀["k"] = k
+
+    close(fid)
+
+    
 ## --- End of file

@@ -293,8 +293,11 @@
 
         # Get EarthChem data. EarthChem major types are not inclusive of minor types. As 
         # a treat, also send any uncategorized (major) types along with the selected type
-        major = class_up(type, minorsed, minorign, minormet)
-        bulksamples = bulk_cats[type] .| bulk_cats[major]
+        bulksamples = bulk_cats[type]
+
+        if type==:metased || type==:metaign 
+            bulksamples .|= bulk_cats.met
+        end
 
         EC = (
             bulklat = bulk.Latitude[bulksamples],            # EarthChem latitudes

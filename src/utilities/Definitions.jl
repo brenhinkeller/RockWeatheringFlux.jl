@@ -139,7 +139,7 @@
         chert = ("chert", "opal", "porcellanite", "diatomite", "novaculite", "iron", "taconite", 
             "banded iron")
         evaporite = ("evaporite", "anhydrite", "gypsum", "trona", "halite", "sylvite", 
-            "salt flat", "caliche")
+            "salt flat", "caliche", "exhalite")
         phosphorite = ("phosphorite", "phosphate")
         coal = ("coal", "anthracite", "peat", "lignite", "bitumen")
         volcaniclast = ("tonstein", "peperite", "volcaniclastic")
@@ -177,7 +177,7 @@
             "megacryst", "missourite", "norite", "nordmarkite", "olivinite", "orthoclasite", 
             "ottajanite", "pegmat", "peridot", "pyroxenite", "porphyry", "porphyrite", "puglianite",
             "riedenite", "sanukite", "sebastianite", "shonkinite", "sommaite", "sovite", 
-            "tannbuschite", "teschenite", "theralite", "tinguaite", "trond", "vsbergite", 
+            "tannbuschite", "teschenite", "theralite", "tinguaite", "trond", "vsbergitesampleclass", 
             "topazite", "troctolite", "turjaite", "ugandite", "uncompahgrite", "urtite", 
             "vaugnerite", "vibetoite", "websterite", "wehrlite", "yamaskite", "pluton", 
             "batholith", "mangerite", "pegmatite", "rapakivi", "intrus", "sill", "dike", 
@@ -195,7 +195,7 @@
         #     "gossan", "alter", "hydrothermal", "palagonite",)
         # highgrade = ("crystalline", "basement", "marble", "skarn", "schist", "blueschist", 
         #     "gneiss", "amphibolit", "eclogite", "granulit", "granofels", "sanidinite", 
-        #     "migma", "enderbite", "anorthosite", "charnockite", "pyroxenite", "peridot", "dunit", 
+        #     "migma", "enderbite", "anorthosite", "charnockite", "peridot", "dunit", 
         #     "harzburg", "high grade metamorphic")
         cataclastic = ("mylonit", "cataclasite", "melange", "gouge", "tecton",)
         met = (("meta", "garnet", "buchite", "epidot", "fenite", "albitite", "chloritite", 
@@ -204,7 +204,7 @@
             "greenschist", "zeolite", "gossan", "alter", "hydrothermal", "palagonite", 
             "crystalline", "basement", "skarn", "schist", "blueschist", "gneiss", "granulit", 
             "granofels", "sanidinite", "migma", "enderbite", "anorthosite", "charnockite", 
-            "pyroxenite", "peridot", "dunit", "harzburg", "high grade metamorphic")...,
+            "peridot", "dunit", "harzburg", "high grade metamorphic")...,
             cataclastic...,
         )
 
@@ -241,8 +241,8 @@
     nondescriptive()
     ```
 
-    Get a list of rock names that do not provide useful information about the geochemical
-    composition of the rock. Organized as a `NamedTuple` by rock type.
+    Get a list of metamorphic rock names that do not provide useful information about the 
+    geochemical composition of the rock.
 
     # Example
     ```julia-repl
@@ -255,15 +255,35 @@
     ```
     """
     function nondescriptive()
-        # Sedimentary
         sed = ("sediment", "clast", "diamict", "tillite", "stream deposits", "beach deposits", 
             "terrace",  "marine deposits",  "paleosol", "spiculite", "glauconite")
 
         # Igneous
-        volc = ("volcanic", "extrusive", "volcan", "diatreme", "pipe",)
-        plut = ("plutonic", "intrusive", "pluton", "batholith", "pegmatite", "intrus", "sill", "dike", 
-            "stock", "laccolith", "lopolith",)
-        ign = ("igneous", "silicic", "basite",)
+        ign = ("igneous", "silicic", "mafic", "felsic", "basite", "phoscorite", "rauhaugite", 
+            "beforsite")
+
+        # Metamorphic
+        metased = ("para", "metased", "quartzite", "marble", "slate", "leptite", "phyllite", 
+            "porcellanite", "meta-sed", "hornfels")
+        metaign = ("orthogneiss", "metaign", "serpentin", "amphibolit", "greenstone", "eclogite", 
+            "basite", "greisen", "halleflinta", "leucophyre", "melaphyre", "propylite", "spilite", 
+            "ultramafitite", "alkremite", "ortho", "meta-ign", "metabasite")
+        # lowgrade = ("slate", "phyllite", "serpentin", "greenstone", "greenschist", "zeolite", 
+        #     "gossan", "alter", "hydrothermal", "palagonite",)
+        # highgrade = ("crystalline", "basement", "marble", "skarn", "schist", "blueschist", 
+        #     "gneiss", "amphibolit", "eclogite", "granulit", "granofels", "sanidinite", 
+        #     "migma", "enderbite", "anorthosite", "charnockite", "peridot", "dunit", 
+        #     "harzburg", "high grade metamorphic")
+        cataclastic = ("mylonit", "cataclasite", "melange", "gouge", "tecton",)
+        met = (("meta", "garnet", "buchite", "epidot", "fenite", "albitite", "chloritite", 
+            "phlogopitite", "calc silicate", "calcsilicate", "rodingite", "sericitite", 
+            "tactite", "soapstone", "talc", "tourmalinite", "unakite", "vogesite", 
+            "greenschist", "zeolite", "gossan", "alter", "hydrothermal", "palagonite", 
+            "crystalline", "basement", "skarn", "schist", "blueschist", "gneiss", "granulit", 
+            "granofels", "sanidinite", "migma", "enderbite", "anorthosite", "charnockite", 
+            "peridot", "dunit", "harzburg", "high grade metamorphic")...,
+            cataclastic...,
+        )
 
         # Metamorphic
         met = (("meta", "buchite", "tactite","greenschist", "alter", "hydrothermal",
@@ -272,7 +292,7 @@
             "mylonit", "cataclasite", "melange", "gouge", "tecton",
         )
 
-        return (sed=sed, volc=volc, plut=plut, ign=ign, met=met)
+        return list
     end
 
     """

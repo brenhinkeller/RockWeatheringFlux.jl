@@ -193,17 +193,18 @@
 
     # Pre-compute conversion factors
     CaO_to_H2O = 2*(2*1.00784+15.999)/(40.078+15.999)
-    CaO_to_SO4 = (32.065+4*15.999)/(40.078+15.999)
+    CaO_to_SO3 = (32.065+3*15.999)/(40.078+15.999)
 
     # Preallocate
-    SO4 = Array{Float64}(undef, length(bulk.SiO2), 1)
+    # Looking at SO₃ because already have an oxygen in CaO
+    SO3 = Array{Float64}(undef, length(bulk.SiO2), 1)
 
     # Compute
     bulkrockname = bulktext.elements.Rock_Name[bulktext.index.Rock_Name]
     isgypsum = bulkrockname.=="GYPSUM"
     @turbo for i in eachindex(bulk.H2O)
         bulk.H2O[i] = ifelse(isgypsum[i], bulk.CaO[i]*CaO_to_H2O, 0)
-        SO4[i] = ifelse(isgypsum[i], bulk.CaO[i]*CaO_to_SO4, 0)
+        SO3[i] = ifelse(isgypsum[i], bulk.CaO[i]*CaO_to_SO3, 0)
     end
 
 

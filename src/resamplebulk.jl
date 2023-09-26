@@ -47,7 +47,7 @@
     end
 
     # Get the data we'll use in resampling. Exclude type, age, lat/lon
-    bulkmatrix = unelementify(bulk)[2:end,1:end-4]    # Also exclude header row
+    bulkmatrix = float.(unelementify(bulk)[2:end,1:end-4])    # Also exclude header row
     header = collect(keys(bulk))[1:end-4]
 
 
@@ -66,14 +66,14 @@
         p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
 
         # Get all the data we'll use in the resampling
-        data = @view bulkmatrix[bulk_cats[t][:],:]
-        uncert = zeros(size(data))
+        rockdata = bulkmatrix[bulk_cats[t][:],:]
+        uncert = zeros(size(rockdata))
 
         # Final dataset size should be proportional to the starting dataset, just because
         # we have 270K igneous samples and 6 evaporite samples. Minimum 500 samples
         nrows = max(count(bulk_cats[t]) * 5, 500)
 
-        sim = bsresample(data[bulk_cats[t]], uncert, nrows, p)
+        sim = bsresample(rockdata, uncert, nrows, p)
 
         # Save the data to the file, or whatever
         g₀ = create_group(g, "$t")

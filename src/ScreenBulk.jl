@@ -285,11 +285,11 @@
     bulkmaterial = lowercase.(bulktext.elements.Material[bulktext.index.Material])
 
     # Rock names
-    rocknames = get_rock_class(major=true)
+    rocknames = get_rock_class(major=true, inclusive=false)
     rocknames = unique((rocknames.sed..., rocknames.met..., rocknames.ign...))
 
-    # Rock subtypes, major types include minors (for class_up function call)
-    typelist = get_rock_class(major=false, inclusive=true)
+    # Rock subtypes, major types do not include minors (for class_up function call)
+    typelist = get_rock_class(major=false, inclusive=false)
     classnames = string.(collect(keys(typelist)))
 
 
@@ -300,8 +300,8 @@
     )
 
     # Preallocate for rock names
-    bulk_lookup = NamedTuple{keys(name_cats)}([falses(length(bulkrockname)) 
-        for _ in eachindex(name_cats)]
+    bulk_lookup = NamedTuple{Tuple(Symbol.(rocknames))}([falses(length(bulkrockname)) 
+        for _ in eachindex(rocknames)]
     )
 
     p = Progress(length(rocknames), desc="Finding EarthChem samples for each rock name")
@@ -312,12 +312,7 @@
 
         # If no matches, jump up a class. Find everything within that class
         if count(bulk_lookup[i]) == 0
-            # If the name is the name of a class, DON'T jump up a class
-            if rocknames[i] in classnames
-                searchlist = typelist[Symbol(rocknames[i])]
-            else
-                searchlist = typelist[class_up(typelist, rocknames[i])]
-            end
+            searchlist = typelist[class_up(typelist, rocknames[i])]
 
             # Search all of those names; each class should at least have something
             for j in eachindex(searchlist)

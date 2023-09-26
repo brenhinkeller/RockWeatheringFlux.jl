@@ -244,55 +244,13 @@
     Get a list of metamorphic rock names that do not provide useful information about the 
     geochemical composition of the rock.
 
-    # Example
-    ```julia-repl
-    julia> nondescriptive()
-    NamedTuple with 4 elements:
-      sed   = NTuple{11, String}
-      volc  = NTuple{5, String}
-      plut  = NTuple{11, String}
-      met   = NTuple{21, String}
-    ```
     """
     function nondescriptive()
-        sed = ("sediment", "clast", "diamict", "tillite", "stream deposits", "beach deposits", 
-            "terrace",  "marine deposits",  "paleosol", "spiculite", "glauconite")
-
-        # Igneous
-        ign = ("igneous", "silicic", "mafic", "felsic", "basite", "phoscorite", "rauhaugite", 
-            "beforsite")
-
-        # Metamorphic
-        metased = ("para", "metased", "quartzite", "marble", "slate", "leptite", "phyllite", 
-            "porcellanite", "meta-sed", "hornfels")
-        metaign = ("orthogneiss", "metaign", "serpentin", "amphibolit", "greenstone", "eclogite", 
-            "basite", "greisen", "halleflinta", "leucophyre", "melaphyre", "propylite", "spilite", 
-            "ultramafitite", "alkremite", "ortho", "meta-ign", "metabasite")
-        # lowgrade = ("slate", "phyllite", "serpentin", "greenstone", "greenschist", "zeolite", 
-        #     "gossan", "alter", "hydrothermal", "palagonite",)
-        # highgrade = ("crystalline", "basement", "marble", "skarn", "schist", "blueschist", 
-        #     "gneiss", "amphibolit", "eclogite", "granulit", "granofels", "sanidinite", 
-        #     "migma", "enderbite", "anorthosite", "charnockite", "peridot", "dunit", 
-        #     "harzburg", "high grade metamorphic")
-        cataclastic = ("mylonit", "cataclasite", "melange", "gouge", "tecton",)
-        met = (("meta", "garnet", "buchite", "epidot", "fenite", "albitite", "chloritite", 
-            "phlogopitite", "calc silicate", "calcsilicate", "rodingite", "sericitite", 
-            "tactite", "soapstone", "talc", "tourmalinite", "unakite", "vogesite", 
-            "greenschist", "zeolite", "gossan", "alter", "hydrothermal", "palagonite", 
-            "crystalline", "basement", "skarn", "schist", "blueschist", "gneiss", "granulit", 
-            "granofels", "sanidinite", "migma", "enderbite", "anorthosite", "charnockite", 
-            "peridot", "dunit", "harzburg", "high grade metamorphic")...,
-            cataclastic...,
-        )
-
-        # Metamorphic
-        met = (("meta", "buchite", "tactite","greenschist", "alter", "hydrothermal",
+        return ("meta", "buchite", "tactite","greenschist", "alter", "hydrothermal",
             "crystalline", "basement", "skarn", "schist", "gneiss", "granulit", 
-            "granofels", "sanidinite", "migma", "high grade metamorphic")...,
-            "mylonit", "cataclasite", "melange", "gouge", "tecton",
+            "granofels", "sanidinite", "migma", "high grade metamorphic", "mylonit", 
+            "cataclasite", "melange", "gouge", "tecton",
         )
-
-        return list
     end
 
     """

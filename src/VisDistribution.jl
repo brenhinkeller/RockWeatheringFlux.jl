@@ -44,20 +44,20 @@
         age = read(macrofid["vars"]["age"])[t],
     )
 
-    # header = read(macrofid["type"]["macro_cats_head"])
-    # data = read(macrofid["type"]["macro_cats"])
-    # data = @. data > 0
-    # macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
+    header = read(macrofid["type"]["macro_cats_head"])
+    data = read(macrofid["type"]["macro_cats"])
+    data = @. data > 0
+    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
 
-    # for type in minorsed
-    #     macro_cats.sed .|= macro_cats[type]
-    # end
-    # for type in minorign
-    #     macro_cats.ign .|= macro_cats[type]
-    # end
-    # for type in minormet
-    #     macro_cats.met .|= macro_cats[type]
-    # end
+    for type in minorsed
+        macro_cats.sed .|= macro_cats[type]
+    end
+    for type in minorign
+        macro_cats.ign .|= macro_cats[type]
+    end
+    for type in minormet
+        macro_cats.met .|= macro_cats[type]
+    end
 
     close(macrofid)
 
@@ -224,14 +224,48 @@
     )
 
 
-## --- [DATA] Resampled EarthChem SiO₂ (spatial density only)
-    # Igneous
-    rs_ign = importdataset("output/resampled/rs_ign.tsv", '\t', importas=:Tuple)
-    rs_volc = importdataset("output/resampled/rs_volc.tsv", '\t', importas=:Tuple)
-    rs_plut = importdataset("output/resampled/rs_plut.tsv", '\t', importas=:Tuple)
+## --- Spatially resampled EarthChem SiO₂
+    # Load file and figure out where the silica is 
+    fid = h5open("output/resampled/resampled.h5", "r")
+    header = read(fid["vars"]["header"])
+    SiO₂ᵢ = findfirst(x-> x=="SiO2", header)
 
-    # Sedimentary
-    rs_sed = importdataset("output/resampled/rs_sed.tsv", '\t', importas=:Tuple)
+    #  Preallocate
+    plts = Array{Plots.Plot{Plots.GRBackend}}(undef, length(macro_cats) - 1)
+
+    # Create all plots
+    rocks = collect(keys(macro_cats))
+    for i in eachindex(rocks)
+        # Figure out what type of rock we're looking at
+        r = rocks[i]
+        if r == :cover
+            continue
+        elseif r == :sed || r == :ign || r == :met
+            type = r
+        else
+            r in minorsed && (type = :sed)
+            r in minorign && (type = :ign)
+            r in minormet && (type = :met)
+        end
+
+        # Get silica data out of the resampled dataset
+        silica = read(fid["vars"]["$r"]["data"])[:,SiO₂ᵢ]
+
+        c, n = bincounts(silica, bins[type]...)
+        n = float(n) ./ nansum(float(n) .* step(c))
+        h = plot(c, n, seriestype=:bar, framestyle=:box, color=c_rs, linecolor=c_rs,
+            label="$(string(r)); n = $(length(silica))",      
+            # ylabel="Weight", xlabel="SiO2 [wt.%]",
+            ylims=(0, round(maximum(n), digits=2)+0.01) 
+        )
+
+        plts[i] = h
+    end
+
+    # Put into a layout
+    h = plot(plts..., layout=(5,3), size=(2000, 2000))
+    display(h)
+    savefig(h, "results/figures/resampled_distributions.png")
 
 
 ## --- Resampled SiO₂ distribution by rock type

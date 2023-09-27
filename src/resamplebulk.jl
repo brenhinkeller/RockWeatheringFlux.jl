@@ -95,7 +95,7 @@
     g₀["k"] = k
 
     # Save the header too, we'll want that
-    g["header"] = header
+    g["header"] = string.(header)
 
     close(fid)
 

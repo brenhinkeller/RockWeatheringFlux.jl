@@ -56,7 +56,8 @@
 
     # Everyone's favorite file format!
     fid = h5open("output/resampled/resampled.h5", "w")
-    g = create_group(fid, "vars")
+    g_main = create_group(fid, "vars")
+    g = create_group(g_main, "data")
 
     for t in types
         t==:cover && continue
@@ -95,7 +96,7 @@
     g₀["k"] = k
 
     # Save the header too, we'll want that
-    g["header"] = string.(header)
+    g_main["header"] = string.(header)
 
     close(fid)
 

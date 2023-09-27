@@ -59,6 +59,7 @@
     g = create_group(fid, "vars")
 
     for t in types
+        t==:cover && continue
         println("Starting $t")
 
         # Calculate spatial weights, keep ∼1/5 of the data in each resampling
@@ -92,6 +93,9 @@
     g₀ = create_group(g, "bulk")
     g₀["data"] = sim
     g₀["k"] = k
+
+    # Save the header too, we'll want that
+    g["header"] = header
 
     close(fid)
 

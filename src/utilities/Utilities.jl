@@ -525,8 +525,32 @@
     end
 
     """
+    ```julia
+    majorminor(type::Tuple, minorsed, minorign, minormet)
+    ```
+
+    Classify `type` as major or minor types. 
+
+    ### Return
+     *  `maj`: Vector of all types converted to major types.
+     *  `ismaj`: BitVector which is `true` where `type` is a major type.
+     *  `ctypes`: NamedTuple with the number of minor types present for each major type.
+
+    # Example
+    ```julia-repl
+    julia> minorsed, minorign, minormet = get_minor_types();
+
+    julia> type=(:ign, :volc);
+
+    julia> maj, ismaj, ctypes = majorminor(type, minorsed, minorign, minormet)
+    ([:ign, :ign], Bool[1, 0], (ign = 1,))
+    ```
+
+    Note that since `type` includes one major type (`:ign`) and one minor type (`:volc`),
+    where `:volc` is a subtype of the `:ign` major type, `type` contains one minor type,
+    so `ctypes` contains one element (`ctypes.ign`), equal to 1.
     """
-    function majorminor(type, minorsed, minorign, minormet)
+    function majorminor(type::Tuple, minorsed, minorign, minormet)
         # Preallocate
         maj = similar(collect(type))
         ismaj = falses(length(maj))

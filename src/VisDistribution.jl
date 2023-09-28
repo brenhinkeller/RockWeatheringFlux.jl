@@ -44,10 +44,11 @@
         age = read(macrofid["vars"]["age"])[t],
     )
 
-    header = read(macrofid["type"]["macro_cats_head"])
-    data = read(macrofid["type"]["macro_cats"])
-    data = @. data > 0
-    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
+    # Type matches are from the list of types in the index file now
+    # header = read(macrofid["type"]["macro_cats_head"])
+    # data = read(macrofid["type"]["macro_cats"])
+    # data = @. data > 0
+    # macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
 
     for type in minorsed
         macro_cats.sed .|= macro_cats[type]

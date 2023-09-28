@@ -223,8 +223,8 @@
     end
     zeronan!(bulkweight)
 
-    # Add calculated SO₄ to the total wt.%
-    bulkweight .+= SO4
+    # Add calculated SO₃ to the total wt.%
+    bulkweight .+= SO3
 
     # Samples must be 84-104 total wt.% analyzed
     t = falses(length(bulkweight))

@@ -197,11 +197,11 @@
     
 
 ## --- Add matches to EarthChem file
-    using HDF5
-    using StatGeochem
-    include("utilities/Utilities.jl")
+    # using HDF5
+    # using StatGeochem
+    # include("utilities/Utilities.jl")
 
-    bfid = h5open("output/bulk.h5", "r")
+    # bfid = h5open("output/bulk.h5", "r")
 
     # header = read(bfid["bulk"]["header"])
     # data = read(bfid["bulk"]["data"])
@@ -252,23 +252,23 @@
     #     next!(p)
     # end
 
-    # Types
-    fid = h5open("output/matches.h5", "r")
+    # # Types
+    # fid = h5open("output/matches.h5", "r")
 
-    # New EarthChem
-    newfid = h5open("output/bulk_new.h5", "w")
-    copy_object(bfid["bulktext"], newfid, "bulktext")
-    g = create_group(newfid, "bulk")
-        copy_object(bfid["bulk"]["data"], g, "data")
-        copy_object(bfid["bulk"]["header"], g, "header")
-    g = create_group(newfid, "bulktypes")
-        copy_object(fid["vars"]["bulk_cats"], g, "bulk_cats")
-        copy_object(fid["vars"]["bulk_cats_head"], g, "bulk_cats_head")
-        copy_object(fid["vars"]["bulk_lookup"], g, "bulk_lookup")
-        copy_object(fid["vars"]["bulk_lookup_head"], g, "bulk_lookup_head")
-    close(fid)
-    close(newfid)
-    close(bfid)
+    # # New EarthChem
+    # newfid = h5open("output/bulk_new.h5", "w")
+    # copy_object(bfid["bulktext"], newfid, "bulktext")
+    # g = create_group(newfid, "bulk")
+    #     copy_object(bfid["bulk"]["data"], g, "data")
+    #     copy_object(bfid["bulk"]["header"], g, "header")
+    # g = create_group(newfid, "bulktypes")
+    #     copy_object(fid["vars"]["bulk_cats"], g, "bulk_cats")
+    #     copy_object(fid["vars"]["bulk_cats_head"], g, "bulk_cats_head")
+    #     copy_object(fid["vars"]["bulk_lookup"], g, "bulk_lookup")
+    #     copy_object(fid["vars"]["bulk_lookup_head"], g, "bulk_lookup_head")
+    # close(fid)
+    # close(newfid)
+    # close(bfid)
     
 
 ## --- Calculate inverse spatial weight for each rock name
@@ -320,18 +320,18 @@
 
 ## --- Save basin lat / lon coordinates to a file
     # Get stuff
-    run(`gunzip data/octopus/crn_basins_global.kml.gz`);
-    (str, isfirstcoord, nbasins, subbasins) = load_octopus_kml("data/octopus/crn_basins_global.kml");
-    run(`gzip data/octopus/crn_basins_global.kml`);  
+    # run(`gunzip data/octopus/crn_basins_global.kml.gz`);
+    # (str, isfirstcoord, nbasins, subbasins) = load_octopus_kml("data/octopus/crn_basins_global.kml");
+    # run(`gzip data/octopus/crn_basins_global.kml`);  
 
-    (basin_polygon_n, basin_polygon_lat, basin_polygon_lon) = parse_octopus_polygon_outlines(str,isfirstcoord)
+    # (basin_polygon_n, basin_polygon_lat, basin_polygon_lon) = parse_octopus_polygon_outlines(str,isfirstcoord)
 
-    # File time!
-    fid = h5open("output/basin_coordinates.h5", "w")
-    g = create_group(fid, "vars")
-    for i in eachindex(basin_polygon_lat, basin_polygon_lon)
-        g[lpad(i, 4, "0")] = hcat(basin_polygon_lat[i], basin_polygon_lon[i])
-    end
-    close(fid)
+    # # File time!
+    # fid = h5open("output/basin_coordinates.h5", "w")
+    # g = create_group(fid, "vars")
+    # for i in eachindex(basin_polygon_lat, basin_polygon_lon)
+    #     g[lpad(i, 4, "0")] = hcat(basin_polygon_lat[i], basin_polygon_lon[i])
+    # end
+    # close(fid)
 
 ## --- End of File

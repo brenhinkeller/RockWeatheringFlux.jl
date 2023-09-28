@@ -34,16 +34,16 @@
 
 
 ## --- Definitions we'll need for resampling
-    # Major types are exclusive of all minor types
+    # Major types are inclusive of all minor types
     minorsed, minorign, minormet = get_minor_types()
     for type in minorsed
-        bulk_cats.sed .&= .!bulk_cats[type]
+        bulk_cats.sed .|= bulk_cats[type]
     end
     for type in minorign
-        bulk_cats.ign .&= .!bulk_cats[type]
+        bulk_cats.ign .|= bulk_cats[type]
     end
     for type in minormet
-        bulk_cats.met .&= .!bulk_cats[type]
+        bulk_cats.met .|= bulk_cats[type]
     end
 
     # Get the data we'll use in resampling. Exclude type, age, lat/lon

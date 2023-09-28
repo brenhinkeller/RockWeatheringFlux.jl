@@ -228,7 +228,23 @@
     end
 
 
-## -- Initialize for EarthChem sample matching
+## --- May as well bring spatial weighting back. Why not?
+    # BUT we can load it by type from the resampled file
+    fid = h5open("output/resampled/resampled.h5", "r")
+    header = read(fid["vars"]["header"])
+
+    # Load inverse spatial weights
+    g = fid["vars"]["data"]
+    k = NamedTuple{Tuple(Symbol.(keys(g)))}([read(obj["k"]) for obj in g]);
+
+    # Inverse them to be normal spatial weights
+    # TO DO: check this method with Brenhin
+    for t in keys(k)
+        k[t] .= 1.0 ./ ((k[t].*nanmedian(5.0 ./ k[t])) .+ 1.0)
+    end
+
+
+## --- Initialize for EarthChem sample matching
     # Definitions
     geochemkeys, = get_elements()                   # Major elements
     bulk_idxs = collect(1:length(bulk.SiO2))        # Indices of bulk samples
@@ -239,18 +255,30 @@
 
 
 ## --- TEMPORARY: what happens when we just randomly pick an EarthChem sample
-    # p = Progress(length(matches), desc="Matching samples...")
-    # @timev for i in eachindex(matches)
-    #     type = sampletypes[i]
-    #     name = samplenames[i]
-    #     if type==:none 
-    #         next!(p)
-    #         continue
-    #     end
-    #     matches[i] = rand(bulk_idxs[bulk_lookup[name]])
-    #     next!(p)
-    # end
-    # writedlm("$matchedbulk_io", [matches string.(sampletypes)], '\t')
+    matches = zeros(Int64, length(macro_cats.sed))
+    
+    # this needs to be fixed because major types don't include minor types in bulk_cats
+    # but major types DO include minor types in the resampled dataset. I think this is
+    # only a problem for mets?
+
+    p = Progress(length(matches), desc="Matching samples...")
+    @timev for i in eachindex(matches)
+        type = sampletypes[i]
+        name = samplenames[i]
+        if type==:none 
+            next!(p)
+            continue
+        elseif type==:met
+            filter = bulk_cats.met .| bulk_cats.metaign .| bulk_cats.metased
+        else
+            filter = bulk_cats[type]
+        end
+
+        # matches[i] = rand(bulk_idxs[bulk_lookup[name]])
+        matches[i] = bulk_idxs[filter][weighted_rand(k[type])] # selects for name
+        next!(p)
+    end
+    writedlm("$matchedbulk_io", [matches string.(sampletypes)], '\t')
 
 
 ## --- Find matching EarthChem sample for each Macrostrat sample

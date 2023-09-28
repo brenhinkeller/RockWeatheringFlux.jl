@@ -1,7 +1,10 @@
-# Fuck it! Resample every rock type! Brute force your way through it!
-#
-# This is based **only** on spatial distribution---I want current crustal composition, not
-# something I can use as a timeseries
+# Translate the code from Keller et al., 2015 (https://doi.org/10.1038/nature14584) into 
+# Julia, and run it for all rock types (not just igneous). 
+# 
+# This will give me something to compare SampleMatch results to.
+
+# May run into some problems with minor sedimentary types, and it's unclear if sorting 
+# metamorphic rocks by metased / metaign is doing anything useful
 
 ## --- Set up
     # Packages
@@ -9,12 +12,14 @@
     using DelimitedFiles
     using Measurements
     using HDF5
+    using MAT
     using ProgressMeter
     using LoopVectorization
     using Static
 
     # Local utilities
     include("utilities/Utilities.jl")
+
 
 ## --- Load EarthChem data 
     # Filtered and normalized to 100%
@@ -50,6 +55,15 @@
     bulkmatrix = float.(unelementify(bulk)[2:end,1:end-4])    # Also exclude header row
     header = collect(keys(bulk))[1:end-4]
 
+    # Uncertainties based on standardized uncertainties used in Keller et al., 2015
+    errVP = matread("data/volcanicplutonic/plutonic.mat")["plutonic"]["err"]
+    errVP["In"] = 0.0       # Not listed, assume 0?
+
+    uncert = Array{Float64}(undef, size(bulkmatrix))
+    for i in eachindex(header)
+        uncert[:,i] .= errVP[string(header[i])]
+    end
+
 
 ## --- Resample based on spatial weights
     types = keys(bulk_cats)
@@ -69,25 +83,23 @@
 
         # Get all the data we'll use in the resampling
         rockdata = bulkmatrix[bulk_cats[t][:],:]
-        uncert = zeros(size(rockdata))
+        rockuncert = uncert[bulk_cats[t][:],:]
 
         # Final dataset size should be proportional to the starting dataset, just because
         # we have 270K igneous samples and 6 evaporite samples. Minimum 500 samples
         nrows = max(count(bulk_cats[t]) * 5, 500)
 
-        sim = bsresample(rockdata, uncert, nrows, p)
+        sim = bsresample(rockdata, rockuncert, nrows, p)
 
         # Save the data to the file, or whatever
         g₀ = create_group(g, "$t")
         g₀["data"] = sim
         g₀["k"] = k
-
     end
 
     # May as well just resample the everything too, as a treat
     k = invweight_location(bulk.Latitude, bulk.Longitude)
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    uncert = zeros(size(bulkmatrix))
     sim = bsresample(bulkmatrix, uncert, 1_500_000, p)
 
     # And save
@@ -100,5 +112,5 @@
 
     close(fid)
 
-    
+
 ## --- End of file

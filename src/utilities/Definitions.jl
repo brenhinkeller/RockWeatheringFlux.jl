@@ -131,9 +131,10 @@
     """
     function get_rock_class(; major::Bool=false, inclusive::Bool=false)
         # Sedimentary
-        siliciclast = ("siliciclast", "conglo", "sand", "psamm", "arenit", "arkos", "silt")
+        siliciclast = ("siliciclast", "conglo", "sand", "psamm", "arenit", "arkos", "silt",
+            "breccia")
         shale = ("lutite", "mud", "clay", "shale", "wacke", "argillite", "argillaceous", 
-            "flysch", "pelit", "turbidite", "tasmanite", "breccia")
+            "flysch", "pelit", "turbidite", "tasmanite")
         carb = ("carbonate", "limestone", "dolo", "marl", "chalk", "coquina", "biogenic", 
             "travertine", "tavertine", "tufa", "calcarenite", "teravertine")
         chert = ("chert", "opal", "porcellanite", "diatomite", "novaculite", "iron", "taconite", 

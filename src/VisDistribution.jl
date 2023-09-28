@@ -228,7 +228,7 @@
     # Load file and figure out where the silica is 
     fid = h5open("output/resampled/resampled.h5", "r")
     header = read(fid["vars"]["header"])
-    SiO₂ᵢ = findfirst(x-> x=="SiO2", header)
+    SiO₂ᵢ = findfirst(x -> x=="SiO2", header)
 
     #  Preallocate
     plts = Array{Plots.Plot{Plots.GRBackend}}(undef, length(macro_cats) - 1)
@@ -249,7 +249,7 @@
         end
 
         # Get silica data out of the resampled dataset
-        silica = read(fid["vars"]["$r"]["data"])[:,SiO₂ᵢ]
+        silica = read(fid["vars"]["data"]["$r"]["data"])[:,SiO₂ᵢ]
 
         c, n = bincounts(silica, bins[type]...)
         n = float(n) ./ nansum(float(n) .* step(c))
@@ -266,48 +266,6 @@
     h = plot(plts..., layout=(5,3), size=(2000, 2000))
     display(h)
     savefig(h, "results/figures/resampled_distributions.png")
-
-
-## --- Resampled SiO₂ distribution by rock type
-    # All igneous
-    c, n, = bincounts(rs_ign.SiO2, 40, 80, 80)
-    n = float(n) ./ nansum(float(n) .* step(c))
-    h = plot(c, n, seriestype=:bar, framestyle=:box, color=c_rs, linecolor=c_rs,
-        label="All Igneous (resample); n = $(length(rs_ign.SiO2))", 
-        ylabel="Weight", xlabel="SiO2 [wt.%]", 
-        ylims=(0, round(maximum(n), digits=2)+0.01))
-    display(h)
-    savefig("results/figures/c_rs_ign.png")
-
-    # Volcanic
-    c, n, = bincounts(rs_volc.SiO2, 40, 80, 80)
-    n = float(n) ./ nansum(float(n) .* step(c))
-    h = plot(c, n, seriestype=:bar, framestyle=:box, color=c_rs, linecolor=c_rs,
-        label="Volcanic (resample); n = $(length(rs_volc.SiO2))", 
-        ylabel="Weight", xlabel="SiO2 [wt.%]",
-        ylims=(0, round(maximum(n), digits=2)+0.01))
-    display(h)
-    savefig("results/figures/c_rs_volc.png")
-
-    # Plutonic
-    c, n, = bincounts(rs_plut.SiO2, 40, 80, 80)
-    n = float(n) ./ nansum(float(n) .* step(c))
-    h = plot(c, n, seriestype=:bar, framestyle=:box, color=c_rs, linecolor=c_rs,
-        label="Plutonic (resample); n = $(length(rs_plut.SiO2))", 
-        ylabel="Weight", xlabel="SiO2 [wt.%]",
-        ylims=(0, round(maximum(n), digits=2)+0.01))
-    display(h)
-    savefig("results/figures/c_rs_plut.png")
-
-    # All sedimentary
-    c, n, = bincounts(rs_sed.SiO2, 0, 100, 200)
-    n = float(n) ./ nansum(float(n) .* step(c))
-    h = plot(c, n, seriestype=:bar, framestyle=:box, color=c_rs, linecolor=c_rs,
-        label="Sedimentary (resample); n = $(length(rs_sed.SiO2))", 
-        ylabel="Weight", xlabel="SiO2 [wt.%]",
-        ylims=(0, round(maximum(n), digits=2)+0.01))
-    display(h)
-    savefig("results/figures/c_rs_sed.png")
 
 
 ## --- [DATA] Composition of eroded material

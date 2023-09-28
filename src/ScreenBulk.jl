@@ -124,7 +124,7 @@
     # CaCO3 values will be preserved in the final bulk.h5 file, but CaCO3 is converted
     # to CaO and CO2 for analyzed wt.% calculations
     allelements = [majors; minors]
-    extendelements = [allelements; [:CaCO3, :H2O, :CO2]]
+    extendelements = [allelements; :CaCO3]
     allkeys = [extendelements; [:Type, :Latitude, :Longitude, :Age]]
     ndata = length(allelements)
 

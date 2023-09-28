@@ -228,22 +228,6 @@
     end
 
 
-## --- May as well bring spatial weighting back. Why not?
-    # BUT we can load it by type from the resampled file
-    fid = h5open("output/resampled/resampled.h5", "r")
-    header = read(fid["vars"]["header"])
-
-    # Load inverse spatial weights
-    g = fid["vars"]["data"]
-    k = NamedTuple{Tuple(Symbol.(keys(g)))}([read(obj["k"]) for obj in g]);
-
-    # Inverse them to be normal spatial weights
-    # TO DO: check this method with Brenhin
-    for t in keys(k)
-        k[t] .= 1.0 ./ ((k[t].*nanmedian(5.0 ./ k[t])) .+ 1.0)
-    end
-
-
 ## --- Initialize for EarthChem sample matching
     # Definitions
     geochemkeys, = get_elements()                   # Major elements
@@ -254,31 +238,87 @@
     bulkzero = NamedTuple{Tuple(geochemkeys)}([zeronan!(bulkzero[i]) for i in geochemkeys])
 
 
-## --- TEMPORARY: what happens when we just randomly pick an EarthChem sample
-    matches = zeros(Int64, length(macro_cats.sed))
+## --- TEMPORARY: test matching algorithm for carbonates only
+    using Plots
     
-    # this needs to be fixed because major types don't include minor types in bulk_cats
-    # but major types DO include minor types in the resampled dataset. I think this is
-    # only a problem for mets?
+    filter = findall(x -> x==:carb, sampletypes)
+    matches = zeros(Int64, length(filter))
 
-    p = Progress(length(matches), desc="Matching samples...")
-    @timev for i in eachindex(matches)
-        type = sampletypes[i]
-        name = samplenames[i]
-        if type==:none 
-            next!(p)
-            continue
-        elseif type==:met
-            filter = bulk_cats.met .| bulk_cats.metaign .| bulk_cats.metased
-        else
-            filter = bulk_cats[type]
-        end
+    p = Progress(length(matches)÷10, desc="Matching samples...")
+    for i in eachindex(matches)
+        # Pick a random sample as the assumed geochemistry
+        name = samplenames[filter[i]]
+        geochemdata = geochem_lookup[name]
+        errs = NamedTuple{Tuple(geochemkeys)}(
+            zeronan!([abs(randn()*geochemdata[i].e) for i in geochemkeys])
+        )
 
-        # matches[i] = rand(bulk_idxs[bulk_lookup[name]])
-        matches[i] = bulk_idxs[filter][weighted_rand(k[type])] # selects for name
-        next!(p)
+        randsample = rand(bulk_idxs[bulk_lookup[name]])
+        geochemdata = NamedTuple{Tuple(geochemkeys)}([NamedTuple{(:m, :e)}(
+            tuple.((bulkzero[i][randsample]), errs[i])) for i in geochemkeys]
+        )
+
+        # Get the EarthChem data
+        bulksamples = bulk_cats.carb
+        EC = (
+            bulklat = bulk.Latitude[bulksamples],            # EarthChem latitudes
+            bulklon = bulk.Longitude[bulksamples],           # EarthChem longitudes
+            bulkage = bulk.Age[bulksamples],                 # EarthChem age
+            sampleidx = bulk_idxs[bulksamples],              # Indices of EarthChem samples
+        )
+        bulkgeochem = NamedTuple{Tuple(geochemkeys)}([bulkzero[i][bulksamples] 
+            for i in geochemkeys]
+        )
+
+        # Match
+        matches[i] = likelihood(EC.bulkage, macrostrat.age[i], EC.bulklat, EC.bulklon, 
+            macrostrat.rocklat[i], macrostrat.rocklon[i], bulkgeochem, geochemdata, 
+            EC.sampleidx
+        )
+
+        i$10==0 && next!(p)
     end
-    writedlm("$matchedbulk_io", [matches string.(sampletypes)], '\t')
+
+    # Plot results
+    bins = (0, 100, 100)
+
+    c, n = bincounts(bulk.SiO2[matches], bins...)
+    n = float(n) ./ nansum(float(n) .* step(c))
+    SiO2ₕ = plot(c, n, seriestype=:bar, framestyle=:box, label="", ylabel="Weight", 
+        xlabel="SiO2 [wt.%]", ylims=(0, round(maximum(n), digits=2)+0.01) 
+    )
+
+    c, n = bincounts(bulk.CaO[matches], bins...)
+    n = float(n) ./ nansum(float(n) .* step(c))
+    CaOₕ = plot(c, n, seriestype=:bar, framestyle=:box, label="", 
+        xlabel="CaO [wt.%]", ylims=(0, round(maximum(n), digits=2)+0.01) 
+    )
+
+    c, n = bincounts(bulk.CaCO3[matches], bins...)
+    n = float(n) ./ nansum(float(n) .* step(c))
+    CaCO3ₕ = plot(c, n, seriestype=:bar, framestyle=:box, label="",
+        xlabel="CaCO₃ [wt.%]", ylims=(0, round(maximum(n), digits=2)+0.01) 
+    )
+
+    h = plot(SiO2ₕ, CaOₕ, CaCO3ₕ, layout=(1, 3), size=(1800, 400),
+        bottom_margin=(50, :px), left_margin=(50, :px)
+    )
+    display(h)
+
+    # How many matches are the same sample?
+    c, n = bincounts(bulk.SiO2[matches], bins...)
+    i = findmax(n)[2]                                   # Index of largest bin
+    s = step(c)/2                                       # Half-step to get bin edges
+    tᵢ = @. c[i]-s <= bulk.SiO2[matches] <= c[i]+s      # Filter for samples in that bin
+    ind = matches[tᵢ]                                   # Indices of the bin
+
+    j, f = modal(ind)                                   # Value and frequency of modal index
+    j₁, f₁ = modal(matches)                             # Value and frequency of modal sample
+
+    @info """ Frequency of single sample in:
+    Modal bin: $(round(f/length(ind)*100, sigdigits=3))%
+    All matches: $(round(f₁/length(matches)*100, sigdigits=3))%
+    """
 
 
 ## --- Find matching EarthChem sample for each Macrostrat sample
@@ -319,12 +359,16 @@
             tuple.((bulkzero[i][randsample]), errs[i])) for i in geochemkeys]
         )
 
-        # Get EarthChem data. EarthChem major types are not inclusive of minor types. As 
-        # a treat, also send any uncategorized (major) types along with the selected type
+        # Get EarthChem data. EarthChem major types are not inclusive of minor types, but
+        # all metamorphic rocks are sent for every metamorphic rock type
+        # Would it maybe be easier just to not make metamorphic rocks exclusive wrt types?
         bulksamples = bulk_cats[type]
 
-        if type==:metased || type==:metaign 
+        if type==:metased || type==:metaign
             bulksamples .|= bulk_cats.met
+        elseif type==:met 
+            bulksamples .|= bulk_cats.metased
+            bulksamples .|= bulk_cats.metaign
         end
 
         EC = (

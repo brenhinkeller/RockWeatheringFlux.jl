@@ -174,7 +174,7 @@
 
 ## --- Remove all multimatches and major matches from Macrostrat rocks
     # Each sample can technically only be one rock type, and samples matched with major
-    # types are technically a minor type (e.g. an igneous rock is either volcanic or 
+    # types are technically a minor type (e.g. an igneous rock isin either volcanic or 
     # plutonic).
 
     # Preallocate
@@ -238,10 +238,12 @@
     bulkzero = NamedTuple{Tuple(geochemkeys)}([zeronan!(bulkzero[i]) for i in geochemkeys])
 
 
-## --- TEMPORARY: test matching algorithm for carbonates only
+## --- TEMPORARY: test matching algorithm for a single type only
+    # Runs faster, so easier to mess with
     using Plots
-    
-    filter = findall(x -> x==:carb, sampletypes)
+
+    type = :shale
+    filter = findall(x -> x==type, sampletypes)
     matches = zeros(Int64, length(filter))
 
     p = Progress(length(matches)÷10, desc="Matching samples...")
@@ -259,7 +261,7 @@
         )
 
         # Get the EarthChem data
-        bulksamples = bulk_cats.carb
+        bulksamples = bulk_cats[type]
         EC = (
             bulklat = bulk.Latitude[bulksamples],            # EarthChem latitudes
             bulklon = bulk.Longitude[bulksamples],           # EarthChem longitudes
@@ -276,7 +278,7 @@
             EC.sampleidx
         )
 
-        i$10==0 && next!(p)
+        i%10==0 && next!(p)
     end
 
     # Plot results
@@ -287,23 +289,24 @@
     SiO2ₕ = plot(c, n, seriestype=:bar, framestyle=:box, label="", ylabel="Weight", 
         xlabel="SiO2 [wt.%]", ylims=(0, round(maximum(n), digits=2)+0.01) 
     )
+    display(SiO2ₕ)
 
-    c, n = bincounts(bulk.CaO[matches], bins...)
-    n = float(n) ./ nansum(float(n) .* step(c))
-    CaOₕ = plot(c, n, seriestype=:bar, framestyle=:box, label="", 
-        xlabel="CaO [wt.%]", ylims=(0, round(maximum(n), digits=2)+0.01) 
-    )
+    # c, n = bincounts(bulk.CaO[matches], bins...)
+    # n = float(n) ./ nansum(float(n) .* step(c))
+    # CaOₕ = plot(c, n, seriestype=:bar, framestyle=:box, label="", 
+    #     xlabel="CaO [wt.%]", ylims=(0, round(maximum(n), digits=2)+0.01) 
+    # )
 
-    c, n = bincounts(bulk.CaCO3[matches], bins...)
-    n = float(n) ./ nansum(float(n) .* step(c))
-    CaCO3ₕ = plot(c, n, seriestype=:bar, framestyle=:box, label="",
-        xlabel="CaCO₃ [wt.%]", ylims=(0, round(maximum(n), digits=2)+0.01) 
-    )
+    # c, n = bincounts(bulk.CaCO3[matches], bins...)
+    # n = float(n) ./ nansum(float(n) .* step(c))
+    # CaCO3ₕ = plot(c, n, seriestype=:bar, framestyle=:box, label="",
+    #     xlabel="CaCO₃ [wt.%]", ylims=(0, round(maximum(n), digits=2)+0.01) 
+    # )
 
-    h = plot(SiO2ₕ, CaOₕ, CaCO3ₕ, layout=(1, 3), size=(1800, 400),
-        bottom_margin=(50, :px), left_margin=(50, :px)
-    )
-    display(h)
+    # h = plot(SiO2ₕ, CaOₕ, CaCO3ₕ, layout=(1, 3), size=(1800, 400),
+    #     bottom_margin=(50, :px), left_margin=(50, :px)
+    # )
+    # display(h)
 
     # How many matches are the same sample?
     c, n = bincounts(bulk.SiO2[matches], bins...)
@@ -332,18 +335,16 @@
     # The error for each major element will be randomly sampled from a normal distribution 
     # with a mean and standard deviation equal to the mean and standard deviation for that
     # major element within the selected rock name.
-    # 
-    # This method assumes there are enough samples for outliers to get ironed out.
-
+    
     # Preallocate
     matches = zeros(Int64, length(macro_cats.sed))
 
     @info "Starting sample matching $(Dates.format(now(), "HH:MM"))"
-    p = Progress(length(matches), desc="Matching samples...")
+    p = Progress(length(matches)÷10, desc="Matching samples...")
     @timev for i in eachindex(matches)
         type = sampletypes[i]
         name = samplenames[i]
-        if type==:none 
+        if type==:none
             next!(p)
             continue
         end
@@ -389,7 +390,7 @@
             EC.sampleidx
         )
 
-        next!(p)
+        i%10==0 && next!(p)
     end
 
     # Write data to a file

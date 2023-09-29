@@ -176,6 +176,9 @@
     # Each sample can technically only be one rock type, and samples matched with major
     # types are technically a minor type (e.g. an igneous rock isin either volcanic or 
     # plutonic).
+    #
+    # Picking a name randomly rather than a type should preference types that are described
+    # more, and hopefully then will advantage major constituents
 
     # Preallocate
     sampletypes = Array{Symbol}(undef, length(macrostrat.age), 1)
@@ -241,88 +244,101 @@
 ## --- TEMPORARY: test matching algorithm for a single type only
     # Runs faster, so easier to mess with
     using Plots
+    include("utilities/Utilities.jl")
 
     type = :shale
     filter = findall(x -> x==type, sampletypes)
-    matches = zeros(Int64, length(filter))
+    
+    geochemcopy = copy(geochemkeys)
+    for samp in eachindex(geochemcopy)
+        geochemkeys = [geochemcopy[samp]]
 
-    p = Progress(length(matches)÷10, desc="Matching samples...")
-    for i in eachindex(matches)
-        # Pick a random sample as the assumed geochemistry
-        name = samplenames[filter[i]]
-        geochemdata = geochem_lookup[name]
-        errs = NamedTuple{Tuple(geochemkeys)}(
-            zeronan!([abs(randn()*geochemdata[i].e) for i in geochemkeys])
-        )
+        matches = zeros(Int64, length(filter))
+        p = Progress(length(matches)÷10, desc="Matching samples...")
+        for i in eachindex(matches)
+            # Pick a random sample as the assumed geochemistry
+            name = samplenames[filter[i]]
+            geochemdata = geochem_lookup[name]
+            errs = NamedTuple{Tuple(geochemkeys)}(
+                zeronan!([abs(randn()*geochemdata[i].e) for i in geochemkeys])
+            )
 
-        randsample = rand(bulk_idxs[bulk_lookup[name]])
-        geochemdata = NamedTuple{Tuple(geochemkeys)}([NamedTuple{(:m, :e)}(
-            tuple.((bulkzero[i][randsample]), errs[i])) for i in geochemkeys]
-        )
+            randsample = rand(bulk_idxs[bulk_lookup[name]])
+            geochemdata = NamedTuple{Tuple(geochemkeys)}([NamedTuple{(:m, :e)}(
+                tuple.((bulkzero[i][randsample]), errs[i])) for i in geochemkeys]
+            )
 
-        # Get the EarthChem data
-        bulksamples = bulk_cats[type]
-        EC = (
-            bulklat = bulk.Latitude[bulksamples],            # EarthChem latitudes
-            bulklon = bulk.Longitude[bulksamples],           # EarthChem longitudes
-            bulkage = bulk.Age[bulksamples],                 # EarthChem age
-            sampleidx = bulk_idxs[bulksamples],              # Indices of EarthChem samples
-        )
-        bulkgeochem = NamedTuple{Tuple(geochemkeys)}([bulkzero[i][bulksamples] 
-            for i in geochemkeys]
-        )
+            # Get the EarthChem data
+            bulksamples = bulk_cats[type]
+            EC = (
+                bulklat = bulk.Latitude[bulksamples],            # EarthChem latitudes
+                bulklon = bulk.Longitude[bulksamples],           # EarthChem longitudes
+                bulkage = bulk.Age[bulksamples],                 # EarthChem age
+                sampleidx = bulk_idxs[bulksamples],              # Indices of EarthChem samples
+            )
+            bulkgeochem = NamedTuple{Tuple(geochemkeys)}([bulkzero[i][bulksamples] 
+                for i in geochemkeys]
+            )
 
-        # Match
-        matches[i] = likelihood(EC.bulkage, macrostrat.age[i], EC.bulklat, EC.bulklon, 
-            macrostrat.rocklat[i], macrostrat.rocklon[i], bulkgeochem, geochemdata, 
-            EC.sampleidx
-        )
+            # Match
+            matches[i] = likelihood(EC.bulkage, macrostrat.age[i], EC.bulklat, EC.bulklon, 
+                macrostrat.rocklat[i], macrostrat.rocklon[i], bulkgeochem, geochemdata, 
+                EC.sampleidx
+            )
 
-        i%10==0 && next!(p)
+            i%10==0 && next!(p)
+        end
+
+        # Plot results
+        bins = (0, 100, 100)
+
+        c, n = bincounts(bulk.SiO2[matches], bins...)
+        n = float(n) ./ nansum(float(n) .* step(c))
+        SiO2ₕ = plot(c, n, seriestype=:bar, framestyle=:box, label="$(geochemcopy[samp])", ylabel="Weight", 
+            xlabel="SiO2 [wt.%]", ylims=(0, round(maximum(n), digits=2)+0.01) 
+        )
+        display(SiO2ₕ)
+
+        # c, n = bincounts(bulk.CaO[matches], bins...)
+        # n = float(n) ./ nansum(float(n) .* step(c))
+        # CaOₕ = plot(c, n, seriestype=:bar, framestyle=:box, label="", 
+        #     xlabel="CaO [wt.%]", ylims=(0, round(maximum(n), digits=2)+0.01) 
+        # )
+
+        # c, n = bincounts(bulk.CaCO3[matches], bins...)
+        # n = float(n) ./ nansum(float(n) .* step(c))
+        # CaCO3ₕ = plot(c, n, seriestype=:bar, framestyle=:box, label="",
+        #     xlabel="CaCO₃ [wt.%]", ylims=(0, round(maximum(n), digits=2)+0.01) 
+        # )
+
+        # h = plot(SiO2ₕ, CaOₕ, CaCO3ₕ, layout=(1, 3), size=(1800, 400),
+        #     bottom_margin=(50, :px), left_margin=(50, :px)
+        # )
+        # display(h)
+
+        # How many matches are the same sample?
+        c, n = bincounts(bulk.SiO2[matches], bins...)
+        i = findmax(n)[2]                                   # Index of largest bin
+        s = step(c)/2                                       # Half-step to get bin edges
+        tᵢ = @. c[i]-s <= bulk.SiO2[matches] <= c[i]+s      # Filter for samples in that bin
+        ind = matches[tᵢ]                                   # Indices of the bin
+
+        j, f = modal(ind)                                   # Value and frequency of modal index
+        j₁, f₁ = modal(matches)                             # Value and frequency of modal sample
+
+        @info """Frequency of single sample ($(geochemcopy[samp])) in:
+        Modal bin: $(round(f/length(ind)*100, sigdigits=3))% \t i = $j
+        All matches: $(round(f₁/length(matches)*100, sigdigits=3))% \t i = $j₁
+
+        Age: $(bulk.Age[j])
+        Lat, Lon: $(bulk.Latitude[j]), $(bulk.Longitude[j])
+        SiO₂: $(round(bulk.SiO2[j], sigdigits=3))%
+
+        Name: $(bulktext.Rock_Name[j])
+        Type: $(bulktext.Type[j])
+        Material: $(bulktext.Material[j])
+        """
     end
-
-    # Plot results
-    bins = (0, 100, 100)
-
-    c, n = bincounts(bulk.SiO2[matches], bins...)
-    n = float(n) ./ nansum(float(n) .* step(c))
-    SiO2ₕ = plot(c, n, seriestype=:bar, framestyle=:box, label="", ylabel="Weight", 
-        xlabel="SiO2 [wt.%]", ylims=(0, round(maximum(n), digits=2)+0.01) 
-    )
-    display(SiO2ₕ)
-
-    # c, n = bincounts(bulk.CaO[matches], bins...)
-    # n = float(n) ./ nansum(float(n) .* step(c))
-    # CaOₕ = plot(c, n, seriestype=:bar, framestyle=:box, label="", 
-    #     xlabel="CaO [wt.%]", ylims=(0, round(maximum(n), digits=2)+0.01) 
-    # )
-
-    # c, n = bincounts(bulk.CaCO3[matches], bins...)
-    # n = float(n) ./ nansum(float(n) .* step(c))
-    # CaCO3ₕ = plot(c, n, seriestype=:bar, framestyle=:box, label="",
-    #     xlabel="CaCO₃ [wt.%]", ylims=(0, round(maximum(n), digits=2)+0.01) 
-    # )
-
-    # h = plot(SiO2ₕ, CaOₕ, CaCO3ₕ, layout=(1, 3), size=(1800, 400),
-    #     bottom_margin=(50, :px), left_margin=(50, :px)
-    # )
-    # display(h)
-
-    # How many matches are the same sample?
-    c, n = bincounts(bulk.SiO2[matches], bins...)
-    i = findmax(n)[2]                                   # Index of largest bin
-    s = step(c)/2                                       # Half-step to get bin edges
-    tᵢ = @. c[i]-s <= bulk.SiO2[matches] <= c[i]+s      # Filter for samples in that bin
-    ind = matches[tᵢ]                                   # Indices of the bin
-
-    j, f = modal(ind)                                   # Value and frequency of modal index
-    j₁, f₁ = modal(matches)                             # Value and frequency of modal sample
-
-    @info """ Frequency of single sample in:
-    Modal bin: $(round(f/length(ind)*100, sigdigits=3))%
-    All matches: $(round(f₁/length(matches)*100, sigdigits=3))%
-    """
-
 
 ## --- Find matching EarthChem sample for each Macrostrat sample
     # As part of this process, we'll need to assume the geochemistry of the Macrostrat 
@@ -340,7 +356,7 @@
     matches = zeros(Int64, length(macro_cats.sed))
 
     @info "Starting sample matching $(Dates.format(now(), "HH:MM"))"
-    p = Progress(length(matches)÷10, desc="Matching samples...")
+    p = Progress(length(matches), desc="Matching samples...")
     @timev for i in eachindex(matches)
         type = sampletypes[i]
         name = samplenames[i]
@@ -349,7 +365,7 @@
             continue
         end
 
-        # Pick a random sample to act as the geochemistry for that sample:
+        # Pick a random sample to act as the geochemistry for that sample
         randsample = rand(bulk_idxs[bulk_lookup[name]])
         
         geochemdata = geochem_lookup[name]
@@ -390,7 +406,7 @@
             EC.sampleidx
         )
 
-        i%10==0 && next!(p)
+        next!(p)
     end
 
     # Write data to a file

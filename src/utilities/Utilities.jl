@@ -699,27 +699,28 @@
         ll_total = Array{Float64}(undef, npoints, 1)
 
         # Replace missing values: this will penalize but not exclude missing data
-        @inbounds for i in 1:npoints
-            if isnan(bulkage[i])
-                bulkage[i] = ifelse(sampleage < 1900, 3800, 0)
-            end
+        # @inbounds for i in 1:npoints
+        #     if isnan(bulkage[i])
+        #         bulkage[i] = ifelse(sampleage < 1900, 3800, 0)
+        #     end
 
-            # Assume if one coordinate is missing, so is the other one
-            if isnan(bulklat[i])
-                bulklat[i] = -samplelat
-                bulklon[i] = samplelon + 180
-            end
-        end
+        #     # Assume if one coordinate is missing, so is the other one
+        #     if isnan(bulklat[i])
+        #         bulklat[i] = -samplelat
+        #         bulklon[i] = samplelon + 180
+        #     end
+        # end
 
-        @turbo for i in 1:npoints
-            # Age (σ = 38 Ma)
-            ll_age[i] = -((bulkage[i] - sampleage)^2)/(38^2)
+        # @turbo for i in 1:npoints
+        #     # Age (σ = 38 Ma)
+        #     ll_age[i] = -((bulkage[i] - sampleage)^2)/(38^2)
 
-            # Distance (σ = 1.8 arc degrees)
-            ll_dist[i] = -((haversine(samplelat, samplelon, bulklat[i], bulklon[i]))^2)/(1.8^2)
-        end
+        #     # Distance (σ = 1.8 arc degrees)
+        #     ll_dist[i] = -((haversine(samplelat, samplelon, bulklat[i], bulklon[i]))^2)/(1.8^2)
+        # end
 
-        @. ll_total = ll_age + ll_dist
+        # @. ll_total = ll_age + ll_dist
+        ll_total .= 0
         
         # Geochemical log-likelihoods
         for elem in eachindex(bulkgeochem)

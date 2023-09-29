@@ -282,7 +282,7 @@
 
             # Match
             matches[i] = likelihood(EC.bulkage, macrostrat.age[i], EC.bulklat, EC.bulklon, 
-                macrostrat.rocklat[i], macrostrat.rocklon[i], bulkgeochem, geochemdata, 
+                macrostrat.rocklat[filter[i]], macrostrat.rocklon[filter[i]], bulkgeochem, geochemdata, 
                 EC.sampleidx
             )
 
@@ -352,7 +352,7 @@
 
         --- --- --- --- ---
         Geochemistry [wt.%] for modal bin, modal sample:
-        
+
         $(join(geochemcopy, " \t "))
         $(join(majel, " \t "))
         $(join(majel₁, " \t "))

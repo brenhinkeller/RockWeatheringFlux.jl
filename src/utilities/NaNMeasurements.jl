@@ -108,7 +108,7 @@ end
 
 """
 ```julia
-    zeronan!(A::AbstractArray{Measurement{Float64}}, allnans=true)
+zeronan!(A::AbstractArray{Measurement{Float64}}, allnans=true)
 ```
 
 Replace all `NaN`s in A with zeros of the same type.
@@ -147,6 +147,52 @@ function NaNStatistics.zeronan!(A::AbstractArray{Measurement{Float64}}, allnans:
         notnan = Aᵢ.val==Aᵢ.val && Aᵢ.err==Aᵢ.err
         if !notnan
             A[i] = Aᵢ.val*(Aᵢ.val==Aᵢ.val) ± Aᵢ.err*(Aᵢ.err==Aᵢ.err)
+        end
+    end
+    return A
+end
+
+"""
+```julia
+zeronan!(A)
+```
+
+Variant of `zeronan!` that returns a copy of `A` with all `NaN`s replace with zeros,
+leaving `A` unmodified.
+"""
+function zeronan(A::AbstractArray{T}) where T
+    out = similar(A)
+    ∅ = zero(T)
+    @turbo for i ∈ eachindex(A)
+        Aᵢ = A[i]
+        out[i] = ifelse(Aᵢ==Aᵢ, Aᵢ, ∅)
+    end
+    return out
+end
+
+"""
+```julia
+onenan!(A)
+```
+Replace all `NaN`s in A with ones of the same type.
+"""
+function onenan!(A::StridedArray{T}) where T<:Number
+    # TO DO: modified from T<:PrimitiveNumber because that won't compile?
+    # How does NaNStatistics compile / what am I missing?
+    ∅ = one(T)
+    @turbo for i ∈ eachindex(A)
+        Aᵢ = A[i]
+        A[i] = ifelse(Aᵢ==Aᵢ, Aᵢ, ∅)
+    end
+    return A
+end
+
+function onenan!(A::AbstractArray{T}) where T
+    ∅ = one(T)
+    @inbounds for i ∈ eachindex(A)
+        Aᵢ = A[i]
+        if isnan(Aᵢ)
+            A[i] = ∅
         end
     end
     return A

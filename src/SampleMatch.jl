@@ -326,20 +326,40 @@
         j, f = modal(ind)                                   # Value and frequency of modal index
         j₁, f₁ = modal(matches)                             # Value and frequency of modal sample
 
+        # Major element composition of modal indices
+        majel = round.([bulkzero[i][j] for i in geochemcopy], sigdigits=2)
+        majel₁ = round.([bulkzero[i][j₁] for i in geochemcopy], sigdigits=2)
+
         @info """Frequency of single sample ($(geochemcopy[samp])) in:
         Modal bin: $(round(f/length(ind)*100, sigdigits=3))% \t i = $j
-        All matches: $(round(f₁/length(matches)*100, sigdigits=3))% \t i = $j₁
-
+        
         Age: $(bulk.Age[j])
         Lat, Lon: $(bulk.Latitude[j]), $(bulk.Longitude[j])
-        SiO₂: $(round(bulk.SiO2[j], sigdigits=3))%
 
         Name: $(bulktext.Rock_Name[j])
         Type: $(bulktext.Type[j])
         Material: $(bulktext.Material[j])
+
+        --- --- --- --- ---
+        All matches: $(round(f₁/length(matches)*100, sigdigits=3))% \t i = $j₁
+
+        Age: $(bulk.Age[j₁])
+        Lat, Lon: $(bulk.Latitude[j₁]), $(bulk.Longitude[j₁])
+
+        Name: $(bulktext.Rock_Name[j₁])
+        Type: $(bulktext.Type[j₁])
+        Material: $(bulktext.Material[j₁])
+
+        --- --- --- --- ---
+        Geochemistry [wt.%] for modal bin, modal sample:
+        
+        $(join(geochemcopy, " \t "))
+        $(join(majel, " \t "))
+        $(join(majel₁, " \t "))
         """
     end
 
+    
 ## --- Find matching EarthChem sample for each Macrostrat sample
     # As part of this process, we'll need to assume the geochemistry of the Macrostrat 
     # sample.

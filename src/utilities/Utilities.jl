@@ -713,16 +713,16 @@
 
         @turbo for i in 1:npoints
             # Age (σ = 38 Ma)
-            ll_age[i] = -((bulkage[i] - sampleage)^2)/(38^2)
+            # ll_age[i] = -((bulkage[i] - sampleage)^2)/(38^2)
 
             # Distance (σ = 1.8 arc degrees)
             ll_dist[i] = -((haversine(samplelat, samplelon, bulklat[i], bulklon[i]))^2)/(1.8^2)
         end
 
-        @. ll_total = ll_age + ll_dist
-        # ll_total .= 0
+        # @. ll_total = ll_age + ll_dist
+        ll_total .= ll_dist
         
-        # Geochemical log-likelihoods
+        # # Geochemical log-likelihoods
         # for elem in eachindex(bulkgeochem)
         #     @turbo for i in 1:npoints
         #         ll_total[i] += -((bulkgeochem[elem][i] - samplegeochem[elem].m)^2)/(samplegeochem[elem].e^2)

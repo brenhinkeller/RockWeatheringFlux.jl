@@ -199,4 +199,20 @@ function onenan!(A::AbstractArray{T}) where T
 end
 
 
+"""
+```julia
+nanunzero!(A, val)
+```
+
+Replace `NaN`s and zeros in `A` with a value specified by `val`.
+"""
+function nanunzero!(A::AbstractArray{T}, val)
+    @inbounds for i ∈ eachindex(A)
+        Aᵢ = A[i]
+        A[i] = ifelse(Aᵢ==Aᵢ, ifelse(Aᵢ==0.0, val, Aᵢ), val)
+    end
+    return A
+end
+
+
 ## --- End of file

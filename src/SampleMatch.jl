@@ -260,7 +260,7 @@
             name = samplenames[filter[i]]
             geochemdata = geochem_lookup[name]
             errs = NamedTuple{Tuple(geochemkeys)}(
-                zeronan!([abs(randn()*geochemdata[i].e) for i in geochemkeys])
+                [abs(randn()*geochemdata[i].e) for i in geochemkeys]
             )
 
             randsample = rand(bulk_idxs[bulk_lookup[name]])
@@ -281,10 +281,15 @@
             )
 
             # Match
-            matches[i] = likelihood(EC.bulkage, macrostrat.age[i], EC.bulklat, EC.bulklon, 
+            matches[i] = likelihood(EC.bulkage, macrostrat.age[filter[i]], EC.bulklat, EC.bulklon, 
                 macrostrat.rocklat[filter[i]], macrostrat.rocklon[filter[i]], bulkgeochem, geochemdata, 
                 EC.sampleidx
             )
+
+            #=
+            i=1
+            bulkage = EC.bulkage;sampleage = macrostrat.age[filter[i]];bulklat = EC.bulklat;bulklon = EC.bulklon;samplelat = macrostrat.rocklat[filter[i]];samplelon = macrostrat.rocklon[filter[i]];bulkgeochem = bulkgeochem;samplegeochem = geochemdata;sampleidx = EC.sampleidx;
+            =#
 
             i%10==0 && next!(p)
         end
@@ -390,7 +395,7 @@
         
         geochemdata = geochem_lookup[name]
         errs = NamedTuple{Tuple(geochemkeys)}(
-            zeronan!([abs(randn()*geochemdata[i].e) for i in geochemkeys])
+            [abs(randn()*geochemdata[i].e) for i in geochemkeys]
         )
         geochemdata = NamedTuple{Tuple(geochemkeys)}([NamedTuple{(:m, :e)}(
             tuple.((bulkzero[i][randsample]), errs[i])) for i in geochemkeys]

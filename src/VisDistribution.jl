@@ -19,8 +19,9 @@
     include("utilities/Utilities.jl")
 
     # More definitions
-    bins = (ign = (40, 80, 40), sed = (0, 100, 100), met = (25, 100, 75))
+    bins = (ign = (40,80,40), sed = (0,100,100), met = (25,100,75))   # xmin, xmax, nbins
     minorsed, minorign, minormet = get_minor_types()
+    geochemkeys, = get_elements()
 
 
 ## --- [DATA] Matched EarthChem and Macrostrat samples
@@ -130,15 +131,13 @@
 
 ## --- [FN CALL] Igneous modal index and Macrostrat data
     # Igneous
-    ignbin = (40, 80, 40)
-    iᵢ = sameindex(:ign, macro_cats, bulk, bulktext, bulkidx[t], bins=ignbin, hist=:off)
+    iᵢ = sameindex(bulkidx[t][macro_cats.ign], geochemkeys, bins.ign, bulk, bulktext)
+    iᵥ = sameindex(bulkidx[t][macro_cats.volc], geochemkeys, bins.ign, bulk, bulktext)
+    iₚ = sameindex(bulkidx[t][macro_cats.plut], geochemkeys, bins.ign, bulk, bulktext)
+
     # get_matched_samples(iᵢ, bulkidx[t], macrostrat, filter=macro_cats.ign, desc="Igneous")
-
-    iᵥ = sameindex(:volc, macro_cats, bulk, bulktext, bulkidx[t], bins=ignbin, hist=:off)
-    # iᵢ != iᵥ && get_matched_samples(iᵥ, bulkidx[t], macrostrat, filter=macro_cats.volc, desc="Volcanic")
-
-    iₚ = sameindex(:plut, macro_cats, bulk, bulktext, bulkidx[t], bins=ignbin, hist=:off)
-    # iᵢ != iₚ && get_matched_samples(iₚ, bulkidx[t], macrostrat, filter=macro_cats.plut, desc="Plutonic")
+    # get_matched_samples(iᵥ, bulkidx[t], macrostrat, filter=macro_cats.volc, desc="Volcanic")
+    # get_matched_samples(iₚ, bulkidx[t], macrostrat, filter=macro_cats.plut, desc="Plutonic")
 
     # Query Macrostrat at that location:
     # https://macrostrat.org/api/mobile/map_query?lat=LAT&lng=LON&z=11
@@ -146,18 +145,17 @@
 
 ## --- [FN CALL] Sedimentary + metamorphic modal index
     # Sedimentary
-    sedbin = (0, 100, 100)
-    iₛ = sameindex(:sed, macro_cats, bulk, bulktext, bulkidx[t], bins=sedbin, hist=:off)     # All sed
+    iₛ = sameindex(bulkidx[t][macro_cats.sed], geochemkeys, bins.sed, bulk, bulktext)
     # get_matched_samples(iₛ, bulkidx[t], macrostrat, filter=macro_cats.sed, desc="Sedimentary")
 
-    sameindex(:shale, macro_cats, bulk, bulktext, bulkidx[t], bins=sedbin, hist=:off)
-    sameindex(:carb, macro_cats, bulk, bulktext, bulkidx[t], bins=sedbin, hist=:off)
-    sameindex(:chert, macro_cats, bulk, bulktext, bulkidx[t], bins=sedbin, hist=:off)
-    sameindex(:evaporite, macro_cats, bulk, bulktext, bulkidx[t], bins=sedbin, hist=:off)
-    sameindex(:coal, macro_cats, bulk, bulktext, bulkidx[t], bins=sedbin, hist=:off)
+    sameindex(bulkidx[t][macro_cats.shale], geochemkeys, bins.sed, bulk, bulktext)
+    sameindex(bulkidx[t][macro_cats.carb], geochemkeys, bins.sed, bulk, bulktext)
+    sameindex(bulkidx[t][macro_cats.chert], geochemkeys, bins.sed, bulk, bulktext)
+    sameindex(bulkidx[t][macro_cats.evaporite], geochemkeys, bins.sed, bulk, bulktext)
+    sameindex(bulkidx[t][macro_cats.coal], geochemkeys, bins.sed, bulk, bulktext)
 
-    metbin = (0, 100, 100)
-    iₘ = sameindex(:met, macro_cats, bulk, bulktext, bulkidx[t], bins=metbin, hist=:off)     # All met
+    # Metamorphic
+    sameindex(bulkidx[t][macro_cats.met], geochemkeys, bins.met, bulk, bulktext)
     
 
 ## --- Igneous SiO₂ by rock age
@@ -233,6 +231,7 @@
 
     #  Preallocate
     plts = Array{Plots.Plot{Plots.GRBackend}}(undef, length(macro_cats) - 1)
+    bsrbins = (sed=(0,100,200), ign=(40,80,80), met=(25,100,150))   # min, max, nbins
 
     # Create all plots
     rocks = collect(keys(macro_cats))
@@ -252,7 +251,7 @@
         # Get silica data out of the resampled dataset
         silica = read(fid["vars"]["data"]["$r"]["data"])[:,SiO₂ᵢ]
 
-        c, n = bincounts(silica, bins[type]...)
+        c, n = bincounts(silica, bsrbins[type]...)
         n = float(n) ./ nansum(float(n) .* step(c))
         h = plot(c, n, seriestype=:bar, framestyle=:box, color=c_rs, linecolor=c_rs,
             label="$(string(r)); n = $(length(silica))",      
@@ -267,6 +266,46 @@
     h = plot(plts..., layout=(5,3), size=(2000, 2000))
     display(h)
     savefig(h, "results/figures/resampled_distributions.png")
+
+
+## --- Major element geochemistry of a given type
+    # TEMPORARY: assumes stuff has already been loaded in SampleMatch.jl
+    # Also working on the looping stuff, so variable names will need to be changed if this 
+    # sticks around
+
+    # https://stackoverflow.com/questions/49168872/increase-space-between-subplots-in-plots-jl
+
+    # type = :shale
+    # nplots = length(geochemcopy)
+    # plts = Array{Plots.Plot{Plots.GRBackend}}(undef, nplots)
+
+    # for i in eachindex(geochemcopy)
+    #     c, n = bincounts(bulk[geochemcopy[i]][bulk_cats[type]], 0, 100, 100)
+    #     n = float(n) ./ nansum(float(n) .* step(c))
+    #     h = plot(c, n, seriestype=:bar, framestyle=:box, color=:black, linecolor=:black,
+    #         label="", ylabel="Weight", xlabel="$(geochemcopy[i]) [wt.%]",
+    #         ylims=(0, round(maximum(n), digits=2)+0.01) 
+    #     )
+
+    #     plts[i] = h
+    # end
+
+    # h = plot(plts..., layout=(nplots, 1), size=(700, nplots*450), 
+    #     bottom_margin=(25, :px), left_margin=(150, :px)
+    # )
+    # display(h)
+
+
+## --- Distance from matched sample (histogram)
+    # TEMPORARY: assumes stuff has already been loaded in SampleMatch.jl
+    # dist = haversine.(macrostrat.rocklat[filter], macrostrat.rocklon[filter],
+    #     bulk.Latitude[matches], bulk.Longitude[matches]
+    # )
+    # c, n = bincounts(dist, 0, 180, 90)
+    # h = plot(c, n, seriestype=:bar, framestyle=:box,
+    #     label="", ylabel="Count", xlabel="Distance [arc degrees]",
+    #     ylims=(0, maximum(n)+50) 
+    # )
 
 
 ## --- [DATA] Composition of eroded material

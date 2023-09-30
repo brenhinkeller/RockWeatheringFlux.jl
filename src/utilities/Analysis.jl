@@ -29,90 +29,119 @@
 
     """
     ```julia
-    sameindex(type::Symbol, macro_cats, bulk, bulkidx; hist=:on)
+    sameindex(bulkidx::AbstractArray, geochemkeys::AbstractArray{Symbol}, bins::Tuple,
+        bulk, bulktext
+    )
     ```
 
-    Count how many samples in the modal bin are from the same EarthChem sample. Optionally
-    plot a histogram of the frequency of all selected indices. Print information to terminal
-    and return the index of the EarthChem sample.
+    Count how many matched samples are the same EarthChem sample, in both the modal silica
+    bin and the entire set of matched indices.
 
-    ### Requirements and Assumptions
-      * Data in `bulk` are unmatched samples in the original order
-      * Indices in `bulkidx` are filtered so there are no indices of 0
+    Count how many samples in the modal bin are from the same EarthChem sample.
+    
+    Print information to terminal and return the index of the sample.
+
+    ### Arguments
+
+        \tbulkidx
+
+    Matched indices to test.
+
+        \tgeochemkeys
+
+    Elements to be retrived from EarthChem for modal indices.
+
+        \tbins
+
+    Bins (xmin, xmax, nbins) for `bincounts`. Required to determine modal bin.
+
+        \tbulk
+
+    EarthChem samples; as originally loaded for the sample matching algorithm.
+
+        \tbulktext
+
+    EarthChem sample metadata.    
 
     # Example
     ```julia-repl
-    julia> iᵢ = sameindex(:ign, macro_cats, bulk, bulktext, bulkidx[t], bins=ignbin, hist=:off);
-    ┌ Info: Type: ign
-    │ Modal bin: 11 (50.0-51.0 wt.% SiO₂)
-    │ Modal index count: 356 of 3746 (9.5%)
-    │ Index: 413791
+    julia> sample_cats = match_rocktype(string.(sampletypes));
+
+    julia> j = sameindex(matches[sample_cats.shale], geochemkeys, (0,100,100), bulk, bulktext)
+    ┌ Info: Frequency of the modal sample in:
+    │ Modal bin: 28.6%       i = 74106
     │ 
-    │ This sample represents 0.88% of all ign matches.
-    │ ---
-    │ Sample information:
+    │ Age: 385.5
+    │ Lat, Lon: 69.0, 89.0
     │ 
-    │ Age: NaN
-    │ Lat, Lon: 53.94, -148.53
-    │ SiO₂: 50.98%
+    │ Name: argillite
+    │ Type: 
+    │ Material: sedimentary
     │ 
-    │ Name: basalt
-    │ Type: volcanic
-    └ Material: igneous
+    │ --- --- --- --- ---
+    │ All matches: 0.85%     i = 142971
+    │ 
+    │ Age: 1.305
+    │ Lat, Lon: 43.0, 11.0
+    │ 
+    │ Name: shale
+    │ Type: 
+    │ Material: sedimentary
+    │ 
+    │ --- --- --- --- ---
+    │ Geochemistry [wt.%] for modal sample in:
+    │ 
+    │             SiO2       Al2O3   FeOT    TiO2    MgO     CaO     Na2O    K2O     H2O     CO2
+    │ Modal bin:   66.0      21.0    4.2     1.5     2.7     0.24    0.89    3.3     0.0     NaN
+    └ All samples: 62.0      21.0    6.1     0.87    2.1     4.5     0.75    2.9     0.0     NaN
     ```
     """
-    function sameindex(type::Symbol, macro_cats, bulk, bulktext, bulkidx; 
-        bins, hist=:on)
+    function sameindex(bulkidx::AbstractArray, geochemkeys::AbstractArray{Symbol}, bins::Tuple,
+        bulk, bulktext
+        )
+        # Interpret user input
+        t = @. bulkidx != 0
+        bulkidx = bulkidx[t]
 
-        nzero = @. bulkidx == 0
-        @assert count(nzero) == 0 "Filter bulkidx to remove indices of 0"
+        # Modal index of modal bin, and of all samples
+        c, n, = bincounts(bulk.SiO2[bulkidx], bins...,)     # Get bins
+        i = findmax(n)[2]                                   # Index of largest bin
+        s = step(c)/2                                       # Dist. bin centers to edges
+        tᵢ = @. c[i]-s <= bulk.SiO2[bulkidx] <= c[i]+s      # Filter samples in that bin
+        ind = bulkidx[tᵢ]                                   # Indices of the bin
+        j, f = modal(ind)                                   # Value, frequency of modal index
+        j₁, f₁ = modal(bulkidx)                             # Modal index of all samples
 
-        filter = macro_cats[type]
-
-        c, n, = bincounts(bulk.SiO2[bulkidx][filter], bins...,)
-
-        # Find modal bin and all the points in it
-        i = findmax(n)[2]
-        s = step(c)/2
-        tᵢ = @. c[i]-s <= bulk.SiO2[bulkidx][filter] <= c[i]+s
-
-        # Find indices of those points, and get modal data
-        ind = bulkidx[filter][tᵢ]
-        j, f = modal(ind)
-
-        # What percent of total indices are the modal index?
-        totalcount = count(==(j), bulkidx[filter])
-        totalindex = length(bulkidx[filter])
+        # Major element composition of modal indices
+        majel = round.([bulk[i][j] for i in geochemkeys], sigdigits=2)
+        majel₁ = round.([bulk[i][j₁] for i in geochemkeys], sigdigits=2)
 
         # Terminal printout
-        @info """
-        Type: $type
-        Modal bin: $i ($(c[i]-s)-$(c[i]+s) wt.% SiO₂)
-        Modal index count: $f of $(length(ind)) ($(round(f/length(ind)*100, sigdigits=3))%)
-        Index: $(j)
-
-        This sample represents $(round(totalcount/totalindex*100, digits=3))% of all $type matches.
-        ---
-        Sample information:
-
-        Age: $(bulk.Age[j])
+        @info """Frequency of the modal sample in:
+        Modal bin: $(round(f/length(ind)*100, sigdigits=3))% \t i = $j
+        
+        Age [Ma]: $(bulk.Age[j])
         Lat, Lon: $(bulk.Latitude[j]), $(bulk.Longitude[j])
-        SiO₂: $(round(bulk.SiO2[j], sigdigits=3))%
-
-        Name: $(bulktext.Rock_Name[j])
-        Type: $(bulktext.Type[j])
+        Name:     $(bulktext.Rock_Name[j])
+        Type:     $(bulktext.Type[j])
         Material: $(bulktext.Material[j])
-        """
 
-        # Histogram
-        if hist==:on
-            c = sort!(unique(bulkidx[filter]))
-            n = [count(==(i), bulkidx[filter]) for i in c]
-            h = plot(c, n, seriestype=:bar, label="$type", xlabel="Index [all bins]", 
-                ylabel="Frequency", framestyle=:box, ylims=(0, maximum(n)+100), color=:black,
-            )
-            display(h)
-        end
+        --- --- --- --- ---
+        All matches: $(round(f₁/length(matches)*100, sigdigits=3))% \t i = $j₁
+
+        Age [Ma]: $(bulk.Age[j₁])
+        Lat, Lon: $(bulk.Latitude[j₁]), $(bulk.Longitude[j₁])
+        Name:     $(bulktext.Rock_Name[j₁])
+        Type:     $(bulktext.Type[j₁])
+        Material: $(bulktext.Material[j₁])
+
+        --- --- --- --- ---
+        Geochemistry [wt.%] for modal sample in:
+
+                     $(join(geochemkeys, " \t "))
+        Modal bin:   $(join(majel, " \t "))
+        All samples: $(join(majel₁, " \t "))
+        """
 
         return j
     end

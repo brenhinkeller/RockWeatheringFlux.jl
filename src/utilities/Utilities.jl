@@ -729,6 +729,12 @@
         #     end
         # end
 
+        # Rescale total likelihood so the most negative value is -745
+        # This is the smallest x such that exp(x) > 0 (considering rounding)
+        # TO DO: no magic numbers? BigFloat?
+        ll_scale = -minimum(ll_total)/745
+        ll_total ./= ll_scale
+
         matched_sample = rand_prop_liklihood(ll_total)
         return sampleidx[matched_sample]
     end

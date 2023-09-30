@@ -57,6 +57,14 @@
     # header = ["avg_slope" "err"]
     # writedlm("output/basin_srtm15plus_avg_maxslope.tsv", vcat(header, hcat(avgslope, stdslope)))
 
+    # Save basin polygon lat / lon coordinates
+    # fid = h5open("output/basin_coordinates.h5", "w")
+    # g = create_group(fid, "vars")
+    # for i in eachindex(basin_polygon_lat, basin_polygon_lon)
+    #     g[lpad(i, 4, "0")] = hcat(basin_polygon_lat[i], basin_polygon_lon[i])
+    # end
+    # close(fid)
+
     # # File names:
     # #     basin_srtm15plus_avg_maxslope -> average of maximum slopes of each point in basin
     # #     basin_srtm15plus_aveslope     -> average of average slopes of each point in the basin

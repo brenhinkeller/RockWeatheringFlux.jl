@@ -108,35 +108,53 @@
     # npoints = retrive_file["npoints"]
 
 
-## --- Parse Macrostrat responses, including rock type
-    @info "Starting to parse data: $(Dates.Date(now())) $(Dates.format(now(), "HH:MM"))"
+## --- Parse Macrostrat responses and write data to a file
+    @info "Parsing data: $(Dates.Date(now())) $(Dates.format(now(), "HH:MM"))"
     parsed = parse_macrostrat_responses(responses, npoints)
 
-    types = Array{String}(undef, npoints, 1)
-    macro_cats = match_rocktype(parsed.rocktype, parsed.rockname, parsed.rockdescrip, 
-        major=false, source=:macrostrat)
-    for i in eachindex(types)
-        types[i] = string(get_type(macro_cats, i))
-    end
-
-
-## --- Write data to .h5 file
+    # Write data to file
     @info "Writing to file: $(Dates.Date(now())) $(Dates.format(now(), "HH:MM"))"
     fid = h5open("output/$savefilename.h5", "w")
-        fid["rocklat"] = rocklat
-        fid["rocklon"] = rocklon
-        fid["elevation"] = elevations
-        fid["agemax"] = parsed.agemax
-        fid["agemin"] = parsed.agemin
-        fid["age"] = parsed.age
-        fid["rocktype"] = parsed.rocktype
-        fid["rockname"] = parsed.rockname
-        fid["rockdescrip"] = parsed.rockdescrip
-        fid["rockstratname"] = parsed.rockstratname
-        fid["rockcomments"] = parsed.rockcomments
-        fid["reference"] = parsed.refstrings
-        fid["typecategory"] = types
-        fid["npoints"] = npoints
+    g = create_group(fid, "vars")
+        g["rocklat"] = rocklat
+        g["rocklon"] = rocklon
+        g["elevation"] = elevations
+        g["agemax"] = parsed.agemax
+        g["agemin"] = parsed.agemin
+        g["age"] = parsed.age
+        g["rocktype"] = parsed.rocktype
+        g["rockname"] = parsed.rockname
+        g["rockdescrip"] = parsed.rockdescrip
+        g["rockstratname"] = parsed.rockstratname
+        g["rockcomments"] = parsed.rockcomments
+        g["reference"] = parsed.refstrings
+        g["npoints"] = npoints
+
+    bulktypes = create_group(fid, "type")
+        # Rock types
+        macro_cats = match_rocktype(parsed.rocktype, parsed.rockname, 
+            parsed.rockdescrip, unmultimatch=false, inclusive=false, source=:macrostrat
+        )
+        a = Array{Int64}(undef, length(macro_cats[1]), length(macro_cats))
+        for i in eachindex(keys(macro_cats))
+            for j in eachindex(macro_cats[i])
+                a[j,i] = ifelse(macro_cats[i][j], 1, 0)
+            end
+        end
+        bulktypes["macro_cats"] = a
+        bulktypes["macro_cats_head"] = string.(collect(keys(macro_cats))) 
+
+        # Rock names
+        name_cats = match_rockname(parsed.rocktype, parsed.rockname, parsed.rockdescrip)
+        a = Array{Int64}(undef, length(name_cats[1]), length(name_cats))
+        for i in eachindex(keys(name_cats))
+            for j in eachindex(name_cats[i])
+                a[j,i] = ifelse(name_cats[i][j], 1, 0)
+            end
+        end
+        bulktypes["name_cats"] = a
+        bulktypes["name_cats_head"] = string.(collect(keys(name_cats)))
+    
     close(fid)
 
     @info "Data saved successfully! End of process."

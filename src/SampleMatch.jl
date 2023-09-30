@@ -241,120 +241,6 @@
     bulkzero = NamedTuple{Tuple(geochemkeys)}([zeronan!(bulkzero[i]) for i in geochemkeys])
 
 
-## --- TEMPORARY: test matching algorithm for a single type only
-    # Runs faster, so easier to mess with
-    using Plots
-    include("utilities/Utilities.jl")
-
-    type = :shale
-    filter = findall(x -> x==type, sampletypes)
-
-    matches = zeros(Int64, length(filter))
-    p = Progress(length(matches)÷10, desc="Matching samples...")
-    for i in eachindex(matches)
-        # Pick a random sample as the assumed geochemistry
-        name = samplenames[filter[i]]
-        geochemdata = geochem_lookup[name]
-        errs = NamedTuple{Tuple(geochemkeys)}(
-            nanunzero!([abs(randn()*geochemdata[i].e) for i in geochemkeys], 1.0)
-        )
-
-        randsample = rand(bulk_idxs[bulk_lookup[name]])
-        geochemdata = NamedTuple{Tuple(geochemkeys)}([NamedTuple{(:m, :e)}(
-            tuple.((bulkzero[i][randsample]), errs[i])) for i in geochemkeys]
-        )
-
-        # Get the EarthChem data
-        bulksamples = bulk_cats[type]
-        EC = (
-            bulklat = bulk.Latitude[bulksamples],            # EarthChem latitudes
-            bulklon = bulk.Longitude[bulksamples],           # EarthChem longitudes
-            bulkage = bulk.Age[bulksamples],                 # EarthChem age
-            sampleidx = bulk_idxs[bulksamples],              # Indices of EarthChem samples
-        )
-        bulkgeochem = NamedTuple{Tuple(geochemkeys)}([bulkzero[i][bulksamples] 
-            for i in geochemkeys]
-        )
-
-        # Match
-        matches[i] = likelihood(EC.bulkage, macrostrat.age[filter[i]], EC.bulklat, EC.bulklon, 
-            macrostrat.rocklat[filter[i]], macrostrat.rocklon[filter[i]], bulkgeochem, geochemdata, 
-            EC.sampleidx
-        )
-
-        i%10==0 && next!(p)
-    end
-
-    # Plot results
-    bins = (0, 100, 100)
-
-    c, n = bincounts(bulk.SiO2[matches], bins...)
-    n = float(n) ./ nansum(float(n) .* step(c))
-    SiO2ₕ = plot(c, n, seriestype=:bar, framestyle=:box, label="", ylabel="Weight", 
-        xlabel="SiO2 [wt.%]", ylims=(0, round(maximum(n), digits=2)+0.01) 
-    )
-    display(SiO2ₕ)
-
-    # c, n = bincounts(bulk.CaO[matches], bins...)
-    # n = float(n) ./ nansum(float(n) .* step(c))
-    # CaOₕ = plot(c, n, seriestype=:bar, framestyle=:box, label="", 
-    #     xlabel="CaO [wt.%]", ylims=(0, round(maximum(n), digits=2)+0.01) 
-    # )
-
-    # c, n = bincounts(bulk.CaCO3[matches], bins...)
-    # n = float(n) ./ nansum(float(n) .* step(c))
-    # CaCO3ₕ = plot(c, n, seriestype=:bar, framestyle=:box, label="",
-    #     xlabel="CaCO₃ [wt.%]", ylims=(0, round(maximum(n), digits=2)+0.01) 
-    # )
-
-    # h = plot(SiO2ₕ, CaOₕ, CaCO3ₕ, layout=(1, 3), size=(1800, 400),
-    #     bottom_margin=(50, :px), left_margin=(50, :px)
-    # )
-    # display(h)
-
-    # How many matches are the same sample?
-    c, n = bincounts(bulk.SiO2[matches], bins...)
-    i = findmax(n)[2]                                   # Index of largest bin
-    s = step(c)/2                                       # Half-step to get bin edges
-    tᵢ = @. c[i]-s <= bulk.SiO2[matches] <= c[i]+s      # Filter for samples in that bin
-    ind = matches[tᵢ]                                   # Indices of the bin
-
-    j, f = modal(ind)                                   # Value and frequency of modal index
-    j₁, f₁ = modal(matches)                             # Value and frequency of modal sample
-
-    # Major element composition of modal indices
-    majel = round.([bulkzero[i][j] for i in geochemkeys], sigdigits=2)
-    majel₁ = round.([bulkzero[i][j₁] for i in geochemkeys], sigdigits=2)
-
-    @info """Frequency of single sample in:
-    Modal bin: $(round(f/length(ind)*100, sigdigits=3))% \t i = $j
-    
-    Age: $(bulk.Age[j])
-    Lat, Lon: $(bulk.Latitude[j]), $(bulk.Longitude[j])
-
-    Name: $(bulktext.Rock_Name[j])
-    Type: $(bulktext.Type[j])
-    Material: $(bulktext.Material[j])
-
-    --- --- --- --- ---
-    All matches: $(round(f₁/length(matches)*100, sigdigits=3))% \t i = $j₁
-
-    Age: $(bulk.Age[j₁])
-    Lat, Lon: $(bulk.Latitude[j₁]), $(bulk.Longitude[j₁])
-
-    Name: $(bulktext.Rock_Name[j₁])
-    Type: $(bulktext.Type[j₁])
-    Material: $(bulktext.Material[j₁])
-
-    --- --- --- --- ---
-    Geochemistry [wt.%] for modal bin, modal sample:
-
-    $(join(geochemkeys, " \t "))
-    $(join(majel, " \t "))
-    $(join(majel₁, " \t "))
-    """
-
-    
 ## --- Find matching EarthChem sample for each Macrostrat sample
     # As part of this process, we'll need to assume the geochemistry of the Macrostrat 
     # sample.
@@ -367,6 +253,10 @@
     # with a mean and standard deviation equal to the mean and standard deviation for that
     # major element within the selected rock name.
     
+    # TEMPORARY: ensures that any changes get re-compiled, allow restriction to one type
+    include("utilities/Utilities.jl")
+    target = :shale
+
     # Preallocate
     matches = zeros(Int64, length(macro_cats.sed))
 
@@ -374,21 +264,27 @@
     p = Progress(length(matches), desc="Matching samples...")
     @timev for i in eachindex(matches)
         type = sampletypes[i]
-        name = samplenames[i]
-        if type==:none
+        # if type == :none
+        #     next!(p)
+        #     continue
+        # end
+
+        # TEMPORARY: restrict matches to one type
+        if type != target
             next!(p)
             continue
         end
 
-        # Pick a random sample to act as the geochemistry for that sample
+        # Pick random EarthChem sample as the assumed geochem of the Macrostrat sample
+        # TO DO: replace error with 1.0 or randn() ?
+        name = samplenames[i]
         randsample = rand(bulk_idxs[bulk_lookup[name]])
-        
         geochemdata = geochem_lookup[name]
         errs = NamedTuple{Tuple(geochemkeys)}(
-            [abs(randn()*geochemdata[i].e) for i in geochemkeys]
+            nanunzero!([abs(randn()*geochemdata[j].e) for j in geochemkeys], 1.0)
         )
         geochemdata = NamedTuple{Tuple(geochemkeys)}([NamedTuple{(:m, :e)}(
-            tuple.((bulkzero[i][randsample]), errs[i])) for i in geochemkeys]
+            tuple.((bulkzero[j][randsample]), errs[j])) for j in geochemkeys]
         )
 
         # Get EarthChem data. EarthChem major types are not inclusive of minor types, but
@@ -409,8 +305,6 @@
             bulkage = bulk.Age[bulksamples],                 # EarthChem age
             sampleidx = bulk_idxs[bulksamples],              # Indices of EarthChem samples
         )
-
-        # Get all EarthChem samples for that rock type
         bulkgeochem = NamedTuple{Tuple(geochemkeys)}([bulkzero[i][bulksamples] 
             for i in geochemkeys]
         )
@@ -424,16 +318,61 @@
         next!(p)
     end
 
-    # Write data to a file
-    writedlm("$matchedbulk_io", [matches string.(sampletypes)], '\t')
+    # TEMPORARY: Commented out while running tests
+    # # Write data to a file
+    # writedlm("$matchedbulk_io", [matches string.(sampletypes)], '\t')
 
-    # End timer
-    stop = now()
-    @info """
-    Stop: $(Dates.Date(stop)) $(Dates.format(stop, "HH:MM")).
+    # # End timer
+    # stop = now()
+    # @info """
+    # Stop: $(Dates.Date(stop)) $(Dates.format(stop, "HH:MM")).
 
-    Total runtime: $(canonicalize(round(stop - start, Dates.Minute))).
-    """
+    # Total runtime: $(canonicalize(round(stop - start, Dates.Minute))).
+    # """
+
+    # TEMPORARY: In-house visualization of results
+    # Plot target type
+    using Plots
+    t = @. (sampletypes == target) & (matches != 0)
+    c, n = bincounts(bulk.SiO2[matches[vec(t)]], 0, 100, 100)
+    n = float(n) ./ nansum(float(n) .* step(c))
+    h = plot(c, n, seriestype=:bar, framestyle=:box, label="$target", ylabel="Weight", 
+        xlabel="SiO2 [wt.%]", ylims=(0, round(maximum(n), digits=2)+0.01) 
+    )
+    display(h)
+
+    # Plot all types
+    bins = (ign = (40, 80, 40), sed = (0, 100, 100), met = (25, 100, 75))   # min, max, nbins
+    rocks = collect(keys(macro_cats))
+    s = matches .!= 0
+
+    # fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(macro_cats) - 1)
+    # for i in eachindex(rocks)
+    #     r = rocks[i]
+    #     if r == :cover
+    #         continue
+    #     elseif r == :sed || r == :ign || r == :met
+    #         type = r
+    #     else
+    #         r in minorsed && (type = :sed)
+    #         r in minorign && (type = :ign)
+    #         r in minormet && (type = :met)
+    #     end
+
+    #     c, n = bincounts(bulk.SiO2[matches[s .& macro_cats[r]]], bins[type]...)
+    #     n = float(n) ./ nansum(float(n) .* step(c))
+    #     h = plot(c, n, seriestype=:bar, framestyle=:box, color=colors[r], linecolor=colors[r],
+    #         label="$(string(r)); n = $(count(macro_cats[r]))",      
+    #         # ylabel="Weight", xlabel="SiO2 [wt.%]",
+    #         ylims=(0, round(maximum(n), digits=2)+0.01) 
+    #     )
+
+    #     fig[i] = h
+    # end
+
+    # Put into a layout
+    h = plot(fig..., layout=(5,3), size=(2000, 2000))
+    display(h)
 
 
 ## --- End of File

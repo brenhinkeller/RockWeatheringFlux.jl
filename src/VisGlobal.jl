@@ -164,6 +164,24 @@
     display(f)
     
 
+## --- TEMPORARY: distance between points and their matched sample
+    t = @. matches != 0;
+    dist = haversine.(macrostrat.rocklat[filter], macrostrat.rocklon[filter],
+        bulk.Latitude[matches[t]], bulk.Longitude[matches[t]]
+    )
+    f = Figure(resolution = (1400, 600))
+    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
+    h1 = CairoMakie.scatter!(ax, macrostrat.rocklon[filter], macrostrat.rocklat[filter], 
+        color=dist, markersize = 3, label="Macrostrat $(target)s"
+    )
+    h2 = CairoMakie.scatter!(ax, bulk.Longitude[bulk_cats[target]], bulk.Latitude[bulk_cats[target]], 
+        color=:red, markersize = 3, label="EarthChem $(target)s"
+    )
+    Colorbar(f[1, 2], h1, label = "Distance to matched point [arc-degrees]", vertical = true)
+    Legend(f[1, 3], ax)
+    display(f)
+
+
 ## --- [DATA] Slope at each point
     srtm15_slope = h5read("output/srtm15plus_maxslope.h5", "vars/slope")
     srtm15_sf = h5read("output/srtm15plus_maxslope.h5", "vars/scalefactor")

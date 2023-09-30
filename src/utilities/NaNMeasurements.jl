@@ -206,7 +206,7 @@ nanunzero!(A, val)
 
 Replace `NaN`s and zeros in `A` with a value specified by `val`.
 """
-function nanunzero!(A::AbstractArray{T}, val)
+function nanunzero!(A::AbstractArray{T}, val) where T
     @inbounds for i ∈ eachindex(A)
         Aᵢ = A[i]
         A[i] = ifelse(Aᵢ==Aᵢ, ifelse(Aᵢ==0.0, val, Aᵢ), val)

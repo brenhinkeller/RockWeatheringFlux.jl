@@ -718,7 +718,7 @@
             ll_age[i] = -((bulkage[i] - sampleage)^2)/(38^2)
 
             # Distance (σ = 1.8 arc degrees)
-            ll_dist[i] = -((haversine(samplelat, samplelon, bulklat[i], bulklon[i]))^2)/(1.8^2)
+            ll_dist[i] = -((haversine(samplelat, samplelon, bulklat[i], bulklon[i]))^2)/(18.0^2)
         end
 
         # Everyone loves addition

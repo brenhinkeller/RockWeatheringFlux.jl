@@ -147,8 +147,13 @@
     end
     for type in minormet
         macro_cats.met .&= .!macro_cats[type]
-        bulk_cats.met .&= .!bulk_cats[type]
+        bulk_cats.met .&= .!bulk_cats[type]     # Avoid metased / metaign cross contamination
     end
+
+    # Add multimatches back in to metamorphic EarthChem samples
+    bulk_cats.metased .|= bulk_cats.met
+    bulk_cats.metaign .|= bulk_cats.met
+    bulk_cats.met .|= (bulk_cats.metased .& bulk_cats.metaign)
 
 
 ## --- Get weights for weighted-random selection of rock types and names
@@ -264,10 +269,10 @@
     p = Progress(length(matches), desc="Matching samples...")
     @timev for i in eachindex(matches)
         type = sampletypes[i]
-        # if type == :none
-        #     next!(p)
-        #     continue
-        # end
+        if type == :none
+            next!(p)
+            continue
+        end
 
         # TEMPORARY: restrict matches to one type
         if type != target
@@ -287,18 +292,9 @@
             tuple.((bulkzero[j][randsample]), errs[j])) for j in geochemkeys]
         )
 
-        # Get EarthChem data. EarthChem major types are not inclusive of minor types, but
-        # all metamorphic rocks are sent for every metamorphic rock type
-        # Would it maybe be easier just to not make metamorphic rocks exclusive wrt types?
+        # Get EarthChem data. EarthChem major types are not inclusive of minor types,
+        # unless they're metamorphic
         bulksamples = bulk_cats[type]
-
-        if type==:metased || type==:metaign
-            bulksamples .|= bulk_cats.met
-        elseif type==:met 
-            bulksamples .|= bulk_cats.metased
-            bulksamples .|= bulk_cats.metaign
-        end
-
         EC = (
             bulklat = bulk.Latitude[bulksamples],            # EarthChem latitudes
             bulklon = bulk.Longitude[bulksamples],           # EarthChem longitudes
@@ -341,10 +337,12 @@
     )
     display(h)
 
-    # Plot all types
-    bins = (ign = (40, 80, 40), sed = (0, 100, 100), met = (25, 100, 75))   # min, max, nbins
-    rocks = collect(keys(macro_cats))
-    s = matches .!= 0
+    # # Plot all types
+    # bins = (ign = (40, 80, 40), sed = (0, 100, 100), met = (25, 100, 75))   # min, max, nbins
+    # rocks = collect(keys(macro_cats))
+    # s = matches .!= 0
+
+    # sample_cats = match_rocktype(string.(sampletypes))
 
     # fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(macro_cats) - 1)
     # for i in eachindex(rocks)
@@ -359,10 +357,10 @@
     #         r in minormet && (type = :met)
     #     end
 
-    #     c, n = bincounts(bulk.SiO2[matches[s .& macro_cats[r]]], bins[type]...)
+    #     c, n = bincounts(bulk.SiO2[matches[s .& sample_cats[r]]], bins[type]...)
     #     n = float(n) ./ nansum(float(n) .* step(c))
     #     h = plot(c, n, seriestype=:bar, framestyle=:box, color=colors[r], linecolor=colors[r],
-    #         label="$(string(r)); n = $(count(macro_cats[r]))",      
+    #         label="$(string(r)); n = $(count(sample_cats[r]))",      
     #         # ylabel="Weight", xlabel="SiO2 [wt.%]",
     #         ylims=(0, round(maximum(n), digits=2)+0.01) 
     #     )
@@ -370,9 +368,9 @@
     #     fig[i] = h
     # end
 
-    # Put into a layout
-    h = plot(fig..., layout=(5,3), size=(2000, 2000))
-    display(h)
+    # # Put into a layout
+    # h = plot(fig..., layout=(5,3), size=(2000, 2000))
+    # display(h)
 
 
 ## --- End of File

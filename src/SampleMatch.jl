@@ -259,8 +259,8 @@
     # major element within the selected rock name.
     
     # TEMPORARY: ensures that any changes get re-compiled, allow restriction to one type
-    include("utilities/Utilities.jl")
-    target = :shale
+    # include("utilities/Utilities.jl")
+    # target = :siliciclast
 
     # Preallocate
     matches = zeros(Int64, length(macro_cats.sed))
@@ -274,11 +274,11 @@
             continue
         end
 
-        # TEMPORARY: restrict matches to one type
-        if type != target
-            next!(p)
-            continue
-        end
+        # # TEMPORARY: restrict matches to one type
+        # if type != target
+        #     next!(p)
+        #     continue
+        # end
 
         # Pick random EarthChem sample as the assumed geochem of the Macrostrat sample
         # TO DO: replace error with 1.0 or randn() ?
@@ -328,16 +328,18 @@
 
     # TEMPORARY: In-house visualization of results
     # Plot target type
-    using Plots
-    t = @. (sampletypes == target) & (matches != 0)
-    c, n = bincounts(bulk.SiO2[matches[vec(t)]], 0, 100, 100)
-    n = float(n) ./ nansum(float(n) .* step(c))
-    h = plot(c, n, seriestype=:bar, framestyle=:box, label="$target", ylabel="Weight", 
-        xlabel="SiO2 [wt.%]", ylims=(0, round(maximum(n), digits=2)+0.01) 
-    )
-    display(h)
+    # using Plots
+    # sameindex(matches, geochemkeys, (0,100,100), bulk, bulktext)
 
-    # # Plot all types
+    # t = @. (sampletypes == target) & (matches != 0)
+    # c, n = bincounts(bulk.SiO2[matches[vec(t)]], 0, 100, 100)
+    # n = float(n) ./ nansum(float(n) .* step(c))
+    # h = plot(c, n, seriestype=:bar, framestyle=:box, label="$target", ylabel="Weight", 
+    #     xlabel="SiO2 [wt.%]", ylims=(0, round(maximum(n), digits=2)+0.01) 
+    # )
+    # display(h)
+
+    # Plot all types
     # bins = (ign = (40, 80, 40), sed = (0, 100, 100), met = (25, 100, 75))   # min, max, nbins
     # rocks = collect(keys(macro_cats))
     # s = matches .!= 0
@@ -372,5 +374,40 @@
     # h = plot(fig..., layout=(5,3), size=(2000, 2000))
     # display(h)
 
+
+## --- TEMPORARY: Code to run before running a single instance of likelihood
+    # filter = findall(x -> x==target, sampletypes);
+
+    # j = 1
+    # i = filter[j]
+    # type = sampletypes[i]
+    # name = samplenames[i]
+    # randsample = rand(bulk_idxs[bulk_lookup[name]])
+    # geochemdata = geochem_lookup[name]
+    # errs = NamedTuple{Tuple(geochemkeys)}(
+    #     nanunzero!([abs(randn()*geochemdata[j].e) for j in geochemkeys], 1.0)
+    # )
+    # geochemdata = NamedTuple{Tuple(geochemkeys)}([NamedTuple{(:m, :e)}(
+    #     tuple.((bulkzero[j][randsample]), errs[j])) for j in geochemkeys]
+    # )
+
+    # # Get EarthChem data. EarthChem major types are not inclusive of minor types,
+    # # unless they're metamorphic
+    # bulksamples = bulk_cats[type]
+    # EC = (
+    #     bulklat = bulk.Latitude[bulksamples],            # EarthChem latitudes
+    #     bulklon = bulk.Longitude[bulksamples],           # EarthChem longitudes
+    #     bulkage = bulk.Age[bulksamples],                 # EarthChem age
+    #     sampleidx = bulk_idxs[bulksamples],              # Indices of EarthChem samples
+    # )
+    # bulkgeochem = NamedTuple{Tuple(geochemkeys)}([bulkzero[i][bulksamples] 
+    #     for i in geochemkeys]
+    # )
+    
+    # bulkage = EC.bulkage;sampleage = macrostrat.age[i];
+    # bulklat = EC.bulklat;bulklon = EC.bulklon;
+    # samplelat = macrostrat.rocklat[i];samplelon = macrostrat.rocklon[i];
+    # bulkgeochem = bulkgeochem;samplegeochem = geochemdata;sampleidx = EC.sampleidx;
+    
 
 ## --- End of File

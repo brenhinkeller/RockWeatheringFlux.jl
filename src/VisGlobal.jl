@@ -56,7 +56,7 @@
 
 ## --- [DATA] Macrostrat and matched EarthChem samples
     # Indices
-    bulkidx = Int.(vec(readdlm("$matchedbulk_io")))
+    bulkidx = Int.(vec(readdlm("$matchedbulk_io")[:,1]))
     t = @. bulkidx != 0
 
     # Macrostrat
@@ -123,6 +123,47 @@
     save("results/figures/distance.png", f)
 
 
+## --- Locations of points matched with a specific sample
+    # TEMPORARY: Allows this block to be run from SampleMatch.jl
+    sampletypes_temp = string.(vec(readdlm("$matchedbulk_io")[:,2]))
+    bulkidx = matches;
+
+    # Semi-temporary?
+    sample_cats = match_rocktype(sampletypes_temp)
+    filter = sample_cats[target]
+
+    # PERMANENT CODE:
+    target = :siliciclast       # Target rock type
+    i = 30722                   # Target index
+
+    # Filters
+    t = @. bulkidx != 0;
+    s = @. bulkidx[t] == i;
+
+    dist = haversine.(macrostrat.rocklat[filter], macrostrat.rocklon[filter],
+        bulk.Latitude[bulkidx[t]], bulk.Longitude[bulkidx[t]]
+    )
+
+    # Make plot
+    f = Figure(resolution = (1400, 600))
+    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
+    h1 = CairoMakie.scatter!(ax, macrostrat.rocklon[filter], macrostrat.rocklat[filter], 
+        color=dist, markersize = 3, alpha=0.1, label="All Macrostrat $target"
+    )
+    h2 = CairoMakie.scatter!(ax, macrostrat.rocklon[filter][s], macrostrat.rocklat[filter][s], 
+        color=dist[s], markersize = 3, label="Matched with sample $i"
+    )
+    h3 = CairoMakie.scatter!(ax, bulk.Longitude[bulk_cats[target]], bulk.Latitude[bulk_cats[target]], 
+        color=:red, markersize = 5, label="All EarthChem $target"
+    )
+    h4 = CairoMakie.scatter!(ax, bulk.Longitude[i], bulk.Latitude[i], 
+        color=:red, markersize = 20, marker=:star5, label="Sample $i"
+    )
+    Colorbar(f[1, 2], h2, label = "Distance to matched point [arc-degrees]", vertical = true)
+    Legend(f[1, 3], ax)
+    display(f)
+    
+
 ## --- [DATA] Slope at each point
     srtm15_slope = h5read("output/srtm15plus_maxslope.h5", "vars/slope")
     srtm15_sf = h5read("output/srtm15plus_maxslope.h5", "vars/scalefactor")
@@ -139,13 +180,13 @@
 
 
 ## --- Slope of every point on Earth
-    f = Figure(resolution = (1200, 600))
-    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
-    h = CairoMakie.scatter!(ax, macrostrat.rocklon[t], macrostrat.rocklat[t], 
-        color=slope[t], colormap=c_gradient, markersize = 3
-    )
-    Colorbar(f[1,2], h, label = "Slope [m/km]", height = Relative(0.9))
-    display(f)
+    # f = Figure(resolution = (1200, 600))
+    # ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
+    # h = CairoMakie.scatter!(ax, macrostrat.rocklon[t], macrostrat.rocklat[t], 
+    #     color=slope[t], colormap=c_gradient, markersize = 3
+    # )
+    # Colorbar(f[1,2], h, label = "Slope [m/km]", height = Relative(0.9))
+    # display(f)
     # save("results/figures/slope.png", f)
 
 

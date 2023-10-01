@@ -126,7 +126,7 @@
     t = @. bulkidx != 0
 
     bulktype = string.(vec(data[:,2]))
-    macro_cats = match_rocktype(bulktype[t])
+    macro_cats = match_rocktype(bulktype[t])    # Majors inclusive
 
     fid = h5open("output/bulk.h5", "r")
     header = read(fid["bulk"]["header"])
@@ -144,39 +144,93 @@
     labels = ["volcanic", "plutonic"]
     simVP = [simvolcanic, simplutonic]
 
+    # Volcanic, Plutonic
     fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(types))
     for i in eachindex(fig)
-        h = plot(framestyle=:box, xlabel="SiO2 [wt.%]", ylabel="Weight", xlims=(SiO2min, SiO2max))
+        h = plot(framestyle=:box, xlabel="SiO2 [wt.%]", ylabel="Weight", 
+            xlims=(SiO2min, SiO2max), left_margin=(30, :px), bottom_margin=(30, :px),  
+        )
 
         # Matched samples
         c, n = bincounts(mbulk.SiO2[macro_cats[types[i]]], SiO2min, SiO2max, Int(nbins/2))
-        n = float(n) ./ nansum(float(n) .* step(c))
-        plot!(c, n, seriestype=:bar, color=colors[types[i]], linecolor=colors[types[i]],
-            label="Matched $(labels[i])", ylims=(0, round(maximum(n), digits=2)+0.01), 
+        n₁ = float(n) ./ nansum(float(n) .* step(c))
+        plot!(c, n₁, seriestype=:bar, color=colors[types[i]], linecolor=colors[types[i]],
+            label="Matched $(labels[i])", 
         )
 
         # Resampled EarthChem
         c, n = bincounts(bsrsilica[types[i]], SiO2min, SiO2max, nbins)
-        n = float(n) ./ nansum(float(n) .* step(c))
-        plot!(c, n, seriestype=:path, color=:black, linecolor=:black, linewidth=3,
+        n₂ = float(n) ./ nansum(float(n) .* step(c))
+        plot!(c, n₂, seriestype=:path, color=:black, linecolor=:black, linewidth=3,
             label="Resampled EarthChem",
         )
 
         # Keller et al., 2015
         c, n = bincounts(simVP[i], SiO2min, SiO2max, nbins)
-        n = float(n) ./ nansum(float(n) .* step(c))
-        plot!(c, n, seriestype=:path, color=:mediumblue, linecolor=:mediumblue, linewidth=3,
+        n₃ = float(n) ./ nansum(float(n) .* step(c))
+        plot!(c, n₃, seriestype=:path, color=:mediumblue, linecolor=:mediumblue, linewidth=3,
             label="Keller et al., 2015",
         )
 
+        ylims!(0, round(maximum([n₁; n₂; n₃]), digits=2)+0.01)
         fig[i] = h
     end
 
-    h = plot(fig..., layout=(1, 2), size=(1000,400))
+    # Igneous
+    p = plot(framestyle=:box, xlabel="SiO2 [wt.%]", ylabel="Weight", 
+        xlims=(SiO2min, SiO2max), left_margin=(30, :px), bottom_margin=(30, :px),  
+    )
+
+    c, n = bincounts(mbulk.SiO2[macro_cats.ign], SiO2min, SiO2max, Int(nbins/2))
+    n₁ = float(n) ./ nansum(float(n) .* step(c))
+    plot!(c, n₁, seriestype=:bar, color=colors.ign, linecolor=colors.ign,
+        label="Matched igneous", 
+    )
+
+    c, n = bincounts(bsrsilica.ign, SiO2min, SiO2max, nbins)
+    n₂ = float(n) ./ nansum(float(n) .* step(c))
+    plot!(c, n₂, seriestype=:path, color=:black, linecolor=:black, linewidth=3,
+        label="Resampled EarthChem",
+    )
+    ylims!(0, round(maximum([n₁; n₂]), digits=2)+0.01)
+
+    h = plot(fig..., p, layout=(2, 2), size=(1000,800))
     display(h)
     
 
 ## --- Plot other rock types 
+    SiO2min, SiO2max = 0, 100
+    nbins = 200
+    types = [:metased, :metaign, :met, :siliciclast, :shale, :carb, :chert, :sed]
+    labels = string.(types)
+
+    fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(types))
+    for i in eachindex(fig)
+        h = plot(framestyle=:box, xlabel="SiO2 [wt.%]", ylabel="Weight", 
+            xlims=(SiO2min, SiO2max), left_margin=(30, :px), bottom_margin=(30, :px),
+            legend=:topleft    
+        )
+
+        # Matched samples
+        c, n = bincounts(mbulk.SiO2[macro_cats[types[i]]], SiO2min, SiO2max, Int(nbins/2))
+        n₁ = float(n) ./ nansum(float(n) .* step(c))
+        plot!(c, n₁, seriestype=:bar, color=colors[types[i]], linecolor=colors[types[i]],
+            label="Matched $(labels[i])", 
+        )
+
+        # Resampled EarthChem
+        c, n = bincounts(bsrsilica[types[i]], SiO2min, SiO2max, nbins)
+        n₂ = float(n) ./ nansum(float(n) .* step(c))
+        plot!(c, n₂, seriestype=:path, color=:black, linecolor=:black, linewidth=3,
+            label="Resampled EarthChem",
+        )
+
+        ylims!(0, round(maximum([n₁; n₂]), digits=2)+0.01)
+        fig[i] = h
+    end
+
+    h = plot(fig..., layout=(3, 3), size=(2000,1400))
+    display(h)
 
 
 ## --- End of file

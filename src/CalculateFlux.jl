@@ -13,69 +13,75 @@
 
 
 ## --- Load EarthChem data
-    # Indices of matched samples from SampleMatch.jl
-    bulkidx = Int.(vec(readdlm("$matchedbulk_io")))
-    t = @. bulkidx != 0     # Exclude samples with missing data
+    # Indices of matched EarthChem samples from SampleMatch.jl
+    fid = readdlm("$matchedbulk_io")
+    bulkidx = Int.(vec(fid[:,1]))
+    t = @. bulkidx != 0
+
+    # Matched types, majors inclusive of minors
+    bulktype = string.(vec(fid[:,2]))
+    macro_cats = match_rocktype(bulktype[t])
 
     # Load bulk, but just the samples matched to the Macrostrat data
-    bulkfid = h5open("output/bulk.h5", "r")
-    header = read(bulkfid["bulk"]["header"])
-    data = read(bulkfid["bulk"]["data"])
+    fid = h5open("output/bulk.h5", "r")
+    header = read(fid["bulk"]["header"])
+    data = read(fid["bulk"]["data"])
     bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
-    close(bulkfid)
+    close(fid)
 
     
 ## --- Load pre-generated Macrostrat data, but only if there's an associated EarthChem sample
     @info "Loading Macrostrat data"
 
     # Load and match
-    macrofid = h5open("$macrostrat_io", "r")
+    fid = h5open("$macrostrat_io", "r")
     macrostrat = (
-        rocklat = read(macrofid["vars"]["rocklat"])[t],
-        rocklon = read(macrofid["vars"]["rocklon"])[t],
-        age = read(macrofid["vars"]["age"])[t],
+        rocklat = read(fid["vars"]["rocklat"])[t],
+        rocklon = read(fid["vars"]["rocklon"])[t],
+        age = read(fid["vars"]["age"])[t],
     )
-    header = read(macrofid["type"]["macro_cats_head"])
-    data = read(macrofid["type"]["macro_cats"])
-    data = @. data > 0
-    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
+    # header = read(fid["type"]["macro_cats_head"])
+    # data = read(fid["type"]["macro_cats"])
+    # data = @. data > 0
+    # macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
+    close(fid)
 
-    # Major types include minor types
+    # # Major types include minor types
     minorsed, minorign, minormet = get_minor_types()
-    for type in minorsed
-        macro_cats.sed .|= macro_cats[type]
-    end
-    for type in minorign
-        macro_cats.ign .|= macro_cats[type]
-    end
-    for type in minormet
-        macro_cats.met .|= macro_cats[type]
-    end
+    # for type in minorsed
+    #     macro_cats.sed .|= macro_cats[type]
+    # end
+    # for type in minorign
+    #     macro_cats.ign .|= macro_cats[type]
+    # end
+    # for type in minormet
+    #     macro_cats.met .|= macro_cats[type]
+    # end
 
-    # Figure out how many data points weren't matched
-    known_rocks = macro_cats.sed .| macro_cats.ign .| macro_cats.met
-    total_known = count(known_rocks)
+    # # Figure out how many data points weren't matched
+    # known_rocks = macro_cats.sed .| macro_cats.ign .| macro_cats.met
+    # total_known = count(known_rocks)
 
-    matched = known_rocks .| macro_cats.cover
-    not_matched = .!matched
-    multi_matched = ((macro_cats.sed .& macro_cats.ign) .| (macro_cats.sed .& macro_cats.met) 
-        .| (macro_cats.ign .& macro_cats.met)
-    )
+    # matched = known_rocks .| macro_cats.cover
+    # not_matched = .!matched
+    # multi_matched = ((macro_cats.sed .& macro_cats.ign) .| (macro_cats.sed .& macro_cats.met) 
+    #     .| (macro_cats.ign .& macro_cats.met)
+    # )
 
-    # Print to terminal
-    @info """
-    Macrostrat parsing complete!
-    not matched = $(count(not_matched))
-    """
+    # # Print to terminal
+    # @info """
+    # Macrostrat parsing complete!
+    # not matched = $(count(not_matched))
+    # """
 
-    if count(multi_matched) > 0
-        @warn """
-        $(count(multi_matched)) conflicting matches present
-        sed and ign = $(count(macro_cats.sed .& macro_cats.ign))
-        sed and met = $(count(macro_cats.sed .& macro_cats.met))
-        ign and met = $(count(macro_cats.ign .& macro_cats.met))
-        """
-    end
+    # if count(multi_matched) > 0
+    #     @warn """
+    #     $(count(multi_matched)) conflicting matches present
+    #     sed and ign = $(count(macro_cats.sed .& macro_cats.ign))
+    #     sed and met = $(count(macro_cats.sed .& macro_cats.met))
+    #     ign and met = $(count(macro_cats.ign .& macro_cats.met))
+    #     """
+    # end
     
 
 ## --- Definitions
@@ -89,11 +95,11 @@
     subcats = collect(keys(macro_cats))
     deleteat!(subcats, findall(x->x==:cover,subcats))
 
-    # Get relative proportion of all rock types
-    nmajors = count(macro_cats.sed) + count(macro_cats.met) + count(macro_cats.ign)
-    rel_proportion = NamedTuple{Tuple(subcats)}(
-        float.([count(macro_cats[i]) for i in subcats]) / nmajors
-    )
+    # # Get relative proportion of all rock types
+    # nmajors = count(macro_cats.sed) + count(macro_cats.met) + count(macro_cats.ign)
+    # rel_proportion = NamedTuple{Tuple(subcats)}(
+    #     float.([count(macro_cats[i]) for i in subcats]) / nmajors
+    # )
     
 
 ## --- Calculate erosion rate at each coordinate point of interest	
@@ -194,42 +200,50 @@
 
 ## --- Export crustal composition results
     # Preallocate
-    result = zeros(length(header), length(macro_cats))  # Element row, rock type column
+    # result = zeros(length(header), length(macro_cats))  # Element row, rock type column
+    result = Array{Float64}(undef, length(header), length(macro_cats))
     rows = string.(header)
     cols = hcat("", string.(reshape(subcats, 1, length(subcats))), "total")
 
-    # Column numbers for rock types
-    colnumbers = NamedTuple{Tuple(subcats)}(1:length(subcats))
+    # # Column numbers for rock types
+    # colnumbers = NamedTuple{Tuple(subcats)}(1:length(subcats))
 
     # Absolute contribution of each rock type to element flux, calculated as the sum of
     # the individual contributions of each point
-    p = Progress(npoints ÷ 100, desc="Calculating absolute element fluxes...")
-    @time for i = 1:npoints
-        # Get the rock types matched with the point, ignoring cover
-        type = get_type(macro_cats, i, all_keys=true)
-        t = collect(type) .!= :cover
-        type = type[t]
-
-        # Classify types as major / minor
-        maj, ismaj, ctypes = majorminor(type, minorsed, minorign, minormet)
-
-        # The contribution of the point should be split between the number of major types
-        # matched to that point
-        for j in eachindex(header)
-            contrib = (elementflux[header[j]][i] / count(ismaj)).val
-            contrib = ifelse(isnan(contrib), 0, contrib)
-
-            # Assign value to results table. Minor types contribute the contribution of the 
-            # major type split between the number of minor types
-            @inbounds for t in eachindex(type)
-                result[j,colnumbers[type[t]]] += ifelse(ismaj[t], contrib, contrib / ctypes[maj[t]])
-            end
-        end
-
-        if i % 100 == 0
-            next!(p)
+    for i in eachindex(subcats)
+        for j in eachindex(elementflux)
+            # Element row, rock type column
+            result[j,i] += nansum(unmeasurementify(elementflux[j][macro_cats[subcats[i]]])[1])
         end
     end
+
+    # p = Progress(npoints ÷ 100, desc="Calculating absolute element fluxes...")
+    # @time for i = 1:npoints
+    #     # Get the rock types matched with the point, ignoring cover
+    #     type = get_type(macro_cats, i, all_keys=true)
+    #     t = collect(type) .!= :cover
+    #     type = type[t]
+
+    #     # Classify types as major / minor
+    #     maj, ismaj, ctypes = majorminor(type, minorsed, minorign, minormet)
+
+    #     # The contribution of the point should be split between the number of major types
+    #     # matched to that point
+    #     for j in eachindex(header)
+    #         contrib = (elementflux[header[j]][i] / count(ismaj)).val
+    #         contrib = ifelse(isnan(contrib), 0, contrib)
+
+    #         # Assign value to results table. Minor types contribute the contribution of the 
+    #         # major type split between the number of minor types
+    #         @inbounds for t in eachindex(type)
+    #             result[j,colnumbers[type[t]]] += ifelse(ismaj[t], contrib, contrib / ctypes[maj[t]])
+    #         end
+    #     end
+
+    #     if i % 100 == 0
+    #         next!(p)
+    #     end
+    # end
 
     # Unit conversion
     result = result ./ kg_gt
@@ -244,4 +258,5 @@
     # Relative contribution
     writedlm("$erodedrel_out", vcat(cols, hcat(collect(rows), result ./ global_by_element)), ',')
 
+    
 ## --- End of File

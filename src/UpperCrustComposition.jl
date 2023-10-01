@@ -17,12 +17,12 @@
 
 ## --- Load data for the matched EarthChem samples
     # Indices of matched EarthChem samples from SampleMatch.jl
-    data = readdlm("$matchedbulk_io")
-    bulkidx = Int.(vec(data[:,1]))
+    fid = readdlm("$matchedbulk_io")
+    bulkidx = Int.(vec(fid[:,1]))
     t = @. bulkidx != 0
 
     # Matched types, majors inclusive of minors
-    bulktype = string.(vec(data[:,2]))
+    bulktype = string.(vec(fid[:,2]))
     macro_cats = match_rocktype(bulktype[t])
 
     # Macrostrat

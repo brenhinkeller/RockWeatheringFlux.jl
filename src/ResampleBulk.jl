@@ -1,5 +1,4 @@
-# Translate the code from Keller et al., 2015 (https://doi.org/10.1038/nature14584) into 
-# Julia, and run it for all rock types (not just igneous). 
+#  Resample all rock types based on spatial weights (e.g. Keller et al., 2015)
 # 
 # This will give me something to compare SampleMatch results to.
 
@@ -51,18 +50,14 @@
         bulk_cats.met .|= bulk_cats[type]
     end
 
-    # Get the data we'll use in resampling. Exclude type, age, lat/lon
-    bulkmatrix = float.(unelementify(bulk)[2:end,1:end-4])    # Also exclude header row
+    # Get the data we'll use in resampling. Exclude type and header row
+    bulkmatrix = float.(unelementify(bulk)[2:end , 1:end .!= end-3])
     header = collect(keys(bulk))[1:end-4]
 
-    # Uncertainties based on standardized uncertainties used in Keller et al., 2015
-    errVP = matread("data/volcanicplutonic/plutonic.mat")["plutonic"]["err"]
-    errVP["In"] = 0.0       # Not listed, assume 0?
-
-    uncert = Array{Float64}(undef, size(bulkmatrix))
-    for i in eachindex(header)
-        uncert[:,i] .= errVP[string(header[i])]
-    end
+    # Uncertanties are 0, except for SiO₂ which is 1.0, after Keller et al., 2015
+    uncert = zeros(size(bulkmatrix))
+    i = findfirst(x -> x==:SiO2, header)
+    uncert[:,i] .= 1.0
 
 
 ## --- Resample based on spatial weights
@@ -111,6 +106,54 @@
     g_main["header"] = string.(header)
 
     close(fid)
+
+
+## --- Test resampled behavior - VolcanicPlutonic
+    # Load data
+    plutonic = matread("data/volcanicplutonic/plutonic.mat")["plutonic"];
+    plutonic = NamedTuple{Tuple(Symbol.(keys(plutonic)))}(values(plutonic));
+    src = plutonic
+
+    # volcanic = matread("data/volcanicplutonic/volcanic.mat")["volcanic"];
+    # volcanic = NamedTuple{Tuple(Symbol.(keys(volcanic)))}(values(volcanic));
+    # src = volcanic
+
+    SiO2min, SiO2max = 40, 80
+    simitems = [:SiO2];
+    nsims = Int(1e7)
+
+    # Get resampling weights
+    # test = trues(length(src.Latitude))
+    test = @. !isnan(src.Latitude) & !isnan(src.Longitude) & (src.Elevation .> -100);
+    # k = src.k[test]
+    k = invweight_location(src.Latitude[test], src.Longitude[test])
+    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0);
+
+    # Data matrix
+    data=zeros(length(src.SiO2),length(simitems));
+    for i in eachindex(simitems)
+        data[:,i] = src[simitems[i]];
+    end
+    data = data[test[:],:];
+
+    # Uncertainty matrix
+    uncertainty=zeros(length(src.SiO2),length(simitems));
+    for i in eachindex(simitems)
+        uncertainty[:,i] .= src.CalcAbsErr[string(simitems[i])];
+    end
+    uncertainty = uncertainty[test[:],:];
+
+    # Run Monte Carlo simulation
+    simout = bsresample(data, uncertainty, nsims, p)
+
+    # Plot results    
+    c, n = bincounts(simout, SiO2min, SiO2max, 160)
+    n = float(n) ./ nansum(float(n) .* step(c))
+    h = plot(c, n, seriestype=:bar, framestyle=:box, color=:darkblue, linecolor=:darkblue,
+        label="Plutonic (n = $(count(test)))", ylabel="Abundance", xlabel="SiO2 [wt.%]",
+        ylims=(0, round(maximum(n), digits=2)+0.01), xlims=(SiO2min, SiO2max)
+    )
+    display(h)
 
 
 ## --- End of file

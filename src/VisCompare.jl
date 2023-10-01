@@ -121,11 +121,11 @@
 
 
 ## --- Load matched Earthchem data 
-    data = readdlm("$matchedbulk_io")
-    bulkidx = Int.(vec(data[:,1]))
+    fid = readdlm("$matchedbulk_io")
+    bulkidx = Int.(vec(fid[:,1]))
     t = @. bulkidx != 0
 
-    bulktype = string.(vec(data[:,2]))
+    bulktype = string.(vec(fid[:,2]))
     macro_cats = match_rocktype(bulktype[t])    # Majors inclusive
 
     fid = h5open("output/bulk.h5", "r")
@@ -134,6 +134,20 @@
     mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] 
         for i in eachindex(header)]
     )
+    close(fid)
+
+
+## --- Load unmatched EarthChem data
+    fid = h5open("output/bulk.h5", "r")
+    header = read(fid["bulk"]["header"])
+    data = read(fid["bulk"]["data"])
+    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+
+    header = read(fid["bulktypes"]["bulk_cats_head"])
+    data = read(fid["bulktypes"]["bulk_cats"])
+    data = @. data > 0
+    bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+
     close(fid)
 
 
@@ -154,25 +168,32 @@
         # Matched samples
         c, n = bincounts(mbulk.SiO2[macro_cats[types[i]]], SiO2min, SiO2max, Int(nbins/2))
         n₁ = float(n) ./ nansum(float(n) .* step(c))
-        plot!(c, n₁, seriestype=:bar, color=colors[types[i]], linecolor=colors[types[i]],
+        plot!(c, n₁, seriestype=:bar, color=:lightcoral, linecolor=:lightcoral,
             label="Matched $(labels[i])", 
         )
 
         # Resampled EarthChem
         c, n = bincounts(bsrsilica[types[i]], SiO2min, SiO2max, nbins)
         n₂ = float(n) ./ nansum(float(n) .* step(c))
-        plot!(c, n₂, seriestype=:path, color=:black, linecolor=:black, linewidth=3,
+        plot!(c, n₂, seriestype=:path, color=:blue, linecolor=:blue, linewidth=2,
             label="Resampled EarthChem",
+        )
+
+        # Prior Earthchem
+        c, n = bincounts(bulk.SiO2[bulk_cats[types[i]]], SiO2min, SiO2max, Int(nbins/2))
+        n₃ = float(n) ./ nansum(float(n) .* step(c))
+        plot!(c, n₃, seriestype=:path, color=:red, linecolor=:red, linewidth=2,
+            label="EarthChem prior",
         )
 
         # Keller et al., 2015
         c, n = bincounts(simVP[i], SiO2min, SiO2max, nbins)
-        n₃ = float(n) ./ nansum(float(n) .* step(c))
-        plot!(c, n₃, seriestype=:path, color=:mediumblue, linecolor=:mediumblue, linewidth=3,
+        n₄ = float(n) ./ nansum(float(n) .* step(c))
+        plot!(c, n₄, seriestype=:path, color=:black, linecolor=:black, linewidth=3,
             label="Keller et al., 2015",
         )
 
-        ylims!(0, round(maximum([n₁; n₂; n₃]), digits=2)+0.01)
+        ylims!(0, round(maximum([n₁; n₂; n₃; n₄]), digits=2)+0.01)
         fig[i] = h
     end
 
@@ -183,16 +204,22 @@
 
     c, n = bincounts(mbulk.SiO2[macro_cats.ign], SiO2min, SiO2max, Int(nbins/2))
     n₁ = float(n) ./ nansum(float(n) .* step(c))
-    plot!(c, n₁, seriestype=:bar, color=colors.ign, linecolor=colors.ign,
+    plot!(c, n₁, seriestype=:bar, color=:lightcoral, linecolor=:lightcoral,
         label="Matched igneous", 
     )
 
-    c, n = bincounts(bsrsilica.ign, SiO2min, SiO2max, nbins)
+    c, n = bincounts(bulk.SiO2[bulk_cats[types[i]]], SiO2min, SiO2max, Int(nbins/2))
     n₂ = float(n) ./ nansum(float(n) .* step(c))
-    plot!(c, n₂, seriestype=:path, color=:black, linecolor=:black, linewidth=3,
+    plot!(c, n₂, seriestype=:path, color=:red, linecolor=:red, linewidth=2,
+        label="EarthChem prior",
+    )
+
+    c, n = bincounts(bsrsilica.ign, SiO2min, SiO2max, nbins)
+    n₃ = float(n) ./ nansum(float(n) .* step(c))
+    plot!(c, n₃, seriestype=:path, color=:blue, linecolor=:blue, linewidth=2,
         label="Resampled EarthChem",
     )
-    ylims!(0, round(maximum([n₁; n₂]), digits=2)+0.01)
+    ylims!(0, round(maximum([n₁; n₂; n₃]), digits=2)+0.01)
 
     h = plot(fig..., p, layout=(2, 2), size=(1000,800))
     display(h)
@@ -219,6 +246,13 @@
             label="Matched $(labels[i])", 
         )
 
+        # Prior Earthchem
+        c, n = bincounts(bulk.SiO2[bulk_cats[types[i]]], SiO2min, SiO2max, nbins)
+        n₃ = float(n) ./ nansum(float(n) .* step(c))
+        plot!(c, n₃, seriestype=:path, color=:red, linecolor=:red, linewidth=3,
+            label="EarthChem prior",
+        )
+
         # Resampled EarthChem
         c, n = bincounts(bsrsilica[types[i]], SiO2min, SiO2max, nbins)
         n₂ = float(n) ./ nansum(float(n) .* step(c))
@@ -226,7 +260,7 @@
             label="Resampled EarthChem",
         )
 
-        ylims!(0, round(maximum([n₁; n₂]), digits=2)+0.01)
+        ylims!(0, round(maximum([n₁; n₂; n₃]), digits=2)+0.01)
         fig[i] = h
     end
 
@@ -268,10 +302,17 @@
             label="Matched $(labels[i])", 
         )
 
+        # Prior Earthchem
+        c, n = bincounts(bulk.CaO[bulk_cats[types[i]]], CaOmin, CaOmax, nbins)
+        n₃ = float(n) ./ nansum(float(n) .* step(c))
+        plot!(c, n₃, seriestype=:path, color=:red, linecolor=:red, linewidth=3,
+            label="EarthChem prior",
+        )
+
         # Resampled EarthChem
         c, n = bincounts(bsrCaO[types[i]], CaOmin, CaOmax, nbins)
         n₂ = float(n) ./ nansum(float(n) .* step(c))
-        plot!(c, n₂, seriestype=:path, color=:black, linecolor=:black, linewidth=3,
+        plot!(c, n₂, seriestype=:path, color=:black, linecolor=:black, linewidth=2,
             label="Resampled EarthChem",
         )
 

@@ -196,7 +196,8 @@
 
     h = plot(fig..., p, layout=(2, 2), size=(1000,800))
     display(h)
-    
+    savefig(h, "results/figures/dist_ign.png")
+
 
 ## --- Plot other rock types 
     SiO2min, SiO2max = 0, 100
@@ -231,6 +232,56 @@
 
     h = plot(fig..., layout=(3, 3), size=(2000,1400))
     display(h)
+    savefig(h, "results/figures/dist_sedmet.png")
+
+
+## --- Plot CaO data for carbonates
+    # Load resampled CaO
+    fid = h5open("output/resampled/resampled.h5", "r")
+    header = read(fid["vars"]["header"])
+    i = findfirst(x -> x=="CaO", header)
+    rocktypes = ["carb"]
+
+    bsrCaO = NamedTuple{Tuple(Symbol.(rocktypes))}([read(fid["vars"]["data"][r]["data"])[:,i]
+        for r in rocktypes
+    ])
+    close(fid)
+
+    # Set up
+    CaOmin, CaOmax = 0, 100
+    nbins = 100
+    types = Symbol.(rocktypes)
+    labels = string.(types)
+
+    # Make plots
+    fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(types))
+    for i in eachindex(fig)
+        h = plot(framestyle=:box, xlabel="CaO [wt.%]", ylabel="Weight", 
+            xlims=(CaOmin, CaOmax), left_margin=(30, :px), bottom_margin=(30, :px),
+            legend=:topleft    
+        )
+
+        # Matched samples
+        c, n = bincounts(mbulk.CaO[macro_cats[types[i]]], CaOmin, CaOmax, nbins)
+        n₁ = float(n) ./ nansum(float(n) .* step(c))
+        plot!(c, n₁, seriestype=:bar, color=colors[types[i]], linecolor=colors[types[i]],
+            label="Matched $(labels[i])", 
+        )
+
+        # Resampled EarthChem
+        c, n = bincounts(bsrCaO[types[i]], CaOmin, CaOmax, nbins)
+        n₂ = float(n) ./ nansum(float(n) .* step(c))
+        plot!(c, n₂, seriestype=:path, color=:black, linecolor=:black, linewidth=3,
+            label="Resampled EarthChem",
+        )
+
+        ylims!(0, round(maximum([n₁; n₂]), digits=2)+0.01)
+        fig[i] = h
+    end
+
+    h = plot(fig..., layout=(1, 2), size=(600,400))
+    display(h)
+    savefig(h, "results/figures/dist_cao.png")
 
 
 ## --- End of file

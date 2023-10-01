@@ -14,42 +14,32 @@
     # Get igneous rock silica definitions
     ignsilica = get_ignsilica()
 
-    # Indices of matched EarthChem samples from SampleMatch.jl
-    bulkidx = Int.(vec(readdlm("$matchedbulk_io")))
-    t = @. bulkidx != 0
-
 
 ## --- Load data for the matched EarthChem samples
-    # Macrostrat
-    macrofid = h5open("$macrostrat_io", "r")
-    macrostrat = (
-        rocklat = read(macrofid["vars"]["rocklat"])[t],
-        rocklon = read(macrofid["vars"]["rocklon"])[t],
-        age = read(macrofid["vars"]["age"])[t],
-    )
-    header = read(macrofid["type"]["macro_cats_head"])
-    data = read(macrofid["type"]["macro_cats"])
-    data = @. data > 0
-    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
+    # Indices of matched EarthChem samples from SampleMatch.jl
+    data = readdlm("$matchedbulk_io")
+    bulkidx = Int.(vec(data[:,1]))
+    t = @. bulkidx != 0
 
-    # Major types include minor types
-    for type in minorsed
-        macro_cats.sed .|= macro_cats[type]
-    end
-    for type in minorign
-        macro_cats.ign .|= macro_cats[type]
-    end
-    for type in minormet
-        macro_cats.met .|= macro_cats[type]
-    end
-    close(macrofid)
+    # Matched types, majors inclusive of minors
+    bulktype = string.(vec(data[:,2]))
+    macro_cats = match_rocktype(bulktype[t])
+
+    # Macrostrat
+    fid = h5open("$macrostrat_io", "r")
+    macrostrat = (
+        rocklat = read(fid["vars"]["rocklat"])[t],
+        rocklon = read(fid["vars"]["rocklon"])[t],
+        age = read(fid["vars"]["age"])[t],
+    )
+    close(fid)
 
     # Earthchem
-    bulkfid = h5open("output/bulk.h5", "r")
-    header = read(bulkfid["bulk"]["header"])
-    data = read(bulkfid["bulk"]["data"])
+    fid = h5open("output/bulk.h5", "r")
+    header = read(fid["bulk"]["header"])
+    data = read(fid["bulk"]["data"])
     bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
-    close(bulkfid)
+    close(fid)
 
     # Elements of interest
     majors, minors = get_elements()
@@ -80,14 +70,25 @@
         ultrafel = [nanmean(bulk[i][ign_cats.ultrafel]) for i in allelements],
     )
 
+    # Save to file
+    rows = string.(allelements)
+    cols = hcat("", string.(reshape(collect(keys(UCC)), (1, length(keys(UCC))))))
     results = Array{Float64}(undef, (length(allelements), length(UCC)))
     for i in eachindex(keys(UCC))
         results[:,i] = UCC[i]
     end
-
-    rows = string.(allelements)
-    cols = hcat("", string.(reshape(collect(keys(UCC)), (1, length(keys(UCC))))))
     writedlm("$ucc_out", vcat(cols, hcat(rows, results)))
+
+    # Terminal printout
+    majorcomp = round.([UCC.bulk[i] for i in eachindex(majors)], sigdigits=2)
+
+    @info """ Bulk crustal composition:
+    $(join(majors, " \t "))
+    $(join(majorcomp, " \t "))
+
+    Total: $(round(nansum(UCC.bulk[1:length(majors)]), sigdigits=3))%
+    Total (less CO₂ and H₂O): $(round(nansum(UCC.bulk[1:length(majors)-2]), sigdigits=3))%
+    """
 
 
 ## --- End of file

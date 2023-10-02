@@ -13,7 +13,7 @@
 
     # Local utilities
     include("utilities/Utilities.jl")
-    # include("utilities/yorkfit.jl")
+    include("utilities/yorkfit.jl")
 
 
 ## --- Get OCTOPUS basin polygon outlines
@@ -95,8 +95,8 @@
     c, m, ex, ey = binmeans_percentile(x.v, y.v, step=5)
 
     # Fit slope to means
-    fobj = yorkfit(c, ex, log.(m), log.(ey))
-    emmkyr(slp) = exp(slp * (fobj.slope) + (fobj.intercept))
+    fobj = yorkfit(c, ex, log10.(m), log10.(ey))
+    emmkyr(slp) = 10^(slp * (fobj.slope) + (fobj.intercept))
 
     # Plot results
     h = scatter(basin_srtm.avg_slope,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", 
@@ -147,8 +147,8 @@
     c, m, ex, ey = binmeans_percentile(x.v, y.v, step=5)
 
     # Log transform **both** x and y and fit model
-    fobj = yorkfit(log.(c), log.(ex), log.(m), log.(ey))
-    # emmkyr_precip(slp) = exp(slp * (fobj.slope) + (fobj.intercept))
+    fobj = yorkfit(log10.(c), log10.(ex), log10.(m), log10.(ey))
+    # emmkyr_precip(slp) = 10^(slp * (fobj.slope) + (fobj.intercept))
 
     # Plot results
     h = scatter(slopeprecip.v,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", 

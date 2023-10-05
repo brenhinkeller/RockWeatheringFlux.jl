@@ -185,8 +185,8 @@
 ## --- [DATA] Slope at each point
     srtm15_slope = h5read("output/srtm15plus_maxslope.h5", "vars/slope")
     srtm15_sf = h5read("output/srtm15plus_maxslope.h5", "vars/scalefactor")
-    rockslope = window_avg(srtm15_slope, macrostrat.rocklat, macrostrat.rocklon, 
-        srtm15_sf, halfwidth=5
+    rockslope = movingwindow(srtm15_slope, macrostrat.rocklat, macrostrat.rocklon, 
+        srtm15_sf, n=5
     )
     rock_ersn = emmkyr.(rockslope)
     
@@ -194,17 +194,19 @@
     ersn = unmeasurementify(rock_ersn)[1]
 
     # TO DO: I should not have to restrict slope like this... something is wrong I think
-    t = @. rockslope < 600
+    # t = @. slope < 1000
+    t = @. slope < 600
+    # t = trues(length(slope))
 
 
 ## --- Slope of every point on Earth
-    # f = Figure(resolution = (1200, 600))
-    # ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
-    # h = CairoMakie.scatter!(ax, macrostrat.rocklon[t], macrostrat.rocklat[t], 
-    #     color=slope[t], colormap=c_gradient, markersize = 3
-    # )
-    # Colorbar(f[1,2], h, label = "Slope [m/km]", height = Relative(0.9))
-    # display(f)
+    f = Figure(resolution = (1200, 600))
+    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
+    h = CairoMakie.scatter!(ax, macrostrat.rocklon[t], macrostrat.rocklat[t], 
+        color=ersn[t], colormap=c_gradient, markersize = 3
+    )
+    Colorbar(f[1,2], h, label = "Erosion [m/Myr]", height = Relative(0.9))
+    display(f)
     # save("results/figures/slope.png", f)
 
 

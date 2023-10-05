@@ -50,6 +50,7 @@
             chert = :deepskyblue, evaporite = :lightskyblue, coal = :midnightblue, 
             phosphorite = :turquoise, volcaniclast = :rebeccapurple,
         met = :gold, metased = :yellowgreen, metaign = :darkorange,
+        cover = :grey
     )
 
     # Resampled

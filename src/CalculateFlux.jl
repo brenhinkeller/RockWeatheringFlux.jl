@@ -109,8 +109,8 @@
 
     # Get slope at each coordinate point with a known EarthChem sample
     # Modify this function to return an error as well
-    rockslope = window_avg(srtm15_slope, macrostrat.rocklat, macrostrat.rocklon, 
-        srtm15_sf, halfwidth=5
+    rockslope = movingwindow(srtm15_slope, macrostrat.rocklat, macrostrat.rocklon, 
+        srtm15_sf, n=5
     )
 
     # Calculate all erosion rates (mm/kyr)
@@ -216,34 +216,6 @@
             result[j,i] += nansum(unmeasurementify(elementflux[j][macro_cats[subcats[i]]])[1])
         end
     end
-
-    # p = Progress(npoints ÷ 100, desc="Calculating absolute element fluxes...")
-    # @time for i = 1:npoints
-    #     # Get the rock types matched with the point, ignoring cover
-    #     type = get_type(macro_cats, i, all_keys=true)
-    #     t = collect(type) .!= :cover
-    #     type = type[t]
-
-    #     # Classify types as major / minor
-    #     maj, ismaj, ctypes = majorminor(type, minorsed, minorign, minormet)
-
-    #     # The contribution of the point should be split between the number of major types
-    #     # matched to that point
-    #     for j in eachindex(header)
-    #         contrib = (elementflux[header[j]][i] / count(ismaj)).val
-    #         contrib = ifelse(isnan(contrib), 0, contrib)
-
-    #         # Assign value to results table. Minor types contribute the contribution of the 
-    #         # major type split between the number of minor types
-    #         @inbounds for t in eachindex(type)
-    #             result[j,colnumbers[type[t]]] += ifelse(ismaj[t], contrib, contrib / ctypes[maj[t]])
-    #         end
-    #     end
-
-    #     if i % 100 == 0
-    #         next!(p)
-    #     end
-    # end
 
     # Unit conversion
     result = result ./ kg_gt

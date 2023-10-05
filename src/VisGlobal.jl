@@ -54,6 +54,45 @@
     save("results/figures/bulk_all.png", f)
 
 
+## --- EarthChem points by rock type
+    fid = h5open("output/bulk.h5", "r")
+        header = read(fid["bulk"]["header"])
+        data = read(fid["bulk"]["data"])
+        bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+
+        header = read(fid["bulktypes"]["bulk_cats_head"])
+        data = read(fid["bulktypes"]["bulk_cats"])
+        data = @. data > 0
+        bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    close(fid)
+
+    minorsed, minorign, minormet = get_minor_types()
+    for type in minorsed
+        bulk_cats.sed .|= bulk_cats[type]
+    end
+    for type in minorign
+        bulk_cats.ign .|= bulk_cats[type]
+    end
+    for type in minormet
+        bulk_cats.met .|= bulk_cats[type]
+    end
+    
+    f = Figure(resolution = (1200, 600))
+    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
+
+    # catkeys = reverse(collect(keys(bulk_cats)))
+    catkeys = [:ign, :sed, :met]
+    for i in eachindex(catkeys)
+        CairoMakie.scatter!(ax, bulk.Longitude[bulk_cats[catkeys[i]]], 
+            bulk.Latitude[bulk_cats[catkeys[i]]], color=colors[catkeys[i]], 
+            markersize = 3, label="$(catkeys[i])"
+        )
+    end
+
+    Legend(f[1, 2], ax)
+    display(f)
+    
+
 ## --- [DATA] Macrostrat and matched EarthChem samples
     # Indices
     bulkidx = Int.(vec(readdlm("$matchedbulk_io")[:,1]))

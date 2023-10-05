@@ -94,42 +94,50 @@
 
     """
     ```julia
-    window_avg(data::Matrix, lat::Vector, lon::Vector, sf::Number=240; 
-        halfwidth::Int=1, 
-        maxpossible::Number=0xffff
+    function movingwindow(data::AbstractArray, lat::AbstractArray, lon::AbstractArray, 
+        sf::Number=240; 
+        n::Number=5, maxpossible::Number=0xffff
     )
     ```
-    Find the average value of geospatial `data` in a window with side lengths of 2 * 
-    `halfwidth`, centered on the coordinates (`lat`, `lon`).
 
-    ### Scale Factor
-
-      * `sf::Number=240`: Scale factor, or cells per degree, for the geospatial `data`. 
-        For 15 arc-second resolution, the scale factor is 240, because 15 arc-seconds go 
-        into 1 arc-degree 60 * 4 = 240 times.
+    Find the average value of geospatial `data` in a `n` * `n` km window centered at 
+    `lat`ᵢ, `lon`ᵢ.
 
     ### Optional Kwargs:
+    * `sf::Number=240`: Scale factor, or cells per degree, for the geospatial `data`. 
+        For 15 arc-second resolution, the scale factor is 240, because 15 arc-seconds go 
+        into 1 arc-degree 60 (arc minutes / degree) * 4 (cells / arc minute) = 240 times.
 
-      * `halfwidth::Int=1`: Defines the size of the window. The default value of 1 defines 
-        a halfwidth of 1 cell (for a scale factor of 240, 15 arc-seconds), for a window 
-        size of 30 arc-seconds.
+    * `n::Number=5`: Defines the size of the window, in kilometers.
 
-      * `maxpossible::Number=0xffff`: The maximum possible value for the variable of interest; 
+    * `maxpossible::Number=0xffff`: The maximum possible value for the variable of interest; 
         variables with values greater than this are ignored.
 
-    """
-    function window_avg(data::Matrix, lat::Vector, lon::Vector, sf::Number=240;
-            halfwidth::Int=1, 
-            maxpossible::Number=0xffff
-        )
 
-        # Make sure data has values that cover all of Earth
+    """
+    function movingwindow(data::AbstractArray, lat::AbstractArray, lon::AbstractArray, 
+            sf::Number=240; n::Number=5, maxpossible::Number=0xffff
+        )
+        # Interpret user input - make sure DEM is the correct size
         (nrows, ncols) = size(data)
         @assert nrows == 180 * sf + 1   # Latitude
         @assert ncols == 360 * sf + 1   # Longitude
 
         # Preallocate
         out = fill(NaN ± NaN, length(lat))
+        # NShalfwidth = Array{Int64}(undef, nrows, 1)   # Constant (for now?)
+        EWhalfwidth = Array{Int64}(undef, nrows, 1)   # Depends on latitude
+
+        # Precalculate the number of grid cells per n×n window at each latitude
+        km_per_cell = 1852 * 60 / sf / 1000    # Kilometers per cell (lon) at the equator
+        target = n/2
+        NShalfwidth = Int(round(target / km_per_cell))
+
+        for i = 1:nrows
+            latᵢ = 90 - (1/sf*(i-1))
+            gridᵢ = cos(deg2rad(latᵢ)) * km_per_cell
+            EWhalfwidth[i] = min(Int(round(target / gridᵢ)), ncols)
+        end
 
         # Find result by indexing into the varname matrix
         for i in eachindex(lat, lon)
@@ -142,13 +150,16 @@
                 row = 1 + round(Int,(90 + lat[i]) * sf)
                 col = 1 + round(Int,(180 + lon[i]) * sf)
 
+                row = (row-EWhalfwidth[row]):(row+EWhalfwidth[row])
+                col = (col-NShalfwidth):(col+NShalfwidth)
+
                 # Preallocate
-                s = fill(NaN, (2*halfwidth+1)^2)   # Data values we'll use
-                k = 0                              # Counter
+                s = fill(NaN, length(row)*length(col))  # Hold the data values we'll use
+                k = 0                                   # Counter
 
                 # Index into the array
-                for r = (row-halfwidth):(row+halfwidth)
-                    for c = (col-halfwidth):(col+halfwidth)
+                for r in row
+                    for c in col
                         # Only do the computation if we are in bounds
                         if 1 <= r <= nrows
                             res = data[r, mod(c-1,ncols-1)+1]

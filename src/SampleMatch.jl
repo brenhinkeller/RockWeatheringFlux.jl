@@ -10,6 +10,7 @@
     using Static
     using Measurements
     using Dates
+    using LogExpFunctions
 
     # Local utilities
     include("utilities/Utilities.jl")

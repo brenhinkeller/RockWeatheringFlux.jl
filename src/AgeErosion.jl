@@ -44,8 +44,8 @@
 
     # Get slope at each coordinate point with a known EarthChem sample
     # Modify this function to return an error as well
-    rockslope = window_avg(srtm15_slope, macrostrat.rocklat, macrostrat.rocklon, 
-        srtm15_sf, halfwidth=5
+    rockslope = movingwindow(srtm15_slope, macrostrat.rocklat, macrostrat.rocklon, 
+        srtm15_sf, n=5
     )
 
     # Calculate all erosion rates (mm/kyr)
@@ -53,7 +53,7 @@
     ersn, = unmeasurementify(rock_ersn)
 
 
-## --- Plot erosion rate vs. slope
+## --- Plot erosion rate vs. slope [????]
     # t = @. ersn < 600
     t = trues(length(ersn))
 

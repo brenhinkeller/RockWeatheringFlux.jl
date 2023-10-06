@@ -12,6 +12,7 @@
     # Local utilities
     using Static
     using LoopVectorization
+    using Measurements
     include("utilities/Utilities.jl")
 
     # Parameters for VP resampling
@@ -53,7 +54,7 @@
     simvolcanic = bsresample(data, uncertainty, nsims, p)
 
 
-## --- Run Monte Carlo simulations for VP Igneous data (spatial)
+## --- [Doesn't work] Run Monte Carlo simulations for VP Igneous data (spatial)
     # Get resampling weights
     tₚ = @. !isnan(plutonic.Latitude) & !isnan(plutonic.Longitude) & (plutonic.Elevation .> -30)
     tᵥ = @. !isnan(volcanic.Latitude) & !isnan(volcanic.Longitude) & (volcanic.Elevation .> -30)
@@ -65,12 +66,13 @@
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
 
     # Get data and uncertainty
-    data = [plutonic.SiO2[t₁]; volcanic.SiO2[t₂]]
+    data = [plutonic.SiO2[tₚ]; volcanic.SiO2[tᵥ]]
     uncertainty = fill(SiO2_err, length(data))
 
     # Run simulation
     simigneous1 = bsresample(data, uncertainty, nsims, p)
 
+    SiO2min, SiO2max = 40, 80
     c, n = bincounts(simigneous1, SiO2min, SiO2max, 160)
     n = float(n) ./ nansum(float(n) .* step(c))
     h = plot(c, n, seriestype=:bar, framestyle=:box, color=:dimgrey, linecolor=:dimgrey,
@@ -80,7 +82,7 @@
     display(h)
 
 
-## --- Run Monte Carlo simulations for VP Igneous data (spatiotemporal)
+## --- [Does work?] Run Monte Carlo simulations for VP Igneous data (spatiotemporal)
     # Get resampling weights
     tₚ .&= .!isnan.(plutonic.Age)
     tᵥ .&= .!isnan.(volcanic.Age)
@@ -93,12 +95,13 @@
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
 
     # Get data and uncertainty
-    data = [plutonic.SiO2[t₁]; volcanic.SiO2[t₂]]
+    data = [plutonic.SiO2[tₚ]; volcanic.SiO2[tᵥ]]
     uncertainty = fill(SiO2_err, length(data))
 
     # Run simulation
     simigneous2 = bsresample(data, uncertainty, nsims, p)
 
+    SiO2min, SiO2max = 40, 80
     c, n = bincounts(simigneous2, SiO2min, SiO2max, 160)
     n = float(n) ./ nansum(float(n) .* step(c))
     h = plot(c, n, seriestype=:bar, framestyle=:box, color=:dimgrey, linecolor=:dimgrey,
@@ -122,6 +125,7 @@
 
 ## --- Load matched Earthchem data 
     fid = readdlm("$matchedbulk_io")
+    # fid = readdlm("output/250K_bulkidx18.tsv")
     bulkidx = Int.(vec(fid[:,1]))
     t = @. bulkidx != 0
 
@@ -161,67 +165,67 @@
     # Volcanic, Plutonic
     fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(types))
     for i in eachindex(fig)
-        h = plot(framestyle=:box, xlabel="SiO2 [wt.%]", ylabel="Weight", 
+        h = Plots.plot(framestyle=:box, xlabel="SiO2 [wt.%]", ylabel="Weight", 
             xlims=(SiO2min, SiO2max), left_margin=(30, :px), bottom_margin=(30, :px),  
         )
 
         # Matched samples
         c, n = bincounts(mbulk.SiO2[macro_cats[types[i]]], SiO2min, SiO2max, Int(nbins/2))
         n₁ = float(n) ./ nansum(float(n) .* step(c))
-        plot!(c, n₁, seriestype=:bar, color=:lightcoral, linecolor=:lightcoral,
+        Plots.plot!(c, n₁, seriestype=:bar, color=:lightcoral, linecolor=:lightcoral,
             label="Matched $(labels[i])", 
         )
 
         # Resampled EarthChem
         c, n = bincounts(bsrsilica[types[i]], SiO2min, SiO2max, nbins)
         n₂ = float(n) ./ nansum(float(n) .* step(c))
-        plot!(c, n₂, seriestype=:path, color=:blue, linecolor=:blue, linewidth=2,
+        Plots.plot!(c, n₂, seriestype=:path, color=:blue, linecolor=:blue, linewidth=2,
             label="Resampled EarthChem",
         )
 
         # Prior Earthchem
         c, n = bincounts(bulk.SiO2[bulk_cats[types[i]]], SiO2min, SiO2max, Int(nbins/2))
         n₃ = float(n) ./ nansum(float(n) .* step(c))
-        plot!(c, n₃, seriestype=:path, color=:red, linecolor=:red, linewidth=2,
+        Plots.plot!(c, n₃, seriestype=:path, color=:red, linecolor=:red, linewidth=2,
             label="EarthChem prior",
         )
 
         # Keller et al., 2015
         c, n = bincounts(simVP[i], SiO2min, SiO2max, nbins)
         n₄ = float(n) ./ nansum(float(n) .* step(c))
-        plot!(c, n₄, seriestype=:path, color=:black, linecolor=:black, linewidth=3,
+        Plots.plot!(c, n₄, seriestype=:path, color=:black, linecolor=:black, linewidth=3,
             label="Keller et al., 2015",
         )
 
-        ylims!(0, round(maximum([n₁; n₂; n₃; n₄]), digits=2)+0.01)
+        Plots.ylims!(0, round(maximum([n₁; n₂; n₃; n₄]), digits=2)+0.01)
         fig[i] = h
     end
 
     # Igneous
-    p = plot(framestyle=:box, xlabel="SiO2 [wt.%]", ylabel="Weight", 
+    p = Plots.plot(framestyle=:box, xlabel="SiO2 [wt.%]", ylabel="Weight", 
         xlims=(SiO2min, SiO2max), left_margin=(30, :px), bottom_margin=(30, :px),  
     )
 
     c, n = bincounts(mbulk.SiO2[macro_cats.ign], SiO2min, SiO2max, Int(nbins/2))
     n₁ = float(n) ./ nansum(float(n) .* step(c))
-    plot!(c, n₁, seriestype=:bar, color=:lightcoral, linecolor=:lightcoral,
+    Plots.plot!(c, n₁, seriestype=:bar, color=:lightcoral, linecolor=:lightcoral,
         label="Matched igneous", 
     )
 
     c, n = bincounts(bulk.SiO2[bulk_cats[types[i]]], SiO2min, SiO2max, Int(nbins/2))
     n₂ = float(n) ./ nansum(float(n) .* step(c))
-    plot!(c, n₂, seriestype=:path, color=:red, linecolor=:red, linewidth=2,
+    Plots.plot!(c, n₂, seriestype=:path, color=:red, linecolor=:red, linewidth=2,
         label="EarthChem prior",
     )
 
     c, n = bincounts(bsrsilica.ign, SiO2min, SiO2max, nbins)
     n₃ = float(n) ./ nansum(float(n) .* step(c))
-    plot!(c, n₃, seriestype=:path, color=:blue, linecolor=:blue, linewidth=2,
+    Plots.plot!(c, n₃, seriestype=:path, color=:blue, linecolor=:blue, linewidth=2,
         label="Resampled EarthChem",
     )
-    ylims!(0, round(maximum([n₁; n₂; n₃]), digits=2)+0.01)
+    Plots.ylims!(0, round(maximum([n₁; n₂; n₃]), digits=2)+0.01)
 
-    h = plot(fig..., p, layout=(2, 2), size=(1000,800))
+    h = Plots.plot(fig..., p, layout=(2, 2), size=(1000,800))
     display(h)
     savefig(h, "results/figures/dist_ign.png")
 
@@ -234,7 +238,7 @@
 
     fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(types))
     for i in eachindex(fig)
-        h = plot(framestyle=:box, xlabel="SiO2 [wt.%]", ylabel="Weight", 
+        h = Plots.plot(framestyle=:box, xlabel="SiO2 [wt.%]", ylabel="Weight", 
             xlims=(SiO2min, SiO2max), left_margin=(30, :px), bottom_margin=(30, :px),
             legend=:topleft    
         )
@@ -242,29 +246,29 @@
         # Matched samples
         c, n = bincounts(mbulk.SiO2[macro_cats[types[i]]], SiO2min, SiO2max, Int(nbins/2))
         n₁ = float(n) ./ nansum(float(n) .* step(c))
-        plot!(c, n₁, seriestype=:bar, color=colors[types[i]], linecolor=colors[types[i]],
+        Plots.plot!(c, n₁, seriestype=:bar, color=colors[types[i]], linecolor=colors[types[i]],
             label="Matched $(labels[i])", 
         )
 
         # Prior Earthchem
         c, n = bincounts(bulk.SiO2[bulk_cats[types[i]]], SiO2min, SiO2max, nbins)
         n₃ = float(n) ./ nansum(float(n) .* step(c))
-        plot!(c, n₃, seriestype=:path, color=:red, linecolor=:red, linewidth=3,
+        Plots.plot!(c, n₃, seriestype=:path, color=:red, linecolor=:red, linewidth=3,
             label="EarthChem prior",
         )
 
         # Resampled EarthChem
         c, n = bincounts(bsrsilica[types[i]], SiO2min, SiO2max, nbins)
         n₂ = float(n) ./ nansum(float(n) .* step(c))
-        plot!(c, n₂, seriestype=:path, color=:black, linecolor=:black, linewidth=3,
+        Plots.plot!(c, n₂, seriestype=:path, color=:black, linecolor=:black, linewidth=3,
             label="Resampled EarthChem",
         )
 
-        ylims!(0, round(maximum([n₁; n₂; n₃]), digits=2)+0.01)
+        Plots.ylims!(0, round(maximum([n₁; n₂; n₃]), digits=2)+0.01)
         fig[i] = h
     end
 
-    h = plot(fig..., layout=(3, 3), size=(2000,1400))
+    h = Plots.plot(fig..., layout=(3, 3), size=(2000,1400))
     display(h)
     savefig(h, "results/figures/dist_sedmet.png")
 
@@ -323,6 +327,32 @@
     h = plot(fig..., layout=(1, 2), size=(600,400))
     display(h)
     savefig(h, "results/figures/dist_cao.png")
+
+
+## --- Prior and posterior spatial distributions of EarthChem samples
+    
+
+    h = plot(framestyle=:box, xlabel="Longitude", ylabel="Latitude", 
+        left_margin=(30, :px), bottom_margin=(30, :px),
+        legend=:outertopright    
+    )
+
+    latmin, latmax = -90, 90
+    nbins = 18  # Every 10 degrees
+
+    c, n = bincounts(bulk.Latitude, latmin, latmax, nbins)
+    n₀ = float(n) ./ nansum(float(n) .* step(c))
+    plot!(n₀, c, seriestype=:step, color=:orange, linecolor=:orange, linewidth=1,
+        label="Prior EarthChem (lat)",
+    )
+
+    # lonmin, lonmax = -180, 180
+    # nbins = 36  # Every 10 degrees
+    # c, n = bincounts(bulk.Longitude, lonmin, lonmax, nbins)
+    # n₀ = float(n) ./ nansum(float(n) .* step(c))
+    # plot!(twiny(), c, n₀, seriestype=:step, color=:orange, linecolor=:blue, linewidth=1,
+    #     label="Prior EarthChem (lon)",
+    # )
 
 
 ## --- End of file

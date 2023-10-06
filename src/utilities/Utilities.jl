@@ -746,10 +746,8 @@
     in normal space.
     """
     function rand_prop_liklihood(ll)
-        ll .-= maximum(ll)
-        sum_likelihoods = sum(exp, ll)
-        # log_sum_likelihoods = logsumexp(ll)
-        r = rand()*sum_likelihoods
+        log_sum_likelihoods = logsumexp(ll)
+        r = rand()*exp(sum_likelihoods)
         s = zero(typeof(sum_likelihoods))
         @inbounds for i in eachindex(ll)
             s += exp(ll[i])

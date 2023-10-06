@@ -698,7 +698,6 @@
         ll_age = Array{Float64}(undef, npoints, 1)
         ll_dist = Array{Float64}(undef, npoints, 1)
         ll_total = Array{Float64}(undef, npoints, 1)
-        # big_ll = Array{BigFloat}(undef, npoints, 1)
 
         # Replace missing values: this will penalize but not exclude missing data
         @inbounds for i in 1:npoints
@@ -718,7 +717,7 @@
             ll_age[i] = -((bulkage[i] - sampleage)^2)/(38^2)
 
             # Distance (σ = 1.8 arc degrees)
-            ll_dist[i] = -((haversine(samplelat, samplelon, bulklat[i], bulklon[i]))^2)/(1.8^2)
+            ll_dist[i] = -((haversine(samplelat, samplelon, bulklat[i], bulklon[i]))^2)/(18.0^2)
         end
 
         # Everyone loves addition
@@ -731,22 +730,10 @@
             end
         end
 
-        # Promote to BigFloat so very negative likelihoods don't exp to 0
-        # This is nice but it's 10x slower and 20x more memory :(
-        # big_ll .= ll_total
-
-        # Rescale total likelihood so the most negative value is -745
-        # This is the smallest x such that exp(x) > 0 (considering rounding)
-        # TO DO: no magic numbers?
-        ll_scale = -minimum(ll_total)/745
-        ll_total ./= ll_scale
-
-        # matched_sample = rand_prop_liklihood(big_ll)
         matched_sample = rand_prop_liklihood(ll_total)
         return sampleidx[matched_sample]
     end
 
-    
 
     """
     ```julia
@@ -759,7 +746,9 @@
     in normal space.
     """
     function rand_prop_liklihood(ll)
+        ll .-= maximum(ll)
         sum_likelihoods = sum(exp, ll)
+        # log_sum_likelihoods = logsumexp(ll)
         r = rand()*sum_likelihoods
         s = zero(typeof(sum_likelihoods))
         @inbounds for i in eachindex(ll)

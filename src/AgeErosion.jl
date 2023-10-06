@@ -103,46 +103,54 @@
         simout[simtypes[i]] .= bsresample(data, uncert, nsims, p)
     end
 
+    # Save data
+    fid = h5open("output/resampled/age_slope.h5", "w")
+        g = create_group(fid, "vars")
+        g["sed"] = simout.sed
+        g["ign"] = simout.ign
+        g["met"] = simout.met
+    close(fid)
 
-## --- Plot erosion rate vs. rock age
-    # t = @. ersn < 600
-    t = trues(length(ersn))
 
-    c,m,e = binmeans(macrostrat.age[t], ersn[t], 0, 3800, 38)
-    Plots.plot(c, m, yerror=e, seriestype=:scatter,framestyle=:box, 
-        color=:red, lcolor=:red, msc=:red,
-        label="", ylabel="Erosion rate [m/Myr]", xlabel="Bedrock Age [Ma]",
-        yaxis=log10
-    )
-
+## --- If you already have data, load from file
+    fid = h5open("output/resampled/age_slope.h5", "r")
+        simout = (
+            sed = read(fid["vars"]["sed"]),
+            ign = read(fid["vars"]["ign"]),
+            met = read(fid["vars"]["met"]),
+        )
+    close(fid)
+    
 
 ## --- Plot erosion rate as a function of slope, but by rock type
     c,m,e = binmeans(simout.sed[:,3], simout.sed[:,4], 0, 3800, 38)
     h1 = Plots.plot(c, m, yerror=e, color=:blue, lcolor=:blue, msc=:blue, framestyle=:box,
-        label="Sed", xlabel="Bedrock Age [Ma]", ylabel="Hillslope [m/km]", 
+        label="Sed",
         markershape=:circle, yaxis=:log10, legend=:topright, # ylims=(10,500)
     )
 
     c,m,e = binmeans(simout.ign[:,3], simout.ign[:,4], 0, 3800, 38)
     h2 = Plots.plot(c, m, yerror=e, color=:red, lcolor=:red, msc=:red, framestyle=:box,
-        label="Ign", xlabel="Bedrock Age [Ma]", ylabel="Hillslope [m/km]", 
+        label="Ign", ylabel="Hillslope [m/km]", 
         markershape=:circle, yaxis=:log10, legend=:topright, # ylims=(10,500)
     )
 
     c,m,e = binmeans(simout.met[:,3], simout.met[:,4], 0, 3800, 38)
     h3 = Plots.plot(c, m, yerror=e, color=:purple, lcolor=:purple, msc=:purple, framestyle=:box,
-        label="Met", xlabel="Bedrock Age [Ma]", ylabel="Hillslope [m/km]", 
+        label="Met", xlabel="Bedrock Age [Ma]",
         markershape=:circle, yaxis=:log10, legend=:topright, # ylims=(10,500)
     )
 
-    Plots.plot(h1, h2, h3, layout=(3,1), size=(600, 1200))
+    h = Plots.plot(h1, h2, h3, layout=(3,1), size=(600, 1200), left_margin=(30, :px))
+    display(h)
+    savefig(h, "results/figures/ageslope.png")
 
 
 ## --- Everything everywhere over 3800 million years?
     # (Plot everything on the same axis)
 
     h = Plots.plot(xlabel="Bedrock Age [Ma]", ylabel="Hillslope [m/km]", framestyle=:box,
-        legend=:topright, yaxis=log10
+        legend=:topright, yaxis=:log10
     )
 
     c,m,e = binmeans(simout.sed[:,3], simout.sed[:,4], 0, 3800, 38)
@@ -161,5 +169,7 @@
     )
 
     display(h)
+    savefig(h, "results/figures/ageslope_stack.png")
+
 
 ## --- End of file 

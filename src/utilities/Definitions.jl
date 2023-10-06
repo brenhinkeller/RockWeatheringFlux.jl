@@ -183,16 +183,18 @@
             "topazite", "troctolite", "turjaite", "ugandite", "uncompahgrite", "urtite", 
             "vaugnerite", "vibetoite", "websterite", "wehrlite", "yamaskite", "pluton", 
             "batholith", "mangerite", "pegmatite", "rapakivi", "intrus", "sill", "dike", 
-            "stock", "laccolith", "lopolith", "microgranite")
+            "stock", "laccolith", "lopolith", "microgranite", "enderbite",)
         ign = ("igneous", "silicic", "mafic", "felsic", "basite", "phoscorite", "rauhaugite", 
             "beforsite")
 
         # Metamorphic
         metased = ("para", "metased", "quartzite", "marble", "slate", "leptite", "phyllite", 
-            "porcellanite", "meta-sed", "hornfels")
+            "porcellanite", "meta-sed", "hornfels", "schist", "calc silicate", "calcsilicate",)
         metaign = ("orthogneiss", "metaign", "serpentin", "amphibolit", "greenstone", "eclogite", 
             "basite", "greisen", "halleflinta", "leucophyre", "melaphyre", "propylite", "spilite", 
-            "ultramafitite", "alkremite", "ortho", "meta-ign", "metabasite")
+            "ultramafitite", "alkremite", "ortho", "meta-ign", "metabasite", "soapstone", "talc", 
+            "greenschist", "blueschist", "zeolite", "skarn", "anorthosite", "charnockite",
+            "peridot", "dunit", "harzburg", "rodingite",)
         # lowgrade = ("slate", "phyllite", "serpentin", "greenstone", "greenschist", "zeolite", 
         #     "gossan", "alter", "hydrothermal", "palagonite",)
         # highgrade = ("crystalline", "basement", "marble", "skarn", "schist", "blueschist", 
@@ -201,12 +203,10 @@
         #     "harzburg", "high grade metamorphic")
         cataclastic = ("mylonit", "cataclasite", "melange", "gouge", "tecton",)
         met = (("meta", "garnet", "buchite", "epidot", "fenite", "albitite", "chloritite", 
-            "phlogopitite", "calc silicate", "calcsilicate", "rodingite", "sericitite", 
-            "tactite", "soapstone", "talc", "tourmalinite", "unakite", "vogesite", 
-            "greenschist", "zeolite", "gossan", "alter", "hydrothermal", "palagonite", 
-            "crystalline", "basement", "skarn", "schist", "blueschist", "gneiss", "granulit", 
-            "granofels", "sanidinite", "migma", "enderbite", "anorthosite", "charnockite", 
-            "peridot", "dunit", "harzburg", "high grade metamorphic")...,
+            "phlogopitite",  "sericitite", "tactite",  "tourmalinite", "unakite", 
+            "vogesite", "gossan", "alter", "hydrothermal", "palagonite", "crystalline", 
+            "basement", "gneiss", "granulit", "granofels", "sanidinite", "migma",  
+            "high grade metamorphic")...,
             cataclastic...,
         )
 

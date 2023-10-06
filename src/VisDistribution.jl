@@ -51,15 +51,15 @@
     # data = @. data > 0
     # macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
 
-    for type in minorsed
-        macro_cats.sed .|= macro_cats[type]
-    end
-    for type in minorign
-        macro_cats.ign .|= macro_cats[type]
-    end
-    for type in minormet
-        macro_cats.met .|= macro_cats[type]
-    end
+    # for type in minorsed
+    #     macro_cats.sed .|= macro_cats[type]
+    # end
+    # for type in minorign
+    #     macro_cats.ign .|= macro_cats[type]
+    # end
+    # for type in minormet
+    #     macro_cats.met .|= macro_cats[type]
+    # end
 
     close(macrofid)
 
@@ -353,4 +353,4 @@
     savefig(h, "results/figures/reldenudation.png")
 
 
-    ## --- End of file
+## --- End of file

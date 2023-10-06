@@ -164,32 +164,32 @@
 
 ## --- Locations of points matched with a specific sample
     # TEMPORARY: Allows this block to be run from SampleMatch.jl
-    sampletypes_temp = string.(vec(readdlm("$matchedbulk_io")[:,2]))
+    # sampletypes_temp = string.(vec(readdlm("$matchedbulk_io")[:,2]))
     bulkidx = matches;
 
     # Semi-temporary?
-    sample_cats = match_rocktype(sampletypes_temp)
-    filter = sample_cats[target]
+    target = :shale             # Target rock type
+    i = 142971                   # Target index
 
-    # PERMANENT CODE:
-    target = :siliciclast       # Target rock type
-    i = 30722                   # Target index
+    # sample_cats = match_rocktype(sampletypes_temp)
+    sample_cats = match_rocktype(string.(sampletypes))
+    typefilter = sample_cats[target]
 
     # Filters
     t = @. bulkidx != 0;
     s = @. bulkidx[t] == i;
 
-    dist = haversine.(macrostrat.rocklat[filter], macrostrat.rocklon[filter],
+    dist = haversine.(macrostrat.rocklat[typefilter], macrostrat.rocklon[typefilter],
         bulk.Latitude[bulkidx[t]], bulk.Longitude[bulkidx[t]]
     )
 
     # Make plot
     f = Figure(resolution = (1400, 600))
     ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
-    h1 = CairoMakie.scatter!(ax, macrostrat.rocklon[filter], macrostrat.rocklat[filter], 
+    h1 = CairoMakie.scatter!(ax, macrostrat.rocklon[typefilter], macrostrat.rocklat[typefilter], 
         color=dist, markersize = 3, alpha=0.1, label="All Macrostrat $target"
     )
-    h2 = CairoMakie.scatter!(ax, macrostrat.rocklon[filter][s], macrostrat.rocklat[filter][s], 
+    h2 = CairoMakie.scatter!(ax, macrostrat.rocklon[typefilter][s], macrostrat.rocklat[typefilter][s], 
         color=dist[s], markersize = 3, label="Matched with sample $i"
     )
     h3 = CairoMakie.scatter!(ax, bulk.Longitude[bulk_cats[target]], bulk.Latitude[bulk_cats[target]], 
@@ -205,12 +205,12 @@
 
 ## --- TEMPORARY: distance between points and their matched sample
     t = @. matches != 0;
-    dist = haversine.(macrostrat.rocklat[filter], macrostrat.rocklon[filter],
+    dist = haversine.(macrostrat.rocklat[typefilter], macrostrat.rocklon[typefilter],
         bulk.Latitude[matches[t]], bulk.Longitude[matches[t]]
     )
     f = Figure(resolution = (1400, 600))
     ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
-    h1 = CairoMakie.scatter!(ax, macrostrat.rocklon[filter], macrostrat.rocklat[filter], 
+    h1 = CairoMakie.scatter!(ax, macrostrat.rocklon[typefilter], macrostrat.rocklat[typefilter], 
         color=dist, markersize = 3, label="Macrostrat $(target)s"
     )
     h2 = CairoMakie.scatter!(ax, bulk.Longitude[bulk_cats[target]], bulk.Latitude[bulk_cats[target]], 

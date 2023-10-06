@@ -1,7 +1,7 @@
 ## --- Set up
     # Packages
     using StatGeochem
-    using Statistics
+    # using Statistics
     using HDF5
     using Measurements
     using DelimitedFiles
@@ -13,7 +13,7 @@
 
     # Local utilities
     include("utilities/Utilities.jl")
-    # include("utilities/yorkfit.jl")
+    include("utilities/yorkfit.jl")
 
 
 ## --- Get OCTOPUS basin polygon outlines
@@ -99,18 +99,18 @@
     emmkyr(slp) = exp(slp * (fobj.slope) + (fobj.intercept))
 
     # Plot results
-    h = scatter(basin_srtm.avg_slope,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", 
+    h = Plots.scatter(basin_srtm.avg_slope,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", 
         msc=:auto, color=:blue, alpha=0.5
     )
-    scatter!(h, basin_srtm.avg_slope,octopusdata.eal_mmkyr, label="OCTOPUS Al-26 data", 
+    Plots.scatter!(h, basin_srtm.avg_slope,octopusdata.eal_mmkyr, label="OCTOPUS Al-26 data", 
         msc=:auto, color=:orange, alpha=0.5
     )
-    scatter!(h, c, m, label="Binned Means", msc=:auto, color=:black)
+    Plots.scatter!(h, c, m, label="Binned Means", msc=:auto, color=:black)
 
     # Model
     modelval, modelerr = unmeasurementify(emmkyr.(1:600))
-    plot!(h, 1:length(modelval), modelval, label="Model", color=:black, width=3)
-    plot!(xlabel="SRTM15+ Slope (m/km)", ylabel="Erosion rate (mm/kyr)",
+    Plots.plot!(h, 1:length(modelval), modelval, label="Model", color=:black, width=3)
+    Plots.plot!(xlabel="SRTM15+ Slope (m/km)", ylabel="Erosion rate (mm/kyr)",
         yscale=:log10, framestyle=:box, legend=:topleft, fg_color_legend=:white,
         
     )

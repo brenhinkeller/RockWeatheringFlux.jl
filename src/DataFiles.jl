@@ -7,6 +7,8 @@
     using Static
     using LoopVectorization
     using Measurements
+    using ProgressMeter
+    
     include("utilities/Utilities.jl")
 
     # Macrostrat

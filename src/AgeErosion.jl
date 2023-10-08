@@ -86,14 +86,20 @@
     simtypes = collect(keys(simout))
     for i in eachindex(simtypes)
         # Get data and uncertainty
-        ndata = count(macro_cats[simtypes[i]])
+        datafilter = macro_cats[simtypes[i]]
+        ndata = count(datafilter)
 
         data = Array{Float64}(undef, ndata, length(simitemsout))
         uncert = Array{Float64}(undef, ndata, length(simitemsout))
         for j in eachindex(simitemsout)
-            data[:,j] .= simitemsout[j][macro_cats[simtypes[i]]]
-            uncert[:,j] .= simitemsuncert[j][macro_cats[simtypes[i]]]
+            data[:,j] .= simitemsout[j][datafilter]
+            uncert[:,j] .= simitemsuncert[j][datafilter]
         end
+
+        test = @. (!isnan(macrostrat.rocklon[datafilter]) & 
+            !isnan(macrostrat.rocklat[datafilter]) & !isnan(macrostrat.age[datafilter]))
+        data = data[test[:],:]
+        uncert = uncert[test[:],:]
 
         # Get resampling weights (spatiotemporal)
         k = invweight(macrostrat.rocklat, macrostrat.rocklon, macrostrat.age)
@@ -171,5 +177,7 @@
     display(h)
     savefig(h, "results/figures/ageslope_stack.png")
 
+
+## --- Slope as a function of geologic province
 
 ## --- End of file 

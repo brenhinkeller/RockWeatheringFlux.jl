@@ -17,11 +17,13 @@
 
     # Start timer
     start = now()
-    @info "Start: $(Dates.Date(start)) $(Dates.format(start, "HH:MM"))"
+    @info """ Start: $(Dates.Date(start)) $(Dates.format(start, "HH:MM"))
+    Input: $macrostrat_io
+    Output: $matchedbulk_io
+    """
 
 
 ## --- Load Macrostrat data
-    @info "Loading Macrostrat data ($macrostrat_io) $(Dates.format(now(), "HH:MM"))"
     fid = h5open("$macrostrat_io", "r")
     
     # Data
@@ -50,7 +52,6 @@
     
 
 ## --- Load Earthchem bulk geochemical data
-    @info "Loading EarthChem data $(Dates.format(now(), "HH:MM"))"
     fid = h5open("output/bulk.h5", "r")
 
     # Bulk
@@ -310,7 +311,6 @@
     stop = now()
     @info """
     Stop: $(Dates.Date(stop)) $(Dates.format(stop, "HH:MM")).
-
     Total runtime: $(canonicalize(round(stop - start, Dates.Minute))).
     """
 

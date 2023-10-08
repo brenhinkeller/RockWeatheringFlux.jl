@@ -747,8 +747,8 @@
     """
     function rand_prop_liklihood(ll)
         log_sum_likelihoods = logsumexp(ll)
-        r = rand()*exp(sum_likelihoods)
-        s = zero(typeof(sum_likelihoods))
+        r = rand()*exp(log_sum_likelihoods)
+        s = zero(typeof(log_sum_likelihoods))
         @inbounds for i in eachindex(ll)
             s += exp(ll[i])
             if s > r

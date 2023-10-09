@@ -15,7 +15,7 @@
     using LoopVectorization
     using Measurements
 
-    include("utilities/Utilities.jl")
+    include("../utilities/Utilities.jl")
 
     # Parameters for VP resampling
     SiO2_err = 1.0
@@ -99,7 +99,6 @@
 
 ## --- Load matched Earthchem data 
     fid = readdlm("$matchedbulk_io")
-    # fid = readdlm("output/250K_bulkidx18.tsv")
     bulkidx = Int.(vec(fid[:,1]))
     t = @. bulkidx != 0
 

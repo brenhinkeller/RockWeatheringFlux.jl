@@ -16,7 +16,7 @@
     using StatsPlots
 
     # Local utilities
-    include("utilities/Utilities.jl")
+    include("../utilities/Utilities.jl")
 
     # More definitions
     bins = (ign = (40,80,40), sed = (0,100,100), met = (25,100,75))   # xmin, xmax, nbins

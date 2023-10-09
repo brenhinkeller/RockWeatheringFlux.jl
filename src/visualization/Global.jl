@@ -17,7 +17,7 @@
     using ImageMagick
 
     # Local utilities
-    include("utilities/Utilities.jl")
+    include("../utilities/Utilities.jl")
 
     
 ## --- [DATA, PLOT] Location and age of EarthChem (bulk) points
@@ -232,13 +232,25 @@
     slope = unmeasurementify(rockslope)[1]
     ersn = unmeasurementify(rock_ersn)[1]
 
+
+## --- Slope of rocks older than 3000 Ma
+    t = @. macrostrat.age > 3000;
+
+    f = Figure(resolution = (1200, 600))
+    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
+    h = CairoMakie.scatter!(ax, macrostrat.rocklon[t], macrostrat.rocklat[t], 
+        color=slope[t], colormap=c_gradient, markersize = 5
+    )
+    Colorbar(f[1,2], h, label = "Hillslope [m/km]", height = Relative(0.9))
+    display(f)
+
+
+## --- Slope of every point on Earth
     # TO DO: I should not have to restrict slope like this... something is wrong I think
     # t = @. slope < 1000
     t = @. slope < 600
     # t = trues(length(slope))
 
-
-## --- Slope of every point on Earth
     f = Figure(resolution = (1200, 600))
     ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
     h = CairoMakie.scatter!(ax, macrostrat.rocklon[t], macrostrat.rocklat[t], 

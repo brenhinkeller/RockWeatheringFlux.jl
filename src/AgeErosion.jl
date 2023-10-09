@@ -7,10 +7,11 @@
     using StatGeochem
     using HDF5
     using DelimitedFiles
+    using StatsBase
+    using Plots
 
     using LoopVectorization
     using Static
-    using Plots
     using Measurements
 
     # Local utilities
@@ -53,8 +54,8 @@
     rockslope, rockslope_uncert = unmeasurementify(rockslope)
 
     # Calculate all erosion rates (mm/kyr)
-    # rock_ersn = emmkyr.(rockslope)
-    # ersn, = unmeasurementify(rock_ersn)
+    rock_ersn = emmkyr.(rockslope)
+    rock_ersn, rock_ersn_uncert = unmeasurementify(rock_ersn)
 
 
 ## --- Resample matched data by major rock type
@@ -179,5 +180,57 @@
 
 
 ## --- Slope as a function of geologic province
+    prov = find_geolprov(macrostrat.rocklat, macrostrat.rocklon)
+
+    # This is a little cursed but it's easy to debug
+    provkey = (
+        10 => "Accreted_Arc",
+        11 => "Island_Arc",
+        12 => "Continental_Arc",
+        13 => "Collisional_Orogen",
+        20 => "Extensional",
+        21 => "Rift",
+        22 => "Plume",
+        31 => "Shield",
+        32 => "Platform",
+        33 => "Basin",
+        # 00 => "No_Data",
+    )
+    provcodes = [values(provkey)[i].first for i in eachindex(provkey)]
+    provnames = [values(provkey)[i].second for i in eachindex(provkey)]
+    sample_in_prov = NamedTuple{Tuple(Symbol.(provnames))}([prov .== c for c in provcodes])
+
+    # Get erosion by province, plot
+    ersn_by_prov = [nansum(rock_ersn[t]) for t in sample_in_prov]
+
+    x = 1:length(ersn_by_prov)
+    h = plot(x, ersn_by_prov, seriestype=:bar, framestyle=:box, label="", 
+        ylabel="Total Erosion [m/Myr]", xlabel="Geologic Province", xticks=(x, provnames), 
+        xrotation = 45, ylims = (0, maximum(ersn_by_prov) + 0.1*maximum(ersn_by_prov))
+    )
+    display(h)
+
+    # Normalize erosive contribution by relative abundance
+    abundance_by_prov = [count(sample_in_prov[i]) for i in keys(sample_in_prov)]
+    x = 1:length(ersn_by_prov)
+    h = plot(x, ersn_by_prov./abundance_by_prov, seriestype=:bar, framestyle=:box, label="", 
+        ylabel="Normalized Total Erosion", xlabel="Geologic Province", xticks=(x, provnames), 
+        xrotation = 45, ylims = (0, 350)
+    )
+    display(h)
+
+    # The same plot, but consider means ± standard deviations instead of sums 
+    # The error bars aren't working
+    mean_slp_prov = [nanmean(rockslope[t]) for t in sample_in_prov]
+    upper_slp = [percentile(rockslope[t], 95) for t in sample_in_prov] .- mean_slp_prov
+    lower_slp = mean_slp_prov .- [percentile(rockslope[t], 5) for t in sample_in_prov]
+
+    x = 1:length(ersn_by_prov)
+    h = plot(x, mean_slp_prov, seriestype=:bar, framestyle=:box, label="", 
+        ylabel="Average Slope [m/km]", xlabel="Geologic Province",
+        xticks=(x, provnames), xrotation = 45,
+        yerror=(lower_slp, upper_slp), ylims = (0, 500)
+    )
+
 
 ## --- End of file 

@@ -61,6 +61,13 @@
         macro_cats.met .|= macro_cats[type]
     end
 
+    # Exclude cover from everything
+    subcats = collect(keys(macro_cats))
+    deleteat!(subcats, findall(x->x==:cover,subcats))
+    for type in subcats
+        macro_cats[type] .&= .!(macro_cats.cover)
+    end
+    
 
 ## --- Calculate erosion rate at each point of interest
     # Load the slope variable from the SRTM15+ maxslope file
@@ -125,7 +132,8 @@
         uncert = uncert[test[:],:]
 
         # Get resampling weights (spatiotemporal)
-        k = invweight(macrostrat.rocklat, macrostrat.rocklon, macrostrat.age)
+        # k = invweight(macrostrat.rocklat, macrostrat.rocklon, macrostrat.age)
+        k = invweight_age(macrostrat.age)
         p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
 
         # Run simulation and save results
@@ -133,12 +141,12 @@
     end
 
     # Save data
-    fid = h5open("output/resampled/age_slope.h5", "w")
-        g = create_group(fid, "vars")
-        g["sed"] = simout.sed
-        g["ign"] = simout.ign
-        g["met"] = simout.met
-    close(fid)
+    # fid = h5open("output/resampled/age_slope.h5", "w")
+    #     g = create_group(fid, "vars")
+    #     g["sed"] = simout.sed
+    #     g["ign"] = simout.ign
+    #     g["met"] = simout.met
+    # close(fid)
 
 
 ## --- If you already have data, load from file
@@ -257,21 +265,45 @@
     Legend(f[1, 2], [elem1, elem2], ["> 3000 Ma", "< 3000 Ma"], patchsize = (35, 35), rowgap = 10)
     display(f)
 
+## --- Slope of Archean rocks
+    archean = old_archn .| yng_archn;
+
+    f = Figure(resolution = (1200, 600))
+    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
+    h1 = CairoMakie.scatter!(ax, macrostrat.rocklon[archean], macrostrat.rocklat[archean], 
+        color=rockslope[archean], colormap=c_gradient, markersize = 3,)
+    Colorbar(f[1,2], h1, label = "Hillslope [m/km]", height = Relative(0.9))
+    display(f)
+
 
 ## --- Temporal (Where are the Archean rocks?)
     ageuncert = (macrostrat.agemax .- macrostrat.agemin) ./ 2;
 
 
 ## --- Geologic province (Who are the Archean rocks?)
-    # We already know most rocks are shields, so it's more useful to look at, for each
-    # province, the proportion of rocks greater / less than 3000 Ma.
     old_provs = decode_find_geolprov(find_geolprov(macrostrat.rocklat[old_archn], 
         macrostrat.rocklon[old_archn]))
     yng_provs = decode_find_geolprov(find_geolprov(macrostrat.rocklat[yng_archn], 
         macrostrat.rocklon[yng_archn]))
     archeanprovs = unique([old_provs; yng_provs])
 
+    old_provs = float.([count(x -> x==name, old_provs) for name in archeanprovs])
+    yng_provs = float.([count(x -> x==name, yng_provs) for name in archeanprovs])
+
+
+    # We already know most rocks are shields, so it's more useful to look at, for each
+    # province, the proportion of rocks greater / less than 3000 Ma.
     totalprovs = old_provs .+ yng_provs
+    old_provs ./= totalprovs
+    yng_provs ./= totalprovs
+
+    x = 1:length(totalprovs)
+    h = StatsPlots.groupedbar([yng_provs old_provs], bar_position=:stack,
+        framestyle=:box, label=["< 3000 Ma" "> 3000 Ma"],
+        ylabel="Abundance", xlabel="Geologic Province", xticks=(x, archeanprovs), 
+        xrotation = 45, ylims = (0, 1.1),
+        legend=:outertopright, bottom_margin=(30, :px)
+    )
 
 
 ## --- Rock type (Who are the Archean rocks?)
@@ -307,6 +339,9 @@
 
 
 ## --- Abundance of each geologic eon in each province
+    allprov = decode_find_geolprov(find_geolprov(macrostrat.rocklat, macrostrat.rocklon))
+    uniqueprovs = unique(allprov)
+
     # TO DO: normalize to relative abundance relative to abundance of all rock ages
     # Or something to show how Archean rocks tend to be in shields...
     archean = @. macrostrat.age >= 2500;

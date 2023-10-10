@@ -9,6 +9,7 @@
     using DelimitedFiles
     using StatsBase
     using Plots
+    using StatsPlots
 
     using LoopVectorization
     using Static
@@ -206,38 +207,92 @@
     display(h)
     
 
-## --- Characterize geologic provinces of Archean rocks
-    oldarchean = @. macrostrat.age > 3000;
-    archeanprov = decode_find_geolprov(find_geolprov(macrostrat.rocklat[oldarchean], 
-        macrostrat.rocklon[oldarchean])
+## --- Compare Eo - Paleoarchean (higher slope) and Meso - Neoarchean (lower slope)
+    # Geologic provinces (Most Archean rocks are shields)
+    ep_archean = @. macrostrat.age > 3200;
+    mn_archean = @. 3200 > macrostrat.age >= 2500;
+
+    ep_prov = decode_find_geolprov(find_geolprov(macrostrat.rocklat[ep_archean], 
+        macrostrat.rocklon[ep_archean])
     )
+    mn_prov = decode_find_geolprov(find_geolprov(macrostrat.rocklat[mn_archean], 
+        macrostrat.rocklon[mn_archean])
+    )
+
+    # Normalized distribution of provinces for each age category
     uniqueprovs = unique(archeanprov)
-    provcount = [count(x -> x==name, archeanprov) for name in uniqueprovs]
+    ep_prov_count = [count(x -> x==name, ep_prov) for name in uniqueprovs] ./ length(ep_prov)
+    mn_prov_count = [count(x -> x==name, mn_prov) for name in uniqueprovs] ./ length(mn_prov)
 
-    # Visualize
     x = 1:length(uniqueprovs)
-    h = Plots.plot(x, provcount, seriestype=:bar, framestyle=:box, label="", 
-        ylabel="Abundance", xlabel="Geologic Province", xticks=(x, uniqueprovs), 
-        xrotation = 45, ylims = (0, maximum(provcount) + 0.1*maximum(provcount)),
-        bottom_margin=(30, :px)
+    StatsPlots.groupedbar([ep_prov_count mn_prov_count], bar_position=:dodge,
+        framestyle=:box, label=["Eo-Paleoarchean" "Meso-Neoarchean"], ylabel="Proportion",
+        xlabel="Geologic Province", xticks=(x, uniqueprovs), legend=:topright, 
+        bottom_margin=(30, :px), xrotation = 45, ylims = (0, 1),
     )
-    display(h)
+
+    # Average slope of Archean rocks?
+    archeanslope = rockslope[oldarchean]
+    c, n = bincounts(archeanslope, 0, maximum(archeanslope), 15)
+    h = Plots.plot(c, n, seriestype=:bar, framestyle=:box,
+        label="", ylabel="Abundance", xlabel="Hillslope [m/km]",
+        ylims = (0, maximum(n) + 0.1*maximum(n))
+    )
+
+## --- Look at just igneous rocks
+    c,m,e = binmeans(macrostrat.age[macro_cats.ign], rockslope[macro_cats.ign], 2500, 3800, 13)
+    h = Plots.plot(c, m, yerror=e, color=:red, lcolor=:red, msc=:red, framestyle=:box,
+        label="Ign", ylabel="Hillslope [m/km]", xlabel="Age [Ma]", seriestype=:scatter,
+        markershape=:circle, yaxis=:log10, legend=:topright,
+    )
 
 
-## --- Most Archean rocks are shields. What is the average shield slope?
+## --- Average slope of each province
     allprov = decode_find_geolprov(find_geolprov(macrostrat.rocklat, macrostrat.rocklon))
     uniqueprovs = unique(allprov)
     inprov = NamedTuple{Tuple(Symbol.(uniqueprovs))}([allprov .== name for name in uniqueprovs])
     
     avg_slope = [nanmean(rockslope[t]) for t in inprov]
+    # TO DO: errors aren't behaving as expected--e.g. maximum error isn't plotted at 317 even though
+    # that's the maximum upper error :(
+    # lower = avg_slope .- [percentile(rockslope[t], 5) for t in inprov]
+    # upper = [percentile(rockslope[t], 95) for t in inprov] .- avg_slope
 
+    # Average slope by geologic province
     x = 1:length(avg_slope)
     h = Plots.plot(x, avg_slope, seriestype=:bar, framestyle=:box, label="", 
         ylabel="Average Slope [m/km]", xlabel="Geologic Province", xticks=(x, uniqueprovs), 
-        xrotation = 45, ylims = (0, maximum(avg_slope) + 0.1*maximum(avg_slope)),
+        xrotation = 45, ylims = (0, maximum(upper) + 0.1*maximum(upper)),
         bottom_margin=(30, :px)
     )
     display(h)
 
 
+## --- Abundance of each geologic eon in each province
+    # TO DO: normalize to relative abundance relative to abundance of all rock ages
+    # Or something to show how Archean rocks tend to be in shields...
+    archean = @. macrostrat.age >= 2500;
+    proterozoic = @. 541 <= macrostrat.age < 2500;
+    phanerozoic = @. macrostrat.age < 541;
+
+    # Total number of rocks by eon
+    # count_archean = 
+    # count_proterozoic = 
+    # count_phanerozoic = 
+
+    # Abundance by province
+    arc_provs = [count(x -> x==name, allprov[archean]) for name in uniqueprovs]
+    pro_provs = [count(x -> x==name, allprov[proterozoic]) for name in uniqueprovs]
+    pha_provs = [count(x -> x==name, allprov[phanerozoic]) for name in uniqueprovs]
+    total_provs = @. arc_provs + pro_provs + pha_provs
+
+    x = 1:length(arc_avg_slope)
+    h = StatsPlots.groupedbar([arc_provs pro_provs pha_provs], bar_position=:stack,
+        framestyle=:box, label=["Archean" "Proterozoic" "Phanerozoic"],
+        ylabel="Abundance", xlabel="Geologic Province", xticks=(x, uniqueprovs), 
+        xrotation = 45, ylims = (0, maximum(total_provs) + 0.1*maximum(total_provs)),
+        legend=:topright, bottom_margin=(30, :px)
+    )
+
+    
 ## --- End of file 

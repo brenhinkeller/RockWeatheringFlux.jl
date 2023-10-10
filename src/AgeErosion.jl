@@ -8,6 +8,7 @@
     using HDF5
     using DelimitedFiles
     using StatsBase
+    using CurveFit
 
     using Plots
     using StatsPlots
@@ -89,57 +90,58 @@
 
 ## --- Resample matched data by major rock type
     # Set up
-    nsims = Int(1e6)
     simitemsout = [macrostrat.rocklat, macrostrat.rocklon, macrostrat.age, rockslope]
-    simitemsuncert = (
-        zeros(length(macrostrat.rocklat)),
-        zeros(length(macrostrat.rocklon)),
-        ((macrostrat.agemax .- macrostrat.agemin) ./ 2),
-        rockslope_uncert,
-    )
+    # simitemsuncert = (
+    #     zeros(length(macrostrat.rocklat)),
+    #     zeros(length(macrostrat.rocklon)),
+    #     ((macrostrat.agemax .- macrostrat.agemin) ./ 2),
+    #     rockslope_uncert,
+    # )
 
-    # Samples without min / max bounds are assigned an uncertainty of 5% of the rock age
-    for i in eachindex(simitemsuncert[3])
-        simitemsuncert[3][i] = ifelse(isnan(simitemsuncert[3][i]), 0.05 * macrostrat.age[i], 
-            simitemsuncert[3][i]
-        )
-    end
+    # nsims = Int(1e6)
 
-    # Preallocate
-    simout = (
-        sed = Array{Float64}(undef, nsims, length(simitemsout)),
-        ign = Array{Float64}(undef, nsims, length(simitemsout)),
-        met = Array{Float64}(undef, nsims, length(simitemsout)),
-    )
+    # # Samples without min / max bounds are assigned an uncertainty of 5% of the rock age
+    # for i in eachindex(simitemsuncert[3])
+    #     simitemsuncert[3][i] = ifelse(isnan(simitemsuncert[3][i]), 0.05 * macrostrat.age[i], 
+    #         simitemsuncert[3][i]
+    #     )
+    # end
 
-    # Run simulation for each rock type
-    simtypes = collect(keys(simout))
-    for i in eachindex(simtypes)
-        # Get data and uncertainty
-        datafilter = macro_cats[simtypes[i]]
-        ndata = count(datafilter)
+    # # Preallocate
+    # simout = (
+    #     sed = Array{Float64}(undef, nsims, length(simitemsout)),
+    #     ign = Array{Float64}(undef, nsims, length(simitemsout)),
+    #     met = Array{Float64}(undef, nsims, length(simitemsout)),
+    # )
 
-        data = Array{Float64}(undef, ndata, length(simitemsout))
-        uncert = Array{Float64}(undef, ndata, length(simitemsout))
-        for j in eachindex(simitemsout)
-            data[:,j] .= simitemsout[j][datafilter]
-            uncert[:,j] .= simitemsuncert[j][datafilter]
-        end
+    # # Run simulation for each rock type
+    # simtypes = collect(keys(simout))
+    # for i in eachindex(simtypes)
+    #     # Get data and uncertainty
+    #     datafilter = macro_cats[simtypes[i]]
+    #     ndata = count(datafilter)
 
-        test = @. (!isnan(macrostrat.rocklon[datafilter]) & 
-            !isnan(macrostrat.rocklat[datafilter]) & !isnan(macrostrat.age[datafilter]))
-        data = data[test[:],:]
-        uncert = uncert[test[:],:]
+    #     data = Array{Float64}(undef, ndata, length(simitemsout))
+    #     uncert = Array{Float64}(undef, ndata, length(simitemsout))
+    #     for j in eachindex(simitemsout)
+    #         data[:,j] .= simitemsout[j][datafilter]
+    #         uncert[:,j] .= simitemsuncert[j][datafilter]
+    #     end
 
-        # Get resampling weights (spatiotemporal)
-        k = invweight(macrostrat.rocklat, macrostrat.rocklon, macrostrat.age)
-        p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+    #     test = @. (!isnan(macrostrat.rocklon[datafilter]) & 
+    #         !isnan(macrostrat.rocklat[datafilter]) & !isnan(macrostrat.age[datafilter]))
+    #     data = data[test[:],:]
+    #     uncert = uncert[test[:],:]
 
-        # Run simulation and save results
-        simout[simtypes[i]] .= bsresample(data, uncert, nsims, p)
-    end
+    #     # Get resampling weights (spatiotemporal)
+    #     k = invweight(macrostrat.rocklat, macrostrat.rocklon, macrostrat.age)
+    #     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
 
-    # Save data
+    #     # Run simulation and save results
+    #     simout[simtypes[i]] .= bsresample(data, uncert, nsims, p)
+    # end
+
+    # # Save data
     # fid = h5open("output/resampled/age_slope.h5", "w")
     #     g = create_group(fid, "vars")
     #     g["sed"] = simout.sed
@@ -159,22 +161,26 @@
     
 
 ## --- Plot erosion rate as a function of slope, but by rock type
-    # Column 3: age
-    # Column 4: slope
+    # Map columns to data
+    c_slp = findfirst(x -> x==rockslope, simitemsout)
+    for i in eachindex(simitemsout)
+        c_age = i
+        filter(!isnan, simitemsout[i]) == filter(!isnan, macrostrat.age) && return c_age
+    end
 
-    c,m,e = binmeans(simout.sed[:,3], simout.sed[:,4], 0, 3800, 38)
+    c,m,e = binmeans(simout.sed[:,c_age], simout.sed[:,c_slp], 0, 3800, 38)
     h1 = Plots.plot(c, m, yerror=e, color=:blue, lcolor=:blue, msc=:blue, framestyle=:box,
         label="Sed",
         markershape=:circle, yaxis=:log10, legend=:topright, # ylims=(10,500)
     )
 
-    c,m,e = binmeans(simout.ign[:,3], simout.ign[:,4], 0, 3800, 38)
+    c,m,e = binmeans(simout.ign[:,c_age], simout.ign[:,c_slp], 0, 3800, 38)
     h2 = Plots.plot(c, m, yerror=e, color=:red, lcolor=:red, msc=:red, framestyle=:box,
         label="Ign", ylabel="Hillslope [m/km]", 
         markershape=:circle, yaxis=:log10, legend=:topright, # ylims=(10,500)
     )
 
-    c,m,e = binmeans(simout.met[:,3], simout.met[:,4], 0, 3800, 38)
+    c,m,e = binmeans(simout.met[:,c_age], simout.met[:,c_slp], 0, 3800, 38)
     h3 = Plots.plot(c, m, yerror=e, color=:purple, lcolor=:purple, msc=:purple, framestyle=:box,
         label="Met", xlabel="Bedrock Age [Ma]",
         markershape=:circle, yaxis=:log10, legend=:topright, # ylims=(10,500)
@@ -192,23 +198,33 @@
         legend=:topright, yaxis=:log10
     )
 
-    c,m,e = binmeans(simout.sed[:,3], simout.sed[:,4], 0, 3800, 38)
+    c,m,e = binmeans(simout.sed[:,c_age], simout.sed[:,c_slp], 0, 3800, 38)
     Plots.plot!(c, m, yerror=e, color=:blue, lcolor=:blue, msc=:blue,
         label="Sed", markershape=:diamond,
     )
 
-    c,m,e = binmeans(simout.ign[:,3], simout.ign[:,4], 0, 3800, 38)
+    c,m,e = binmeans(simout.ign[:,c_age], simout.ign[:,c_slp], 0, 3800, 38)
     Plots.plot!(c, m, yerror=e, color=:red, lcolor=:red, msc=:red,
         label="Ign", markershape=:circle,
     )
 
-    c,m,e = binmeans(simout.met[:,3], simout.met[:,4], 0, 3800, 38)
+    c,m,e = binmeans(simout.met[:,c_age], simout.met[:,c_slp], 0, 3800, 38)
     Plots.plot!(c, m, yerror=e, color=:purple, lcolor=:purple, msc=:purple,
         label="Met", markershape=:star5,
     )
 
     display(h)
     savefig(h, "results/figures/ageslope_stack.png")
+
+
+## --- Fit an exponential decay to the age / slope relationship
+    # Translate slope directly to erosion rate 
+    ersn_sed = 
+    ersn_ign = 
+    ersn_met = 
+
+
+    # 
 
 
 ## --- Try to figure out why Archean samples are eroding so fast

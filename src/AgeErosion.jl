@@ -130,6 +130,9 @@
     
 
 ## --- Plot erosion rate as a function of slope, but by rock type
+    # Column 3: age
+    # Column 4: slope
+
     c,m,e = binmeans(simout.sed[:,3], simout.sed[:,4], 0, 3800, 38)
     h1 = Plots.plot(c, m, yerror=e, color=:blue, lcolor=:blue, msc=:blue, framestyle=:box,
         label="Sed",
@@ -180,17 +183,61 @@
 
 
 ## --- Try to figure out why Archean samples are eroding so fast
-    # 1. Show that this exists in the real data and is not an artifact of resampling
-        # 1a. Could this be fast-eroding (high slope) rocks that aren't super common and
-        # then get selected for?
+## --- Show that this exists in the real data and is not an artifact of resampling
+    c,m,e = binmeans(macrostrat.age[macro_cats.sed], rockslope[macro_cats.sed], 0, 3800, 38)
+    h1 = Plots.plot(c, m, yerror=e, color=:blue, lcolor=:blue, msc=:blue, framestyle=:box,
+        label="Sed",
+        markershape=:circle, yaxis=:log10, legend=:topright,
+    )
+
+    c,m,e = binmeans(macrostrat.age[macro_cats.ign], rockslope[macro_cats.ign], 0, 3800, 38)
+    h2 = Plots.plot(c, m, yerror=e, color=:red, lcolor=:red, msc=:red, framestyle=:box,
+        label="Ign", ylabel="Hillslope [m/km]", 
+        markershape=:circle, yaxis=:log10, legend=:topright,
+    )
+
+    c,m,e = binmeans(macrostrat.age[macro_cats.met], rockslope[macro_cats.met], 0, 3800, 38)
+    h3 = Plots.plot(c, m, yerror=e, color=:purple, lcolor=:purple, msc=:purple, framestyle=:box,
+        label="Met", xlabel="Bedrock Age [Ma]",
+        markershape=:circle, yaxis=:log10, legend=:topright,
+    )
+
+    h = Plots.plot(h1, h2, h3, layout=(3,1), size=(600, 1200), left_margin=(30, :px))
+    display(h)
     
+
+## --- Characterize geologic provinces of Archean rocks
+    oldarchean = @. macrostrat.age > 3000;
+    archeanprov = decode_find_geolprov(find_geolprov(macrostrat.rocklat[oldarchean], 
+        macrostrat.rocklon[oldarchean])
+    )
+    uniqueprovs = unique(archeanprov)
+    provcount = [count(x -> x==name, archeanprov) for name in uniqueprovs]
+
+    # Visualize
+    x = 1:length(uniqueprovs)
+    h = Plots.plot(x, provcount, seriestype=:bar, framestyle=:box, label="", 
+        ylabel="Abundance", xlabel="Geologic Province", xticks=(x, uniqueprovs), 
+        xrotation = 45, ylims = (0, maximum(provcount) + 0.1*maximum(provcount)),
+        bottom_margin=(30, :px)
+    )
+    display(h)
+
+
+## --- Most Archean rocks are shields. What is the average shield slope?
+    allprov = decode_find_geolprov(find_geolprov(macrostrat.rocklat, macrostrat.rocklon))
+    uniqueprovs = unique(allprov)
+    inprov = NamedTuple{Tuple(Symbol.(uniqueprovs))}([allprov .== name for name in uniqueprovs])
     
-    # 2. Characterize geologic provinces of Archean rocks
+    avg_slope = [nanmean(rockslope[t]) for t in inprov]
 
-
-archean = @. macrostrat.age > 3000;
-
-
+    x = 1:length(avg_slope)
+    h = Plots.plot(x, avg_slope, seriestype=:bar, framestyle=:box, label="", 
+        ylabel="Average Slope [m/km]", xlabel="Geologic Province", xticks=(x, uniqueprovs), 
+        xrotation = 45, ylims = (0, maximum(avg_slope) + 0.1*maximum(avg_slope)),
+        bottom_margin=(30, :px)
+    )
+    display(h)
 
 
 ## --- End of file 

@@ -182,26 +182,48 @@
     simmet = simout.met[t[:],:]
 
 
+## --- Fit an exponential decay to the age / slope relationship
+    x = 0:10:3800
+    xₛ = xᵢ = xₘ = x
+
+    # xₛ = 200:10:3800
+    c,m,e = binmeans(simsed[:,c_age], simsed[:,c_slp], xₛ[1], xₛ[end], Int((xₛ[end] - xₛ[1])/100))
+    sedexp = exp_fit(c, m)
+    yₛ = @. sedexp[1] * exp(sedexp[2] * xₛ);
+
+    # xᵢ = 0:10:2900
+    c,m,e = binmeans(simign[:,c_age], simign[:,c_slp], xᵢ[1], xᵢ[end], Int((xₛ[end] - xₛ[1])/100))
+    ignexp = exp_fit(c, m)
+    yᵢ = @. ignexp[1] * exp(ignexp[2] * xᵢ);
+
+    # xₘ = 0:10:2300
+    c,m,e = binmeans(simmet[:,c_age], simmet[:,c_slp], xₘ[1], xₘ[end], Int((xₛ[end] - xₛ[1])/100))
+    metexp = exp_fit(c, m)
+    yₘ = @. metexp[1] * exp(metexp[2] * xₘ);
+
+
+## --- Yorkfit in log space
+
+
 ## --- Plot erosion rate as a function of slope, but by rock type
     c,m,e = binmeans(simsed[:,c_age], simsed[:,c_slp], 0, 3800, 38)
-    h1 = Plots.plot(c, m, yerror=e, color=:blue, lcolor=:blue, msc=:blue, framestyle=:box,
-        label="Sed",
-        markershape=:circle, yaxis=:log10, legend=:topright, # ylims=(10,500)
-    )
+    hₛ = Plots.plot(c, m, yerror=e, color=:blue, lcolor=:blue, msc=:blue,
+        label="Sed", markershape=:circle,)
+    Plots.plot!(xₛ, yₛ, label="Model", color=:black, linewidth=2)
 
     c,m,e = binmeans(simign[:,c_age], simign[:,c_slp], 0, 3800, 38)
-    h2 = Plots.plot(c, m, yerror=e, color=:red, lcolor=:red, msc=:red, framestyle=:box,
-        label="Ign", ylabel="Hillslope [m/km]", 
-        markershape=:circle, yaxis=:log10, legend=:topright, # ylims=(10,500)
-    )
+    hᵢ = Plots.plot(c, m, yerror=e, color=:red, lcolor=:red, msc=:red,
+        label="Ign", ylabel="Hillslope [m/km]", markershape=:circle,)
+    Plots.plot!(xᵢ, yᵢ, label="Model", color=:black, linewidth=2)
 
     c,m,e = binmeans(simmet[:,c_age], simmet[:,c_slp], 0, 3800, 38)
-    h3 = Plots.plot(c, m, yerror=e, color=:purple, lcolor=:purple, msc=:purple, framestyle=:box,
-        label="Met", xlabel="Bedrock Age [Ma]",
-        markershape=:circle, yaxis=:log10, legend=:topright, # ylims=(10,500)
-    )
+    hₘ = Plots.plot(c, m, yerror=e, color=:orange, lcolor=:orange, msc=:orange,
+        label="Met", xlabel="Bedrock Age [Ma]", markershape=:circle,)
+    Plots.plot!(xₘ, yₘ, label="Model", color=:black, linewidth=2)
 
-    h = Plots.plot(h1, h2, h3, layout=(3,1), size=(600, 1200), left_margin=(30, :px))
+    h = Plots.plot(hₛ, hᵢ, hₘ, layout=(3,1), size=(600, 1200), left_margin=(30, :px), 
+        framestyle=:box, legend=:topright, yaxis=:log10
+    )
     display(h)
     savefig(h, "results/figures/ageslope.png")
 
@@ -231,16 +253,6 @@
     display(h)
     savefig(h, "results/figures/ageslope_stack.png")
 
-
-## --- Fit an exponential decay to the age / slope relationship
-    # # Translate slope directly to erosion rate 
-    # ersn_sed = emmkyr.(simsed[:,c_slp])
-    # ersn_ign = emmkyr.(simign[:,c_slp])
-    # ersn_met = emmkyr.(simmet[:,c_slp])
-
-    # y[i] = a*exp(b*x[i])
-    c,m,e = binmeans(simsed[:,c_age], simsed[:,c_slp], 0, 3800, 38)
-    sedex = exp_fit(simsed[:,c_age], simsed[:,c_slp])
 
 ## --- Try to figure out why Archean samples are eroding so fast
 ## --- Show that this exists in the real data and is not an artifact of resampling

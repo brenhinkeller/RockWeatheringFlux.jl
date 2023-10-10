@@ -8,8 +8,12 @@
     using HDF5
     using DelimitedFiles
     using StatsBase
+
     using Plots
     using StatsPlots
+    using CairoMakie
+    using GeoMakie
+    using ImageMagick
 
     using LoopVectorization
     using Static
@@ -207,7 +211,42 @@
     display(h)
     
 
-## --- Compare Eo - Paleoarchean (higher slope) and Meso - Neoarchean (lower slope)
+## --- Characterize old and young Archean rocks
+    # Archean rocks younger than 3000 Ma tend to have lower slopes (< 30 m/km) while
+    # rocks older than 3000 Ma tend to have higher slopes (>80 m/km).
+    #
+    # This is mostly true for sed and ign rocks, and less true for mets.
+    old_archn = @. macrostrat.age >= 3000;
+    yng_archn = @. 2500 <= macrostrat.age < 3000;
+
+    # Geospatial (Where are the Archean rocks?)
+    f = Figure(resolution = (1200, 600))
+    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
+    h1 = CairoMakie.scatter!(ax, macrostrat.rocklon[old_archn], macrostrat.rocklat[old_archn], 
+        color=:crimson, markersize = 3,
+    )
+    elem1 = MarkerElement(color=:crimson, marker=:circle, markersize=15,
+        points = Point2f[(0.5, 0.5)]
+    )
+    
+    h2 = CairoMakie.scatter!(ax, macrostrat.rocklon[yng_archn], macrostrat.rocklat[yng_archn], 
+        color=:blueviolet, markersize = 3,
+    )
+    elem2 = MarkerElement(color=:blueviolet, marker=:circle, markersize=15, 
+        points = Point2f[(0.5, 0.5)]
+    )
+    
+    Legend(f[1, 2], [elem1, elem2], ["> 3000 Ma", "< 3000 Ma"], patchsize = (35, 35), rowgap = 10)
+    display(f)
+
+    # Temporal (Where are the Archean rocks?)
+
+    # Geologic province (Who are the Archean rocks?)
+
+    # Rock type (Who are the Archean rocks?)
+
+
+## --- old code
     # Geologic provinces (Most Archean rocks are shields)
     ep_archean = @. macrostrat.age > 3200;
     mn_archean = @. 3200 > macrostrat.age >= 2500;

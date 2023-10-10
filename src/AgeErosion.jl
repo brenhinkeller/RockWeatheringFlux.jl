@@ -67,7 +67,7 @@
     for type in subcats
         macro_cats[type] .&= .!(macro_cats.cover)
     end
-    
+
 
 ## --- Calculate erosion rate at each point of interest
     # Load the slope variable from the SRTM15+ maxslope file
@@ -132,8 +132,7 @@
         uncert = uncert[test[:],:]
 
         # Get resampling weights (spatiotemporal)
-        # k = invweight(macrostrat.rocklat, macrostrat.rocklon, macrostrat.age)
-        k = invweight_age(macrostrat.age)
+        k = invweight(macrostrat.rocklat, macrostrat.rocklon, macrostrat.age)
         p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
 
         # Run simulation and save results

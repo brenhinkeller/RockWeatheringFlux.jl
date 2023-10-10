@@ -919,7 +919,7 @@
     end
 
 
-## --- (Coordinate) point in polygon
+## --- Geography (PIP, geolprov)
 
     """
     ```julia
@@ -1051,4 +1051,57 @@
     end
 
 
+    """
+    ```julia
+    decode_find_geolprov(geolprov::AbstractArray)
+    ```
+
+    Translate numeric codes from `find_geolprov` to province names.
+
+    # Example
+    ```julia-repl
+    julia> lats = [-24.18,53.72,27.27,37.80];
+
+    julia> lons = [-68.92,-90.90,86.45,-115.88];
+
+    julia> provs = find_geolprov(lats, lons)
+    4-element Vector{Int64}:
+     12
+     31
+     13
+     21
+
+    julia> decode_find_geolprov(provs)
+     4×1 Vector{String}:
+     "Continental_Arc"
+     "Shield"
+     "Collisional_Orogen"
+     "Rift"
+    ```
+    """
+    function decode_find_geolprov(geolprov::AbstractVector)
+        # Preallocate / define
+        out = Array{String}(undef, length(geolprov), 1)
+        decoder = (
+            Accreted_Arc = 10,
+            Island_Arc = 11,
+            Continental_Arc = 12,
+            Collisional_Orogen = 13,
+            Extensional = 20,
+            Rift = 21,
+            Plume = 22,
+            Shield = 31,
+            Platform = 32,
+            Basin = 33,
+            No_Data = 00,
+        )
+
+        provnames = collect(keys(decoder))
+        for k in provnames
+            t = @. geolprov == decoder[k]
+            out[t] .= string.(k)
+        end
+
+        return vec(out)
+    end
 ## --- End of file

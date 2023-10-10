@@ -30,8 +30,8 @@
     t = @. bulkidx != 0
 
     # Matched types, majors inclusive of minors
-    bulktype = string.(vec(fid[:,2]))
-    macro_cats = match_rocktype(bulktype[t])
+    # bulktype = string.(vec(fid[:,2]))
+    # macro_cats = match_rocktype(bulktype[t])
 
     # Macrostrat data
     fid = h5open("$macrostrat_io", "r")
@@ -42,7 +42,24 @@
         agemin = read(fid["vars"]["agemin"])[t],
         agemax = read(fid["vars"]["agemax"])[t],
     )
+
+    header = read(fid["type"]["macro_cats_head"])
+    data = read(fid["type"]["macro_cats"])
+    data = @. data > 0
+    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
     close(fid)
+
+    # Major types include minor types
+    minorsed, minorign, minormet = get_minor_types()
+    for type in minorsed
+        macro_cats.sed .|= macro_cats[type]
+    end
+    for type in minorign
+        macro_cats.ign .|= macro_cats[type]
+    end
+    for type in minormet
+        macro_cats.met .|= macro_cats[type]
+    end
 
 
 ## --- Calculate erosion rate at each point of interest
@@ -64,64 +81,64 @@
 
 
 ## --- Resample matched data by major rock type
-    # # Set up
-    # nsims = Int(1e6)
-    # simitemsout = [macrostrat.rocklat, macrostrat.rocklon, macrostrat.age, rockslope]
-    # simitemsuncert = (
-    #     zeros(length(macrostrat.rocklat)),
-    #     zeros(length(macrostrat.rocklon)),
-    #     ((macrostrat.agemax .- macrostrat.agemin) ./ 2),
-    #     rockslope_uncert,
-    # )
+    # Set up
+    nsims = Int(1e6)
+    simitemsout = [macrostrat.rocklat, macrostrat.rocklon, macrostrat.age, rockslope]
+    simitemsuncert = (
+        zeros(length(macrostrat.rocklat)),
+        zeros(length(macrostrat.rocklon)),
+        ((macrostrat.agemax .- macrostrat.agemin) ./ 2),
+        rockslope_uncert,
+    )
 
-    # # Samples without min / max bounds are assigned an uncertainty of 5% of the rock age
-    # for i in eachindex(simitemsuncert[3])
-    #     simitemsuncert[3][i] = ifelse(isnan(simitemsuncert[3][i]), 0.05 * macrostrat.age[i], 
-    #         simitemsuncert[3][i]
-    #     )
-    # end
+    # Samples without min / max bounds are assigned an uncertainty of 5% of the rock age
+    for i in eachindex(simitemsuncert[3])
+        simitemsuncert[3][i] = ifelse(isnan(simitemsuncert[3][i]), 0.05 * macrostrat.age[i], 
+            simitemsuncert[3][i]
+        )
+    end
 
-    # # Preallocate
-    # simout = (
-    #     sed = Array{Float64}(undef, nsims, length(simitemsout)),
-    #     ign = Array{Float64}(undef, nsims, length(simitemsout)),
-    #     met = Array{Float64}(undef, nsims, length(simitemsout)),
-    # )
+    # Preallocate
+    simout = (
+        sed = Array{Float64}(undef, nsims, length(simitemsout)),
+        ign = Array{Float64}(undef, nsims, length(simitemsout)),
+        met = Array{Float64}(undef, nsims, length(simitemsout)),
+    )
 
-    # # Run simulation for each rock type
-    # simtypes = collect(keys(simout))
-    # for i in eachindex(simtypes)
-    #     # Get data and uncertainty
-    #     datafilter = macro_cats[simtypes[i]]
-    #     ndata = count(datafilter)
+    # Run simulation for each rock type
+    simtypes = collect(keys(simout))
+    for i in eachindex(simtypes)
+        # Get data and uncertainty
+        datafilter = macro_cats[simtypes[i]]
+        ndata = count(datafilter)
 
-    #     data = Array{Float64}(undef, ndata, length(simitemsout))
-    #     uncert = Array{Float64}(undef, ndata, length(simitemsout))
-    #     for j in eachindex(simitemsout)
-    #         data[:,j] .= simitemsout[j][datafilter]
-    #         uncert[:,j] .= simitemsuncert[j][datafilter]
-    #     end
+        data = Array{Float64}(undef, ndata, length(simitemsout))
+        uncert = Array{Float64}(undef, ndata, length(simitemsout))
+        for j in eachindex(simitemsout)
+            data[:,j] .= simitemsout[j][datafilter]
+            uncert[:,j] .= simitemsuncert[j][datafilter]
+        end
 
-    #     test = @. (!isnan(macrostrat.rocklon[datafilter]) & 
-    #         !isnan(macrostrat.rocklat[datafilter]) & !isnan(macrostrat.age[datafilter]))
-    #     data = data[test[:],:]
-    #     uncert = uncert[test[:],:]
+        test = @. (!isnan(macrostrat.rocklon[datafilter]) & 
+            !isnan(macrostrat.rocklat[datafilter]) & !isnan(macrostrat.age[datafilter]))
+        data = data[test[:],:]
+        uncert = uncert[test[:],:]
 
-    #     # Get resampling weights (spatiotemporal)
-    #     k = invweight(macrostrat.rocklat, macrostrat.rocklon, macrostrat.age)
-    #     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+        # Get resampling weights (spatiotemporal)
+        k = invweight(macrostrat.rocklat, macrostrat.rocklon, macrostrat.age)
+        p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
 
-    #     # Run simulation and save results
-    #     simout[simtypes[i]] .= bsresample(data, uncert, nsims, p)
-    # end
+        # Run simulation and save results
+        simout[simtypes[i]] .= bsresample(data, uncert, nsims, p)
+    end
 
-    # # Save data
-    # fid = h5open("output/resampled/age_slope.h5", "w")
-    #     g = create_group(fid, "vars")
-    #     g["sed"] = simout.sed
-    #     g["ign"] = simout.ign
-    #     g["met"] = simout.met
-    # close(fid)
+    # Save data
+    fid = h5open("output/resampled/age_slope.h5", "w")
+        g = create_group(fid, "vars")
+        g["sed"] = simout.sed
+        g["ign"] = simout.ign
+        g["met"] = simout.met
+    close(fid)
 
 
 ## --- If you already have data, load from file
@@ -216,67 +233,49 @@
     # rocks older than 3000 Ma tend to have higher slopes (>80 m/km).
     #
     # This is mostly true for sed and ign rocks, and less true for mets.
+
+    # I hate vowels
     old_archn = @. macrostrat.age >= 3000;
     yng_archn = @. 2500 <= macrostrat.age < 3000;
 
-    # Geospatial (Where are the Archean rocks?)
+
+## --- Geospatial (Where are the Archean rocks?)
     f = Figure(resolution = (1200, 600))
     ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
     h1 = CairoMakie.scatter!(ax, macrostrat.rocklon[old_archn], macrostrat.rocklat[old_archn], 
-        color=:crimson, markersize = 3,
-    )
+        color=:crimson, markersize = 3,)
     elem1 = MarkerElement(color=:crimson, marker=:circle, markersize=15,
         points = Point2f[(0.5, 0.5)]
     )
     
     h2 = CairoMakie.scatter!(ax, macrostrat.rocklon[yng_archn], macrostrat.rocklat[yng_archn], 
-        color=:blueviolet, markersize = 3,
-    )
+        color=:blueviolet, markersize = 3,)
     elem2 = MarkerElement(color=:blueviolet, marker=:circle, markersize=15, 
         points = Point2f[(0.5, 0.5)]
     )
-    
+
     Legend(f[1, 2], [elem1, elem2], ["> 3000 Ma", "< 3000 Ma"], patchsize = (35, 35), rowgap = 10)
     display(f)
 
-    # Temporal (Where are the Archean rocks?)
 
-    # Geologic province (Who are the Archean rocks?)
-
-    # Rock type (Who are the Archean rocks?)
+## --- Temporal (Where are the Archean rocks?)
+    ageuncert = (macrostrat.agemax .- macrostrat.agemin) ./ 2;
 
 
-## --- old code
-    # Geologic provinces (Most Archean rocks are shields)
-    ep_archean = @. macrostrat.age > 3200;
-    mn_archean = @. 3200 > macrostrat.age >= 2500;
+## --- Geologic province (Who are the Archean rocks?)
+    # We already know most rocks are shields, so it's more useful to look at, for each
+    # province, the proportion of rocks greater / less than 3000 Ma.
+    old_provs = decode_find_geolprov(find_geolprov(macrostrat.rocklat[old_archn], 
+        macrostrat.rocklon[old_archn]))
+    yng_provs = decode_find_geolprov(find_geolprov(macrostrat.rocklat[yng_archn], 
+        macrostrat.rocklon[yng_archn]))
+    archeanprovs = unique([old_provs; yng_provs])
 
-    ep_prov = decode_find_geolprov(find_geolprov(macrostrat.rocklat[ep_archean], 
-        macrostrat.rocklon[ep_archean])
-    )
-    mn_prov = decode_find_geolprov(find_geolprov(macrostrat.rocklat[mn_archean], 
-        macrostrat.rocklon[mn_archean])
-    )
+    totalprovs = old_provs .+ yng_provs
 
-    # Normalized distribution of provinces for each age category
-    uniqueprovs = unique(archeanprov)
-    ep_prov_count = [count(x -> x==name, ep_prov) for name in uniqueprovs] ./ length(ep_prov)
-    mn_prov_count = [count(x -> x==name, mn_prov) for name in uniqueprovs] ./ length(mn_prov)
 
-    x = 1:length(uniqueprovs)
-    StatsPlots.groupedbar([ep_prov_count mn_prov_count], bar_position=:dodge,
-        framestyle=:box, label=["Eo-Paleoarchean" "Meso-Neoarchean"], ylabel="Proportion",
-        xlabel="Geologic Province", xticks=(x, uniqueprovs), legend=:topright, 
-        bottom_margin=(30, :px), xrotation = 45, ylims = (0, 1),
-    )
+## --- Rock type (Who are the Archean rocks?)
 
-    # Average slope of Archean rocks?
-    archeanslope = rockslope[oldarchean]
-    c, n = bincounts(archeanslope, 0, maximum(archeanslope), 15)
-    h = Plots.plot(c, n, seriestype=:bar, framestyle=:box,
-        label="", ylabel="Abundance", xlabel="Hillslope [m/km]",
-        ylims = (0, maximum(n) + 0.1*maximum(n))
-    )
 
 ## --- Look at just igneous rocks
     c,m,e = binmeans(macrostrat.age[macro_cats.ign], rockslope[macro_cats.ign], 2500, 3800, 13)

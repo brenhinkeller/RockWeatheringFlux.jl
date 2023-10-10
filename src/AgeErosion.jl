@@ -59,64 +59,64 @@
 
 
 ## --- Resample matched data by major rock type
-    # Set up
-    nsims = Int(1e6)
-    simitemsout = [macrostrat.rocklat, macrostrat.rocklon, macrostrat.age, rockslope]
-    simitemsuncert = (
-        zeros(length(macrostrat.rocklat)),
-        zeros(length(macrostrat.rocklon)),
-        ((macrostrat.agemax .- macrostrat.agemin) ./ 2),
-        rockslope_uncert,
-    )
+    # # Set up
+    # nsims = Int(1e6)
+    # simitemsout = [macrostrat.rocklat, macrostrat.rocklon, macrostrat.age, rockslope]
+    # simitemsuncert = (
+    #     zeros(length(macrostrat.rocklat)),
+    #     zeros(length(macrostrat.rocklon)),
+    #     ((macrostrat.agemax .- macrostrat.agemin) ./ 2),
+    #     rockslope_uncert,
+    # )
 
-    # Samples without min / max bounds are assigned an uncertainty of 5% of the rock age
-    for i in eachindex(simitemsuncert[3])
-        simitemsuncert[3][i] = ifelse(isnan(simitemsuncert[3][i]), 0.05 * macrostrat.age[i], 
-            simitemsuncert[3][i]
-        )
-    end
+    # # Samples without min / max bounds are assigned an uncertainty of 5% of the rock age
+    # for i in eachindex(simitemsuncert[3])
+    #     simitemsuncert[3][i] = ifelse(isnan(simitemsuncert[3][i]), 0.05 * macrostrat.age[i], 
+    #         simitemsuncert[3][i]
+    #     )
+    # end
 
-    # Preallocate
-    simout = (
-        sed = Array{Float64}(undef, nsims, length(simitemsout)),
-        ign = Array{Float64}(undef, nsims, length(simitemsout)),
-        met = Array{Float64}(undef, nsims, length(simitemsout)),
-    )
+    # # Preallocate
+    # simout = (
+    #     sed = Array{Float64}(undef, nsims, length(simitemsout)),
+    #     ign = Array{Float64}(undef, nsims, length(simitemsout)),
+    #     met = Array{Float64}(undef, nsims, length(simitemsout)),
+    # )
 
-    # Run simulation for each rock type
-    simtypes = collect(keys(simout))
-    for i in eachindex(simtypes)
-        # Get data and uncertainty
-        datafilter = macro_cats[simtypes[i]]
-        ndata = count(datafilter)
+    # # Run simulation for each rock type
+    # simtypes = collect(keys(simout))
+    # for i in eachindex(simtypes)
+    #     # Get data and uncertainty
+    #     datafilter = macro_cats[simtypes[i]]
+    #     ndata = count(datafilter)
 
-        data = Array{Float64}(undef, ndata, length(simitemsout))
-        uncert = Array{Float64}(undef, ndata, length(simitemsout))
-        for j in eachindex(simitemsout)
-            data[:,j] .= simitemsout[j][datafilter]
-            uncert[:,j] .= simitemsuncert[j][datafilter]
-        end
+    #     data = Array{Float64}(undef, ndata, length(simitemsout))
+    #     uncert = Array{Float64}(undef, ndata, length(simitemsout))
+    #     for j in eachindex(simitemsout)
+    #         data[:,j] .= simitemsout[j][datafilter]
+    #         uncert[:,j] .= simitemsuncert[j][datafilter]
+    #     end
 
-        test = @. (!isnan(macrostrat.rocklon[datafilter]) & 
-            !isnan(macrostrat.rocklat[datafilter]) & !isnan(macrostrat.age[datafilter]))
-        data = data[test[:],:]
-        uncert = uncert[test[:],:]
+    #     test = @. (!isnan(macrostrat.rocklon[datafilter]) & 
+    #         !isnan(macrostrat.rocklat[datafilter]) & !isnan(macrostrat.age[datafilter]))
+    #     data = data[test[:],:]
+    #     uncert = uncert[test[:],:]
 
-        # Get resampling weights (spatiotemporal)
-        k = invweight(macrostrat.rocklat, macrostrat.rocklon, macrostrat.age)
-        p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+    #     # Get resampling weights (spatiotemporal)
+    #     k = invweight(macrostrat.rocklat, macrostrat.rocklon, macrostrat.age)
+    #     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
 
-        # Run simulation and save results
-        simout[simtypes[i]] .= bsresample(data, uncert, nsims, p)
-    end
+    #     # Run simulation and save results
+    #     simout[simtypes[i]] .= bsresample(data, uncert, nsims, p)
+    # end
 
-    # Save data
-    fid = h5open("output/resampled/age_slope.h5", "w")
-        g = create_group(fid, "vars")
-        g["sed"] = simout.sed
-        g["ign"] = simout.ign
-        g["met"] = simout.met
-    close(fid)
+    # # Save data
+    # fid = h5open("output/resampled/age_slope.h5", "w")
+    #     g = create_group(fid, "vars")
+    #     g["sed"] = simout.sed
+    #     g["ign"] = simout.ign
+    #     g["met"] = simout.met
+    # close(fid)
 
 
 ## --- If you already have data, load from file
@@ -179,58 +179,18 @@
     savefig(h, "results/figures/ageslope_stack.png")
 
 
-## --- Slope as a function of geologic province
-    prov = find_geolprov(macrostrat.rocklat, macrostrat.rocklon)
+## --- Try to figure out why Archean samples are eroding so fast
+    # 1. Show that this exists in the real data and is not an artifact of resampling
+        # 1a. Could this be fast-eroding (high slope) rocks that aren't super common and
+        # then get selected for?
+    
+    
+    # 2. Characterize geologic provinces of Archean rocks
 
-    # This is a little cursed but it's easy to debug
-    provkey = (
-        10 => "Accreted_Arc",
-        11 => "Island_Arc",
-        12 => "Continental_Arc",
-        13 => "Collisional_Orogen",
-        20 => "Extensional",
-        21 => "Rift",
-        22 => "Plume",
-        31 => "Shield",
-        32 => "Platform",
-        33 => "Basin",
-        # 00 => "No_Data",
-    )
-    provcodes = [values(provkey)[i].first for i in eachindex(provkey)]
-    provnames = [values(provkey)[i].second for i in eachindex(provkey)]
-    sample_in_prov = NamedTuple{Tuple(Symbol.(provnames))}([prov .== c for c in provcodes])
 
-    # Get erosion by province, plot
-    ersn_by_prov = [nansum(rock_ersn[t]) for t in sample_in_prov]
+archean = @. macrostrat.age > 3000;
 
-    x = 1:length(ersn_by_prov)
-    h = plot(x, ersn_by_prov, seriestype=:bar, framestyle=:box, label="", 
-        ylabel="Total Erosion [m/Myr]", xlabel="Geologic Province", xticks=(x, provnames), 
-        xrotation = 45, ylims = (0, maximum(ersn_by_prov) + 0.1*maximum(ersn_by_prov))
-    )
-    display(h)
 
-    # Normalize erosive contribution by relative abundance
-    abundance_by_prov = [count(sample_in_prov[i]) for i in keys(sample_in_prov)]
-    x = 1:length(ersn_by_prov)
-    h = plot(x, ersn_by_prov./abundance_by_prov, seriestype=:bar, framestyle=:box, label="", 
-        ylabel="Normalized Total Erosion", xlabel="Geologic Province", xticks=(x, provnames), 
-        xrotation = 45, ylims = (0, 350)
-    )
-    display(h)
-
-    # The same plot, but consider means ± standard deviations instead of sums 
-    # The error bars aren't working
-    mean_slp_prov = [nanmean(rockslope[t]) for t in sample_in_prov]
-    upper_slp = [percentile(rockslope[t], 95) for t in sample_in_prov] .- mean_slp_prov
-    lower_slp = mean_slp_prov .- [percentile(rockslope[t], 5) for t in sample_in_prov]
-
-    x = 1:length(ersn_by_prov)
-    h = plot(x, mean_slp_prov, seriestype=:bar, framestyle=:box, label="", 
-        ylabel="Average Slope [m/km]", xlabel="Geologic Province",
-        xticks=(x, provnames), xrotation = 45,
-        yerror=(lower_slp, upper_slp), ylims = (0, 500)
-    )
 
 
 ## --- End of file 

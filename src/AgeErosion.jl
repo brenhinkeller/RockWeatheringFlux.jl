@@ -160,27 +160,42 @@
     close(fid)
     
 
-## --- Plot erosion rate as a function of slope, but by rock type
+## --- Filter resampled data
     # Map columns to data
+    c_lat = findfirst(x -> x==macrostrat.rocklat, simitemsout)
+    c_lon = findfirst(x -> x==macrostrat.rocklon, simitemsout)
     c_slp = findfirst(x -> x==rockslope, simitemsout)
     for i in eachindex(simitemsout)
         c_age = i
         filter(!isnan, simitemsout[i]) == filter(!isnan, macrostrat.age) && return c_age
     end
 
-    c,m,e = binmeans(simout.sed[:,c_age], simout.sed[:,c_slp], 0, 3800, 38)
+    # Remove any physically impossible data
+    # slope only: age and lat/lon should self-select when relevant
+    t = @. (0 < simout.sed[:,c_slp] < 1000)
+    simsed = simout.sed[t[:],:]
+    
+    t = @. (0 < simout.ign[:,c_slp] < 1000)
+    simign = simout.ign[t[:],:]
+    
+    t = @. (0 < simout.met[:,c_slp] < 1000)
+    simmet = simout.met[t[:],:]
+
+
+## --- Plot erosion rate as a function of slope, but by rock type
+    c,m,e = binmeans(simsed[:,c_age], simsed[:,c_slp], 0, 3800, 38)
     h1 = Plots.plot(c, m, yerror=e, color=:blue, lcolor=:blue, msc=:blue, framestyle=:box,
         label="Sed",
         markershape=:circle, yaxis=:log10, legend=:topright, # ylims=(10,500)
     )
 
-    c,m,e = binmeans(simout.ign[:,c_age], simout.ign[:,c_slp], 0, 3800, 38)
+    c,m,e = binmeans(simign[:,c_age], simign[:,c_slp], 0, 3800, 38)
     h2 = Plots.plot(c, m, yerror=e, color=:red, lcolor=:red, msc=:red, framestyle=:box,
         label="Ign", ylabel="Hillslope [m/km]", 
         markershape=:circle, yaxis=:log10, legend=:topright, # ylims=(10,500)
     )
 
-    c,m,e = binmeans(simout.met[:,c_age], simout.met[:,c_slp], 0, 3800, 38)
+    c,m,e = binmeans(simmet[:,c_age], simmet[:,c_slp], 0, 3800, 38)
     h3 = Plots.plot(c, m, yerror=e, color=:purple, lcolor=:purple, msc=:purple, framestyle=:box,
         label="Met", xlabel="Bedrock Age [Ma]",
         markershape=:circle, yaxis=:log10, legend=:topright, # ylims=(10,500)
@@ -195,20 +210,20 @@
     # (Plot everything on the same axis)
 
     h = Plots.plot(xlabel="Bedrock Age [Ma]", ylabel="Hillslope [m/km]", framestyle=:box,
-        legend=:topright, yaxis=:log10
+        legend=:topright, # yaxis=:log10
     )
 
-    c,m,e = binmeans(simout.sed[:,c_age], simout.sed[:,c_slp], 0, 3800, 38)
+    c,m,e = binmeans(simsed[:,c_age], simsed[:,c_slp], 0, 3800, 38)
     Plots.plot!(c, m, yerror=e, color=:blue, lcolor=:blue, msc=:blue,
         label="Sed", markershape=:diamond,
     )
 
-    c,m,e = binmeans(simout.ign[:,c_age], simout.ign[:,c_slp], 0, 3800, 38)
+    c,m,e = binmeans(simign[:,c_age], simign[:,c_slp], 0, 3800, 38)
     Plots.plot!(c, m, yerror=e, color=:red, lcolor=:red, msc=:red,
         label="Ign", markershape=:circle,
     )
 
-    c,m,e = binmeans(simout.met[:,c_age], simout.met[:,c_slp], 0, 3800, 38)
+    c,m,e = binmeans(simmet[:,c_age], simmet[:,c_slp], 0, 3800, 38)
     Plots.plot!(c, m, yerror=e, color=:purple, lcolor=:purple, msc=:purple,
         label="Met", markershape=:star5,
     )
@@ -218,14 +233,14 @@
 
 
 ## --- Fit an exponential decay to the age / slope relationship
-    # Translate slope directly to erosion rate 
-    ersn_sed = 
-    ersn_ign = 
-    ersn_met = 
+    # # Translate slope directly to erosion rate 
+    # ersn_sed = emmkyr.(simsed[:,c_slp])
+    # ersn_ign = emmkyr.(simign[:,c_slp])
+    # ersn_met = emmkyr.(simmet[:,c_slp])
 
-
-    # 
-
+    # y[i] = a*exp(b*x[i])
+    c,m,e = binmeans(simsed[:,c_age], simsed[:,c_slp], 0, 3800, 38)
+    sedex = exp_fit(simsed[:,c_age], simsed[:,c_slp])
 
 ## --- Try to figure out why Archean samples are eroding so fast
 ## --- Show that this exists in the real data and is not an artifact of resampling

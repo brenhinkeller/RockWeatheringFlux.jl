@@ -226,7 +226,7 @@
     display(h)
     savefig(h, "results/figures/ageslope.png")
 
-    
+
 ## --- Everything everywhere over 3800 million years?
     # (Plot everything on the same axis)
 
@@ -294,6 +294,39 @@
 
     h = Plots.plot(hₛ, hᵢ, hₘ, layout=(3,1), size=(600, 1200), left_margin=(30, :px), 
         framestyle=:box, legend=:topright
+    )
+    display(h)
+
+## --- Exponential fit to erosion
+    ersn_sed, ersn_sed_e = unmeasurementify(emmkyr.(simsed[:,c_slp]))
+    ersn_ign, ersn_ign_e = unmeasurementify(emmkyr.(simign[:,c_slp]))
+    ersn_met, ersn_met_e = unmeasurementify(emmkyr.(simmet[:,c_slp]))
+
+    x = 0:10:3800
+
+    c,m,e = binmeans(simsed[:,c_age], ersn_sed, 0, 3800, 38)
+    sedexp = exp_fit(c, m)
+    yₛ = @. sedexp[1] * exp(sedexp[2] * x);
+    hₛ = Plots.plot(c, m, yerror=e, color=:blue, lcolor=:blue, msc=:blue,
+        label="Sed", markershape=:circle,)
+    Plots.plot!(x, yₛ, label="Model", color=:black, linewidth=2)
+
+    c,m,e = binmeans(simign[:,c_age], ersn_ign, 0, 3800, 38)
+    ignexp = exp_fit(c, m)
+    yᵢ = @. ignexp[1] * exp(ignexp[2] * x);
+    hᵢ = Plots.plot(c, m, yerror=e, color=:red, lcolor=:red, msc=:red,
+        label="Ign", ylabel="Erosion [m/Myr]", markershape=:circle,)
+    Plots.plot!(x, yᵢ, label="Model", color=:black, linewidth=2)
+
+    c,m,e = binmeans(simmet[:,c_age], ersn_met,  0, 3800, 38)
+    metexp = exp_fit(c, m)
+    yₘ = @. metexp[1] * exp(metexp[2] * x);
+    hₘ = Plots.plot(c, m, yerror=e, color=:orange, lcolor=:orange, msc=:orange,
+        label="Met", xlabel="Bedrock Age [Ma]", markershape=:circle,)
+    Plots.plot!(x, yₘ, label="Model", color=:black, linewidth=2)
+
+    h = Plots.plot(hₛ, hᵢ, hₘ, layout=(3,1), size=(600, 1200), left_margin=(30, :px), 
+        framestyle=:box, legend=:topright,
     )
     display(h)
 

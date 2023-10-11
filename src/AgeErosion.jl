@@ -134,7 +134,8 @@
     #     uncert = uncert[test[:],:]
 
     #     # Get resampling weights (spatiotemporal)
-    #     k = invweight(macrostrat.rocklat, macrostrat.rocklon, macrostrat.age)
+    #     k = invweight(macrostrat.rocklat[datafilter], macrostrat.rocklon[datafilter], 
+    #         macrostrat.age[datafilter])
     #     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
 
     #     # Run simulation and save results
@@ -165,6 +166,7 @@
     c_lat = findfirst(x -> x==macrostrat.rocklat, simitemsout)
     c_lon = findfirst(x -> x==macrostrat.rocklon, simitemsout)
     c_slp = findfirst(x -> x==rockslope, simitemsout)
+    c_age = 0
     for i in eachindex(simitemsout)
         c_age = i
         filter(!isnan, simitemsout[i]) == filter(!isnan, macrostrat.age) && return c_age
@@ -203,6 +205,24 @@
 
 
 ## --- Yorkfit in log space
+    include("utilities/yorkfit.jl")
+
+    # Transform to log-space
+    ersn_sed = emmkyr.(simsed[:,c_slp])
+    ersn_ign = emmkyr.(simign[:,c_slp])
+    ersn_met = emmkyr.(simmet[:,c_slp])
+
+    c,m,e = binmeans(simsed[:,c_age], simsed[:,c_slp], 0, 3800, 38)
+
+
+    # c, m, ex, ey = binmeans_percentile(x.v, y.v, step=5)
+    # fobj = yorkfit(c, ex, log.(m), log.(ey))
+
+    c,m,e = binmeans(simign[:,c_age], simign[:,c_slp], 0, 3800, 38)
+
+
+    c,m,e = binmeans(simmet[:,c_age], simmet[:,c_slp], 0, 3800, 38)
+
 
 
 ## --- Plot erosion rate as a function of slope, but by rock type

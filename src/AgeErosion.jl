@@ -8,7 +8,7 @@
     using HDF5
     using DelimitedFiles
     using StatsBase
-    using CurveFit
+    using CurveFit; using Isoplot
 
     using Plots
     using StatsPlots
@@ -204,27 +204,6 @@
     yₘ = @. metexp[1] * exp(metexp[2] * xₘ);
 
 
-## --- Yorkfit in log space
-    include("utilities/yorkfit.jl")
-
-    # Transform to log-space
-    ersn_sed = emmkyr.(simsed[:,c_slp])
-    ersn_ign = emmkyr.(simign[:,c_slp])
-    ersn_met = emmkyr.(simmet[:,c_slp])
-
-    c,m,e = binmeans(simsed[:,c_age], simsed[:,c_slp], 0, 3800, 38)
-
-
-    # c, m, ex, ey = binmeans_percentile(x.v, y.v, step=5)
-    # fobj = yorkfit(c, ex, log.(m), log.(ey))
-
-    c,m,e = binmeans(simign[:,c_age], simign[:,c_slp], 0, 3800, 38)
-
-
-    c,m,e = binmeans(simmet[:,c_age], simmet[:,c_slp], 0, 3800, 38)
-
-
-
 ## --- Plot erosion rate as a function of slope, but by rock type
     c,m,e = binmeans(simsed[:,c_age], simsed[:,c_slp], 0, 3800, 38)
     hₛ = Plots.plot(c, m, yerror=e, color=:blue, lcolor=:blue, msc=:blue,
@@ -247,7 +226,7 @@
     display(h)
     savefig(h, "results/figures/ageslope.png")
 
-
+    
 ## --- Everything everywhere over 3800 million years?
     # (Plot everything on the same axis)
 
@@ -272,6 +251,51 @@
 
     display(h)
     savefig(h, "results/figures/ageslope_stack.png")
+
+
+## --- Yorkfit in log space
+    include("utilities/yorkfit.jl")
+
+    # Transform to log-space
+    ersn_sed, ersn_sed_e = unmeasurementify(emmkyr.(simsed[:,c_slp]))
+    ersn_ign, ersn_ign_e = unmeasurementify(emmkyr.(simign[:,c_slp]))
+    ersn_met, ersn_met_e = unmeasurementify(emmkyr.(simmet[:,c_slp]))
+
+    c,m,e = binmeans(simsed[:,c_age], ersn_sed, 0, 3800, 38)
+    xσ = ones(length(c))
+    fobj = yorkfit(collect(c), xσ, m, e)
+    esed(x) = x * (fobj.slope) + (fobj.intercept)
+
+    c,m,e = binmeans(simign[:,c_age], ersn_ign, 0, 3800, 38)
+    fobj = yorkfit(collect(c), xσ, m, e)
+    eign(x) = x * (fobj.slope) + (fobj.intercept)
+
+    c,m,e = binmeans(simmet[:,c_age], ersn_met, 0, 3800, 38)
+    fobj = yorkfit(collect(c), xσ, m, e)
+    emet(x) = x * (fobj.slope) + (fobj.intercept)
+
+
+## --- Erosion rate over time in linear space
+    x = collect(0:10:3800)
+    c,m,e = binmeans(simsed[:,c_age], ersn_sed, 0, 3800, 38)
+    hₛ = Plots.plot(c, m, yerror=e, color=:blue, lcolor=:blue, msc=:blue,
+        label="Sed", markershape=:circle,)
+    Plots.plot!(x, unmeasurementify(esed.(x))[1], label="Model", color=:black, linewidth=2)
+
+    c,m,e = binmeans(simign[:,c_age], simign[:,c_slp], 0, 3800, 38)
+    hᵢ = Plots.plot(c, m, yerror=e, color=:red, lcolor=:red, msc=:red,
+        label="Ign", ylabel="Hillslope [m/km]", markershape=:circle,)
+    Plots.plot!(x, unmeasurementify(eign.(x))[1], label="Model", color=:black, linewidth=2)
+
+    c,m,e = binmeans(simmet[:,c_age], simmet[:,c_slp], 0, 3800, 38)
+    hₘ = Plots.plot(c, m, yerror=e, color=:orange, lcolor=:orange, msc=:orange,
+        label="Met", xlabel="Bedrock Age [Ma]", markershape=:circle,)
+    Plots.plot!(x, unmeasurementify(emet.(x))[1], label="Model", color=:black, linewidth=2)
+
+    h = Plots.plot(hₛ, hᵢ, hₘ, layout=(3,1), size=(600, 1200), left_margin=(30, :px), 
+        framestyle=:box, legend=:topright
+    )
+    display(h)
 
 
 ## --- Try to figure out why Archean samples are eroding so fast

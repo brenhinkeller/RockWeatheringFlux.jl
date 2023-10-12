@@ -152,6 +152,7 @@
         label="Archean Metamorphic", barwidths = ((SiO2max-SiO2min)/nbins_matched),
         ylims=(0,maximum(n)+0.01)
     )
+
     t = @. 4000 > simmetaign[:,1] >= 2500;
     c, n = bincounts(simmetaign[:,2][t], SiO2min, SiO2max, nbins_matched)
     n = float(n) ./ nansum(float(n) .* step(c))
@@ -206,6 +207,52 @@
     )
 
 
+## --- Distribution of samples over time
+    # Metamorphic
+    archean = @. 4000 > simmet[:,1] >= 2500;
+    proterozoic = @. 2500 > simmet[:,1] >= 541;
+    phanerozoic = @. 541 > simmet[:,1] >= 0;
+
+    h1 = Plots.plot(simmet[:,2][archean], 
+        seriestype=:stephist, normalize=:pdf, nbins=Int(nbins_matched/2),
+        linecolor=:red, linewidth=3, 
+        label="Archean", barwidths = ((SiO2max-SiO2min)/nbins_matched),
+    )
+    Plots.plot!(simmet[:,2][proterozoic], 
+        seriestype=:stephist, normalize=:pdf, nbins=Int(nbins_matched/2),
+        linecolor=:darkorange, linewidth=3, 
+        label="Proterozoic", barwidths = ((SiO2max-SiO2min)/nbins_matched),
+    )
+    Plots.plot!(simmet[:,2][phanerozoic], 
+        seriestype=:stephist, normalize=:pdf, nbins=Int(nbins_matched/2),
+        linecolor=:forestgreen, linewidth=3, 
+        label="Phanerozoic", barwidths = ((SiO2max-SiO2min)/nbins_matched),
+    )
+    display(h1)
+
+    # Metaigneous
+    archean = @. 4000 > simmetaign[:,1] >= 2500;
+    proterozoic = @. 2500 > simmetaign[:,1] >= 541;
+    phanerozoic = @. 541 > simmetaign[:,1] >= 0;
+
+    h1 = Plots.plot(simmetaign[:,2][archean], 
+        seriestype=:stephist, normalize=:pdf, nbins=Int(nbins_matched/2),
+        linecolor=:red, linewidth=3, 
+        label="Archean", barwidths = ((SiO2max-SiO2min)/nbins_matched),
+    )
+    Plots.plot!(simmetaign[:,2][proterozoic], 
+        seriestype=:stephist, normalize=:pdf, nbins=Int(nbins_matched/2),
+        linecolor=:darkorange, linewidth=3, 
+        label="Proterozoic", barwidths = ((SiO2max-SiO2min)/nbins_matched),
+    )
+    Plots.plot!(simmetaign[:,2][phanerozoic], 
+        seriestype=:stephist, normalize=:pdf, nbins=Int(nbins_matched/2),
+        linecolor=:forestgreen, linewidth=3, 
+        label="Phanerozoic", barwidths = ((SiO2max-SiO2min)/nbins_matched),
+    )
+    display(h1)
+
+
 ## --- Silica content timeseries
     c,m,e = binmeans(simmet[:,1], simmet[:,2], 0,3800, 38)
     h1 = Plots.plot(c, m, yerror=e, label="Resampled Metamorphic", 
@@ -221,6 +268,29 @@
 
     h = Plots.plot(h1, h2, layout=(2,1), size=(600,800),
         framestyle=:box, left_margin=(30,:px), ylabel="Weight", xlabel="SiO₂ [wt.%]",
+    )
+
+
+## --- Archean metamorphic rocks in Australia
+    cont = find_geolcont(macrostrat.rocklat, macrostrat.rocklon)
+    aus = cont .== 5
+
+    t = @. 4000 > simmet[:,1] >= 2500;
+    c, n = bincounts(simmet[:,2][t .& aus], SiO2min, SiO2max, nbins_matched)
+    n = float(n) ./ nansum(float(n) .* step(c))
+    h1 = Plots.plot(c, n, seriestype=:bar, 
+        color=colors.met, linecolor=colors.met,
+        label="Archean Metamorphic", barwidths = ((SiO2max-SiO2min)/nbins_matched),
+        ylims=(0,maximum(n)+0.01)
+    )
+
+    t = @. 4000 > simmetaign[:,1] >= 2500;
+    c, n = bincounts(simmetaign[:,2][t], SiO2min, SiO2max, nbins_matched)
+    n = float(n) ./ nansum(float(n) .* step(c))
+    h2 = Plots.plot(c, n, seriestype=:bar, 
+        color=colors.metaign, linecolor=colors.metaign,
+        label="Archean Metaigneous", barwidths = ((SiO2max-SiO2min)/nbins_matched),
+        ylims=(0,maximum(n)+0.01)
     )
 
 

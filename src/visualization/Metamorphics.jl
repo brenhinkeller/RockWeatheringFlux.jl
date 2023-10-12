@@ -97,29 +97,32 @@
         ageuncert[i] = ifelse(isnan(ageuncert[i]), macrostrat.age[i]*0.05, ageuncert[i])
     end
 
+    # Define order of data (and resampled output)
+    latc, lonc, agec, SiO2c = 1,2,3,4
+
     # Metamorphic rocks
     test = t .& macro_cats.met
     k = invweight(macrostrat.rocklat[test], macrostrat.rocklon[test],macrostrat.age[test])
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
 
-    data = [macrostrat.age[test] mbulk.SiO2[test]]
-    uncertainty = [ageuncert[test] fill(0.01, count(test))]
+    data = [macrostrat.rocklat[test] macrostrat.rocklon[test] macrostrat.age[test] mbulk.SiO2[test]]
+    uncertainty = [zeros(count(test)) zeros(count(test)) ageuncert[test] fill(0.01, count(test))]
 
     simmet = bsresample(data, uncertainty, Int(1e6), p)
 
     # Metaigneous rocks 
     test = t .& macro_cats.metaign
-    k = invweight(macrostrat.rocklat[test], macrostrat.rocklon[test],macrostrat.age[test])
+    k = invweight(macrostrat.rocklat[test], macrostrat.rocklon[test], macrostrat.age[test])
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
 
-    data = [macrostrat.age[test] mbulk.SiO2[test]]
-    uncertainty = [ageuncert[test] fill(0.01, count(test))]
+    data = [macrostrat.rocklat[test] macrostrat.rocklon[test] macrostrat.age[test] mbulk.SiO2[test]]
+    uncertainty = [zeros(count(test)) zeros(count(test)) ageuncert[test] fill(0.01, count(test))]
 
     simmetaign = bsresample(data, uncertainty, Int(1e6), p)
 
 
 ## --- Silica distributions of resampled data
-    c, n = bincounts(simmet[:,2], SiO2min, SiO2max, nbins_matched)
+    c, n = bincounts(simmet[:,SiO2c], SiO2min, SiO2max, nbins_matched)
     n = float(n) ./ nansum(float(n) .* step(c))
     h1 = Plots.plot(c, n, seriestype=:bar, 
         color=colors.met, linecolor=colors.met,
@@ -128,7 +131,7 @@
         ylims=(0,maximum(n)+0.01)
     )
 
-    c, n = bincounts(simmetaign[:,2], SiO2min, SiO2max, nbins_matched)
+    c, n = bincounts(simmetaign[:,SiO2c], SiO2min, SiO2max, nbins_matched)
     n = float(n) ./ nansum(float(n) .* step(c))
     h2 = Plots.plot(c, n, seriestype=:bar, 
         color=colors.metaign, linecolor=colors.metaign,
@@ -145,7 +148,7 @@
 ## --- Distribution of samples over time
     # Archean
     t = @. 4000 > simmet[:,1] >= 2500;
-    c, n = bincounts(simmet[:,2][t], SiO2min, SiO2max, nbins_matched)
+    c, n = bincounts(simmet[:,SiO2c][t], SiO2min, SiO2max, nbins_matched)
     n = float(n) ./ nansum(float(n) .* step(c))
     h1 = Plots.plot(c, n, seriestype=:bar, 
         color=colors.met, linecolor=colors.met,
@@ -154,7 +157,7 @@
     )
 
     t = @. 4000 > simmetaign[:,1] >= 2500;
-    c, n = bincounts(simmetaign[:,2][t], SiO2min, SiO2max, nbins_matched)
+    c, n = bincounts(simmetaign[:,SiO2c][t], SiO2min, SiO2max, nbins_matched)
     n = float(n) ./ nansum(float(n) .* step(c))
     h2 = Plots.plot(c, n, seriestype=:bar, 
         color=colors.metaign, linecolor=colors.metaign,
@@ -164,7 +167,7 @@
 
     # Proterozoic
     t = @. 2500 > simmet[:,1] >= 541;
-    c, n = bincounts(simmet[:,2][t], SiO2min, SiO2max, nbins_matched)
+    c, n = bincounts(simmet[:,SiO2c][t], SiO2min, SiO2max, nbins_matched)
     n = float(n) ./ nansum(float(n) .* step(c))
     h3 = Plots.plot(c, n, seriestype=:bar, 
         color=colors.met, linecolor=colors.met,
@@ -173,7 +176,7 @@
     )
 
     t = @. 2500 > simmetaign[:,1] >= 541;
-    c, n = bincounts(simmetaign[:,2][t], SiO2min, SiO2max, nbins_matched)
+    c, n = bincounts(simmetaign[:,SiO2c][t], SiO2min, SiO2max, nbins_matched)
     n = float(n) ./ nansum(float(n) .* step(c))
     h4 = Plots.plot(c, n, seriestype=:bar, 
         color=colors.metaign, linecolor=colors.metaign,
@@ -183,7 +186,7 @@
 
     # Phanerozoic
     t = @. 541 > simmet[:,1] >= 0;
-    c, n = bincounts(simmet[:,2][t], SiO2min, SiO2max, nbins_matched)
+    c, n = bincounts(simmet[:,SiO2c][t], SiO2min, SiO2max, nbins_matched)
     n = float(n) ./ nansum(float(n) .* step(c))
     h5 = Plots.plot(c, n, seriestype=:bar, 
         color=colors.met, linecolor=colors.met,
@@ -192,7 +195,7 @@
     )
 
     t = @. 541 > simmetaign[:,1] >= 0;
-    c, n = bincounts(simmetaign[:,2][t], SiO2min, SiO2max, nbins_matched)
+    c, n = bincounts(simmetaign[:,SiO2c][t], SiO2min, SiO2max, nbins_matched)
     n = float(n) ./ nansum(float(n) .* step(c))
     h6 = Plots.plot(c, n, seriestype=:bar, 
         color=colors.metaign, linecolor=colors.metaign,
@@ -213,17 +216,17 @@
     proterozoic = @. 2500 > simmet[:,1] >= 541;
     phanerozoic = @. 541 > simmet[:,1] >= 0;
 
-    h1 = Plots.plot(simmet[:,2][archean], 
+    h1 = Plots.plot(simmet[:,SiO2c][archean], 
         seriestype=:stephist, normalize=:pdf, nbins=Int(nbins_matched/2),
         linecolor=:red, linewidth=3, 
         label="Archean", barwidths = ((SiO2max-SiO2min)/nbins_matched),
     )
-    Plots.plot!(simmet[:,2][proterozoic], 
+    Plots.plot!(simmet[:,SiO2c][proterozoic], 
         seriestype=:stephist, normalize=:pdf, nbins=Int(nbins_matched/2),
         linecolor=:darkorange, linewidth=3, 
         label="Proterozoic", barwidths = ((SiO2max-SiO2min)/nbins_matched),
     )
-    Plots.plot!(simmet[:,2][phanerozoic], 
+    Plots.plot!(simmet[:,SiO2c][phanerozoic], 
         seriestype=:stephist, normalize=:pdf, nbins=Int(nbins_matched/2),
         linecolor=:forestgreen, linewidth=3, 
         label="Phanerozoic", barwidths = ((SiO2max-SiO2min)/nbins_matched),
@@ -235,17 +238,17 @@
     proterozoic = @. 2500 > simmetaign[:,1] >= 541;
     phanerozoic = @. 541 > simmetaign[:,1] >= 0;
 
-    h1 = Plots.plot(simmetaign[:,2][archean], 
+    h1 = Plots.plot(simmetaign[:,SiO2c][archean], 
         seriestype=:stephist, normalize=:pdf, nbins=Int(nbins_matched/2),
         linecolor=:red, linewidth=3, 
         label="Archean", barwidths = ((SiO2max-SiO2min)/nbins_matched),
     )
-    Plots.plot!(simmetaign[:,2][proterozoic], 
+    Plots.plot!(simmetaign[:,SiO2c][proterozoic], 
         seriestype=:stephist, normalize=:pdf, nbins=Int(nbins_matched/2),
         linecolor=:darkorange, linewidth=3, 
         label="Proterozoic", barwidths = ((SiO2max-SiO2min)/nbins_matched),
     )
-    Plots.plot!(simmetaign[:,2][phanerozoic], 
+    Plots.plot!(simmetaign[:,SiO2c][phanerozoic], 
         seriestype=:stephist, normalize=:pdf, nbins=Int(nbins_matched/2),
         linecolor=:forestgreen, linewidth=3, 
         label="Phanerozoic", barwidths = ((SiO2max-SiO2min)/nbins_matched),
@@ -254,13 +257,13 @@
 
 
 ## --- Silica content timeseries
-    c,m,e = binmeans(simmet[:,1], simmet[:,2], 0,3800, 38)
+    c,m,e = binmeans(simmet[:,agec], simmet[:,SiO2c], 0,3800, 38)
     h1 = Plots.plot(c, m, yerror=e, label="Resampled Metamorphic", 
         markershape=:circle,
         color=colors.met, linecolor=colors.met, msc=colors.met, 
     )
 
-    c,m,e = binmeans(simmetaign[:,1], simmetaign[:,2], 0,3800, 38)
+    c,m,e = binmeans(simmetaign[:,agec], simmetaign[:,SiO2c], 0,3800, 38)
     h2 = Plots.plot(c, m, yerror=e, label="Resampled Metaigneous", 
         markershape=:circle,
         color=colors.metaign, linecolor=colors.metaign, msc=colors.metaign, 
@@ -272,11 +275,11 @@
 
 
 ## --- Archean metamorphic rocks in Australia
-    cont = find_geolcont(macrostrat.rocklat, macrostrat.rocklon)
+    cont = find_geolcont(simmet[:,latc], simmet[:,lonc])
     aus = cont .== 5
 
     t = @. 4000 > simmet[:,1] >= 2500;
-    c, n = bincounts(simmet[:,2][t .& aus], SiO2min, SiO2max, nbins_matched)
+    c, n = bincounts(simmet[:,SiO2c][t .& aus], SiO2min, SiO2max, nbins_matched)
     n = float(n) ./ nansum(float(n) .* step(c))
     h1 = Plots.plot(c, n, seriestype=:bar, 
         color=colors.met, linecolor=colors.met,
@@ -285,7 +288,7 @@
     )
 
     t = @. 4000 > simmetaign[:,1] >= 2500;
-    c, n = bincounts(simmetaign[:,2][t], SiO2min, SiO2max, nbins_matched)
+    c, n = bincounts(simmetaign[:,SiO2c][t], SiO2min, SiO2max, nbins_matched)
     n = float(n) ./ nansum(float(n) .* step(c))
     h2 = Plots.plot(c, n, seriestype=:bar, 
         color=colors.metaign, linecolor=colors.metaign,

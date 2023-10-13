@@ -19,12 +19,6 @@
     types = [:metaign, :met,]
     labels = string.(types)
 
-    ages = (
-        archean = (4000,2500),
-        proterozoic = (2500,541),
-        phanerozoic = (541,0),
-    )
-
 
 ## --- Load data
     # Resampled EarthChem data
@@ -147,7 +141,7 @@
 
 ## --- Distribution of samples over time
     # Archean
-    t = @. 4000 > simmet[:,1] >= 2500;
+    t = @. 4000 > simmet[:,agec] >= 2500;
     c, n = bincounts(simmet[:,SiO2c][t], SiO2min, SiO2max, nbins_matched)
     n = float(n) ./ nansum(float(n) .* step(c))
     h1 = Plots.plot(c, n, seriestype=:bar, 
@@ -156,7 +150,7 @@
         ylims=(0,maximum(n)+0.01)
     )
 
-    t = @. 4000 > simmetaign[:,1] >= 2500;
+    t = @. 4000 > simmetaign[:,agec] >= 2500;
     c, n = bincounts(simmetaign[:,SiO2c][t], SiO2min, SiO2max, nbins_matched)
     n = float(n) ./ nansum(float(n) .* step(c))
     h2 = Plots.plot(c, n, seriestype=:bar, 
@@ -166,7 +160,7 @@
     )
 
     # Proterozoic
-    t = @. 2500 > simmet[:,1] >= 541;
+    t = @. 2500 > simmet[:,agec] >= 541;
     c, n = bincounts(simmet[:,SiO2c][t], SiO2min, SiO2max, nbins_matched)
     n = float(n) ./ nansum(float(n) .* step(c))
     h3 = Plots.plot(c, n, seriestype=:bar, 
@@ -175,7 +169,7 @@
         ylims=(0,maximum(n)+0.01)
     )
 
-    t = @. 2500 > simmetaign[:,1] >= 541;
+    t = @. 2500 > simmetaign[:,agec] >= 541;
     c, n = bincounts(simmetaign[:,SiO2c][t], SiO2min, SiO2max, nbins_matched)
     n = float(n) ./ nansum(float(n) .* step(c))
     h4 = Plots.plot(c, n, seriestype=:bar, 
@@ -185,7 +179,7 @@
     )
 
     # Phanerozoic
-    t = @. 541 > simmet[:,1] >= 0;
+    t = @. 541 > simmet[:,agec] >= 0;
     c, n = bincounts(simmet[:,SiO2c][t], SiO2min, SiO2max, nbins_matched)
     n = float(n) ./ nansum(float(n) .* step(c))
     h5 = Plots.plot(c, n, seriestype=:bar, 
@@ -194,7 +188,7 @@
         ylims=(0,maximum(n)+0.01)
     )
 
-    t = @. 541 > simmetaign[:,1] >= 0;
+    t = @. 541 > simmetaign[:,agec] >= 0;
     c, n = bincounts(simmetaign[:,SiO2c][t], SiO2min, SiO2max, nbins_matched)
     n = float(n) ./ nansum(float(n) .* step(c))
     h6 = Plots.plot(c, n, seriestype=:bar, 
@@ -212,9 +206,9 @@
 
 ## --- Distribution of samples over time
     # Metamorphic
-    archean = @. 4000 > simmet[:,1] >= 2500;
-    proterozoic = @. 2500 > simmet[:,1] >= 541;
-    phanerozoic = @. 541 > simmet[:,1] >= 0;
+    archean = @. 4000 > simmet[:,agec] >= 2500;
+    proterozoic = @. 2500 > simmet[:,agec] >= 541;
+    phanerozoic = @. 541 > simmet[:,agec] >= 0;
 
     h1 = Plots.plot(simmet[:,SiO2c][archean], 
         seriestype=:stephist, normalize=:pdf, nbins=Int(nbins_matched/2),
@@ -234,9 +228,9 @@
     display(h1)
 
     # Metaigneous
-    archean = @. 4000 > simmetaign[:,1] >= 2500;
-    proterozoic = @. 2500 > simmetaign[:,1] >= 541;
-    phanerozoic = @. 541 > simmetaign[:,1] >= 0;
+    archean = @. 4000 > simmetaign[:,agec] >= 2500;
+    proterozoic = @. 2500 > simmetaign[:,agec] >= 541;
+    phanerozoic = @. 541 > simmetaign[:,agec] >= 0;
 
     h1 = Plots.plot(simmetaign[:,SiO2c][archean], 
         seriestype=:stephist, normalize=:pdf, nbins=Int(nbins_matched/2),
@@ -278,23 +272,72 @@
     cont = find_geolcont(simmet[:,latc], simmet[:,lonc])
     aus = cont .== 5
 
-    t = @. 4000 > simmet[:,1] >= 2500;
+    t = @. 4000 > simmet[:,agec] >= 2500;
     c, n = bincounts(simmet[:,SiO2c][t .& aus], SiO2min, SiO2max, nbins_matched)
     n = float(n) ./ nansum(float(n) .* step(c))
     h1 = Plots.plot(c, n, seriestype=:bar, 
         color=colors.met, linecolor=colors.met,
-        label="Archean Metamorphic", barwidths = ((SiO2max-SiO2min)/nbins_matched),
+        label="Archean + Australian Met", barwidths = ((SiO2max-SiO2min)/nbins_matched),
         ylims=(0,maximum(n)+0.01)
     )
 
-    t = @. 4000 > simmetaign[:,1] >= 2500;
+    t = @. 4000 > simmetaign[:,agec] >= 2500;
     c, n = bincounts(simmetaign[:,SiO2c][t], SiO2min, SiO2max, nbins_matched)
     n = float(n) ./ nansum(float(n) .* step(c))
     h2 = Plots.plot(c, n, seriestype=:bar, 
         color=colors.metaign, linecolor=colors.metaign,
-        label="Archean Metaigneous", barwidths = ((SiO2max-SiO2min)/nbins_matched),
+        label="Archean + Australian Metaign", barwidths = ((SiO2max-SiO2min)/nbins_matched),
         ylims=(0,maximum(n)+0.01)
     )
 
+
+## --- Relative contributions of geologic eons to each bin 
+    # Metaigneous
+    archean = @. 4000 > simmetaign[:,agec] >= 2500;
+    proterozoic = @. 2500 > simmetaign[:,agec] >= 541;
+    phanerozoic = @. 541 > simmetaign[:,agec] >= 0;
+
+    c, nar = bincounts(simmetaign[:,SiO2c][archean], SiO2min, SiO2max, nbins_matched)
+    c, npr = bincounts(simmetaign[:,SiO2c][proterozoic], SiO2min, SiO2max, nbins_matched)
+    c, nph = bincounts(simmetaign[:,SiO2c][phanerozoic], SiO2min, SiO2max, nbins_matched)
+
+    h = groupedbar([nar npr nph], bar_position=:stack, 
+        label=["Archean" "Proterozoic" "Phanerozoic"], xlabel="SiO₂ [wt.%]", ylabel="Weight",
+        barwidths = ((SiO2max-SiO2min)/nbins_matched),
+        framestyle=:box, legend=:topright,
+        color=[:red :darkorange :forestgreen],
+    )
+
+    x = SiO2min:10:SiO2max
+    Plots.xticks!(x, string.(x))
+
+
+## --- Resampled matched sample density 
+    # histogram2d(simmet[:,SiO2c], simmet[:,agec], ylims=(0,3800), xlims=(40,80), bins=100)
+    # histogram2d(mbulk.SiO2, macrostrat.age, ylims=(0,3800), xlims=(40,80), bins=100)
+
+    # For each age bin, need to get and normalize a histogram of silica content. Then normalize
+    # This isn't doing what I want it to and part of that is the x/y distinction
+    xmin, xmax, xbins = 40, 80, 40
+    # xedges = xmin:(xmax-xmin)/xbins:xmax
+
+    ymin, ymax, ybins = 0, 3800, 38
+    yedges = ymin:(ymax-ymin)/ybins:ymax
+
+    out = zeros(xbins, ybins)
+    for i = 1:ybins
+        # Filter for samples in this age bin
+        t = @. yedges[i] <= macrostrat.age[macro_cats.ign] < yedges[i+1]
+
+        # Count and normalize distribution of silica
+        c, n = bincounts(mbulk.SiO2[macro_cats.ign][t], xmin, xmax, xbins)
+        n = float(n) ./ nansum(float(n) .* step(c))
+
+        # Put in array for that age bin
+        out[:,i] .= n
+    end
+
+    zeronan!(out)
+    histogram2d(out)
 
 ## --- End of file 

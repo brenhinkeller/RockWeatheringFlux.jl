@@ -49,7 +49,7 @@
         sed = :royalblue, siliciclast = :dodgerblue, shale = :cadetblue, carb = :aqua,
             chert = :deepskyblue, evaporite = :lightskyblue, coal = :midnightblue, 
             phosphorite = :turquoise, volcaniclast = :rebeccapurple,
-        met = :gold, metased = :yellowgreen, metaign = :darkorange,
+        met = :peru, metased = :yellowgreen, metaign = :darkorange,
         cover = :grey
     )
 

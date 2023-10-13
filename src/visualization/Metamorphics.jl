@@ -294,7 +294,7 @@
 
 ## --- Resampled matched sample density 
     # For each age bin, get and normalize a histogram of silica content.
-    xmin, xmax, xbins = 40, 80, 40
+    xmin, xmax, xbins = 40, 80, 80
     xedges = xmin:(xmax-xmin)/xbins:xmax
 
     ymin, ymax, ybins = 0, 3800, 38*2
@@ -307,17 +307,61 @@
 
         # Count and normalize distribution of silica
         c, n = bincounts(simmet_t[:,SiO2c][t], xmin, xmax, xbins)
-        n = float(n) ./ nansum(float(n) .* step(c))
+        # n = float(n) ./ nansum(float(n) .* step(c))
+        n = (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
 
         # Put in array for that age bin
         out[i,:] .= n
     end
 
     zeronan!(out)
-    heatmap(out, xlabel="SiO₂ [wt.%]", ylabel="Age [Ma]")
-    xticks!(5:10:xmax-5, string.(xmin+5:10:xmax-5))
-
+    heatmap(out, xlabel="SiO₂ [wt.%]", ylabel="Age [Ma]", framestyle=:box,
+        colorbar_title="Relative Sample Density", size=(700,400),
+        color=c_gradient, left_margin=(25,:px), bottom_margin=(15,:px))
+    x = 5:20:xmax-5
     y = 0:10:ybins
+    z = 
+    xticks!(x, string.(xmin+5:10:xmax-5))
+    yticks!(y, string.(collect(0:5:38)*100))
+    
+
+## --- Compare to prior EarthChem sample density
+    # Load data
+    fid = h5open("output/bulk.h5", "r")
+    header = read(fid["bulk"]["header"])
+    data = read(fid["bulk"]["data"])
+    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+
+    header = read(fid["bulktypes"]["bulk_cats_head"])
+    data = read(fid["bulktypes"]["bulk_cats"])
+    data = @. data > 0
+    bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+
+    close(fid)
+
+    bulk_cats.met .|= bulk_cats.metaign
+
+    out = zeros(ybins, xbins)
+    for i = 1:ybins
+        # Filter for samples in this age bin
+        t = @. yedges[i] <= bulk.Age[bulk_cats.met] < yedges[i+1]
+
+        # Count and normalize distribution of silica
+        c, n = bincounts(bulk.SiO2[bulk_cats.met][t], xmin, xmax, xbins)
+        n = (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
+
+        # Put in array for that age bin
+        out[i,:] .= n
+    end
+
+    zeronan!(out)
+    heatmap(out, xlabel="SiO₂ [wt.%]", ylabel="Age [Ma]", framestyle=:box,
+        colorbar_title="Relative Sample Density", size=(700,400),
+        color=c_gradient, left_margin=(25,:px), bottom_margin=(15,:px))
+    x = 5:20:xmax-5
+    y = 0:10:ybins
+    z = 
+    xticks!(x, string.(xmin+5:10:xmax-5))
     yticks!(y, string.(collect(0:5:38)*100))
 
 

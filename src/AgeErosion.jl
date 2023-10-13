@@ -137,26 +137,6 @@
         simout[simtypes[i]] .= bsresample(data, uncert, nsims, ones(count(datafilter)))
     end
 
-    # Save data
-    fid = h5open("output/resampled/age_slope.h5", "w")
-        g = create_group(fid, "vars")
-        g["sed"] = simout.sed
-        g["ign"] = simout.ign
-        g["met"] = simout.met
-    close(fid)
-
-
-## --- If you already have data, load from file
-    fid = h5open("output/resampled/age_slope.h5", "r")
-        simout = (
-            sed = read(fid["vars"]["sed"]),
-            ign = read(fid["vars"]["ign"]),
-            met = read(fid["vars"]["met"]),
-        )
-    close(fid)
-    
-
-## --- Filter resampled data
     # Map columns to data
     c_lat = findfirst(x -> x==macrostrat.rocklat, simitemsout)
     c_lon = findfirst(x -> x==macrostrat.rocklon, simitemsout)
@@ -178,6 +158,33 @@
     t = @. (0 < simout.met[:,c_slp] < 1000)
     simmet = simout.met[t[:],:]
 
+    # Save data
+    fid = h5open("output/resampled/age_slope.h5", "w")
+        g = create_group(fid, "vars")
+            g["sed"] = simout.sed
+            g["ign"] = simout.ign
+            g["met"] = simout.met
+        g = create_group(fid, "cols")
+            g["c_lat"] = c_lat
+            g["c_lon"] = c_lon
+            g["c_slp"] = c_slp
+            g["c_age"] = c_age
+    close(fid)
+
+
+## --- If you already have data, load from file
+    fid = h5open("output/resampled/age_slope.h5", "r")
+        simout = (
+            sed = read(fid["vars"]["sed"]),
+            ign = read(fid["vars"]["ign"]),
+            met = read(fid["vars"]["met"]),
+        )
+        c_lat = read(fid["cols"]["c_lat"])
+        c_lon = read(fid["cols"]["c_lon"])
+        c_slp = read(fid["cols"]["c_slp"])
+        c_age = read(fid["cols"]["c_age"])
+    close(fid)
+    
 
 ## --- Fit an exponential decay to the age / slope relationship
     x = 0:10:3800

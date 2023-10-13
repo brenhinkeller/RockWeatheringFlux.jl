@@ -91,64 +91,59 @@
 ## --- Resample matched data by major rock type
     # Set up
     simitemsout = [macrostrat.rocklat, macrostrat.rocklon, macrostrat.age, rockslope]
-    # simitemsuncert = (
-    #     zeros(length(macrostrat.rocklat)),
-    #     zeros(length(macrostrat.rocklon)),
-    #     ((macrostrat.agemax .- macrostrat.agemin) ./ 2),
-    #     rockslope_uncert,
-    # )
+    simitemsuncert = (
+        zeros(length(macrostrat.rocklat)),
+        zeros(length(macrostrat.rocklon)),
+        ((macrostrat.agemax .- macrostrat.agemin) ./ 2),
+        rockslope_uncert,
+    )
 
-    # nsims = Int(1e6)
+    nsims = Int(1e6)
 
-    # # Samples without min / max bounds are assigned an uncertainty of 5% of the rock age
-    # for i in eachindex(simitemsuncert[3])
-    #     simitemsuncert[3][i] = ifelse(isnan(simitemsuncert[3][i]), 0.05 * macrostrat.age[i], 
-    #         simitemsuncert[3][i]
-    #     )
-    # end
+    # Samples without min / max bounds are assigned an uncertainty of 5% of the rock age
+    for i in eachindex(simitemsuncert[3])
+        simitemsuncert[3][i] = ifelse(isnan(simitemsuncert[3][i]), 0.05 * macrostrat.age[i], 
+            simitemsuncert[3][i]
+        )
+    end
 
-    # # Preallocate
-    # simout = (
-    #     sed = Array{Float64}(undef, nsims, length(simitemsout)),
-    #     ign = Array{Float64}(undef, nsims, length(simitemsout)),
-    #     met = Array{Float64}(undef, nsims, length(simitemsout)),
-    # )
+    # Preallocate
+    simout = (
+        sed = Array{Float64}(undef, nsims, length(simitemsout)),
+        ign = Array{Float64}(undef, nsims, length(simitemsout)),
+        met = Array{Float64}(undef, nsims, length(simitemsout)),
+    )
 
-    # # Run simulation for each rock type
-    # simtypes = collect(keys(simout))
-    # for i in eachindex(simtypes)
-    #     # Get data and uncertainty
-    #     datafilter = macro_cats[simtypes[i]]
-    #     ndata = count(datafilter)
+    # Run simulation for each rock type
+    simtypes = collect(keys(simout))
+    for i in eachindex(simtypes)
+        # Get data and uncertainty
+        datafilter = macro_cats[simtypes[i]]
+        ndata = count(datafilter)
 
-    #     data = Array{Float64}(undef, ndata, length(simitemsout))
-    #     uncert = Array{Float64}(undef, ndata, length(simitemsout))
-    #     for j in eachindex(simitemsout)
-    #         data[:,j] .= simitemsout[j][datafilter]
-    #         uncert[:,j] .= simitemsuncert[j][datafilter]
-    #     end
+        data = Array{Float64}(undef, ndata, length(simitemsout))
+        uncert = Array{Float64}(undef, ndata, length(simitemsout))
+        for j in eachindex(simitemsout)
+            data[:,j] .= simitemsout[j][datafilter]
+            uncert[:,j] .= simitemsuncert[j][datafilter]
+        end
 
-    #     test = @. (!isnan(macrostrat.rocklon[datafilter]) & 
-    #         !isnan(macrostrat.rocklat[datafilter]) & !isnan(macrostrat.age[datafilter]))
-    #     data = data[test[:],:]
-    #     uncert = uncert[test[:],:]
+        test = @. (!isnan(macrostrat.rocklon[datafilter]) & 
+            !isnan(macrostrat.rocklat[datafilter]) & !isnan(macrostrat.age[datafilter]))
+        data = data[test[:],:]
+        uncert = uncert[test[:],:]
 
-    #     # Get resampling weights (spatiotemporal)
-    #     k = invweight(macrostrat.rocklat[datafilter], macrostrat.rocklon[datafilter], 
-    #         macrostrat.age[datafilter])
-    #     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+        # Run simulation and save results
+        simout[simtypes[i]] .= bsresample(data, uncert, nsims, ones(count(datafilter)))
+    end
 
-    #     # Run simulation and save results
-    #     simout[simtypes[i]] .= bsresample(data, uncert, nsims, p)
-    # end
-
-    # # Save data
-    # fid = h5open("output/resampled/age_slope.h5", "w")
-    #     g = create_group(fid, "vars")
-    #     g["sed"] = simout.sed
-    #     g["ign"] = simout.ign
-    #     g["met"] = simout.met
-    # close(fid)
+    # Save data
+    fid = h5open("output/resampled/age_slope.h5", "w")
+        g = create_group(fid, "vars")
+        g["sed"] = simout.sed
+        g["ign"] = simout.ign
+        g["met"] = simout.met
+    close(fid)
 
 
 ## --- If you already have data, load from file
@@ -296,6 +291,7 @@
         framestyle=:box, legend=:topright
     )
     display(h)
+    
 
 ## --- Exponential fit to erosion
     ersn_sed, ersn_sed_e = unmeasurementify(emmkyr.(simsed[:,c_slp]))

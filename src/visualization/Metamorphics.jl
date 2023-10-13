@@ -63,22 +63,23 @@
 
 
 ## --- Show distribution of matched metamorphic rocks
-    c, n = bincounts(mbulk.SiO2[macro_cats.metaign], SiO2min, SiO2max, nbins_matched)
+    c, n = bincounts(mbulk.SiO2[macro_cats.met], SiO2min, SiO2max, nbins_matched)
     n₁ = float(n) ./ nansum(float(n) .* step(c))
-    h1 = Plots.plot(c, n₁, seriestype=:bar, color=colors.metaign, linecolor=colors.metaign,
+    h1 = Plots.plot(c, n₂, seriestype=:bar, color=colors.met, linecolor=colors.met,
+        label="Matched met", barwidths = ((SiO2max-SiO2min)/nbins_matched),
+        ylims = (0,0.09)
+    )
+
+    c, n = bincounts(mbulk.SiO2[macro_cats.metaign], SiO2min, SiO2max, nbins_matched)
+    n₂ = float(n) ./ nansum(float(n) .* step(c))
+    h2 = Plots.plot(c, n₂, seriestype=:bar, color=colors.metaign, linecolor=colors.metaign,
         label="Matched metaign", barwidths = ((SiO2max-SiO2min)/nbins_matched),
         ylims = (0,0.09)
     )
 
-    c, n = bincounts(mbulk.SiO2[macro_cats.met], SiO2min, SiO2max, nbins_matched)
-    n₂ = float(n) ./ nansum(float(n) .* step(c))
-    h2 = Plots.plot(c, n₂, seriestype=:bar, color=colors.met, linecolor=colors.met,
-        label="Matched met", barwidths = ((SiO2max-SiO2min)/nbins_matched),
-        ylims = (0,0.09)
-    )
-    
     h = Plots.plot(h1, h2, layout=(2,1), size=(600,800),
         framestyle=:box, left_margin=(30,:px), ylabel="Weight", xlabel="SiO₂ [wt.%]",
+        legend=:topleft, 
     )
     display(h)
 
@@ -96,23 +97,15 @@
 
     # Metamorphic rocks
     test = t .& macro_cats.met
-    k = invweight(macrostrat.rocklat[test], macrostrat.rocklon[test],macrostrat.age[test])
-    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-
     data = [macrostrat.rocklat[test] macrostrat.rocklon[test] macrostrat.age[test] mbulk.SiO2[test]]
     uncertainty = [zeros(count(test)) zeros(count(test)) ageuncert[test] fill(0.01, count(test))]
-
-    simmet = bsresample(data, uncertainty, Int(1e6), p)
+    simmet = bsresample(data, uncertainty, Int(1e6), ones(count(test)))
 
     # Metaigneous rocks 
     test = t .& macro_cats.metaign
-    k = invweight(macrostrat.rocklat[test], macrostrat.rocklon[test], macrostrat.age[test])
-    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-
     data = [macrostrat.rocklat[test] macrostrat.rocklon[test] macrostrat.age[test] mbulk.SiO2[test]]
     uncertainty = [zeros(count(test)) zeros(count(test)) ageuncert[test] fill(0.01, count(test))]
-
-    simmetaign = bsresample(data, uncertainty, Int(1e6), p)
+    simmetaign = bsresample(data, uncertainty, Int(1e6), ones(count(test)))
 
 
 ## --- Silica distributions of resampled data

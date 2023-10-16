@@ -127,7 +127,7 @@
         Material: $(bulktext.Material[j])
 
         --- --- --- --- ---
-        All matches: $(round(f₁/length(matches)*100, sigdigits=3))% \t i = $j₁
+        All matches: $(round(f₁/length(bulkidx)*100, sigdigits=3))% \t i = $j₁
 
         Age [Ma]: $(bulk.Age[j₁])
         Lat, Lon: $(bulk.Latitude[j₁]), $(bulk.Longitude[j₁])

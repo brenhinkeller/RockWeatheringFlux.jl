@@ -7,8 +7,10 @@
     using StatGeochem
     using HDF5
     using MAT
-    using Plots
     using DelimitedFiles
+
+    using Plots
+    using StatsPlots
 
     # Local utilities
     using Static
@@ -224,6 +226,31 @@
     savefig(h, "results/figures/dist_sedmet.png")
 
 
+## --- Plot metaigneous rocks for thesis proposal
+    h = Plots.plot(framestyle=:box, xlabel="SiO2 [wt.%]", ylabel="Abundance", 
+        xlims=(SiO2min, SiO2max), ylims=(0, 0.1),
+        left_margin=(25, :px), right_margin=(25, :px), bottom_margin=(25, :px),
+        legend=:topleft, fg_color_legend=:white,   
+    )
+
+    # Matched samples
+    c, n = bincounts(mbulk.SiO2[macro_cats.metaign], SiO2min, SiO2max, nbins_matched)
+    n₁ = float(n) ./ nansum(float(n) .* step(c))
+    Plots.plot!(c, n₁, seriestype=:bar, color=colors.metaign, linecolor=colors.metaign,
+        label="Matched metaigneous", barwidths = ((SiO2max-SiO2min)/nbins_matched)
+    )
+
+    # Resampled EarthChem
+    c, n = bincounts(bsrsilica.metaign, SiO2min, SiO2max, nbins)
+    n₂ = float(n) ./ nansum(float(n) .* step(c))
+    Plots.plot!(c, n₂, seriestype=:path, color=:black, linecolor=:black, linewidth=3,
+        label="Resampled EarthChem",
+    )
+
+    display(h)
+    savefig(h, "results/figures/dist_metaign.pdf")
+
+
 ## --- Plot CaO data for carbonates
     # Load resampled CaO
     fid = h5open("output/resampled/resampled.h5", "r")
@@ -282,7 +309,11 @@
 
 
 ## --- Prior and posterior spatial distributions of EarthChem samples
-    
+    # This is the plot I want: 
+    # https://docs.juliaplots.org/latest/generated/statsplots/#marginalhist-with-DataFrames
+
+    # Technically the code for Gailin's paper should also have this, but it's probably
+    # easier to not go through all her code
 
     # h = plot(framestyle=:box, xlabel="Longitude", ylabel="Latitude", 
     #     left_margin=(30, :px), bottom_margin=(30, :px),

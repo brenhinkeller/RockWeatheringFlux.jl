@@ -29,7 +29,7 @@
 
     # Local utilities
     include("utilities/Utilities.jl")
-    
+
 
 ## --- Load and parse data file
     bulk = matread("data/bulk.mat")["bulk"];
@@ -120,12 +120,12 @@
 ## --- Define and organize elements to correct
     majors, minors = get_elements()
 
-    # Collect major and minor elements together. Make sure to keep rock type!
-    # CaCO3 values will be preserved in the final bulk.h5 file, but CaCO3 is converted
-    # to CaO and CO2 for analyzed wt.% calculations
+    # Collect major and minor elements together
+    # CaCO3, H2O, and CO3 don't get reported in the output, but we'll want them with the 
+    # correct units for conversions 
     allelements = [majors; minors]
-    extendelements = [allelements; :CaCO3]
-    allkeys = [extendelements; [:Type, :Latitude, :Longitude, :Age]]
+    extendelements = [allelements; [:CaCO3, :H2O, :CO2]]
+    allkeys = [allelements; [:Type, :Latitude, :Longitude, :Age]]
     ndata = length(allelements)
 
     # Get all units present in bulktext
@@ -203,7 +203,7 @@
     bulkrockname = bulktext.elements.Rock_Name[bulktext.index.Rock_Name]
     isgypsum = bulkrockname.=="GYPSUM"
     @turbo for i in eachindex(bulk.H2O)
-        bulk.H2O[i] = ifelse(isgypsum[i], bulk.CaO[i]*CaO_to_H2O, 0)
+        bulk.H2O[i] = ifelse(isgypsum[i], bulk.CaO[i]*CaO_to_H2O, NaN)
         SO3[i] = ifelse(isgypsum[i], bulk.CaO[i]*CaO_to_SO3, 0)
     end
 
@@ -259,10 +259,12 @@
         end
     end
 
+    # Also get rid of any zeros in compositions
+
 
 ## --- Restrict bulktext to data we're keeping in the final output file
     # Methods
-    restrictmethods = Symbol.(string.(extendelements) .* "_Meth")
+    restrictmethods = Symbol.(string.(allelements) .* "_Meth")
     bulktext_methods = (
         methods = bulktext_methods.methods,
         index = NamedTuple{Tuple(restrictmethods)}(

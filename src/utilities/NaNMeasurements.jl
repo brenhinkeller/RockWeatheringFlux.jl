@@ -215,4 +215,35 @@ function nanunzero!(A::AbstractArray{T}, val) where T
 end
 
 
+"""
+```julia
+nanzero!(A)
+```
+
+The reverse of `zeronan!`: replace all zeros with `NaN`s.
+"""
+function nanzero!(A::AbstractArray{T}) where T <: Float64
+    ∅ = 0.0
+    @inbounds for i ∈ eachindex(A)
+        Aᵢ = A[i]
+        if Aᵢ == ∅
+            A[i] = NaN
+        end
+    end
+    return A
+end
+
+function nanzero!(A::AbstractArray{T}) where T
+    A = convert(AbstractArray{Float64}, A)
+    ∅ = 0.0
+    @inbounds for i ∈ eachindex(A)
+        Aᵢ = A[i]
+        if Aᵢ == ∅
+            A[i] = NaN
+        end
+    end
+    return A
+end
+
+
 ## --- End of file

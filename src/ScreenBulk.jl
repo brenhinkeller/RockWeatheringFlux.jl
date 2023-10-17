@@ -116,17 +116,29 @@
     bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
     close(fid)
 
+    # Either way, we want major elements to include major elements
+    minorsed, minorign, minormet = get_minor_types()
+    for type in minorsed
+        bulk_cats.sed .|= bulk_cats[type]
+    end
+    for type in minorign
+        bulk_cats.ign .|= bulk_cats[type]
+    end
+    for type in minormet
+        bulk_cats.met .|= bulk_cats[type]
+    end
+
 
 ## --- Define and organize elements to correct
+    # Get major and minor elements, but remove :Volatiles from before it causes problems
     majors, minors = get_elements()
-
-    # Collect major and minor elements together
-    # CaCO3, H2O, and CO3 don't get reported in the output, but we'll want them with the 
-    # correct units for conversions 
     allelements = [majors; minors]
-    extendelements = [allelements; [:CaCO3, :H2O, :CO2]]
-    allkeys = [allelements; [:Type, :Latitude, :Longitude, :Age]]
-    ndata = length(allelements)
+    allkeys = [allelements; [:Latitude, :Longitude, :Age]]
+    deleteat!(allelements, findall(x->x==:Volatiles,allelements))
+
+    # LOI, CaCO3, H2O, and CO2 don't get reported in the output, but we'll want them with 
+    # the correct units for conversions 
+    source_elements = [allelements; [:Loi, :CaCO3, :H2O, :CO2]]
 
     # Get all units present in bulktext
     presentunits = join(collect(keys(bulktext_units.index)), " ")
@@ -139,7 +151,7 @@
 
 ## --- Convert all units to wt.%
     # This method is resistant to changes in element order
-    for i in extendelements
+    for i in source_elements
         # Check unit is present, and convert indices to a list of units
         unit_i = string(i) * "_Unit"
         @assert contains(presentunits, unit_i) "$unit_i not present"
@@ -150,19 +162,18 @@
     end
 
 
-## --- Carbonates: Convert CaCO₃ → CaO + CO₂, and get CO₂ from CaO
-    @warn "Did you remember to re-load bulk before running this block?" 
-
+## --- Fix some missing data and weird conversions
     # Pre-compute some conversion factors
     CaCO3_to_CaO = (40.078+15.999)/(40.078+15.999*3+12.01)
     CaCO3_to_CO2 = (15.999*2+12.01)/(40.078+15.999*3+12.01)
 
     CaO_to_CO2 = (15.999*2+12.01)/(40.078+15.999)
-    CaO_to_CaCO3 = (40.078+15.999*3+12.01)/(40.078+15.999)
+    CaO_to_H2O = 2*(2*1.00784+15.999)/(40.078+15.999)
+    CaO_to_SO3 = (32.065+3*15.999)/(40.078+15.999)
 
-    # Convert CaCO₃ to CaO and CO₂
+    # CaCO₃ → CaO + CO₂, and get CO₂ from CaO
     # Replace the existing CaO value with the computed CaO value
-    # Add the existing CO2 value and the computed CO2 values 
+    # Add the existing CO2 value to the computed CO2 values 
     @turbo for i in eachindex(bulk.CaCO3)
         bulk.CaO[i] = ifelse(bulk.CaCO3[i] > 0, CaCO3_to_CaO * bulk.CaCO3[i], bulk.CaO[i])
         bulk.CO2[i] = ifelse(bulk.CaCO3[i] > 0, CaCO3_to_CO2 * bulk.CaCO3[i] + bulk.CO2[i],
@@ -170,85 +181,77 @@
         )
     end
 
-    # FOR CARBONATES ONLY: Convert CaO to CaCO₃ and CO₂
-    #
-    # There are a lot of limestones with only CaO... this seems perhaps not correct, but
-    # there are no CO2 values, so they all have analyzed wt.%'s that are too low :(
-    #
-    # It doesn't matter if existing CaCO₃ values are replaced with CaCO₃ values calculated
-    # from CaO, because the CaO values were calculated from the existing CaCO₃ values so 
-    # everything works (paste this code into the REPL to check):
-    #
-    # a = @. !isnan(bulk.CaCO3) & bulk_cats.carb;
-    # b = @. !isapprox(bulk.CaCO3[a], CaCO3[a]);
-    # [bulk.CaCO3[a][b] CaCO3[a][b] bulk.CaO[a][b]]
+    # CARBONATES ONLY: Convert CaO to and CO₂
+    # There are a lot of limestones with only CaO :(
     @turbo for i in eachindex(bulk.CaO)
         bulk.CO2[i] = ifelse(bulk_cats.carb[i], bulk.CaO[i]*CaO_to_CO2, NaN)
-        bulk.CaCO3[i] = ifelse(bulk_cats.carb[i], bulk.CaO[i]*CaO_to_CaCO3, NaN)
     end
 
-
-## --- Gypsum: get H₂O from CaO and assume SO₄
-    @warn "Did you remember to re-load bulk before running this block?" 
-
-    # Pre-compute conversion factors
-    CaO_to_H2O = 2*(2*1.00784+15.999)/(40.078+15.999)
-    CaO_to_SO3 = (32.065+3*15.999)/(40.078+15.999)
-
-    # Preallocate
-    # Looking at SO₃ because already have an oxygen in CaO
+    # GYPSUM ONLY: CaO → H₂O, SO₄ (technically SO₃ because already have an oxygen in CaO)
     SO3 = Array{Float64}(undef, length(bulk.SiO2), 1)
-
-    # Compute
-    bulkrockname = bulktext.elements.Rock_Name[bulktext.index.Rock_Name]
-    isgypsum = bulkrockname.=="GYPSUM"
+    isgypsum = bulktext.elements.Rock_Name[bulktext.index.Rock_Name] .== "GYPSUM"
     @turbo for i in eachindex(bulk.H2O)
         bulk.H2O[i] = ifelse(isgypsum[i], bulk.CaO[i]*CaO_to_H2O, NaN)
         SO3[i] = ifelse(isgypsum[i], bulk.CaO[i]*CaO_to_SO3, 0)
     end
 
 
-## --- Restrict bulk to whole rock analysis of continental crust
-    # Samples must be on land; same methodology used to generate continental lat, lon 
-    # points for Macrostrat API query
+## --- Create new volatiles measurement
+    # Initialize as the larger of (CO₂ + H₂O) OR LOI, and add calculated SO₃
+    volatiles = Array{Float64}(undef, length(bulk.SiO2), 1)
+
+    zeronan!(bulk.CO2)
+    zeronan!(bulk.H2O)
+    @turbo volatiles .= bulk.CO2 .+ bulk.H2O
+
+    @turbo for i in eachindex(volatiles)
+        volatiles[i] = ifelse(bulk.Loi[i] > volatiles[i], bulk.Loi[i], volatiles[i])
+    end
+
+    @turbo volatiles .+ SO3
+
+
+## --- Compute total wt.% analyzed for all samples
+    bulkweight = Array{Float64}(undef, length(bulk.SiO2), 1)
+
+    p = Progress(length(bulkweight) ÷ 10, desc="Calculating wt.% ...")
+    @inbounds for i in eachindex(bulkweight)
+        bulkweight[i] = nansum([bulk[j][i] for j in allelements]) + volatiles[i]
+        i%10==0 && next!(p)
+    end
+
+    # Assume (meta)sedimentary rocks between 10 wt.% and 100 wt.% are missing volatiles
+    # Anything below 10% you start running into the problem that it might just be a TEA
+    # for one element
+    sed = bulk_cats.sed .| bulk_cats.metased
+    for i in eachindex(bulkweight)
+        if sed[i] && (10 < bulkweight[i] < 100)
+            volatiles[i] += 100 - bulkweight[i]
+            bulkweight[i] = 100
+        end
+    end
+
+    # Filter rocks between 84 and 104 wt.% analyzed geochemistry
+    t = @. 84 <= bulkweight <= 104
+
+    # Exclude rocks below the shelf break
+    # Because a lot of sedimentary rocks in this dataset come from drill cores, this 
+    # unfortunately does exclude a pretty good portion of sedimentary rocks
     etopo = h5read("data/etopo/etopo1.h5", "vars/elevation")
     elev = find_etopoelev(etopo, bulk.Latitude, bulk.Longitude)
-    abovesea = elev .> 0
+    abovesea = elev .> -140;    # Shelf break at 140 m
 
-    # Compute the larger of H₂O + CO₂ or LOI to add to the total wt.%
-    bulkweight = Array{Float64}(undef, length(bulk.SiO2), 1)
-    @turbo for i in eachindex(bulkweight)
-        volatiles = nanadd(bulk.CO2[i], bulk.H2O[i])
-        bulkweight[i] = ifelse(bulk.Loi[i] > volatiles, bulk.Loi[i], volatiles)
-    end
-    zeronan!(bulkweight)
+    t = t .& abovesea;
 
-    # Add calculated SO₃ to the total wt.%
-    bulkweight .+= SO3
-
-    # Samples must be 84-104 total wt.% analyzed
-    t = falses(length(bulkweight))
-    bounds = (84, 104)
-
-    p = Progress(length(bulkweight), desc="Calculating wt.% ...")
-    @time @inbounds for i in eachindex(bulkweight)
-        if abovesea[i]
-            bulkweight[i] += nansum([bulk[j][i] for j in allelements])
-            t[i] = (bounds[1] <= bulkweight[i] <= bounds[2])
-        else
-            t[i] = false
-        end
-        # bulkweight[i] += nansum([bulk[j][i] for j in allelements])
-        next!(p)
-    end
-
-
+    
 ## --- Print to terminal and normalize compositions
     nsamples = round(count(t)/length(t)*100, digits=2)
-    @info "Saving $(count(t)) samples ($nsamples%) with $(bounds[1])-$(bounds[2]) analyzed wt.%"
+    @info "Saving $(count(t)) samples ($nsamples%)"
 
     # Restrict bulk to in-bounds only
-    bulk = NamedTuple{Tuple(allkeys)}([bulk[i][t] for i in allkeys])
+    # This is inefficient, but is not sensitive to changes in the order of any elements
+    newbulk = merge(bulk, (Volatiles=volatiles,))
+    bulk = NamedTuple{Tuple(allkeys)}([newbulk[i][t] for i in allkeys])
 
     # Normalize compositions to 100%
     for i in eachindex(bulk.SiO2)
@@ -258,8 +261,6 @@
             bulk[allelements[j]][i] = sample[j]
         end
     end
-
-    # Also get rid of any zeros in compositions
 
 
 ## --- Restrict bulktext to data we're keeping in the final output file

@@ -141,45 +141,54 @@
     # Volcanic, Plutonic
     fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(types))
     for i in eachindex(fig)
-        h = Plots.plot(framestyle=:box, xlabel="SiO2 [wt.%]", ylabel="Weight", 
-            xlims=(SiO2min, SiO2max), left_margin=(30, :px), bottom_margin=(30, :px),  
+        h = Plots.plot(framestyle=:box, # xlabel="SiO2 [wt.%]", ylabel="Weight", 
+            xlims=(SiO2min, SiO2max), left_margin=(30, :px), bottom_margin=(30, :px), 
         )
+
+        i==1 && ylabel!("Abundance")
+        i==2 && xlabel!("SiO2 [wt.%]")
 
         # Matched samples
         c, n = bincounts(mbulk.SiO2[macro_cats[types[i]]], SiO2min, SiO2max, nbins_matched)
         n₁ = float(n) ./ nansum(float(n) .* step(c))
-        Plots.plot!(c, n₁, seriestype=:bar, color=:lightcoral, linecolor=:lightcoral,
+        Plots.plot!(c, n₁, seriestype=:bar, color=colors[types[i]], linecolor=:match,
             label="Matched $(labels[i])", barwidths = ((SiO2max-SiO2min)/nbins_matched)
         )
 
-        # Resampled EarthChem
-        c, n = bincounts(bsrsilica[types[i]], SiO2min, SiO2max, nbins)
-        n₂ = float(n) ./ nansum(float(n) .* step(c))
-        Plots.plot!(c, n₂, seriestype=:path, color=:blue, linecolor=:blue, linewidth=2,
-            label="Resampled EarthChem",
-        )
+        # # Resampled EarthChem
+        # c, n = bincounts(bsrsilica[types[i]], SiO2min, SiO2max, nbins)
+        # n₂ = float(n) ./ nansum(float(n) .* step(c))
+        # Plots.plot!(c, n₂, seriestype=:path, color=:blue, linecolor=:blue, linewidth=2,
+        #     label="Resampled EarthChem",
+        # )
 
-        # Prior Earthchem
-        c, n = bincounts(bulk.SiO2[bulk_cats[types[i]]], SiO2min, SiO2max, Int(nbins/2))
-        n₃ = float(n) ./ nansum(float(n) .* step(c))
-        Plots.plot!(c, n₃, seriestype=:path, color=:red, linecolor=:red, linewidth=2,
-            label="EarthChem prior",
-        )
+        # # Prior Earthchem
+        # c, n = bincounts(bulk.SiO2[bulk_cats[types[i]]], SiO2min, SiO2max, Int(nbins/2))
+        # n₃ = float(n) ./ nansum(float(n) .* step(c))
+        # Plots.plot!(c, n₃, seriestype=:path, color=:red, linecolor=:red, linewidth=2,
+        #     label="EarthChem prior",
+        # )
 
         # Keller et al., 2015
         c, n = bincounts(simVP[i], SiO2min, SiO2max, nbins)
         n₄ = float(n) ./ nansum(float(n) .* step(c))
-        Plots.plot!(c, n₄, seriestype=:path, color=:black, linecolor=:black, linewidth=3,
+        Plots.plot!(c, n₄, seriestype=:path, color=:black, linecolor=:black, linewidth=4,
             label="Keller et al., 2015",
         )
 
-        Plots.ylims!(0, round(maximum([n₁; n₂; n₃; n₄]), digits=2)+0.01)
+        # Plots.ylims!(0, round(maximum([n₁; n₂; n₃; n₄]), digits=2)+0.01)
+        Plots.ylims!(0, round(maximum([n₁; n₄]), digits=2)+0.01)
         fig[i] = h
     end
 
-    h = Plots.plot(fig..., layout=(2, 2), size=(1000,800))
-    display(h)
-    savefig(h, "results/figures/dist_ign.png")
+    # h = Plots.plot(fig..., layout=(2, 2), size=(1000,800), legend=false)
+    h = Plots.plot(fig..., layout=(1, 3), size=(1800,500), legend=false,
+        left_margin=(35,:px), bottom_margin=(35,:px), top_margin=(35,:px),
+        title =["Volcanic" "Plutonic" "All Igneous"], titleloc=:left, titlefont = font(15)
+    )    
+    # display(h)
+    # savefig(h, "results/figures/dist_ign.png")
+    savefig(h, "results/figures/dist_ign.pdf")
 
 
 ## --- Plot other rock types 

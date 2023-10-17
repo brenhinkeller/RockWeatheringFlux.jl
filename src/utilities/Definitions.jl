@@ -45,7 +45,7 @@
 
     # Observed samples by rock type
     colors = (
-        ign = :crimson, volc = :tomato, plut = :darkred,
+        ign = :crimson, volc = :tomato, plut = :deeppink,
         sed = :royalblue, siliciclast = :dodgerblue, shale = :cadetblue, carb = :aqua,
             chert = :deepskyblue, evaporite = :lightskyblue, coal = :midnightblue, 
             phosphorite = :turquoise, volcaniclast = :rebeccapurple,

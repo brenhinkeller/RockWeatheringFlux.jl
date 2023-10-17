@@ -56,6 +56,11 @@
 
 
 ## --- Compute and export composition of exposed crust!
+    # If you have zeros in for elements that aren't present, your averages get mad
+    for i in allelements
+        zeronan!(bulk[i])
+    end
+
     UCC = (
         bulk = [nanmean(bulk[i]) for i in allelements],
         sed = [nanmean(bulk[i][macro_cats.sed]) for i in allelements],
@@ -86,8 +91,8 @@
     $(join(majors, " \t "))
     $(join(majorcomp, " \t "))
 
-    Total: $(round(nansum(UCC.bulk[1:length(majors)]), sigdigits=3))%
-    Total (less CO₂ and H₂O): $(round(nansum(UCC.bulk[1:length(majors)-2]), sigdigits=3))%
+    Total (majors): $(round(nansum(UCC.bulk[1:length(majors)]), sigdigits=3))%
+    Total (major + trace): $(round(nansum(UCC.bulk), sigdigits=3))%
     """
 
 

@@ -333,6 +333,37 @@
     )
 
 
+## --- Rock names still have to be matched!
+    # We might have taken out the samples that the name refers to... which means there
+    # won't be samples in that lookup! BUT... we already have all the BitVectors for
+    # rock names
+
+    # List of rock names
+    rocknames = get_rock_class(major=true, inclusive=false)
+    rocknames = unique((rocknames.sed..., rocknames.met..., rocknames.ign...))
+
+    # Rock subtypes, major types do not include minors (for class_up function call)
+    typelist = get_rock_class(major=false, inclusive=false)
+
+    # Match rock names
+    bulk_lookup_new = NamedTuple{keys(bulk_lookup)}([falses(count(t)) 
+        for _ in eachindex(rocknames)]
+    )
+    for i in eachindex(rocknames)
+        bulk_lookup_new[i] .= bulk_lookup[i][t]
+
+        # If no matches, jump up a class. Find everything within that class
+        if count(bulk_lookup_new[i]) == 0
+            searchlist = typelist[class_up(typelist, rocknames[i])]
+
+            # Search all of those names; each class should at least have something
+            for j in eachindex(searchlist)
+                bulk_lookup_new[i] .|= bulk_lookup[j][t]
+            end
+        end
+    end
+
+
 ## --- Write data to an HDF5 file
     @info "Saving new bulk.h5 file."
 
@@ -342,7 +373,7 @@
 
     # Bulk
     write(data, "header", string.(allkeys))
-    writebulk = create_dataset(data, "data", Float64, (count(t), length(allkeys)))
+    writebulk = create_dataset(data, "data", Float64, (count(t), length(ScreenBulkallkeys)))
     for i in eachindex(allkeys)
         writebulk[:,i] = bulk[allkeys[i]]
     end
@@ -384,14 +415,14 @@
     bulktypes["bulk_cats_head"] = string.(collect(keys(bulk_cats))) 
 
     # Rock names
-    a = Array{Int64}(undef, length(bulk_lookup[1][t]), length(bulk_lookup))
-    for i in eachindex(keys(bulk_lookup))
-        for j in eachindex(bulk_lookup[i][t])
-            a[j,i] = ifelse(bulk_lookup[i][j], 1, 0)
+    a = Array{Int64}(undef, length(bulk_lookup_new[1]), length(bulk_lookup_new))
+    for i in eachindex(keys(bulk_lookup_new))
+        for j in eachindex(bulk_lookup_new[i])
+            a[j,i] = ifelse(bulk_lookup_new[i][j], 1, 0)
         end
     end
     bulktypes["bulk_lookup"] = a
-    bulktypes["bulk_lookup_head"] = string.(collect(keys(bulk_lookup)))
+    bulktypes["bulk_lookup_head"] = string.(collect(keys(bulk_lookup_new)))
 
     close(fid)
 

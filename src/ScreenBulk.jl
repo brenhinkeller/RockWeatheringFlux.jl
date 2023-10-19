@@ -87,16 +87,49 @@
     )
 
 
-## --- Get rock type matches for all samples
-    # # DIY and save to a file
+## --- Get rock type matches for all samples: DIY and save to a file
+    # # Rock names / types / materials for all EarthChem data
     # bulkrockname = lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name])
     # bulkrocktype = lowercase.(bulktext.elements.Type[bulktext.index.Type])
     # bulkmaterial = lowercase.(bulktext.elements.Material[bulktext.index.Material])
 
+    # # List of rock names
+    # rocknames = get_rock_class(major=true, inclusive=false)
+    # rocknames = unique((rocknames.sed..., rocknames.met..., rocknames.ign...))
+
+    # # Rock subtypes, major types do not include minors (for class_up function call)
+    # typelist = get_rock_class(major=false, inclusive=false)
+
+    # # Match rock types
     # bulk_cats = match_rocktype(bulkrockname, bulkrocktype, bulkmaterial; unmultimatch=false, 
     #     inclusive=false, source=:earthchem
     # )
 
+    # # Match rock names
+    # p = Progress(length(rocknames), desc="Finding EarthChem samples for each rock name")
+    # bulk_lookup = NamedTuple{Tuple(Symbol.(rocknames))}([falses(length(bulkrockname)) 
+    #     for _ in eachindex(rocknames)]
+    # )
+    # for i in eachindex(rocknames)
+    #     bulk_lookup[i] .= find_earthchem(rocknames[i], bulkrockname, bulkrocktype, 
+    #         bulkmaterial
+    #     )
+
+    #     # If no matches, jump up a class. Find everything within that class
+    #     if count(bulk_lookup[i]) == 0
+    #         searchlist = typelist[class_up(typelist, rocknames[i])]
+
+    #         # Search all of those names; each class should at least have something
+    #         for j in eachindex(searchlist)
+    #             bulk_lookup[i] .|= find_earthchem(searchlist[j], bulkrockname, bulkrocktype, 
+    #                 bulkmaterial
+    #             )
+    #         end
+    #     end
+    #     next!(p)
+    # end
+
+    # # Save to file
     # fid = h5open("output/bulk_unrestricted_types.h5", "w")
     # a = Array{Int64}(undef, length(bulk_cats[1]), length(bulk_cats))
     # for i in eachindex(keys(bulk_cats))
@@ -106,17 +139,26 @@
     # end
     # fid["bulk_cats"] = a
     # fid["bulk_cats_head"] = string.(collect(keys(bulk_cats)))
+
+    # a = Array{Int64}(undef, length(bulk_lookup[1]), length(bulk_lookup))
+    # for i in eachindex(keys(bulk_lookup))
+    #     for j in eachindex(bulk_lookup[i])
+    #         a[j,i] = ifelse(bulk_lookup[i][j], 1, 0)
+    #     end
+    # end
+    # fid["bulk_lookup"] = a
+    # fid["bulk_lookup_head"] = string.(collect(keys(bulk_lookup)))
     # close(fid)
 
-    # Or save yourself the time and load from a file
+
+## --- Or save yourself the time and load from a file
     fid = h5open("output/bulk_unrestricted_types.h5", "r")
     header = read(fid["bulk_cats_head"])
     data = read(fid["bulk_cats"])
     data = @. data > 0
     bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
-    close(fid)
-
-    # Either way, we want major elements to include major elements
+    
+    # We want major elements to include major elements
     minorsed, minorign, minormet = get_minor_types()
     for type in minorsed
         bulk_cats.sed .|= bulk_cats[type]
@@ -127,6 +169,14 @@
     for type in minormet
         bulk_cats.met .|= bulk_cats[type]
     end
+
+    # And load rock names
+    rocknames = read(fid["bulk_lookup_head"])
+    data = read(fid["bulk_lookup"])
+    data = @. data > 0
+    bulk_lookup = NamedTuple{Tuple(Symbol.(rocknames))}([data[:,i] for i in eachindex(rocknames)])
+
+    close(fid)
 
 
 ## --- Define and organize elements to correct
@@ -220,13 +270,13 @@
         i%10==0 && next!(p)
     end
 
-    # Assume (meta)sedimentary rocks between 10 wt.% and 100 wt.% are missing volatiles
-    # Anything below 10% you start running into the problem that it might just be a TEA
+    # Assume (meta)sedimentary rocks between 15 wt.% and 100 wt.% are missing volatiles
+    # Anything below 15% you start running into the problem that it might just be a TEA
     # for one element
     sed = bulk_cats.sed .| bulk_cats.metased
     for i in eachindex(bulkweight)
-        if sed[i] && (10 < bulkweight[i] < 100)
-            volatiles[i] += 100 - bulkweight[i]
+        if sed[i] && (15 < bulkweight[i] < 100)
+            volatiles[i] += (100 - bulkweight[i])
             bulkweight[i] = 100
         end
     end
@@ -242,6 +292,7 @@
     abovesea = elev .> -140;    # Shelf break at 140 m
 
     t = t .& abovesea;
+    t = vec(t)
 
     
 ## --- Print to terminal and normalize compositions
@@ -280,53 +331,6 @@
             [bulktext.index[i][t] for i in keys(bulktext.index)]
         )
     )
-
-
-## --- Initialize metadata for rock name / type matching
-    # Name + Type + Material from index / element format of bulktext
-    bulkrockname = lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name])
-    bulkrocktype = lowercase.(bulktext.elements.Type[bulktext.index.Type])
-    bulkmaterial = lowercase.(bulktext.elements.Material[bulktext.index.Material])
-
-    # Rock names
-    rocknames = get_rock_class(major=true, inclusive=false)
-    rocknames = unique((rocknames.sed..., rocknames.met..., rocknames.ign...))
-
-    # Rock subtypes, major types do not include minors (for class_up function call)
-    typelist = get_rock_class(major=false, inclusive=false)
-    classnames = string.(collect(keys(typelist)))
-
-
-## --- Find rock type / name matches
-    # Match rock types
-    bulk_cats = match_rocktype(bulkrockname, bulkrocktype, bulkmaterial; unmultimatch=false, 
-        inclusive=false, source=:earthchem
-    )
-
-    # Preallocate for rock names
-    bulk_lookup = NamedTuple{Tuple(Symbol.(rocknames))}([falses(length(bulkrockname)) 
-        for _ in eachindex(rocknames)]
-    )
-
-    p = Progress(length(rocknames), desc="Finding EarthChem samples for each rock name")
-    for i in eachindex(rocknames)
-        bulk_lookup[i] .= find_earthchem(rocknames[i], bulkrockname, bulkrocktype, 
-            bulkmaterial
-        )
-
-        # If no matches, jump up a class. Find everything within that class
-        if count(bulk_lookup[i]) == 0
-            searchlist = typelist[class_up(typelist, rocknames[i])]
-
-            # Search all of those names; each class should at least have something
-            for j in eachindex(searchlist)
-                bulk_lookup[i] .|= find_earthchem(searchlist[j], bulkrockname, bulkrocktype, 
-                    bulkmaterial
-                )
-            end
-        end
-        next!(p)
-    end
 
 
 ## --- Write data to an HDF5 file
@@ -370,9 +374,9 @@
     bulktypes = create_group(fid, "bulktypes")
 
     # Rock types
-    a = Array{Int64}(undef, length(bulk_cats[1]), length(bulk_cats))
+    a = Array{Int64}(undef, length(bulk_cats[1][t]), length(bulk_cats))
     for i in eachindex(keys(bulk_cats))
-        for j in eachindex(bulk_cats[i])
+        for j in eachindex(bulk_cats[i][t])
             a[j,i] = ifelse(bulk_cats[i][j], 1, 0)
         end
     end
@@ -380,9 +384,9 @@
     bulktypes["bulk_cats_head"] = string.(collect(keys(bulk_cats))) 
 
     # Rock names
-    a = Array{Int64}(undef, length(bulk_lookup[1]), length(bulk_lookup))
+    a = Array{Int64}(undef, length(bulk_lookup[1][t]), length(bulk_lookup))
     for i in eachindex(keys(bulk_lookup))
-        for j in eachindex(bulk_lookup[i])
+        for j in eachindex(bulk_lookup[i][t])
             a[j,i] = ifelse(bulk_lookup[i][j], 1, 0)
         end
     end

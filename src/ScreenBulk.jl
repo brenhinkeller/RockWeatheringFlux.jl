@@ -361,10 +361,35 @@
     )
     display(h)
 
-## ---
+
+## --- Are there rock types which are disproportionately more likely to be filtered?
+    using StatsPlots
+
     s = bulkweight .< 40;
-    rocks = unique(bulkrockname[bulk_cats.shale .& s])
-    [(i, count(==(i), rocks)) for i in unique(rocks)]
+    f = bulk_cats.shale;
+
+    allrocks = unique(bulkrockname[f])
+    allrocks_count = [count(==(i), bulkrockname[f]) for i in allrocks]
+
+    filtered = bulkrockname[f .& .!s];
+    filtered = [count(==(i), filtered) for i in allrocks] ./ allrocks_count
+
+    kept = bulkrockname[f.& s];
+    kept = [count(==(i), kept) for i in allrocks] ./ allrocks_count
+
+    p = sortperm(filtered);
+
+    h = groupedbar([kept[p] filtered[p]], bar_position=:stack, bar_width=1.0,
+        framestyle=:box, legend=:topright,
+        xlabel="SiO₂ [wt.%]", ylabel="Count", label=["Kept" "Filtered"],
+        ylims=(0, 1.3),
+        color=["seagreen" "firebrick"],
+        xticks=(1:length(allrocks), allrocks[p]), xrotation=45
+    )
+
+    # What is the average silica content in these rocks?
+    # avg_silica = [nanmean(bulk.SiO2[bulk_lookup[i]]) for i in Symbol.(allrocks)]
+    
 
 
 ## --- Print to terminal and normalize compositions

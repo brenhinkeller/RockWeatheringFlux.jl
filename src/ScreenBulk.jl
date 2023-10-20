@@ -315,133 +315,87 @@
     # t = vec(t)
 
 
-## --- See what's going on...
-    # fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(bulk_cats) - 2)
-
-    # # Create all plots
-    # rocks = collect(keys(bulk_cats))
-    # deleteat!(rocks, findall(x->x==:cover,rocks))
-    # deleteat!(rocks, findall(x->x==:evaporite,rocks))
-    # for i in eachindex(rocks)
-    #     r = rocks[i]
-
-    #     h = stephist(bulk.SiO2[bulk_cats[r]], bins=100, normalize=:pdf, 
-    #         label="n=$(count(bulk_cats[r]))", 
-    #         linewidth=2)
-    #     stephist!(bulk.SiO2[bulk_cats[r] .& t], bins=100, normalize=:pdf, 
-    #         label="n = $(count(bulk_cats[r] .& t))",
-    #         title="$r", linewidth=2)
-    #     xlims!(0,100)
-
-    #     fig[i] = h
-    # end
-
-    # # Put into a layout
-    # h = plot(fig..., layout=(5,3), size=(2000, 2000), titleloc=:left, titlefont = font(15),
-    #     framestyle=:box, legendfontsize = 10, fg_color_legend=:white,
-    # )
-    # display(h)
-
 ## --- Just rock types of concern
-using Plots
-elements = [:SiO2, :CaO, :Al2O3, :MgO]
-for i in eachindex(elements)
-    zeronan!(bulk[i])
-end
+    using Plots
+    elements = [:SiO2, :CaO, :Al2O3, :MgO]
+    for i in eachindex(elements)
+        zeronan!(bulk[i])
+    end
 
-for elem in elements
-    fig = Array{Plots.Plot{Plots.GRBackend}}(undef, 4)
+    for elem in elements
+        fig = Array{Plots.Plot{Plots.GRBackend}}(undef, 4)
+        target = [:siliciclast, :shale, :carb, :sed]
+        for i in eachindex(target)
+            r = target[i]
+
+            h = stephist(bulk[elem][bulk_cats[r]], bins=100, normalize=:pdf, 
+                label="All Samples", color=:black,
+                linewidth=2)
+            stephist!(bulk[elem][bulk_cats[r] .& abovesea], bins=100, normalize=:pdf, 
+                label="All Above Sea Level", color=:blue,
+                title="$r", linewidth=2)
+            stephist!(bulk[elem][bulk_cats[r] .& t], bins=100, normalize=:pdf, 
+                label="Remaining", color=:green,
+                title="$r", linewidth=2)
+            stephist!(bulk[elem][bulk_cats[r] .& .!t], bins=100, normalize=:pdf, 
+                label="Removed", color=:red,
+                title="$r $elem", linewidth=2)
+            ylims!(0, ylims(h)[2])
+            fig[i] = h
+        end
+
+        h = plot(fig..., layout=(2,2), size=(1200, 800), titleloc=:left, titlefont = font(15),
+            framestyle=:box, legendfontsize = 10, fg_color_legend=:white, legend=false
+        )
+        if xlims(h)[2] > 104
+            xlims!(0,100)
+        else
+            xlims!(0, xlims(h)[2])
+        end
+        # display(h)
+
+        #  Make a legend
+        leg = Plots.plot([0],[0], label="All Samples", color=:black,linewidth=2,
+            yticks=:none, xticks=:none, framestyle=:none, 
+            legendfontsize = 15, fg_color_legend=:white,
+        )
+        Plots.plot!(leg, [0],[0], label="All Above Sea Level", color=:blue, linewidth=2)
+        Plots.plot!(leg, [0],[0], label="Remaining", color=:green, linewidth=2)
+        Plots.plot!(leg, [0],[0], label="Removed", color=:red, linewidth=2)
+
+        # Make a plot layout
+        l = @layout [
+            a{0.8h} 
+            b{0.2h}
+        ]
+        hₙ = Plots.plot(h, leg, layout = l, size=(1200, 1000))
+        display(hₙ)
+    end
+
+
+## --- What is the average major element composition of filtered samples?
+    majorelems = majors[1:end-1]        # Ignore volatiles for now...
+
     target = [:siliciclast, :shale, :carb, :sed]
     for i in eachindex(target)
-        r = target[i]
+        # Compute average for removed and remaining samples
 
-        h = stephist(bulk[elem][bulk_cats[r]], bins=100, normalize=:pdf, 
-            label="All Samples", color=:black,
-            linewidth=2)
-        stephist!(bulk[elem][bulk_cats[r] .& abovesea], bins=100, normalize=:pdf, 
-            label="All Above Sea Level", color=:blue,
-            title="$r", linewidth=2)
-        stephist!(bulk[elem][bulk_cats[r] .& t], bins=100, normalize=:pdf, 
-            label="Remaining", color=:green,
-            title="$r", linewidth=2)
-        stephist!(bulk[elem][bulk_cats[r] .& .!t], bins=100, normalize=:pdf, 
-            label="Removed", color=:red,
-            title="$r $elem", linewidth=2)
-        ylims!(0, ylims(h)[2])
-        fig[i] = h
+        all_abovesea = [nanmean(bulk[j][bulk_cats[target[i]] .& abovesea]) for j in majorelems]
+        not_rm = [nanmean(bulk[j][bulk_cats[target[i]] .& t]) for j in majorelems]
+
+        all_abovesea = round.(all_abovesea, digits=2)
+        not_rm = round.(not_rm, digits=2)
+        diff = round.(not_rm .- all_abovesea, digits=2)
+
+        @info """$(target[i]) major element composition:
+        \t \t $(join(majorelems, " \t "))
+        All > -140m \t $(join(all_abovesea, " \t "))
+        Remaining \t $(join(not_rm, " \t "))
+        Difference \t $(join(diff, " \t "))\n
+        """
     end
 
-    h = plot(fig..., layout=(2,2), size=(1200, 800), titleloc=:left, titlefont = font(15),
-        framestyle=:box, legendfontsize = 10, fg_color_legend=:white, legend=false
-    )
-    if xlims(h)[2] > 104
-        xlims!(0,100)
-    else
-        xlims!(0, xlims(h)[2])
-    end
-    # display(h)
-
-    #  Make a legend
-    leg = Plots.plot([0],[0], label="All Samples", color=:black,linewidth=2,
-        yticks=:none, xticks=:none, framestyle=:none, 
-        legendfontsize = 15, fg_color_legend=:white,
-    )
-    Plots.plot!(leg, [0],[0], label="All Above Sea Level", color=:blue, linewidth=2)
-    Plots.plot!(leg, [0],[0], label="Remaining", color=:green, linewidth=2)
-    Plots.plot!(leg, [0],[0], label="Removed", color=:red, linewidth=2)
-
-    # Make a plot layout
-    l = @layout [
-        a{0.8h} 
-        b{0.2h}
-    ]
-    hₙ = Plots.plot(h, leg, layout = l, size=(1200, 1000))
-    display(hₙ)
-end
-
-
-## --- Just the impact of removing samples below sea level
-    fig = Array{Plots.Plot{Plots.GRBackend}}(undef, 4)
-    target = [:siliciclast, :shale, :carb, :sed]
-    for i in eachindex(target)
-        r = target[i]
-
-        h = stephist(bulk.SiO2[bulk_cats[r]], bins=100, normalize=:pdf, 
-            label="All Samples", color=:black,
-            linewidth=2)
-        stephist!(bulk.SiO2[bulk_cats[r] .& abovesea], bins=100, normalize=:pdf, 
-            label="Above Sea Level", color=:blue,
-            title="$r", linewidth=2)
-        ylims!(0, ylims(h)[2])
-        fig[i] = h
-    end
-
-    h = plot(fig..., layout=(2,2), size=(1200, 800), titleloc=:left, titlefont = font(15),
-        framestyle=:box, legendfontsize = 10, fg_color_legend=:white, legend=false
-    )
-    if xlims(h)[2] > 104
-        xlims!(0,100)
-    else
-        xlims!(0, xlims(h)[2])
-    end
-    # display(h)
-
-    #  Make a legend
-    leg = Plots.plot([0],[0], label="All Samples", color=:black,linewidth=2,
-        yticks=:none, xticks=:none, framestyle=:none, 
-        legendfontsize = 15, fg_color_legend=:white,
-    )
-    Plots.plot!(leg, [0],[0], label="All Above Sea Level", color=:blue, linewidth=2)
-    # Plots.plot!(leg, [0],[0], label="Remaining", color=:green, linewidth=2)
-    # Plots.plot!(leg, [0],[0], label="Removed", color=:red, linewidth=2)
-
-    # Make a plot layout
-    l = @layout [
-        a{0.8h} 
-        b{0.2h}
-    ]
-    Plots.plot(h, leg, layout = l, size=(1200, 1000))
-
+    
 
 ## --- Are there rock types which are disproportionately more likely to be filtered?
     using StatsPlots

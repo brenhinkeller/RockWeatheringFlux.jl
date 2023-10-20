@@ -179,7 +179,7 @@
     close(fid)
 
 
-## --- Define and organize elements to correct
+## --- Define and organize elements to convert units
     # Get major and minor elements, but remove :Volatiles from before it causes problems
     majors, minors = get_elements()
     allelements = [majors; minors]
@@ -233,8 +233,11 @@
 
     # CARBONATES ONLY: Convert CaO to and CO₂
     # There are a lot of limestones with only CaO :(
+
+    # What if we also do this for siliciclasts and shales?
+    target = bulk_cats.carb .| bulk_cats.siliciclast .| bulk_cats.shale;
     @turbo for i in eachindex(bulk.CaO)
-        bulk.CO2[i] = ifelse(bulk_cats.carb[i], bulk.CaO[i]*CaO_to_CO2, NaN)
+        bulk.CO2[i] = ifelse(target[i], bulk.CaO[i]*CaO_to_CO2, NaN)
     end
 
     # GYPSUM ONLY: CaO → H₂O, SO₄ (technically SO₃ because already have an oxygen in CaO)
@@ -262,39 +265,108 @@
 
 
 ## --- Compute total wt.% analyzed for all samples
-    bulkweight = Array{Float64}(undef, length(bulk.SiO2), 1)
-
-    p = Progress(length(bulkweight) ÷ 10, desc="Calculating wt.% ...")
-    @inbounds for i in eachindex(bulkweight)
-        bulkweight[i] = nansum([bulk[j][i] for j in allelements]) + volatiles[i]
-        i%10==0 && next!(p)
-    end
-
-    # Assume (meta)sedimentary rocks between 15 wt.% and 100 wt.% are missing volatiles
-    # Anything below 15% you start running into the problem that it might just be a TEA
-    # for one element
-    sed = bulk_cats.sed .| bulk_cats.metased
-    for i in eachindex(bulkweight)
-        if sed[i] && (15 < bulkweight[i] < 100)
-            volatiles[i] += (100 - bulkweight[i])
-            bulkweight[i] = 100
-        end
-    end
-
-    # Filter rocks between 84 and 104 wt.% analyzed geochemistry
-    t = @. 84 <= bulkweight <= 104
-
     # Exclude rocks below the shelf break
-    # Because a lot of sedimentary rocks in this dataset come from drill cores, this 
-    # unfortunately does exclude a pretty good portion of sedimentary rocks
     etopo = h5read("data/etopo/etopo1.h5", "vars/elevation")
     elev = find_etopoelev(etopo, bulk.Latitude, bulk.Longitude)
     abovesea = elev .> -140;    # Shelf break at 140 m
 
-    t = t .& abovesea;
+    # Compute bulk analyzed weight for rocks above sea level
+    bulkweight = Array{Float64}(undef, length(bulk.SiO2), 1)
+
+    p = Progress(length(bulkweight) ÷ 10, desc="Calculating wt.% ...")
+    @inbounds for i in eachindex(bulkweight)
+        bulkweight[i] = ifelse(abovesea[i], 
+            nansum([bulk[j][i] for j in allelements]) + volatiles[i], NaN)
+        i%10==0 && next!(p)
+    end
+
+    t = @. 84 <= bulkweight <= 104
     t = vec(t)
 
-    
+## ---
+    # Assume (meta)sedimentary rocks between 15 wt.% and 100 wt.% are missing volatiles
+    # Anything below 15% you start running into the problem that it might just be a TEA
+    # for one element
+    # volatiles = Array{Float64}(undef, length(bulk.SiO2), 1)
+
+    # zeronan!(bulk.CO2)
+    # zeronan!(bulk.H2O)
+    # @turbo volatiles .= bulk.CO2 .+ bulk.H2O
+
+    # @turbo for i in eachindex(volatiles)
+    #     volatiles[i] = ifelse(bulk.Loi[i] > volatiles[i], bulk.Loi[i], volatiles[i])
+    # end
+
+    # @turbo volatiles .+ SO3
+
+    # sed = bulk_cats.sed .| bulk_cats.metased
+    # for i in eachindex(bulkweight)
+    #     if sed[i] && (50 < bulkweight[i] < 100)
+    #         volatiles[i] += (100 - bulkweight[i])
+    #         # bulkweight[i] = 100
+    #     end
+    # end
+
+    # # Filter rocks between 84 and 104 wt.% analyzed geochemistry
+    # t = @. 84 <= bulkweight .+ volatiles <= 104
+    # t = vec(t)
+
+
+## --- See what's going on...
+    # fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(bulk_cats) - 2)
+
+    # # Create all plots
+    # rocks = collect(keys(bulk_cats))
+    # deleteat!(rocks, findall(x->x==:cover,rocks))
+    # deleteat!(rocks, findall(x->x==:evaporite,rocks))
+    # for i in eachindex(rocks)
+    #     r = rocks[i]
+
+    #     h = stephist(bulk.SiO2[bulk_cats[r]], bins=100, normalize=:pdf, 
+    #         label="n=$(count(bulk_cats[r]))", 
+    #         linewidth=2)
+    #     stephist!(bulk.SiO2[bulk_cats[r] .& t], bins=100, normalize=:pdf, 
+    #         label="n = $(count(bulk_cats[r] .& t))",
+    #         title="$r", linewidth=2)
+    #     xlims!(0,100)
+
+    #     fig[i] = h
+    # end
+
+    # # Put into a layout
+    # h = plot(fig..., layout=(5,3), size=(2000, 2000), titleloc=:left, titlefont = font(15),
+    #     framestyle=:box, legendfontsize = 10, fg_color_legend=:white,
+    # )
+    # display(h)
+
+    # Just rock types of concern
+    fig = Array{Plots.Plot{Plots.GRBackend}}(undef, 4)
+    target = [:siliciclast, :shale, :carb, :sed]
+    for i in eachindex(target)
+        r = target[i]
+
+        h = stephist(bulk.SiO2[bulk_cats[r]], bins=100, normalize=:pdf, 
+            label="n=$(count(bulk_cats[r]))", 
+            linewidth=2)
+        stephist!(bulk.SiO2[bulk_cats[r] .& t], bins=100, normalize=:pdf, 
+            label="n = $(count(bulk_cats[r] .& t))",
+            title="$r", linewidth=2)
+        xlims!(0,100)
+
+        fig[i] = h
+    end
+
+    h = plot(fig..., layout=(2,2), size=(1200, 800), titleloc=:left, titlefont = font(15),
+        framestyle=:box, legendfontsize = 10, fg_color_legend=:white,
+    )
+    display(h)
+
+## ---
+    s = bulkweight .< 40;
+    rocks = unique(bulkrockname[bulk_cats.shale .& s])
+    [(i, count(==(i), rocks)) for i in unique(rocks)]
+
+
 ## --- Print to terminal and normalize compositions
     nsamples = round(count(t)/length(t)*100, digits=2)
     @info "Saving $(count(t)) samples ($nsamples%)"

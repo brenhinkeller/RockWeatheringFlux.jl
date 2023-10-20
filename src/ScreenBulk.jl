@@ -346,10 +346,13 @@
         r = target[i]
 
         h = stephist(bulk.SiO2[bulk_cats[r]], bins=100, normalize=:pdf, 
-            label="n=$(count(bulk_cats[r]))", 
+            label="All Samples", color=:black,
             linewidth=2)
         stephist!(bulk.SiO2[bulk_cats[r] .& t], bins=100, normalize=:pdf, 
-            label="n = $(count(bulk_cats[r] .& t))",
+            label="Remaining", color=:green,
+            title="$r", linewidth=2)
+        stephist!(bulk.SiO2[bulk_cats[r] .& .!t], bins=100, normalize=:pdf, 
+            label="Removed", color=:red,
             title="$r", linewidth=2)
         xlims!(0,100)
 
@@ -364,32 +367,31 @@
 
 ## --- Are there rock types which are disproportionately more likely to be filtered?
     using StatsPlots
+    typelist = get_rock_class(major=false, inclusive=false)
 
-    s = bulkweight .< 40;
-    f = bulk_cats.shale;
+    s = bulkweight .< 84;       # Rocks below the a wt.% cutoff
+    f = :shale;                 # The type of rock we're interested in
+    rocknames = typelist[f]     # List of rock names mapped to that type
 
-    allrocks = unique(bulkrockname[f])
-    allrocks_count = [count(==(i), bulkrockname[f]) for i in allrocks]
+    # Relative abundance of removed and remaining rocks
+    allrocks = [count(bulk_lookup[i]) for i in Symbol.(rocknames)]
+    remains = [count(bulk_lookup[i] .& .!s) for i in Symbol.(rocknames)] ./ allrocks
+    removed = [count(bulk_lookup[i] .& s) for i in Symbol.(rocknames)] ./ allrocks
 
-    filtered = bulkrockname[f .& .!s];
-    filtered = [count(==(i), filtered) for i in allrocks] ./ allrocks_count
-
-    kept = bulkrockname[f.& s];
-    kept = [count(==(i), kept) for i in allrocks] ./ allrocks_count
-
-    p = sortperm(filtered);
-
-    h = groupedbar([kept[p] filtered[p]], bar_position=:stack, bar_width=1.0,
-        framestyle=:box, legend=:topright,
-        xlabel="SiO₂ [wt.%]", ylabel="Count", label=["Kept" "Filtered"],
+    p = sortperm(removed);
+    h1 = groupedbar([remains[p] removed[p]], bar_position=:stack, bar_width=1.0,
+        framestyle=:box, legend=:topright, bottom_margin=(25,:px),
+        ylabel="Count", label=["Remaining" "Removed"],
         ylims=(0, 1.3),
-        color=["seagreen" "firebrick"],
-        xticks=(1:length(allrocks), allrocks[p]), xrotation=45
+        color=[:green :red],
+        xticks=(1:length(allrocks), rocknames[p]), xrotation=45
     )
 
     # What is the average silica content in these rocks?
-    # avg_silica = [nanmean(bulk.SiO2[bulk_lookup[i]]) for i in Symbol.(allrocks)]
-    
+    avg_silica = [nanmean(bulk.SiO2[bulk_lookup[i]]) for i in Symbol.(rocknames)]
+    zeronan!(avg_silica)
+    plot!(h1, avg_silica./100, seriestype=:scatter, markersize=5, label="SiO₂", color=:black)
+    display(h1)
 
 
 ## --- Print to terminal and normalize compositions

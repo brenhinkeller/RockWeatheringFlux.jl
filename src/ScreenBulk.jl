@@ -358,6 +358,9 @@ for elem in elements
         h = stephist(bulk[elem][bulk_cats[r]], bins=100, normalize=:pdf, 
             label="All Samples", color=:black,
             linewidth=2)
+        stephist!(bulk.SiO2[bulk_cats[r] .& abovesea], bins=100, normalize=:pdf, 
+            label="All Above Sea Level", color=:blue,
+            title="$r", linewidth=2)
         stephist!(bulk[elem][bulk_cats[r] .& t], bins=100, normalize=:pdf, 
             label="Remaining", color=:green,
             title="$r", linewidth=2)
@@ -369,14 +372,31 @@ for elem in elements
     end
 
     h = plot(fig..., layout=(2,2), size=(1200, 800), titleloc=:left, titlefont = font(15),
-        framestyle=:box, legendfontsize = 10, fg_color_legend=:white,
+        framestyle=:box, legendfontsize = 10, fg_color_legend=:white, legend=false
     )
     if xlims(h)[2] > 104
         xlims!(0,100)
     else
         xlims!(0, xlims(h)[2])
     end
-    display(h)
+    # display(h)
+
+    #  Make a legend
+    leg = Plots.plot([0],[0], label="All Samples", color=:black,linewidth=2,
+        yticks=:none, xticks=:none, framestyle=:none, 
+        legendfontsize = 15, fg_color_legend=:white,
+    )
+    Plots.plot!(leg, [0],[0], label="All Above Sea Level", color=:blue, linewidth=2)
+    Plots.plot!(leg, [0],[0], label="Remaining", color=:green, linewidth=2)
+    Plots.plot!(leg, [0],[0], label="Removed", color=:red, linewidth=2)
+
+    # Make a plot layout
+    l = @layout [
+        a{0.8h} 
+        b{0.2h}
+    ]
+    hₙ = Plots.plot(h, leg, layout = l, size=(1200, 1000))
+    display(hₙ)
 end
 
 
@@ -397,16 +417,32 @@ end
     end
 
     h = plot(fig..., layout=(2,2), size=(1200, 800), titleloc=:left, titlefont = font(15),
-        framestyle=:box, legendfontsize = 10, fg_color_legend=:white,
+        framestyle=:box, legendfontsize = 10, fg_color_legend=:white, legend=false
     )
     if xlims(h)[2] > 104
         xlims!(0,100)
     else
         xlims!(0, xlims(h)[2])
     end
-    display(h)
+    # display(h)
 
-    
+    #  Make a legend
+    leg = Plots.plot([0],[0], label="All Samples", color=:black,linewidth=2,
+        yticks=:none, xticks=:none, framestyle=:none, 
+        legendfontsize = 15, fg_color_legend=:white,
+    )
+    Plots.plot!(leg, [0],[0], label="All Above Sea Level", color=:blue, linewidth=2)
+    # Plots.plot!(leg, [0],[0], label="Remaining", color=:green, linewidth=2)
+    # Plots.plot!(leg, [0],[0], label="Removed", color=:red, linewidth=2)
+
+    # Make a plot layout
+    l = @layout [
+        a{0.8h} 
+        b{0.2h}
+    ]
+    Plots.plot(h, leg, layout = l, size=(1200, 1000))
+
+
 ## --- Are there rock types which are disproportionately more likely to be filtered?
     using StatsPlots
     typelist = get_rock_class(major=false, inclusive=false)

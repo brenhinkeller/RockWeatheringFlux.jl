@@ -358,7 +358,7 @@ for elem in elements
         h = stephist(bulk[elem][bulk_cats[r]], bins=100, normalize=:pdf, 
             label="All Samples", color=:black,
             linewidth=2)
-        stephist!(bulk.SiO2[bulk_cats[r] .& abovesea], bins=100, normalize=:pdf, 
+        stephist!(bulk[elem][bulk_cats[r] .& abovesea], bins=100, normalize=:pdf, 
             label="All Above Sea Level", color=:blue,
             title="$r", linewidth=2)
         stephist!(bulk[elem][bulk_cats[r] .& t], bins=100, normalize=:pdf, 

@@ -275,8 +275,11 @@
 
     p = Progress(length(bulkweight) ÷ 10, desc="Calculating wt.% ...")
     @inbounds for i in eachindex(bulkweight)
-        bulkweight[i] = ifelse(abovesea[i], 
-            nansum([bulk[j][i] for j in allelements]) + volatiles[i], NaN)
+        if abovesea[i]
+            bulkweight[i] = nansum([bulk[j][i] for j in allelements]) + volatiles[i]
+        else
+            bulkweight[i] = NaN
+        end
         i%10==0 && next!(p)
     end
 
@@ -340,6 +343,7 @@
     # display(h)
 
 ## --- Just rock types of concern
+using Plots
 elements = [:SiO2, :CaO, :Al2O3, :MgO]
 for i in eachindex(elements)
     zeronan!(bulk[i])
@@ -376,6 +380,33 @@ for elem in elements
 end
 
 
+## --- Just the impact of removing samples below sea level
+    fig = Array{Plots.Plot{Plots.GRBackend}}(undef, 4)
+    target = [:siliciclast, :shale, :carb, :sed]
+    for i in eachindex(target)
+        r = target[i]
+
+        h = stephist(bulk.SiO2[bulk_cats[r]], bins=100, normalize=:pdf, 
+            label="All Samples", color=:black,
+            linewidth=2)
+        stephist!(bulk.SiO2[bulk_cats[r] .& abovesea], bins=100, normalize=:pdf, 
+            label="Above Sea Level", color=:blue,
+            title="$r", linewidth=2)
+        ylims!(0, ylims(h)[2])
+        fig[i] = h
+    end
+
+    h = plot(fig..., layout=(2,2), size=(1200, 800), titleloc=:left, titlefont = font(15),
+        framestyle=:box, legendfontsize = 10, fg_color_legend=:white,
+    )
+    if xlims(h)[2] > 104
+        xlims!(0,100)
+    else
+        xlims!(0, xlims(h)[2])
+    end
+    display(h)
+
+    
 ## --- Are there rock types which are disproportionately more likely to be filtered?
     using StatsPlots
     typelist = get_rock_class(major=false, inclusive=false)

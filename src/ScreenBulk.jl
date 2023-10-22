@@ -283,18 +283,19 @@
         i%10==0 && next!(p)
     end
 
-    t = @. 84 <= bulkweight <= 104
-    t = vec(t)
-
 
 ## --- Correct for assumed unmeasured volatile loss in sedimentary rocks
     # If the sample is a sedimentary rock with a total analyzed wt.% below 84%, assume 
     # the "missing" data is volatiles that were not included in the analysis
     additional = zeros(length(bulkweight))
     for i in eachindex(bulkweight)
-        additional[i] = ifelse(bulk_cats.sed[i] && bulkweight[i] < 84, 
+        additional[i] = ifelse(bulk_cats.sed[i] && bulkweight[i] < 100, 
             (100 - bulkweight[i]), 0.0)
     end
+
+    # How many samples before assuming additional volatiles?
+    t = @. 84 <= bulkweight <= 104
+    tᵢ = count(t)
 
     # Don't let samples through if the assumed volatile is more than 50 wt.%
     t = @. 84 <= bulkweight .+ additional <= 104
@@ -302,6 +303,14 @@
     t = vec(t)
 
     volatiles .+= additional
+
+    # Print to terminal
+    nsamples = round(count(t)/length(t)*100, digits=2)
+    up = count(t) - tᵢ
+    @info """Saving $(count(t)) samples ($nsamples%)
+    Assuming volatiles increased count from $tᵢ to $(count(t))
+    Total increase = $up
+    """
 
 
 # ## --- Just rock types of concern
@@ -468,21 +477,18 @@
 #     end
 
 
-## --- Print to terminal and normalize compositions
-    nsamples = round(count(t)/length(t)*100, digits=2)
-    @info "Saving $(count(t)) samples ($nsamples%)"
-
-    # Restrict bulk to in-bounds only
+## --- Restrict to in-bounds only and normalize compositions
     # This is inefficient, but is not sensitive to changes in the order of any elements
     newbulk = merge(bulk, (Volatiles=volatiles,))
     bulk = NamedTuple{Tuple(allkeys)}([newbulk[i][t] for i in allkeys])
 
     # Normalize compositions to 100%
+    contributing = [allelements; :Volatiles]             # Need to re-include volatiles!
     for i in eachindex(bulk.SiO2)
-        sample = [bulk[j][i] for j in allelements]      # Get it
-        normalize!(sample)                              # Normalize it
-        for j in eachindex(allelements)                 # Put it back
-            bulk[allelements[j]][i] = sample[j]
+        sample = [bulk[j][i] for j in contributing]      # Get it
+        normalize!(sample)                               # Normalize it
+        for j in eachindex(contributing)                 # Put it back
+            bulk[contributing[j]][i] = sample[j]
         end
     end
 
@@ -497,6 +503,7 @@
         )
     )
     bulkrockname = lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name])
+
     # Other / general elements
     bulktext = (
         elements = bulktext.elements,

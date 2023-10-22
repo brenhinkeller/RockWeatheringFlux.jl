@@ -93,9 +93,8 @@
     i = findfirst(x -> x=="SiO2", header)
     rocktypes = keys(fid["vars"]["data"])
 
-    bsrsilica = NamedTuple{Tuple(Symbol.(rocktypes))}([read(fid["vars"]["data"][r]["data"])[:,i]
-        for r in rocktypes
-    ])
+    bsrsilica = NamedTuple{Tuple(Symbol.(rocktypes))}(
+        [read(fid["vars"]["data"][r]["data"])[:,i] for r in rocktypes])
     close(fid)
 
 
@@ -128,6 +127,17 @@
     bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
 
     close(fid)
+
+    minorsed, minorign, minormet = get_minor_types()
+    for type in minorsed
+        bulk_cats.sed .|= bulk_cats[type]
+    end
+    for type in minorign
+        bulk_cats.ign .|= bulk_cats[type]
+    end
+    for type in minormet
+        bulk_cats.met .|= bulk_cats[type]
+    end
 
 
 ## --- Plot igneous data
@@ -235,27 +245,47 @@
     savefig(h, "results/figures/dist_sedmet.png")
 
 
-## --- Plot metaigneous rocks for thesis proposal
-    h = Plots.plot(framestyle=:box, xlabel="SiO2 [wt.%]", ylabel="Abundance", 
+## --- Plot metamorphic and metaigneous rocks for thesis proposal
+    h1 = Plots.plot(framestyle=:box, xlabel="SiO2 [wt.%]", ylabel="Abundance", 
         xlims=(SiO2min, SiO2max), ylims=(0, 0.1),
         left_margin=(25, :px), right_margin=(25, :px), bottom_margin=(25, :px),
-        legend=:topleft, fg_color_legend=:white,   
-    )
+        legend=:topleft, fg_color_legend=:white,)
 
-    # Matched samples
     c, n = bincounts(mbulk.SiO2[macro_cats.metaign], SiO2min, SiO2max, nbins_matched)
     n₁ = float(n) ./ nansum(float(n) .* step(c))
     Plots.plot!(c, n₁, seriestype=:bar, color=colors.metaign, linecolor=colors.metaign,
-        label="Matched metaigneous", barwidths = ((SiO2max-SiO2min)/nbins_matched)
-    )
-
-    # Resampled EarthChem
-    c, n = bincounts(bsrsilica.metaign, SiO2min, SiO2max, nbins)
+        label="Matched metaigneous", barwidths = ((SiO2max-SiO2min)/nbins_matched))
+    
+        c, n = bincounts(bulk.SiO2[bulk_cats[types[i]]], SiO2min, SiO2max, nbins)
     n₂ = float(n) ./ nansum(float(n) .* step(c))
-    Plots.plot!(c, n₂, seriestype=:path, color=:black, linecolor=:black, linewidth=3,
+    Plots.plot!(c, n₂, seriestype=:path, color=:red, linecolor=:red, linewidth=3,
+        label="EarthChem prior",)
+    
+        c, n = bincounts(bsrsilica.metaign, SiO2min, SiO2max, nbins)
+    n₃ = float(n) ./ nansum(float(n) .* step(c))
+    Plots.plot!(c, n₃, seriestype=:path, color=:black, linecolor=:black, linewidth=3,
         label="Resampled EarthChem",
     )
 
+    h2 = Plots.plot(framestyle=:box, xlabel="SiO2 [wt.%]", ylabel="Abundance", 
+        xlims=(SiO2min, SiO2max), ylims=(0, 0.1),
+        left_margin=(25, :px), right_margin=(25, :px), bottom_margin=(25, :px),
+        legend=:topleft, fg_color_legend=:white,)
+    
+    c, n = bincounts(mbulk.SiO2[macro_cats.metaign], SiO2min, SiO2max, nbins_matched)
+    n₁ = float(n) ./ nansum(float(n) .* step(c))
+    Plots.plot!(c, n₁, seriestype=:bar, color=colors.metaign, linecolor=colors.metaign,
+        label="Matched metaigneous", barwidths = ((SiO2max-SiO2min)/nbins_matched))
+    c, n = bincounts(bulk.SiO2[bulk_cats[types[i]]], SiO2min, SiO2max, nbins)
+    n₂ = float(n) ./ nansum(float(n) .* step(c))
+    Plots.plot!(c, n₂, seriestype=:path, color=:red, linecolor=:red, linewidth=3,
+        label="EarthChem prior",)
+    c, n = bincounts(bsrsilica.metaign, SiO2min, SiO2max, nbins)
+    n₃ = float(n) ./ nansum(float(n) .* step(c))
+    Plots.plot!(c, n₃, seriestype=:path, color=:black, linecolor=:black, linewidth=3,
+        label="Resampled EarthChem",)
+
+    h = Plots.plot(h1, h2, layout=(1,2))
     display(h)
     savefig(h, "results/figures/dist_metaign.pdf")
 
@@ -315,36 +345,6 @@
     h = Plots.plot(fig..., layout=(1, 2), size=(600,400))
     display(h)
     savefig(h, "results/figures/dist_cao.png")
-
-
-## --- Prior and posterior spatial distributions of EarthChem samples
-    # This is the plot I want: 
-    # https://docs.juliaplots.org/latest/generated/statsplots/#marginalhist-with-DataFrames
-
-    # Technically the code for Gailin's paper should also have this, but it's probably
-    # easier to not go through all her code
-
-    # h = plot(framestyle=:box, xlabel="Longitude", ylabel="Latitude", 
-    #     left_margin=(30, :px), bottom_margin=(30, :px),
-    #     legend=:outertopright    
-    # )
-
-    # latmin, latmax = -90, 90
-    # nbins = 18  # Every 10 degrees
-
-    # c, n = bincounts(bulk.Latitude, latmin, latmax, nbins)
-    # n₀ = float(n) ./ nansum(float(n) .* step(c))
-    # plot!(n₀, c, seriestype=:step, color=:orange, linecolor=:orange, linewidth=1,
-    #     label="Prior EarthChem (lat)",
-    # )
-
-    # lonmin, lonmax = -180, 180
-    # nbins = 36  # Every 10 degrees
-    # c, n = bincounts(bulk.Longitude, lonmin, lonmax, nbins)
-    # n₀ = float(n) ./ nansum(float(n) .* step(c))
-    # plot!(twiny(), c, n₀, seriestype=:step, color=:orange, linecolor=:blue, linewidth=1,
-    #     label="Prior EarthChem (lon)",
-    # )
 
 
 ## --- End of file

@@ -67,7 +67,7 @@
     Define major and minor elements, returned as `Vector{Symbol}`s
 
     Major elements:
-    * SiO₂, Al₂O₃, FeOT, TiO₂, MgO, CaO, Na₂O, K₂O, H₂O, CO₂
+    * SiO₂, Al₂O₃, FeOT, TiO₂, MgO, CaO, Na₂O, K₂O, Volatiles
 
         
     Minor elements:

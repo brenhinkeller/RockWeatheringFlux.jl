@@ -380,6 +380,15 @@
     end
 
 
+## --- How many filtered samples report major elements?
+    majorelems = majors[1:end-1]
+    for elem in majorelems
+        n = @. !isnan(bulk[elem][bulk_cats.sed .& abovesea])
+        np = count(n)/length(n)
+        println("$elem: $(round(np*100, digits=2))% not NaN")
+    end
+
+
 ## --- What is the average major element composition of filtered samples?
     majorelems = majors[1:end-1]        # Ignore volatiles for now...
 

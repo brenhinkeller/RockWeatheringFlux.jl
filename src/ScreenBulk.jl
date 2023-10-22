@@ -286,7 +286,8 @@
     t = @. 84 <= bulkweight <= 104
     t = vec(t)
 
-## ---
+
+## --- 
     # Assume (meta)sedimentary rocks between 15 wt.% and 100 wt.% are missing volatiles
     # Anything below 15% you start running into the problem that it might just be a TEA
     # for one element
@@ -380,7 +381,7 @@
     end
 
 
-## --- How many filtered samples report major elements?
+## --- How many samples report major elements?
     majorelems = majors[1:end-1]
     for elem in majorelems
         n = @. !isnan(bulk[elem][bulk_cats.sed .& abovesea])
@@ -422,24 +423,17 @@
     rocknames = typelist[f]     # List of rock names mapped to that type
 
     # Relative abundance of removed and remaining rocks
-    allrocks = [count(bulk_lookup[i]) for i in Symbol.(rocknames)]
-    remains = [count(bulk_lookup[i] .& .!s) for i in Symbol.(rocknames)] ./ allrocks
-    removed = [count(bulk_lookup[i] .& s) for i in Symbol.(rocknames)] ./ allrocks
+    allrocks = [count(bulk_lookup[i] .& abovesea) for i in Symbol.(rocknames)]
+    remains = round.([count(bulk_lookup[i] .& .!s .& abovesea) 
+        for i in Symbol.(rocknames)] ./ allrocks, digits=2)
+    removed = round.([count(bulk_lookup[i] .& s .& abovesea) 
+        for i in Symbol.(rocknames)] ./ allrocks, digits=2)
 
-    p = sortperm(removed);
-    h1 = groupedbar([remains[p] removed[p]], bar_position=:stack, bar_width=1.0,
-        framestyle=:box, legend=:topright, bottom_margin=(25,:px),
-        ylabel="Count", label=["Remaining" "Removed"],
-        ylims=(0, 1.3),
-        color=[:green :red],
-        xticks=(1:length(allrocks), rocknames[p]), xrotation=45
-    )
+    # Calculate the average silica for each rock name
+    avgsilica = round.([nanmean(bulk.SiO2[bulk_lookup[i] .& abovesea]) 
+        for i in Symbol.(rocknames)], digits=2)
 
-    # What is the average silica content in these rocks?
-    avg_silica = [nanmean(bulk.SiO2[bulk_lookup[i]]) for i in Symbol.(rocknames)]
-    zeronan!(avg_silica)
-    plot!(h1, avg_silica./100, seriestype=:scatter, markersize=5, label="SiO₂", color=:black)
-    display(h1)
+    [collect(rocknames) remains removed allrocks avgsilica]
 
 
 ## --- Print to terminal and normalize compositions

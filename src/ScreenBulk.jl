@@ -297,9 +297,11 @@
     end
 
     # Don't let samples through if the assumed volatile is more than 50 wt.%
-    t₁ = @. 84 <= bulkweight .+ additional <= 104
-    t₁ .&= additional .< 50
-    t₁ = vec(t₁)
+    t = @. 84 <= bulkweight .+ additional <= 104
+    t .&= additional .< 50
+    t = vec(t)
+
+    volatiles .+= additional
 
 
 # ## --- Just rock types of concern
@@ -329,7 +331,7 @@
 #                 normalize=:pdf, 
 #                 label="All Above Sea Level", color=:blue,
 #                 linewidth=2)
-#             stephist!(bulk[elem][bulk_cats[r] .& n .& t₁], bins=(1:elements[elem]), 
+#             stephist!(bulk[elem][bulk_cats[r] .& n .& t], bins=(1:elements[elem]), 
 #                 normalize=:pdf, 
 #                 label="Remaining", color=:green,
 #                 linewidth=2, title="$r $elem")
@@ -544,7 +546,7 @@
 
     # Bulk
     write(data, "header", string.(allkeys))
-    writebulk = create_dataset(data, "data", Float64, (count(t), length(ScreenBulkallkeys)))
+    writebulk = create_dataset(data, "data", Float64, (count(t), length(allkeys)))
     for i in eachindex(allkeys)
         writebulk[:,i] = bulk[allkeys[i]]
     end

@@ -287,197 +287,183 @@
     t = vec(t)
 
 
-## --- 
-    # Assume (meta)sedimentary rocks between 15 wt.% and 100 wt.% are missing volatiles
-    # Anything below 15% you start running into the problem that it might just be a TEA
-    # for one element
-    # volatiles = Array{Float64}(undef, length(bulk.SiO2), 1)
-
-    # zeronan!(bulk.CO2)
-    # zeronan!(bulk.H2O)
-    # @turbo volatiles .= bulk.CO2 .+ bulk.H2O
-
-    # @turbo for i in eachindex(volatiles)
-    #     volatiles[i] = ifelse(bulk.Loi[i] > volatiles[i], bulk.Loi[i], volatiles[i])
-    # end
-
-    # @turbo volatiles .+ SO3
-
-    # sed = bulk_cats.sed .| bulk_cats.metased
-    # for i in eachindex(bulkweight)
-    #     if sed[i] && (50 < bulkweight[i] < 100)
-    #         volatiles[i] += (100 - bulkweight[i])
-    #         # bulkweight[i] = 100
-    #     end
-    # end
-
-    # # Filter rocks between 84 and 104 wt.% analyzed geochemistry
-    # t = @. 84 <= bulkweight .+ volatiles <= 104
-    # t = vec(t)
-
-
-## --- Just rock types of concern
-    using Plots
-
-    # Define elements to look at, and the upper SiO2 bound we're interested in
-    elements = (SiO2=100, CaO=60, Al2O3=30, MgO=25)
-
-    target = [:siliciclast, :shale, :carb, :sed,]
-    # target = [:siliciclast, :shale, :carb, :chert, :phosphorite, :volcaniclast, :sed,
-    #     :metased, :metaign, :met
-    # ]
-
-    for elem in keys(elements)
-        fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(target))
-        for i in eachindex(fig)
-            r = target[i]
-
-            # Only look at non-NaN values
-            n = @. !isnan(bulk[elem])
-
-            h = stephist(bulk[elem][bulk_cats[r] .& n], bins=(1:elements[elem]), 
-                normalize=:pdf, 
-                label="All Samples", color=:black,
-                linewidth=2)
-            stephist!(bulk[elem][bulk_cats[r] .& n .& abovesea], bins=(1:elements[elem]), 
-                normalize=:pdf, 
-                label="All Above Sea Level", color=:blue,
-                linewidth=2)
-            stephist!(bulk[elem][bulk_cats[r] .& n .& t], bins=(1:elements[elem]), 
-                normalize=:pdf, 
-                label="Remaining", color=:green,
-                linewidth=2, title="$r $elem")
-            # stephist!(bulk[elem][bulk_cats[r] .& n .& .!t], bins=100, 
-            #     normalize=:pdf, 
-            #     label="Removed", color=:red,
-            #     title="$r $elem", linewidth=2)
-            ylims!(0, ylims(h)[2])
-            fig[i] = h
-        end
-
-        nrows = ceil(Int, length(target)/2)
-        h = plot(fig..., layout=(nrows,2), framestyle=:box, size=(1200, nrows*400), 
-            titleloc=:left, titlefont = font(15),
-            legendfontsize = 10, fg_color_legend=:white, legend=false,
-            left_margin = (25,:px),
-        )
-
-        #  Make a legend
-        leg = Plots.plot([0],[0], label="All Samples", color=:black,linewidth=2,
-            yticks=:none, xticks=:none, framestyle=:none, 
-            legendfontsize = 15, fg_color_legend=:white,
-        )
-        Plots.plot!(leg, [0],[0], label="All Above Sea Level", color=:blue, linewidth=2)
-        Plots.plot!(leg, [0],[0], label="Remaining", color=:green, linewidth=2)
-        # Plots.plot!(leg, [0],[0], label="Removed", color=:red, linewidth=2)
-
-        # Make a plot layout
-        l = @layout [
-            a{0.9h} 
-            b{0.1h} 
-        ]
-        hₙ = Plots.plot(h, leg, layout = l, bottom_margin=(30,:px))
-        display(hₙ)
+## --- Correct for assumed unmeasured volatile loss in sedimentary rocks
+    # If the sample is a sedimentary rock with a total analyzed wt.% below 84%, assume 
+    # the "missing" data is volatiles that were not included in the analysis
+    additional = zeros(length(bulkweight))
+    for i in eachindex(bulkweight)
+        additional[i] = ifelse(bulk_cats.sed[i] && bulkweight[i] < 84, 
+            (100 - bulkweight[i]), 0.0)
     end
 
-
-## --- How many samples report major elements?
-    majorelems = majors[1:end-1]
-    for elem in majorelems
-        n = @. !isnan(bulk[elem][bulk_cats.sed .& abovesea])
-        np = count(n)/length(n)
-        println("$elem: $(round(np*100, digits=2))% not NaN")
-    end
+    # Don't let samples through if the assumed volatile is more than 50 wt.%
+    t₁ = @. 84 <= bulkweight .+ additional <= 104
+    t₁ .&= additional .< 50
+    t₁ = vec(t₁)
 
 
-## --- What is the average major element composition of filtered samples?
-    majorelems = majors[1:end-1]        # Ignore volatiles for now...
+# ## --- Just rock types of concern
+#     using Plots
 
-    target = [:siliciclast, :shale, :carb, :sed]
-    for i in eachindex(target)
-        # Compute average for removed and remaining samples
+#     # Define elements to look at, and the upper SiO2 bound we're interested in
+#     elements = (SiO2=100, CaO=60, Al2O3=30, MgO=25)
 
-        all_abovesea = [nanmean(bulk[j][bulk_cats[target[i]] .& abovesea]) for j in majorelems]
-        not_rm = [nanmean(bulk[j][bulk_cats[target[i]] .& t]) for j in majorelems]
+#     target = [:siliciclast, :shale, :carb, :sed,]
+#     # target = [:siliciclast, :shale, :carb, :chert, :phosphorite, :volcaniclast, :sed,
+#     #     :metased, :metaign, :met
+#     # ]
 
-        all_abovesea = round.(all_abovesea, digits=2)
-        not_rm = round.(not_rm, digits=2)
-        diff = round.(not_rm .- all_abovesea, digits=2)
+#     for elem in keys(elements)
+#         fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(target))
+#         for i in eachindex(fig)
+#             r = target[i]
 
-        @info """$(target[i]) major element composition:
-        \t \t $(join(majorelems, " \t "))
-        All > -140m \t $(join(all_abovesea, " \t "))
-        Remaining \t $(join(not_rm, " \t "))
-        Difference \t $(join(diff, " \t "))\n
-        """
-    end
+#             # Only look at non-NaN values
+#             n = @. !isnan(bulk[elem])
+
+#             h = stephist(bulk[elem][bulk_cats[r] .& n], bins=(1:elements[elem]), 
+#                 normalize=:pdf, 
+#                 label="All Samples", color=:black,
+#                 linewidth=2)
+#             stephist!(bulk[elem][bulk_cats[r] .& n .& abovesea], bins=(1:elements[elem]), 
+#                 normalize=:pdf, 
+#                 label="All Above Sea Level", color=:blue,
+#                 linewidth=2)
+#             stephist!(bulk[elem][bulk_cats[r] .& n .& t₁], bins=(1:elements[elem]), 
+#                 normalize=:pdf, 
+#                 label="Remaining", color=:green,
+#                 linewidth=2, title="$r $elem")
+#             # stephist!(bulk[elem][bulk_cats[r] .& n .& .!t], bins=100, 
+#             #     normalize=:pdf, 
+#             #     label="Removed", color=:red,
+#             #     title="$r $elem", linewidth=2)
+#             ylims!(0, ylims(h)[2])
+#             fig[i] = h
+#         end
+
+#         nrows = ceil(Int, length(target)/2)
+#         h = plot(fig..., layout=(nrows,2), framestyle=:box, size=(1200, nrows*400), 
+#             titleloc=:left, titlefont = font(15),
+#             legendfontsize = 10, fg_color_legend=:white, legend=false,
+#             left_margin = (25,:px),
+#         )
+
+#         #  Make a legend
+#         leg = Plots.plot([0],[0], label="All Samples", color=:black,linewidth=2,
+#             yticks=:none, xticks=:none, framestyle=:none, 
+#             legendfontsize = 15, fg_color_legend=:white,
+#         )
+#         Plots.plot!(leg, [0],[0], label="All Above Sea Level", color=:blue, linewidth=2)
+#         Plots.plot!(leg, [0],[0], label="Remaining", color=:green, linewidth=2)
+#         # Plots.plot!(leg, [0],[0], label="Removed", color=:red, linewidth=2)
+
+#         # Make a plot layout
+#         l = @layout [
+#             a{0.9h} 
+#             b{0.1h} 
+#         ]
+#         hₙ = Plots.plot(h, leg, layout = l, bottom_margin=(30,:px))
+#         display(hₙ)
+#     end
+
+
+# ## --- How many samples report major elements?
+#     majorelems = majors[1:end-1]
+#     for elem in majorelems
+#         n = @. !isnan(bulk[elem][bulk_cats.sed .& abovesea])
+#         np = count(n)/length(n)
+#         println("$elem: $(round(np*100, digits=2))% not NaN")
+#     end
+
+
+# ## --- What is the average major element composition of filtered samples?
+#     majorelems = majors[1:end-1]        # Ignore volatiles for now...
+
+#     target = [:siliciclast, :shale, :carb, :sed]
+#     for i in eachindex(target)
+#         # Compute average for removed and remaining samples
+
+#         all_abovesea = [nanmean(bulk[j][bulk_cats[target[i]] .& abovesea]) for j in majorelems]
+#         not_rm = [nanmean(bulk[j][bulk_cats[target[i]] .& t]) for j in majorelems]
+
+#         all_abovesea = round.(all_abovesea, digits=2)
+#         not_rm = round.(not_rm, digits=2)
+#         diff = round.(not_rm .- all_abovesea, digits=2)
+
+#         @info """$(target[i]) major element composition:
+#         \t \t $(join(majorelems, " \t "))
+#         All > -140m \t $(join(all_abovesea, " \t "))
+#         Remaining \t $(join(not_rm, " \t "))
+#         Difference \t $(join(diff, " \t "))\n
+#         """
+#     end
 
     
 
-## --- Are there rock types which are disproportionately more likely to be filtered?
-    using StatsPlots
-    typelist = get_rock_class(major=false, inclusive=false)
+# ## --- Are there rock types which are disproportionately more likely to be filtered?
+#     using StatsPlots
+#     typelist = get_rock_class(major=false, inclusive=false)
 
-    s = bulkweight .< 84;       # Rocks below the a wt.% cutoff
-    f = :shale;                 # The type of rock we're interested in
-    rocknames = typelist[f]     # List of rock names mapped to that type
+#     s = bulkweight .< 84;       # Rocks below the a wt.% cutoff
+#     f = :shale;                 # The type of rock we're interested in
+#     rocknames = typelist[f]     # List of rock names mapped to that type
 
-    # Relative abundance of removed and remaining rocks
-    allrocks = [count(bulk_lookup[i] .& abovesea) for i in Symbol.(rocknames)]
-    remains = round.([count(bulk_lookup[i] .& .!s .& abovesea) 
-        for i in Symbol.(rocknames)] ./ allrocks, digits=2)
-    removed = round.([count(bulk_lookup[i] .& s .& abovesea) 
-        for i in Symbol.(rocknames)] ./ allrocks, digits=2)
+#     # Relative abundance of removed and remaining rocks
+#     allrocks = [count(bulk_lookup[i] .& abovesea) for i in Symbol.(rocknames)]
+#     remains = round.([count(bulk_lookup[i] .& .!s .& abovesea) 
+#         for i in Symbol.(rocknames)] ./ allrocks, digits=2)
+#     removed = round.([count(bulk_lookup[i] .& s .& abovesea) 
+#         for i in Symbol.(rocknames)] ./ allrocks, digits=2)
 
-    # Calculate the average silica for each rock name
-    avgsilica = round.([nanmean(bulk.SiO2[bulk_lookup[i] .& abovesea]) 
-        for i in Symbol.(rocknames)], digits=2)
+#     # Calculate the average silica for each rock name
+#     avgsilica = round.([nanmean(bulk.SiO2[bulk_lookup[i] .& abovesea]) 
+#         for i in Symbol.(rocknames)], digits=2)
 
-    out = [collect(rocknames) remains removed allrocks avgsilica]
-    display(out)
+#     out = [collect(rocknames) remains removed allrocks avgsilica]
+#     display(out)
 
-    # For rocks with a significant number of samples (> 1%), plot silica distribution
-    cutoff = floor(Int, 0.01 * count(bulk_cats[f]))
+#     # For rocks with a significant number of samples (> 1%), plot silica distribution
+#     cutoff = floor(Int, 0.01 * count(bulk_cats[f]))
 
-    h = stephist(ylabel="Normalized Weight", xlabel="SiO₂ [wt.%]",
-        title="$f above sea level",
-        framestyle=:box, size=(800,400), bottom_margin=(25,:px), left_margin=(25,:px),
-        fg_color_legend=:white, legend=:outertopright,
-    )
-    for i in eachindex(rocknames)
-        r = Symbol(rocknames[i])
-        count(bulk_lookup[r]) < cutoff && continue
+#     h = stephist(ylabel="Normalized Weight", xlabel="SiO₂ [wt.%]",
+#         title="$f above sea level",
+#         framestyle=:box, size=(800,400), bottom_margin=(25,:px), left_margin=(25,:px),
+#         fg_color_legend=:white, legend=:outertopright,
+#     )
+#     for i in eachindex(rocknames)
+#         r = Symbol(rocknames[i])
+#         count(bulk_lookup[r]) < cutoff && continue
 
-        stephist!(h, bulk.SiO2[bulk_lookup[r] .& abovesea], bins=1:100, normalize=:pdf,
-            label="$r", linewidth=2
-        )
-    end
-    stephist!(bulk.SiO2[bulk_cats[f] .& abovesea], bins=1:100, normalize=:pdf,
-        label="All samples", color=:blue, linewidth=2
-    )
-    display(h)
+#         stephist!(h, bulk.SiO2[bulk_lookup[r] .& abovesea], bins=1:100, normalize=:pdf,
+#             label="$r", linewidth=2
+#         )
+#     end
+#     stephist!(bulk.SiO2[bulk_cats[f] .& abovesea], bins=1:100, normalize=:pdf,
+#         label="All samples", color=:blue, linewidth=2
+#     )
+#     display(h)
 
 
-## --- Correlation between total wt.% and reported major element wt.%
-    elements = [:SiO2, :CaO]
-    f = bulk_cats.shale .& abovesea;
+# ## --- Correlation between total wt.% and reported major element wt.%
+#     elements = [:SiO2, :CaO]
+#     f = bulk_cats.shale .& abovesea;
 
-    for e in elements
-        # Plot element wt.% as a function of total wt.%
-        h = plot(bulkweight[f], bulk[e][f],
-            seriestype=:scatter, msc=:auto, alpha=0.5,
-            label="Data", xlabel="Total reported [wt.%]", ylabel="$e [wt.%]", 
-            framestyle=:box, legend=:topleft
-        )
+#     for e in elements
+#         # Plot element wt.% as a function of total wt.%
+#         h = plot(bulkweight[f], bulk[e][f],
+#             seriestype=:scatter, msc=:auto, alpha=0.5,
+#             label="Data", xlabel="Total reported [wt.%]", ylabel="$e [wt.%]", 
+#             framestyle=:box, legend=:topleft
+#         )
 
-        # Show bounds
-        ymin, ymax = ylims(h)
-        plot!(Shape([84,104,104,84], [ymin,ymin,ymax,ymax]), 
-            alpha=.35, label="Bounds", color=:red, linecolor=:match
-        )
-        ylims!(ymin, ymax)
-        display(h)
-    end
+#         # Show bounds
+#         ymin, ymax = ylims(h)
+#         plot!(Shape([84,104,104,84], [ymin,ymin,ymax,ymax]), 
+#             alpha=.35, label="Bounds", color=:red, linecolor=:match
+#         )
+#         ylims!(ymin, ymax)
+#         display(h)
+#     end
 
 
 ## --- Print to terminal and normalize compositions

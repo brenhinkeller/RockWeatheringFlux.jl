@@ -231,7 +231,7 @@
         )
     end
 
-    # CARBONATES ONLY: Convert CaO to CO₂
+    # CARBONATES ONLY: Calculate CO₂ from CaO
     # There are a lot of limestones with only CaO :(
 
     # What if we also do this for siliciclasts and shales?
@@ -261,7 +261,7 @@
         volatiles[i] = ifelse(bulk.Loi[i] > volatiles[i], bulk.Loi[i], volatiles[i])
     end
 
-    @turbo volatiles .+ SO3
+    @turbo volatiles .+= SO3
 
 
 ## --- Compute total wt.% analyzed for all samples
@@ -433,7 +433,51 @@
     avgsilica = round.([nanmean(bulk.SiO2[bulk_lookup[i] .& abovesea]) 
         for i in Symbol.(rocknames)], digits=2)
 
-    [collect(rocknames) remains removed allrocks avgsilica]
+    out = [collect(rocknames) remains removed allrocks avgsilica]
+    display(out)
+
+    # For rocks with a significant number of samples (> 1%), plot silica distribution
+    cutoff = floor(Int, 0.01 * count(bulk_cats[f]))
+
+    h = stephist(ylabel="Normalized Weight", xlabel="SiO₂ [wt.%]",
+        title="$f above sea level",
+        framestyle=:box, size=(800,400), bottom_margin=(25,:px), left_margin=(25,:px),
+        fg_color_legend=:white, legend=:outertopright,
+    )
+    for i in eachindex(rocknames)
+        r = Symbol(rocknames[i])
+        count(bulk_lookup[r]) < cutoff && continue
+
+        stephist!(h, bulk.SiO2[bulk_lookup[r] .& abovesea], bins=1:100, normalize=:pdf,
+            label="$r", linewidth=2
+        )
+    end
+    stephist!(bulk.SiO2[bulk_cats[f] .& abovesea], bins=1:100, normalize=:pdf,
+        label="All samples", color=:blue, linewidth=2
+    )
+    display(h)
+
+
+## --- Correlation between total wt.% and reported major element wt.%
+    elements = [:SiO2, :CaO]
+    f = bulk_cats.shale .& abovesea;
+
+    for e in elements
+        # Plot element wt.% as a function of total wt.%
+        h = plot(bulkweight[f], bulk[e][f],
+            seriestype=:scatter, msc=:auto, alpha=0.5,
+            label="Data", xlabel="Total reported [wt.%]", ylabel="$e [wt.%]", 
+            framestyle=:box, legend=:topleft
+        )
+
+        # Show bounds
+        ymin, ymax = ylims(h)
+        plot!(Shape([84,104,104,84], [ymin,ymin,ymax,ymax]), 
+            alpha=.35, label="Bounds", color=:red, linecolor=:match
+        )
+        ylims!(ymin, ymax)
+        display(h)
+    end
 
 
 ## --- Print to terminal and normalize compositions

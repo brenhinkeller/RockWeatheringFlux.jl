@@ -38,7 +38,8 @@
     fid = h5open("output/bulk.h5", "r")
     header = read(fid["bulk"]["header"])
     data = read(fid["bulk"]["data"])
-    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
+    bulk = NamedTuple{Tuple(Symbol.(header))}(
+        [data[:,i][bulkidx[t]] for i in eachindex(header)])
     close(fid)
 
     # Elements of interest
@@ -56,10 +57,17 @@
 
 
 ## --- Compute and export composition of exposed crust!
-    # If you have zeros in for elements that aren't present, your averages get mad
+    # If you have NaNs in for elements that aren't present, your averages get mad
     for i in allelements
         zeronan!(bulk[i])
     end
+
+    # Check that total wt.% still adds to 100%
+    total = Array{Float64}(undef, length(bulk[1]))
+    for i in eachindex(total)
+        total[i] = nansum([bulk[e][i] for e in allelements])
+    end
+    @assert isapprox(sum(total)/length(total), 100) "Incorrect normalization :("
 
     UCC = (
         bulk = [nanmean(bulk[i]) for i in allelements],
@@ -87,7 +95,7 @@
     # Terminal printout
     majorcomp = round.([UCC.bulk[i] for i in eachindex(majors)], sigdigits=2)
 
-    @info """ Bulk crustal composition:
+    @info """Bulk crustal composition:
     $(join(majors, " \t "))
     $(join(majorcomp, " \t "))
 

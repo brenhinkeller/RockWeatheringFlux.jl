@@ -231,13 +231,13 @@
         )
     end
 
-    # CARBONATES ONLY: Convert CaO to and CO₂
+    # CARBONATES ONLY: Convert CaO to CO₂
     # There are a lot of limestones with only CaO :(
 
     # What if we also do this for siliciclasts and shales?
     target = bulk_cats.carb .| bulk_cats.siliciclast .| bulk_cats.shale;
     @turbo for i in eachindex(bulk.CaO)
-        bulk.CO2[i] = ifelse(target[i], bulk.CaO[i]*CaO_to_CO2, NaN)
+        bulk.CO2[i] += ifelse(target[i], bulk.CaO[i]*CaO_to_CO2, NaN)
     end
 
     # GYPSUM ONLY: CaO → H₂O, SO₄ (technically SO₃ because already have an oxygen in CaO)
@@ -317,42 +317,49 @@
 
 ## --- Just rock types of concern
     using Plots
-    elements = [:SiO2, :CaO, :Al2O3, :MgO]
-    for i in eachindex(elements)
-        zeronan!(bulk[i])
-    end
 
-    for elem in elements
-        fig = Array{Plots.Plot{Plots.GRBackend}}(undef, 4)
-        target = [:siliciclast, :shale, :carb, :sed]
-        for i in eachindex(target)
+    # Define elements to look at, and the upper SiO2 bound we're interested in
+    elements = (SiO2=100, CaO=60, Al2O3=30, MgO=25)
+
+    target = [:siliciclast, :shale, :carb, :sed,]
+    # target = [:siliciclast, :shale, :carb, :chert, :phosphorite, :volcaniclast, :sed,
+    #     :metased, :metaign, :met
+    # ]
+
+    for elem in keys(elements)
+        fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(target))
+        for i in eachindex(fig)
             r = target[i]
 
-            h = stephist(bulk[elem][bulk_cats[r]], bins=100, normalize=:pdf, 
+            # Only look at non-NaN values
+            n = @. !isnan(bulk[elem])
+
+            h = stephist(bulk[elem][bulk_cats[r] .& n], bins=(1:elements[elem]), 
+                normalize=:pdf, 
                 label="All Samples", color=:black,
                 linewidth=2)
-            stephist!(bulk[elem][bulk_cats[r] .& abovesea], bins=100, normalize=:pdf, 
+            stephist!(bulk[elem][bulk_cats[r] .& n .& abovesea], bins=(1:elements[elem]), 
+                normalize=:pdf, 
                 label="All Above Sea Level", color=:blue,
-                title="$r", linewidth=2)
-            stephist!(bulk[elem][bulk_cats[r] .& t], bins=100, normalize=:pdf, 
+                linewidth=2)
+            stephist!(bulk[elem][bulk_cats[r] .& n .& t], bins=(1:elements[elem]), 
+                normalize=:pdf, 
                 label="Remaining", color=:green,
-                title="$r", linewidth=2)
-            stephist!(bulk[elem][bulk_cats[r] .& .!t], bins=100, normalize=:pdf, 
-                label="Removed", color=:red,
-                title="$r $elem", linewidth=2)
+                linewidth=2, title="$r $elem")
+            # stephist!(bulk[elem][bulk_cats[r] .& n .& .!t], bins=100, 
+            #     normalize=:pdf, 
+            #     label="Removed", color=:red,
+            #     title="$r $elem", linewidth=2)
             ylims!(0, ylims(h)[2])
             fig[i] = h
         end
 
-        h = plot(fig..., layout=(2,2), size=(1200, 800), titleloc=:left, titlefont = font(15),
-            framestyle=:box, legendfontsize = 10, fg_color_legend=:white, legend=false
+        nrows = ceil(Int, length(target)/2)
+        h = plot(fig..., layout=(nrows,2), framestyle=:box, size=(1200, nrows*400), 
+            titleloc=:left, titlefont = font(15),
+            legendfontsize = 10, fg_color_legend=:white, legend=false,
+            left_margin = (25,:px),
         )
-        if xlims(h)[2] > 104
-            xlims!(0,100)
-        else
-            xlims!(0, xlims(h)[2])
-        end
-        # display(h)
 
         #  Make a legend
         leg = Plots.plot([0],[0], label="All Samples", color=:black,linewidth=2,
@@ -361,14 +368,14 @@
         )
         Plots.plot!(leg, [0],[0], label="All Above Sea Level", color=:blue, linewidth=2)
         Plots.plot!(leg, [0],[0], label="Remaining", color=:green, linewidth=2)
-        Plots.plot!(leg, [0],[0], label="Removed", color=:red, linewidth=2)
+        # Plots.plot!(leg, [0],[0], label="Removed", color=:red, linewidth=2)
 
         # Make a plot layout
         l = @layout [
-            a{0.8h} 
-            b{0.2h}
+            a{0.9h} 
+            b{0.1h} 
         ]
-        hₙ = Plots.plot(h, leg, layout = l, size=(1200, 1000))
+        hₙ = Plots.plot(h, leg, layout = l, bottom_margin=(30,:px))
         display(hₙ)
     end
 

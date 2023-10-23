@@ -182,20 +182,26 @@
     [p_name[i] ./= sum(p_name[i]) for i in keys(p_name)]
 
 
-## --- Remove all multimatches and major matches from Macrostrat rocks
-    # Each sample can technically only be one rock type, and samples matched with major
-    # types are technically a minor type (e.g. an igneous rock is either volcanic or 
-    # plutonic).
-    #
-    # Picking a name randomly rather than a type should preference types that are described
-    # more, and hopefully then will advantage major constituents
+## --- Match each Macrostrat sample to a single informative rock name and type
+    # Each sample can technically be only one rock type: matches to more than one type
+    # are from grouping rocks together on geologic maps. 
+    # 
+    # Major classifications of sedimentary and igneous, and in some cases, metamorphic,
+    # cannot be used to infer geochemical composition. Samples matched only with major
+    # types are technically minor types: e.g., an igneous rock is either volcanic or 
+    # plutonic, but this information is unknown for major-only matches.
+    
+    # If there are no minor types matched with the rock, randomly select a minor type and
+    # associated rock name from those mapped to the major type. Select such that the
+    # probability is directly proportional to the abundance of that type exposed on the
+    # crust, determined by its abundance in the Macrostrat data.
 
     # Preallocate
     sampletypes = Array{Symbol}(undef, length(macrostrat.age), 1)
     samplenames = Array{Symbol}(undef, length(macrostrat.age), 1)
 
     # Metamorphic rock names without useful geochemical information
-    ambig_met = nondescriptive()
+    uninformative_met = nondescriptive()
 
     # Major types should not include minor types, otherwise class_up will give majors
     typelist = get_rock_class(inclusive=false)
@@ -203,6 +209,10 @@
 
     p = Progress(length(sampletypes) ÷ 10, desc="Sanitizing types...")
     for i in eachindex(sampletypes)
+        # # Get names and types matched with the sample 
+        # allnames = get_type(name_cats, i, all_keys=true)
+        # alltypes = get_type(macro_cats, i, all_keys=true)
+
         # Unweighted random selection of a rock name
         allnames = get_type(name_cats, i, all_keys=true)
         if allnames===nothing
@@ -222,13 +232,17 @@
         end
         s_type = rand(alltypes[notcover])
 
-        # Ign and sed types get weighted-random assignment to a minor type and name.
-        # Metamorphic rocks get re-assigned only if the name gives no useful information 
-        # about its geochemistry
+        # Re-assign major types
         if s_type==:ign || s_type==:sed
+            # Ign and sed types get weighted-random assignment to a minor type and name.
             s_type = minortypes[s_type][weighted_rand(p_type[s_type])]
             s_name = typelist[s_type][weighted_rand(p_name[s_type])]
-        elseif s_type==:met && string(s_name) in ambig_met
+
+        elseif s_type==:met && string(s_name) in uninformative_met
+            # Metamorphic rocks get re-assigned only if the name gives no useful information 
+            # about its geochemistry
+
+            # Otherwise, pick randomly
             s_type = minortypes.met[weighted_rand(p_type.met)]
             s_name = typelist[s_type][weighted_rand(p_name[s_type])]
         end
@@ -268,14 +282,14 @@
 
     @info "Starting sample matching $(Dates.format(now(), "HH:MM"))"
     p = Progress(length(matches), desc="Matching samples...")
-    @timev for i in eachindex(matches)
+    @time for i in eachindex(matches)
         type = sampletypes[i]
         if type == :none
             next!(p)
             continue
         end
 
-        # Pick random EarthChem sample as the assumed geochem of the Macrostrat sample
+        # Pick a random EarthChem sample as the assumed geochem of the Macrostrat sample
         name = samplenames[i]
         randsample = rand(bulk_idxs[bulk_lookup[name]])
         geochemdata = geochem_lookup[name]

@@ -174,8 +174,8 @@
     rocknames = read(fid["bulk_lookup_head"])
     data = read(fid["bulk_lookup"])
     data = @. data > 0
-    bulk_lookup = NamedTuple{Tuple(Symbol.(rocknames))}([data[:,i] for i in eachindex(rocknames)])
-
+    bulk_lookup = NamedTuple{Tuple(Symbol.(rocknames))}(
+        [data[:,i] for i in eachindex(rocknames)])
     close(fid)
 
 
@@ -587,8 +587,9 @@
     # Rock types
     a = Array{Int64}(undef, length(bulk_cats[1][t]), length(bulk_cats))
     for i in eachindex(keys(bulk_cats))
-        for j in eachindex(bulk_cats[i][t])
-            a[j,i] = ifelse(bulk_cats[i][j], 1, 0)
+        rockarray = bulk_cats[i][t]         # A LITTLE avoiding a seg fault, as a treat
+        for j in eachindex(rockarray)
+            a[j,i] = ifelse(rockarray[j], 1, 0)
         end
     end
     bulktypes["bulk_cats"] = a

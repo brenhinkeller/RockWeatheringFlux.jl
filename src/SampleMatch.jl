@@ -147,6 +147,9 @@
         macro_cats.ign .&= .!macro_cats[type]
         bulk_cats.ign .&= .!bulk_cats[type]
     end
+
+    # Metamorphic rocks are inclusive, but a rock that is both metased and metaign is
+    # re-assigned to just metamorphic
     for type in minormet
         macro_cats.met .&= .!macro_cats[type]
         bulk_cats.met .&= .!bulk_cats[type]     # Avoid metased / metaign cross contamination
@@ -181,7 +184,7 @@
 
 ## --- Remove all multimatches and major matches from Macrostrat rocks
     # Each sample can technically only be one rock type, and samples matched with major
-    # types are technically a minor type (e.g. an igneous rock isin either volcanic or 
+    # types are technically a minor type (e.g. an igneous rock is either volcanic or 
     # plutonic).
     #
     # Picking a name randomly rather than a type should preference types that are described
@@ -209,7 +212,7 @@
         end
         s_name = rand(allnames)
 
-        # Unweighted random selection of a corresponding type. If the type is cover, pick again
+        # Unweighted random selection of a corresponding type. If cover, pick again
         alltypes = class_up(typelist, string(s_name), all_types=true)
         notcover = .![t==:cover for t in alltypes]
         if count(notcover)==0

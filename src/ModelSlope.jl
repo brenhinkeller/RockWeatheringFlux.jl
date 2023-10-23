@@ -1,7 +1,7 @@
 ## --- Set up
     # Packages
     using StatGeochem
-    # using Statistics
+    using StatsBase
     using HDF5
     using Measurements
     using DelimitedFiles
@@ -16,27 +16,27 @@
     include("utilities/yorkfit.jl")
 
 
-## --- Get OCTOPUS basin polygon outlines
-    @info "Loading OCTOPUS data"
+## --- Get OCTOPUS basin polygon outlines [Linux / Mac OS only]
+    # @info "Loading OCTOPUS data"
 
-    # Decompress, load, and recompress 
-    run(`gunzip data/octopus/crn_basins_global.kml.gz`);
-    (str, isfirstcoord, nbasins, subbasins) = load_octopus_kml("data/octopus/crn_basins_global.kml");
-    run(`gzip data/octopus/crn_basins_global.kml`);                                           
+    # # Decompress, load, and recompress 
+    # run(`gunzip data/octopus/crn_basins_global.kml.gz`);
+    # (str, isfirstcoord, nbasins, subbasins) = load_octopus_kml("data/octopus/crn_basins_global.kml");
+    # run(`gzip data/octopus/crn_basins_global.kml`);                                           
 
-    # Parse and export data
-    octopusdata = parse_octopus_kml_variables(str)
-    exportdataset(octopusdata,"output/octopusdata.tsv",'\t')
+    # # Parse and export data
+    # octopusdata = parse_octopus_kml_variables(str)
+    # exportdataset(octopusdata,"output/octopusdata.tsv",'\t')
 
-    for i in keys(octopusdata)
-        if typeof(octopusdata[i]) == Vector{SubString{String}}
-            octopusdata[i] = string.(octopusdata[i])
-        end
-    end
-    octopusdata = NamedTuple{Tuple(Symbol.(keys(octopusdata)))}(values(octopusdata))
+    # for i in keys(octopusdata)
+    #     if typeof(octopusdata[i]) == Vector{SubString{String}}
+    #         octopusdata[i] = string.(octopusdata[i])
+    #     end
+    # end
+    # octopusdata = NamedTuple{Tuple(Symbol.(keys(octopusdata)))}(values(octopusdata))
 
 
-## --- Calculate slope for each basin
+## --- Calculate slope for each basin [Linux / Mac OS only]
     # @info "Calculating slope for each basin"
 
     # # Get basin polygons
@@ -71,6 +71,7 @@
 
 
 ## --- Alternatively, load pregenerated OCTOPUS and slope data for each basin
+    # Windows machines must start at this step
     @info "Loading pre-parsed OCTOPUS and basin slope data"
     octopusdata = importdataset("output/octopusdata.tsv",'\t', importas=:Tuple)
     basin_srtm = importdataset("output/basin_srtm15plus_avg_maxslope.tsv", '\t', importas=:Tuple)
@@ -98,22 +99,27 @@
     fobj = yorkfit(c, ex, log.(m), log.(ey))
     emmkyr(slp) = exp(slp * (fobj.slope) + (fobj.intercept))
 
-    # Plot results
-    h = Plots.scatter(basin_srtm.avg_slope,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", 
-        msc=:auto, color=:blue, alpha=0.5
+    
+## --- Plot results
+    h = Plots.plot(xlabel="SRTM15+ Slope (m/km)", ylabel="Erosion rate (mm/kyr)",
+        framestyle=:box, legend=:topleft, fg_color_legend=:white,
+    )
+
+    # Data
+    Plots.scatter!(basin_srtm.avg_slope,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", 
+        msc=:auto, color=:blue, yscale=:log10,
     )
     Plots.scatter!(h, basin_srtm.avg_slope,octopusdata.eal_mmkyr, label="OCTOPUS Al-26 data", 
-        msc=:auto, color=:orange, alpha=0.5
+        msc=:auto, color=:orange, markershape=:square
     )
-    Plots.scatter!(h, c, m, label="Binned Means", msc=:auto, color=:black)
+    Plots.scatter!(h, c, m, label="Binned Means", yerror=ex, color=:black, lcolor=:black, 
+        msc=:black,
+    )
 
     # Model
-    modelval, modelerr = unmeasurementify(emmkyr.(1:600))
+    modelval, = unmeasurementify(emmkyr.(1:600))
     Plots.plot!(h, 1:length(modelval), modelval, label="Model", color=:black, width=3)
-    Plots.plot!(xlabel="SRTM15+ Slope (m/km)", ylabel="Erosion rate (mm/kyr)",
-        yscale=:log10, framestyle=:box, legend=:topleft, fg_color_legend=:white,
-        
-    )
+    
     display(h)
     savefig("results/figures/erosionslope.pdf")
 

@@ -93,7 +93,7 @@
     writedlm("$ucc_out", vcat(cols, hcat(rows, results)))
 
     # Terminal printout
-    majorcomp = round.([UCC.bulk[i] for i in eachindex(majors)], sigdigits=2)
+    majorcomp = round.([UCC.bulk[i] for i in eachindex(majors)], digits=1)
 
     @info """Bulk crustal composition:
     $(join(majors, " \t "))

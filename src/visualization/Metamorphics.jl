@@ -12,12 +12,13 @@
     include("../utilities/Utilities.jl")
 
     # Settings and local definitions
+    majors, = get_elements()
     SiO2min, SiO2max = 0, 100
     nbins = 100
 
 
 ## --- Load data
-    # Matched EarthChem data
+    # Matched and unmatched EarthChem data
     fid = readdlm("$matchedbulk_io")
     bulkidx = Int.(vec(fid[:,1]))
     t = @. bulkidx != 0
@@ -35,14 +36,9 @@
     index = read(fid["bulktext"]["sampledata"]["index"])
     target = ["Rock_Name", "Type", "Material"]
     targetind = [findall(==(i), header)[1] for i in target]
-
-    mbulktext = NamedTuple{Tuple(Symbol.(target))}(
-        [lowercase.(read(fid["bulktext"]["sampledata"]["elements"][target[i]]))[
-            index[:,targetind[i]]][bulkidx[t]] for i in eachindex(target)]
-    )
     bulktext = NamedTuple{Tuple(Symbol.(target))}(
-        [lowercase.(read(path["elements"][target[i]]))[index[:,targetind[i]]] 
-            for i in eachindex(target)]
+        [lowercase.(read(fid["bulktext"]["sampledata"]["elements"][target[i]]))[
+            index[:,targetind[i]]] for i in eachindex(target)]
     )
     close(fid)
 
@@ -66,23 +62,7 @@
     close(fid)
 
     # For this analysis, we want metamorphic rocks to include metaigns, but not metaseds
-    macro_cats.met .|= macro_cats.metaign
-
-
-## --- Get Macrostrat rock names for the Archean felsic mode 
-    archean = @. 4000 > macrostrat.age >= 2500;
-    felsic = @. mbulk.SiO2 > 60;
-    old_metaigns = macrostrat.rocktype[archean .& macro_cats.metaign .& felsic]
-    felsicnames = unique(old_metaigns)
-
-    target = [count(==(i), old_metaigns) for i in felsicnames]
-    
-    p = reverse(sortperm(target))
-    # display([felsicnames[p][1:15] target[p][1:15]])
-
-    n = length(old_metaigns)
-    t = @. target[p] > (ceil(Int, n * 0.01));
-    display([felsicnames[p][t] target[p][t]])
+    # macro_cats.met .|= macro_cats.metaign;
 
 
 ## --- Show distribution of matched metamorphic rocks
@@ -106,10 +86,37 @@
     )
     display(h)
 
-    # Modal sample analysis for metamorphic distributions
-    geochemkeys, = get_elements()
-    sameindex(bulkidx[t][macro_cats.met], geochemkeys, (25,100,75), bulk, bulktext);
-    sameindex(bulkidx[t][macro_cats.metaign], geochemkeys, (25,100,75), bulk, bulktext);
+
+## --- Modal sample analysis 
+    # Metamorphic
+    im = sameindex(bulkidx[t][macro_cats.met], majors, (25,100,75), bulk, bulktext);
+    get_matched_samples(im, bulkidx[t], macrostrat, filter=macro_cats.met, 
+        desc="Metamorphic")
+
+
+    # Metaigneous
+    ii = sameindex(bulkidx[t][macro_cats.metaign], majors, (25,100,75), bulk, bulktext);
+    get_matched_samples(ii, bulkidx[t], macrostrat, filter=macro_cats.metaign, 
+        desc="Metaigneous")
+
+
+## --- Get Macrostrat rock names for the Archean felsic mode 
+    # Filter for Archean rocks above 60 wt.% silica
+    archean = @. 4000 > macrostrat.age >= 2500;
+    felsic = @. mbulk.SiO2 > 60;
+
+    # Get rock types
+    alltypes = macrostrat.rocktype[archean .& macro_cats.metaign .& felsic]
+    uniquetypes = unique(alltypes)
+
+    # Count occurance of each name
+    target = [count(==(i), alltypes) for i in uniquetypes]
+
+    # Print names that are more than 0.5% of matched rocks
+    p = reverse(sortperm(target))
+    n = length(alltypes)
+    t = @. target[p] > (ceil(Int, n * 0.005));
+    display([uniquetypes[p][t] target[p][t]])
     
 
 ## --- Resample matched sample distributions (defacto spatial)

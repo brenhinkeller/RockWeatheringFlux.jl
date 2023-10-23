@@ -108,52 +108,52 @@
     close(fid)
 
 
-## --- Test resampled behavior - VolcanicPlutonic
-    # Load data
-    plutonic = matread("data/volcanicplutonic/plutonic.mat")["plutonic"];
-    plutonic = NamedTuple{Tuple(Symbol.(keys(plutonic)))}(values(plutonic));
-    src = plutonic
+## --- Test resampled behavior against VolcanicPlutonic
+    # # Load data
+    # plutonic = matread("data/volcanicplutonic/plutonic.mat")["plutonic"];
+    # plutonic = NamedTuple{Tuple(Symbol.(keys(plutonic)))}(values(plutonic));
+    # src = plutonic
 
-    # volcanic = matread("data/volcanicplutonic/volcanic.mat")["volcanic"];
-    # volcanic = NamedTuple{Tuple(Symbol.(keys(volcanic)))}(values(volcanic));
-    # src = volcanic
+    # # volcanic = matread("data/volcanicplutonic/volcanic.mat")["volcanic"];
+    # # volcanic = NamedTuple{Tuple(Symbol.(keys(volcanic)))}(values(volcanic));
+    # # src = volcanic
 
-    SiO2min, SiO2max = 40, 80
-    simitems = [:SiO2];
-    nsims = Int(1e7)
+    # SiO2min, SiO2max = 40, 80
+    # simitems = [:SiO2];
+    # nsims = Int(1e7)
 
-    # Get resampling weights
-    # test = trues(length(src.Latitude))
-    test = @. !isnan(src.Latitude) & !isnan(src.Longitude) & (src.Elevation .> -100);
-    # k = src.k[test]
-    k = invweight_location(src.Latitude[test], src.Longitude[test])
-    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0);
+    # # Get resampling weights
+    # # test = trues(length(src.Latitude))
+    # test = @. !isnan(src.Latitude) & !isnan(src.Longitude) & (src.Elevation .> -100);
+    # # k = src.k[test]
+    # k = invweight_location(src.Latitude[test], src.Longitude[test])
+    # p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0);
 
-    # Data matrix
-    data=zeros(length(src.SiO2),length(simitems));
-    for i in eachindex(simitems)
-        data[:,i] = src[simitems[i]];
-    end
-    data = data[test[:],:];
+    # # Data matrix
+    # data=zeros(length(src.SiO2),length(simitems));
+    # for i in eachindex(simitems)
+    #     data[:,i] = src[simitems[i]];
+    # end
+    # data = data[test[:],:];
 
-    # Uncertainty matrix
-    uncertainty=zeros(length(src.SiO2),length(simitems));
-    for i in eachindex(simitems)
-        uncertainty[:,i] .= src.CalcAbsErr[string(simitems[i])];
-    end
-    uncertainty = uncertainty[test[:],:];
+    # # Uncertainty matrix
+    # uncertainty=zeros(length(src.SiO2),length(simitems));
+    # for i in eachindex(simitems)
+    #     uncertainty[:,i] .= src.CalcAbsErr[string(simitems[i])];
+    # end
+    # uncertainty = uncertainty[test[:],:];
 
-    # Run Monte Carlo simulation
-    simout = bsresample(data, uncertainty, nsims, p)
+    # # Run Monte Carlo simulation
+    # simout = bsresample(data, uncertainty, nsims, p)
 
-    # Plot results    
-    c, n = bincounts(simout, SiO2min, SiO2max, 160)
-    n = float(n) ./ nansum(float(n) .* step(c))
-    h = plot(c, n, seriestype=:bar, framestyle=:box, color=:darkblue, linecolor=:darkblue,
-        label="Plutonic (n = $(count(test)))", ylabel="Abundance", xlabel="SiO2 [wt.%]",
-        ylims=(0, round(maximum(n), digits=2)+0.01), xlims=(SiO2min, SiO2max)
-    )
-    display(h)
+    # # Plot results    
+    # c, n = bincounts(simout, SiO2min, SiO2max, 160)
+    # n = float(n) ./ nansum(float(n) .* step(c))
+    # h = plot(c, n, seriestype=:bar, framestyle=:box, color=:darkblue, linecolor=:darkblue,
+    #     label="Plutonic (n = $(count(test)))", ylabel="Abundance", xlabel="SiO2 [wt.%]",
+    #     ylims=(0, round(maximum(n), digits=2)+0.01), xlims=(SiO2min, SiO2max)
+    # )
+    # display(h)
 
 
 ## --- End of file

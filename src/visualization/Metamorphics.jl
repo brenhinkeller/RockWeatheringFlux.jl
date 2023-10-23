@@ -17,17 +17,6 @@
 
 
 ## --- Load data
-    # # Resampled EarthChem data
-    # fid = h5open("output/resampled/resampled.h5", "r")
-    # header = read(fid["vars"]["header"])
-    # i = findfirst(x -> x=="SiO2", header)
-    # rocktypes = keys(fid["vars"]["data"])
-
-    # bsrsilica = NamedTuple{Tuple(Symbol.(rocktypes))}([read(fid["vars"]["data"][r]["data"])[:,i]
-    #     for r in rocktypes
-    # ])
-    # close(fid)
-
     # Matched EarthChem data
     fid = readdlm("$matchedbulk_io")
     bulkidx = Int.(vec(fid[:,1]))
@@ -36,7 +25,25 @@
     fid = h5open("output/bulk.h5", "r")
     header = read(fid["bulk"]["header"])
     data = read(fid["bulk"]["data"])
-    mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
+
+    mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] 
+        for i in eachindex(header)])
+    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+
+    # Bulk rock name, type, and material
+    header = read(fid["bulktext"]["sampledata"]["header"])
+    index = read(fid["bulktext"]["sampledata"]["index"])
+    target = ["Rock_Name", "Type", "Material"]
+    targetind = [findall(==(i), header)[1] for i in target]
+
+    mbulktext = NamedTuple{Tuple(Symbol.(target))}(
+        [lowercase.(read(fid["bulktext"]["sampledata"]["elements"][target[i]]))[
+            index[:,targetind[i]]][bulkidx[t]] for i in eachindex(target)]
+    )
+    bulktext = NamedTuple{Tuple(Symbol.(target))}(
+        [lowercase.(read(path["elements"][target[i]]))[index[:,targetind[i]]] 
+            for i in eachindex(target)]
+    )
     close(fid)
 
     # Macrostrat data
@@ -47,15 +54,35 @@
         age = read(fid["vars"]["age"])[t],
         agemin = read(fid["vars"]["agemin"])[t],
         agemax = read(fid["vars"]["agemax"])[t],
+        rocktype = read(fid["vars"]["rocktype"])[t],
+        rockname = read(fid["vars"]["rockname"])[t],
+        rockdescrip = read(fid["vars"]["rockdescrip"])[t],
     )
     header = read(fid["type"]["macro_cats_head"])
     data = read(fid["type"]["macro_cats"])
     data = @. data > 0
-    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
+    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] 
+        for i in eachindex(header)])
     close(fid)
 
     # For this analysis, we want metamorphic rocks to include metaigns, but not metaseds
     macro_cats.met .|= macro_cats.metaign
+
+
+## --- Get Macrostrat rock names for the Archean felsic mode 
+    archean = @. 4000 > macrostrat.age >= 2500;
+    felsic = @. mbulk.SiO2 > 60;
+    old_metaigns = macrostrat.rocktype[archean .& macro_cats.metaign .& felsic]
+    felsicnames = unique(old_metaigns)
+
+    target = [count(==(i), old_metaigns) for i in felsicnames]
+    
+    p = reverse(sortperm(target))
+    # display([felsicnames[p][1:15] target[p][1:15]])
+
+    n = length(old_metaigns)
+    t = @. target[p] > (ceil(Int, n * 0.01));
+    display([felsicnames[p][t] target[p][t]])
 
 
 ## --- Show distribution of matched metamorphic rocks
@@ -79,6 +106,11 @@
     )
     display(h)
 
+    # Modal sample analysis for metamorphic distributions
+    geochemkeys, = get_elements()
+    sameindex(bulkidx[t][macro_cats.met], geochemkeys, (25,100,75), bulk, bulktext);
+    sameindex(bulkidx[t][macro_cats.metaign], geochemkeys, (25,100,75), bulk, bulktext);
+    
 
 ## --- Resample matched sample distributions (defacto spatial)
     # Universal filters and uncertainties

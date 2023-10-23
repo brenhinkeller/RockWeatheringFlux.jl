@@ -312,6 +312,14 @@
     Total increase = $up
     """
 
+## --- Save an intermediate file for analysis
+    fid = h5open("output/itermediate_screen.h5", "w")
+    g = create_group(fid, "vars")
+        g["SiO2"] = bulk.SiO2
+        g["bulkweight"] = bulkweight
+        g["additional"] = additional
+    close(fid)
+
 
 # ## --- Just rock types of concern
 #     using Plots

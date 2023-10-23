@@ -77,15 +77,6 @@
     # Run simulation
     simigneous = bsresample(data, uncertainty, nsims, p)
 
-    SiO2min, SiO2max = 40, 80
-    c, n = bincounts(simigneous, SiO2min, SiO2max, 160)
-    n = float(n) ./ nansum(float(n) .* step(c))
-    h = plot(c, n, seriestype=:bar, framestyle=:box, color=:dimgrey, linecolor=:dimgrey,
-        label="", ylabel="Abundance", xlabel="SiO2 [wt.%]",
-        ylims=(0, round(maximum(n), digits=2)+0.01), xlims=(SiO2min, SiO2max)
-    )
-    display(h)
-
 
 ## --- Load resampled EarthChem data
     fid = h5open("output/resampled/resampled.h5", "r")
@@ -128,6 +119,7 @@
 
     close(fid)
 
+    # Major types include minor types
     minorsed, minorign, minormet = get_minor_types()
     for type in minorsed
         bulk_cats.sed .|= bulk_cats[type]
@@ -165,19 +157,19 @@
             label="Matched $(labels[i])", barwidths = ((SiO2max-SiO2min)/nbins_matched)
         )
 
-        # # Resampled EarthChem
-        # c, n = bincounts(bsrsilica[types[i]], SiO2min, SiO2max, nbins)
-        # n₂ = float(n) ./ nansum(float(n) .* step(c))
-        # Plots.plot!(c, n₂, seriestype=:path, color=:blue, linecolor=:blue, linewidth=2,
-        #     label="Resampled EarthChem",
-        # )
+        # Resampled EarthChem
+        c, n = bincounts(bsrsilica[types[i]], SiO2min, SiO2max, nbins)
+        n₂ = float(n) ./ nansum(float(n) .* step(c))
+        Plots.plot!(c, n₂, seriestype=:path, color=:blue, linecolor=:blue, linewidth=2,
+            label="Resampled EarthChem",
+        )
 
-        # # Prior Earthchem
-        # c, n = bincounts(bulk.SiO2[bulk_cats[types[i]]], SiO2min, SiO2max, Int(nbins/2))
-        # n₃ = float(n) ./ nansum(float(n) .* step(c))
-        # Plots.plot!(c, n₃, seriestype=:path, color=:red, linecolor=:red, linewidth=2,
-        #     label="EarthChem prior",
-        # )
+        # Prior Earthchem
+        c, n = bincounts(bulk.SiO2[bulk_cats[types[i]]], SiO2min, SiO2max, Int(nbins/2))
+        n₃ = float(n) ./ nansum(float(n) .* step(c))
+        Plots.plot!(c, n₃, seriestype=:path, color=:red, linecolor=:red, linewidth=2,
+            label="EarthChem prior",
+        )
 
         # Keller et al., 2015
         c, n = bincounts(simVP[i], SiO2min, SiO2max, nbins)
@@ -196,7 +188,7 @@
         left_margin=(35,:px), bottom_margin=(35,:px), top_margin=(35,:px),
         title =["Volcanic" "Plutonic" "All Igneous"], titleloc=:left, titlefont = font(15)
     )    
-    # display(h)
+    display(h)
     # savefig(h, "results/figures/dist_ign.png")
     savefig(h, "results/figures/dist_ign.pdf")
 

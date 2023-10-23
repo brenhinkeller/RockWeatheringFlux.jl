@@ -150,7 +150,6 @@
     """
     ```julia
     get_matched_samples(i::Int64, bulkidx::AbstractArray{<:Int64}, macrostrat::NamedTuple;
-        [savefile::Bool], [filepath::String], 
         [desc::String],
         [filter::BitArray]
     )
@@ -159,13 +158,18 @@
     Get Macrostrat sample information for all samples matched with index `i`. 
         
     ### Optional kwargs:
-      * `savefile`: save a .csv file to `filepath` with the data for all matched samples.
-        Boolean; `false` by default.
       * `filter`: filter `macrostrat` samples.
       * `desc`: Additional information to identify the terminal printout.
+
+    # Example
+    ```julia
+    i = sameindex(bulkidx[t][macro_cats.met], majors, (25,100,75), bulk, bulktext);
+    get_matched_samples(i, bulkidx[t], macrostrat, filter=macro_cats.met, desc="Metamorphic")
+    ```
     """
-    function get_matched_samples(i::Int64, bulkidx::AbstractArray{<:Int64}, macrostrat::NamedTuple;
-        savefile::Bool=false, filepath::String="", desc::String="\b", 
+    function get_matched_samples(i::Int64, bulkidx::AbstractArray{<:Int64}, 
+        macrostrat::NamedTuple;
+        desc::String="\b", 
         filter::BitArray{1}=trues(length(bulkidx))
     )
 
@@ -173,14 +177,9 @@
         @assert i > 0 "Index i must be greater than 0."
         @assert length(bulkidx) == length(macrostrat[1]) == length(filter) """
             Lengths of bulkidx, filter, and Macrostrat sample arrays must be equal."""
-        if savefile
-            @assert filepath != "" "Specify file path to save file."
-            @assert containsi(filepath, ".csv") "Filepath must specify .csv extension."
-        end
+
         
-        required = ifelse(savefile, (:rocktype, :rockname, :rockdescrip, :rocklat, :rocklon, :age),
-            (:rocktype, :rockname, :rockdescrip, :age)
-        )
+        required = (:rocktype, :rockname, :rockdescrip, :age)
         present = keys(macrostrat)
         for k in required
             @assert k in present "Macrostrat key $k required."
@@ -194,10 +193,6 @@
         rockname = macrostrat.rockname[t]
         rockdescrip = macrostrat.rockdescrip[t]
         age = macrostrat.age[t]
-        if savefile
-            rocklat = macrostrat.rocklat[t]
-            rocklon = macrostrat.rocklon[t]
-        end
 
         # Get modal data
         agem = (modal(age)..., length(age))
@@ -210,25 +205,16 @@
         $desc Macrostrat samples matched with index $i 
         
         Age [Ma]:
-        Mean: $(round(nanmean(age), digits=2))
-        Standard deviation: $(round(nanstd(age), digits=2))
-        Median: $(nanmedian(age))
-        Mode: $(agem[1]) (n = $(agem[2]) of $(agem[3]))
-        ---
-
+        \tMean: $(round(nanmean(age), digits=2))
+        \tStandard deviation: $(round(nanstd(age), digits=2))
+        \tMedian: $(nanmedian(age))
+        \tMode: $(agem[1]) (n = $(agem[2]) of $(agem[3]))
+        
         Modal sample description:
-        Rock type: $(typem[1]) (n = $(typem[2]) of $(typem[3]))
-        Rock name: $(namem[1]) (n = $(namem[2]) of $(namem[3]))
-        Rock description: $(descm[1]) (n = $(descm[2]) of $(descm[3]))
+        \tRock type: $(typem[1]) (n = $(typem[2]) of $(typem[3]))
+        \tRock name: $(namem[1]) (n = $(namem[2]) of $(namem[3]))
+        \tRock description: $(descm[1]) (n = $(descm[2]) of $(descm[3]))
         """
-
-        # Save to file, if directed
-        if savefile
-            header = ["age" "lat" "lon" "type" "name" "desc"]
-            writedlm("$filepath", vcat(header, hcat(age, rocklat, rocklon, rocktype, rockname,
-                rockdescrip))
-            )
-        end
     end
 
 

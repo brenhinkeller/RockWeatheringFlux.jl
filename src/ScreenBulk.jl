@@ -513,10 +513,11 @@
     )
 
 
-## --- Rock names still have to be matched!
-    # We might have taken out the samples that the name refers to... which means there
-    # won't be samples in that lookup! BUT... we already have all the BitVectors for
-    # rock names
+## --- Classify rock names (getting from file is too tricky to debug)
+    # Rock names / types / materials for all EarthChem data
+    bulkrockname = lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name])
+    bulkrocktype = lowercase.(bulktext.elements.Type[bulktext.index.Type])
+    bulkmaterial = lowercase.(bulktext.elements.Material[bulktext.index.Material])
 
     # List of rock names
     rocknames = get_rock_class(major=true, inclusive=false)
@@ -525,22 +526,33 @@
     # Rock subtypes, major types do not include minors (for class_up function call)
     typelist = get_rock_class(major=false, inclusive=false)
 
+    # Match rock types
+    bulk_cats = match_rocktype(bulkrockname, bulkrocktype, bulkmaterial, 
+        unmultimatch=false, inclusive=false, source=:earthchem
+    )
+
     # Match rock names
-    bulk_lookup_new = NamedTuple{keys(bulk_lookup)}([falses(count(t)) 
+    p = Progress(length(rocknames), desc="Finding EarthChem samples for each rock name")
+    bulk_lookup = NamedTuple{Tuple(Symbol.(rocknames))}([falses(length(bulkrockname)) 
         for _ in eachindex(rocknames)]
     )
     for i in eachindex(rocknames)
-        bulk_lookup_new[i] .= bulk_lookup[i][t]
+        bulk_lookup[i] .= find_earthchem(rocknames[i], bulkrockname, bulkrocktype, 
+            bulkmaterial
+        )
 
         # If no matches, jump up a class. Find everything within that class
-        if count(bulk_lookup_new[i]) == 0
+        if count(bulk_lookup[i]) == 0
             searchlist = typelist[class_up(typelist, rocknames[i])]
 
             # Search all of those names; each class should at least have something
             for j in eachindex(searchlist)
-                bulk_lookup_new[i] .|= bulk_lookup[j][t]
+                bulk_lookup[i] .|= find_earthchem(searchlist[j], bulkrockname, bulkrocktype, 
+                    bulkmaterial
+                )
             end
         end
+        next!(p)
     end
 
 
@@ -585,25 +597,24 @@
     bulktypes = create_group(fid, "bulktypes")
 
     # Rock types
-    a = Array{Int64}(undef, length(bulk_cats[1][t]), length(bulk_cats))
+    a = Array{Int64}(undef, length(bulk_cats[1]), length(bulk_cats))
     for i in eachindex(keys(bulk_cats))
-        rockarray = bulk_cats[i][t]         # A LITTLE avoiding a seg fault, as a treat
-        for j in eachindex(rockarray)
-            a[j,i] = ifelse(rockarray[j], 1, 0)
+        for j in eachindex(bulk_cats[i])
+            a[j,i] = ifelse(bulk_cats[i][j], 1, 0)
         end
     end
     bulktypes["bulk_cats"] = a
     bulktypes["bulk_cats_head"] = string.(collect(keys(bulk_cats))) 
 
     # Rock names
-    a = Array{Int64}(undef, length(bulk_lookup_new[1]), length(bulk_lookup_new))
-    for i in eachindex(keys(bulk_lookup_new))
-        for j in eachindex(bulk_lookup_new[i])
-            a[j,i] = ifelse(bulk_lookup_new[i][j], 1, 0)
+    a = Array{Int64}(undef, length(bulk_lookup[1]), length(bulk_lookup))
+    for i in eachindex(keys(bulk_lookup))
+        for j in eachindex(bulk_lookup[i])
+            a[j,i] = ifelse(bulk_lookup[i][j], 1, 0)
         end
     end
     bulktypes["bulk_lookup"] = a
-    bulktypes["bulk_lookup_head"] = string.(collect(keys(bulk_lookup_new)))
+    bulktypes["bulk_lookup_head"] = string.(collect(keys(bulk_lookup)))
 
     close(fid)
 

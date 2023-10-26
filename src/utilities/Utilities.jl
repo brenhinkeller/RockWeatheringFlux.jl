@@ -141,7 +141,7 @@
 
         # Get rock type classifications and initialized BitVector
         typelist, cats = get_cats(major, length(Rock_Name))
-        p = Progress(length(typelist)*3, desc="Finding Earthchem rock types...")
+        p = Progress(length(typelist)*2+1, desc="Finding Earthchem rock types...")
 
         # Check rock name
         @inbounds for j in eachindex(typelist)
@@ -185,8 +185,8 @@
                     not_matched[k] && (cats[j][k] |= (Material[k] == typelist[j][i]))
                 end
             end
-            next!(p)
         end
+        next!(p)
 
         # If subtypes are true, major types must also be true
         if !major && inclusive
@@ -1104,4 +1104,6 @@
 
         return vec(out)
     end
+
+    
 ## --- End of file

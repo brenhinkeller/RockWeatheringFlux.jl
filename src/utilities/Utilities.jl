@@ -697,7 +697,7 @@
         npoints = length(bulkage)
         ll_age = Array{Float64}(undef, npoints, 1)
         ll_dist = Array{Float64}(undef, npoints, 1)
-        ll_total = Array{Float64}(undef, npoints, 1)
+        ll_total = zeros(npoints, 1)
 
         # Replace missing values: this will penalize but not exclude missing data
         @inbounds for i in 1:npoints
@@ -719,9 +719,6 @@
             # Distance (σ = 1.8 arc degrees)
             ll_dist[i] = -((haversine(samplelat, samplelon, bulklat[i], bulklon[i]))^2)/(18.0^2)
         end
-
-        # Everyone loves addition
-        @. ll_total = ll_age + ll_dist
         
         # Geochemical log-likelihoods
         for elem in eachindex(bulkgeochem)
@@ -729,6 +726,17 @@
                 ll_total[i] += -((bulkgeochem[elem][i] - samplegeochem[elem].m)^2)/(samplegeochem[elem].e^2)
             end
         end
+
+        # Men love to scale their log-likelihoods so geochemistry and spatiotemporal 
+        # similarity have the same weight
+        n = length(bulkgeochem)
+        ll_total ./= n
+
+        ll_dist .+= ll_age
+        ll_dist ./= 2
+
+        # Everyone loves addition
+        ll_total .+= ll_dist
 
         matched_sample = rand_prop_liklihood(ll_total)
         return sampleidx[matched_sample]
@@ -1105,5 +1113,5 @@
         return vec(out)
     end
 
-    
+
 ## --- End of file

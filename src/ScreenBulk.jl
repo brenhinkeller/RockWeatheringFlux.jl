@@ -384,7 +384,7 @@
         )
 
         # If no matches, jump up a class. Find everything within that class
-        if count(bulk_lookup[i]) == 0
+        if count(bulk_lookup[i]) < 3
             searchlist = typelist[class_up(typelist, rocknames[i])]
 
             # Search all of those names; each class should at least have something

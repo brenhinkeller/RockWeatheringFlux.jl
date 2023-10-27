@@ -156,6 +156,7 @@
     end
 
     # Add multimatches back in to metamorphic EarthChem samples
+    # Metamorphic rocks with unknown protoliths are allowed to be metaseds and metaigns
     bulk_cats.metased .|= bulk_cats.met
     bulk_cats.metaign .|= bulk_cats.met
     bulk_cats.met .|= (bulk_cats.metased .& bulk_cats.metaign)
@@ -233,18 +234,18 @@
         s_type = rand(alltypes[notcover])
 
         # Re-assign major types
-        if s_type==:ign || s_type==:sed
+        if s_type==:ign || s_type==:sed || s_type==:met
             # Ign and sed types get weighted-random assignment to a minor type and name.
             s_type = minortypes[s_type][weighted_rand(p_type[s_type])]
             s_name = typelist[s_type][weighted_rand(p_name[s_type])]
 
-        elseif s_type==:met && string(s_name) in uninformative_met
-            # Metamorphic rocks get re-assigned only if the name gives no useful information 
-            # about its geochemistry
+        # elseif s_type==:met && string(s_name) in uninformative_met
+        #     # Metamorphic rocks get re-assigned only if the name gives no useful information 
+        #     # about its geochemistry
 
-            # Otherwise, pick randomly
-            s_type = minortypes.met[weighted_rand(p_type.met)]
-            s_name = typelist[s_type][weighted_rand(p_name[s_type])]
+        #     # Otherwise, pick randomly
+        #     s_type = minortypes.met[weighted_rand(p_type.met)]
+        #     s_name = typelist[s_type][weighted_rand(p_name[s_type])]
         end
         
         # Assign
@@ -257,7 +258,7 @@
 
 ## --- Initialize for EarthChem sample matching
     # Definitions
-    geochemkeys, = get_elements()                   # Major elements
+    geochemkeys = get_elements()[1][1:end-1]        # Major non-volatile elements
     bulk_idxs = collect(1:length(bulk.SiO2))        # Indices of bulk samples
 
     # Zero-NaN version of the major elements in bulk
@@ -280,9 +281,16 @@
     # Preallocate
     matches = zeros(Int64, length(macro_cats.sed))
 
+    ismet = macro_cats.met .| macro_cats.metaign .| macro_cats.metased;
+
     @info "Starting sample matching $(Dates.format(now(), "HH:MM"))"
     p = Progress(length(matches), desc="Matching samples...")
-    @time for i in eachindex(matches)
+    @timev for i in eachindex(matches)
+        # if !ismet[i]
+        #     next!(p)
+        #     continue
+        # end
+
         type = sampletypes[i]
         if type == :none
             next!(p)
@@ -294,7 +302,8 @@
         randsample = rand(bulk_idxs[bulk_lookup[name]])
         geochemdata = geochem_lookup[name]
         errs = NamedTuple{Tuple(geochemkeys)}(
-            nanunzero!([abs(randn()*geochemdata[j].e) for j in geochemkeys], 1.0)
+            # nanunzero!([abs(randn()*geochemdata[j].e) for j in geochemkeys], 1.0)
+            nanunzero!([geochemdata[j].e for j in geochemkeys], 1.0)
         )
         geochemdata = NamedTuple{Tuple(geochemkeys)}([NamedTuple{(:m, :e)}(
             tuple.((bulkzero[j][randsample]), errs[j])) for j in geochemkeys]
@@ -330,6 +339,30 @@
     Stop: $(Dates.Date(stop)) $(Dates.format(stop, "HH:MM")).
     Total runtime: $(canonicalize(round(stop - start, Dates.Minute))).
     """
+
+
+## --- Plot
+    # # All non-zero samples are metamorphic, so we don't have to restrict
+    # t = @. matches > 0;
+    # h1 = histogram(bulk.SiO2[matches[t]], bins=100, norm=:pdf,
+    #     color=colors.met, lcolor=:match, 
+    #     label="", xlabel="SiO2 [wt.%]", ylabel="Abundance", title="Metamorphic",
+    #     framestyle=:box
+    # )
+    # ymin, ymax = ylims(h1)
+    # ylims!(0, ymax*1.05)
+
+    # t .&= macro_cats.metaign;
+    # h2 = histogram(bulk.SiO2[matches[t]], bins=100, norm=:pdf,
+    #     color=colors.metaign, lcolor=:match, 
+    #     label="", xlabel="SiO2 [wt.%]", ylabel="Abundance", title="Metaigneous",
+    #     framestyle=:box
+    # )
+    # ymin, ymax = ylims(h2)
+    # ylims!(0, ymax*1.05)
+
+    # h = Plots.plot(h1, h2, layout=(2, 1), size=(600,800), left_margin=(25,:px))
+    # display(h)
 
 
 ## --- End of File

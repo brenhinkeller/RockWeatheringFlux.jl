@@ -80,6 +80,9 @@
     bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
 
     # Rock name matches
+    # For each rock name in this Tuple, get a BitVector of all samples that could
+    # potentially match to that rock name. The rock names which match to sample (i) are
+    # not indicative of the rock names which match to that sample.
     rocknames = read(fid["bulktypes"]["bulk_lookup_head"])
     data = read(fid["bulktypes"]["bulk_lookup"])
     data = @. data > 0

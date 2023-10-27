@@ -211,7 +211,7 @@
     # Absolute contribution of each rock type to element flux, calculated as the sum of
     # the individual contributions of each point
     for i in eachindex(subcats)
-        for j in eachindex(elementflux)
+        for j in eachindex(keys(elementflux))
             # Element row, rock type column
             result[j,i] += nansum(unmeasurementify(elementflux[j][macro_cats[subcats[i]]])[1])
         end

@@ -141,7 +141,7 @@
 
         # Get rock type classifications and initialized BitVector
         typelist, cats = get_cats(major, length(Rock_Name))
-        p = Progress(length(typelist)*2+1, desc="Finding Earthchem rock types...")
+        p = Progress(length(typelist)+2, desc="Finding Earthchem rock types...")
 
         # Check rock name
         @inbounds for j in eachindex(typelist)
@@ -167,8 +167,8 @@
                     not_matched[k] && (cats[j][k] |= (Type[k] == typelist[j][i]))
                 end
             end
-            next!(p)
         end
+        next!(p)
 
         # New typelist for Material
         # Omitted: vein, ore
@@ -727,16 +727,13 @@
             end
         end
 
-        # Men love to scale their log-likelihoods so geochemistry and spatiotemporal 
-        # similarity have the same weight
-        n = length(bulkgeochem)
-        ll_total ./= n
-
-        ll_dist .+= ll_age
-        ll_dist ./= 2
+        # # Men love to scale their log-likelihoods so geochemistry and spatiotemporal 
+        # # similarity have the same weight
+        # n = length(bulkgeochem)
+        # ll_total ./= n
 
         # Everyone loves addition
-        ll_total .+= ll_dist
+        ll_total .+= (ll_dist .+ ll_age)
 
         matched_sample = rand_prop_liklihood(ll_total)
         return sampleidx[matched_sample]

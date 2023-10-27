@@ -170,14 +170,6 @@
         bulk_cats.met .|= bulk_cats[type]
     end
 
-    # And load rock names
-    rocknames = read(fid["bulk_lookup_head"])
-    data = read(fid["bulk_lookup"])
-    data = @. data > 0
-    bulk_lookup = NamedTuple{Tuple(Symbol.(rocknames))}(
-        [data[:,i] for i in eachindex(rocknames)])
-    close(fid)
-
 
 ## --- Define and organize elements to convert units
     # Get major and minor elements, but remove :Volatiles from before it causes problems
@@ -355,7 +347,7 @@
     )
 
 
-## --- Classify rock names (getting from file is too tricky to debug)
+## --- Classify rock types and names (getting from file is too tricky to debug)
     # Rock names / types / materials for all EarthChem data
     bulkrockname = lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name])
     bulkrocktype = lowercase.(bulktext.elements.Type[bulktext.index.Type])
@@ -366,7 +358,7 @@
     rocknames = unique((rocknames.sed..., rocknames.met..., rocknames.ign...))
 
     # Rock subtypes, major types do not include minors (for class_up function call)
-    typelist = get_rock_class(major=false, inclusive=false)
+    typelist = get_rock_class(major=false, inclusive=false)     # I think this should be true...
 
     # Match rock types
     bulk_cats = match_rocktype(bulkrockname, bulkrocktype, bulkmaterial, 
@@ -376,12 +368,13 @@
     # Match rock names
     p = Progress(length(rocknames), desc="Finding EarthChem samples for each rock name")
     bulk_lookup = NamedTuple{Tuple(Symbol.(rocknames))}([falses(length(bulkrockname)) 
-        for _ in eachindex(rocknames)]
-    )
+        for _ in eachindex(rocknames)])
+    nmatches = Array{Int64}(undef, length(rocknames), 1)
     for i in eachindex(rocknames)
         bulk_lookup[i] .= find_earthchem(rocknames[i], bulkrockname, bulkrocktype, 
             bulkmaterial
         )
+        nmatches[i] = count(bulk_lookup[i])
 
         # If no matches, jump up a class. Find everything within that class
         if count(bulk_lookup[i]) < 3

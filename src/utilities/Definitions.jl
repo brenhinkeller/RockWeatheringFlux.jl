@@ -179,7 +179,7 @@
             "megacryst", "missourite", "norite", "nordmarkite", "olivinite", "orthoclasite", 
             "ottajanite", "pegmat", "peridot", "pyroxenite", "porphyry", "porphyrite", "puglianite",
             "riedenite", "sanukite", "sebastianite", "shonkinite", "sommaite", "sovite", 
-            "tannbuschite", "teschenite", "theralite", "tinguaite", "trond", "vsbergitesampleclass", 
+            "tannbuschite", "teschenite", "theralite", "tinguaite", "trond", "vsbergite", 
             "topazite", "troctolite", "turjaite", "ugandite", "uncompahgrite", "urtite", 
             "vaugnerite", "vibetoite", "websterite", "wehrlite", "yamaskite", "pluton", 
             "batholith", "mangerite", "pegmatite", "rapakivi", "intrus", "sill", "dike", 

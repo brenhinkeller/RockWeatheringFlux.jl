@@ -4,6 +4,10 @@
     using Statistics
     using Test
 
+    using Static
+    using LoopVectorization
+    include("../src/utilities/NaNMeasurements.jl")
+
 ## --- Create test arrays
     A = collect(1:10) .± reverse!(collect(1:10))
     B = copy(A)
@@ -49,5 +53,14 @@
 
     testA = copy(A)
     @test zeronan!(testA, false) == B_znan_par
+
+
+## --- Zero replacement
+    A = [0, 0, 2, 0.0]
+    nanzero!(A)
+    @test isnan(A[1])
+    @test isnan(A[2])
+    @test !isnan(A[3])
+    @test isnan(A[4])
 
 ## --- End of file

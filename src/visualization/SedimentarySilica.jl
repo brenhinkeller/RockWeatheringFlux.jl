@@ -36,7 +36,7 @@
 
 ## --- Load intermediate file
     # Consider silica distribution for rocks without the assumed volatiles
-    fid = h5open("output/itermediate_screen.h5", "r")
+    fid = h5open("output/intermediate_screen.h5", "r")
         bulkweight = read(fid["vars"]["bulkweight"])
         tᵢ = @. 84 <= bulkweight <= 104
     close(fid)

@@ -183,7 +183,7 @@
     # Get major and minor elements, but remove :Volatiles from before it causes problems
     majors, minors = get_elements()
     allelements = [majors; minors]
-    allkeys = [allelements; [:Latitude, :Longitude, :Age]]
+    allkeys = [allelements; [:Latitude, :Longitude, :Loc_Prec, :Age]]
     deleteat!(allelements, findall(x->x==:Volatiles,allelements))
 
     # LOI, CaCO3, H2O, and CO2 don't get reported in the output, but we'll want them with 
@@ -231,10 +231,8 @@
         )
     end
 
-    # CARBONATES ONLY: Calculate CO₂ from CaO
+    # Carbonates, siliciclasts, and shales: Calculate CO₂ from CaO
     # There are a lot of limestones with only CaO :(
-
-    # What if we also do this for siliciclasts and shales?
     target = bulk_cats.carb .| bulk_cats.siliciclast .| bulk_cats.shale;
     @turbo for i in eachindex(bulk.CaO)
         bulk.CO2[i] += ifelse(target[i], bulk.CaO[i]*CaO_to_CO2, NaN)
@@ -313,7 +311,7 @@
     """
 
 ## --- Save an intermediate file for analysis
-    fid = h5open("output/itermediate_screen.h5", "w")
+    fid = h5open("output/intermediate_screen.h5", "w")
     g = create_group(fid, "vars")
         g["SiO2"] = bulk.SiO2
         g["bulkweight"] = bulkweight

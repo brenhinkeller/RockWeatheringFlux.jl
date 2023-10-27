@@ -183,7 +183,7 @@
     # Get major and minor elements, but remove :Volatiles from before it causes problems
     majors, minors = get_elements()
     allelements = [majors; minors]
-    allkeys = [allelements; [:Latitude, :Longitude, :Loc_Prec, :Age]]
+    allkeys = [allelements; [:Latitude, :Longitude, :Loc_Prec, :Age, :Age_Max, :Age_Min]]
     deleteat!(allelements, findall(x->x==:Volatiles,allelements))
 
     # LOI, CaCO3, H2O, and CO2 don't get reported in the output, but we'll want them with 

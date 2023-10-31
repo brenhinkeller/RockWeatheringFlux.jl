@@ -450,7 +450,12 @@
     Optionally specify `all_types` as `true` to return all types which match with `name`: 
     some names may be mapped to more than one rock type.
 
-    See also: `get_cats` to return `typelist`.
+    For `typelist` generated with `get_rock_class`, setting `inclusive=false` will not 
+    change the behavior of `alltypes=false`, as long as major types are listed after minor
+    types (because `class_up` will return the type for the first match it finds). If
+    `inclusive=true` and `alltypes=true`, the major type will always be returned.
+
+    See also: `get_rock_class` to return `typelist`.
 
     # Examples
     ```julia-repl

@@ -265,7 +265,7 @@
     kz_i = collect(1:length(kz_names))
     simout_names = NamedTuple{Tuple(Symbol.(kz_names))}([falses(length(simout.Kz_1)) 
         for _ in eachindex(kz_names)]
-    )
+    );
     
     kz_out = (:Kz_1, :Kz_2, :Kz_3, :Kz_4, :Kz_5, :Kz_6)
     for i in kz_i
@@ -281,11 +281,12 @@
     # with every sedimentary rock
     typelist = get_rock_class(inclusive=true)
     for k in keys(simout_names)
-        if count(simout_names[k]) < 0
-            upper = class_up(typelist, string(k))
-            for r in typelist[upper]
-                simout_names[k] .|= simout_names[Symbol(r)]
-            end
+        if count(simout_names[k]) < 3
+            # upper = class_up(typelist, string(k))
+            # for r in typelist[upper]
+            #     simout_names[k] .|= simout_names[Symbol(r)]
+            # end
+            println(k)
         end
     end
 
@@ -340,7 +341,12 @@
         # end
 
         type = sampletypes[i]
-        if type == :none
+        # if type == :none
+        #     next!(p)
+        #     continue
+        # end
+
+        if type != :shale
             next!(p)
             continue
         end
@@ -388,18 +394,53 @@
         next!(p)
     end
 
-    # Write data to a file
-    writedlm("$matchedbulk_io", [matches string.(sampletypes)], '\t')
+    # # Write data to a file
+    # writedlm("$matchedbulk_io", [matches string.(sampletypes)], '\t')
 
-    # End timer
-    stop = now()
-    @info """
-    Stop: $(Dates.Date(stop)) $(Dates.format(stop, "HH:MM")).
-    Total runtime: $(canonicalize(round(stop - start, Dates.Minute))).
-    """
+    # # End timer
+    # stop = now()
+    # @info """
+    # Stop: $(Dates.Date(stop)) $(Dates.format(stop, "HH:MM")).
+    # Total runtime: $(canonicalize(round(stop - start, Dates.Minute))).
+    # """
+
+## --- Plot
+    t = @. matches > 0;
+    h = histogram(bulk.SiO2[matches[t]], bins=100, norm=:pdf,
+        color=colors.shale, lcolor=:match, 
+        label="Shale", xlabel="SiO₂ [wt.%]", ylabel="Weight", framestyle=:box
+    )
+    ymin, ymax = ylims(h)
+    ylims!(0, ymax*1.05)
+    display(h)
+
+    snails = Symbol.(typelist.shale)
+    for i in eachindex(snails)
+        # Plot
+        n = count(name_cats[snails[i]])
+        samples = matches[t .& name_cats[snails[i]]]
+        h = histogram(bulk.SiO2[samples], bins=100, norm=:pdf,
+            color=colors.shale, lcolor=:match, framestyle=:box,
+            label="$(snails[i]) n=$n", xlabel="SiO₂ [wt.%]", ylabel="Weight", 
+        )
+        ymin, ymax = ylims(h)
+        ylims!(0, ymax*1.05)
+        display(h)
+
+        # Get the ratio of number of samples to number of matched samples
+        r = n / length(unique(samples))
+        @info """ $(snails[i]):
+        n burwell samples = $n 
+        n matched samples = $(length(unique(samples)))
+        n earthchem sampl = $(count(simout_names[snails[i]]))
+        n:s = $(round(r, digits=3))
+
+        """
+    end
 
 
 ## --- Plot
+
     # # All non-zero samples are metamorphic, so we don't have to restrict
     # t = @. matches > 0;
     # h1 = histogram(bulk.SiO2[matches[t]], bins=100, norm=:pdf,

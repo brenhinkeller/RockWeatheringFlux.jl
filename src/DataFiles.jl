@@ -1,7 +1,6 @@
-# Functions and scripts for creating and modifying files, generally to be used only
-# once, but worth saving.
-    
-## --- Add matches to Macrostrat file
+# Create a duplicate Macrostrat / Burwell file with new rock type and rock name matches
+
+## --- Set up
     using HDF5
     using StatGeochem
     using Static
@@ -11,9 +10,10 @@
     
     include("utilities/Utilities.jl")
 
+
+## --- Match rock names 
     # Macrostrat
-    # mfid = h5open("$macrostrat_io", "r")
-    mfid = h5open("output/250K_responses.h5", "r")
+    mfid = h5open(macrostrat_io, "r")
 
     # Get matches
     macrostrat = (
@@ -27,8 +27,9 @@
     
     name_cats = match_rockname(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
     
-    # New Macrostrat file
-    newfid = h5open("output/temp_new_macrostrat.h5", "w")
+## --- Create new file
+    fid, fex = split("$macrostrat_io", ".")
+    newfid = h5open(fid * "_2." * fex , "w")
 
     # Copy over existing data
     g = create_group(newfid, "vars")

@@ -90,6 +90,9 @@
 
 
 ## --- Do terrible things to the lists of matched samples
+    # If I get the types that are matched to a given sample, I want them to be as specific
+    # as possible so I can characterize the sample as accurately as possible.
+    
     typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
     allrocks = collect(keys(typelist))
 
@@ -126,6 +129,10 @@
         macro_cats.cover .&= .!macro_cats[type]
         bulk_cats.cover .&= .!bulk_cats[type]
     end
+
+    # If it IS just cover, it's not useful, so just take it out completely
+    macro_cats.cover .= false
+    bulk_cats.cover .= false
 
     # All granodiorites will also match with diorites, so take out those matches
     macro_cats.granodiorite .&= .!macro_cats.diorite
@@ -167,14 +174,14 @@
     for i in eachindex(bigtypes)
         alltypes = get_type(macro_cats, i, all_keys=true)
 
-        # Unweighted random selection of a rock name
-        allnames = get_type(name_cats, i, all_keys=true)
-        if allnames===nothing
-            sampletypes[i] = samplenames[i] = :none
+        if alltypes===nothing
+            bigtypes[i] = littletypes[i] = :none
             i%10==0 && next!(p)
             continue
         end
-        s_name = rand(allnames)
+
+        # Randomly select a rock name, unless there aren't anything
+        samplename = rand(alltypes)
 
         # Unweighted random selection of a corresponding type. If cover, pick again
         alltypes = class_up(typelist, string(s_name), all_types=true)

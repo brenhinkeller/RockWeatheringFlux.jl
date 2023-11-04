@@ -168,7 +168,7 @@
 
 ## --- Match each Macrostrat sample to a single informative rock name and type
     # Doing this in several passes over the sample set means that I can optimize sections
-    # that can be optimized, which will make this faster. 
+    # that can be optimized, which will make this faster... by two orders of magnitude lol
 
     # Preallocate
     bigtypes = Array{Symbol}(undef, length(macrostrat.age), 1)      # Sed / ign
@@ -204,55 +204,6 @@
             littletypes[i] = minorplut[weighted_rand(ptype.plut)]
         end
     end
-
-
-## --- Load resampled data
-    # # Load data
-    # fid = h5open("output/resampled/resampled_rocknames.h5", "r")
-    # header = read(fid["vars"]["header"])
-    # data = read(fid["vars"]["simout"])
-    # simout = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
-
-    # # Get rocknames from kz number
-    # kz_names = read(fid["vars"]["rocknames_kz"])
-    # kz_i = collect(1:length(kz_names))
-    # simout_names = NamedTuple{Tuple(Symbol.(kz_names))}([falses(length(simout.Kz_1)) 
-    #     for _ in eachindex(kz_names)]
-    # );
-    
-    # kz_out = (:Kz_1, :Kz_2, :Kz_3, :Kz_4, :Kz_5, :Kz_6)
-    # for i in kz_i
-    #     for k in kz_out
-    #         # Get all samples that match with the given rock name / kz number 
-    #         t = @. simout[k] == i
-    #         simout_names[Symbol(kz_names[i])][t] .|= true
-    #     end
-    # end
-
-    # # For names with no matches, jump up a class and match with all mapped names
-    # # Typelist is inclusive, because if something is an unknown sed, we want it to match
-    # # with every sedimentary rock
-    # typelist = get_rock_class(inclusive=true)
-    # for k in keys(simout_names)
-    #     if count(simout_names[k]) < 3
-    #         upper = class_up(typelist, string(k))
-    #         for r in typelist[upper]
-    #             simout_names[k] .|= simout_names[Symbol(r)]
-    #         end
-    #         # println(k)
-    #     end
-    # end
-
-    # # For major and minor subtypes, match with all names for that subtype 
-    # for k in keys(bulk_cats)
-    #     if haskey(simout_names, k)
-    #         for r in typelist[k]
-    #             if haskey(simout_names, Symbol(r))
-    #                 simout_names[k] .|= simout_names[Symbol(r)]
-    #             end
-    #         end
-    #     end
-    # end
 
 
 ## --- Initialize for EarthChem sample matching

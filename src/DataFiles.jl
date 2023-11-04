@@ -29,20 +29,10 @@
 
 
 ## --- Put data in new file
-    # Create a copy of the old file
-    fid, fex = split("$macrostrat_io", ".")
-    copyfid = h5open(fid * "_old.h5" , "w")
-
-    keysfid = keys(oldfid)
-    for k in keysfid
-        copy_object(oldfid, k, copyfid, k)
-    end
-
-    close(oldfid)
-
     # Create a new file and put the old file in it
-    newfid = h5open(macrostrat_io, "w")
-    copy_object(copyfid, "vars", newfid, "vars")    # The stuff that isn't changed
+    fid, fex = split("$macrostrat_io", ".")
+    newfid = h5open(fid * "_2.h5" , "w")
+    copy_object(oldfid, "vars", newfid, "vars")    # The stuff that isn't changed
 
     # Rock types and rock names
     bulktypes = create_group(newfid, "type")
@@ -56,7 +46,7 @@
     bulktypes["macro_cats_head"] = string.(collect(keys(macro_cats))) 
 
     close(newfid)
-    close(copyfid)
+    close(oldfid)
 
 
 ## --- Or if you're working with really old files that don't have the updated structure:

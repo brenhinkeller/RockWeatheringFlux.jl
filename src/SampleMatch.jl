@@ -89,48 +89,59 @@
     # )
 
 
-## --- Major types should include all minor types
-    # Lithology: for estimating relative abundances, we want major types to include better
-    # characterized types
-    # Geochemistry: I don't want only weird shit to come up when I pick an igneous rock
+## --- Do terrible things to the lists of matched samples
     typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
+    allrocks = collect(keys(typelist))
 
+    # Don't match with a major type if you can match with a minor type. Also, don't match
+    # to volcanic or plutonic if you can do better.
     for type in minorsed
-        macro_cats.sed .|= macro_cats[type]
-        bulk_cats.sed .|= bulk_cats[type]
+        macro_cats.sed .&= .!macro_cats[type]
+        bulk_cats.sed .&= .!bulk_cats[type]
     end
     for type in minorvolc
-        macro_cats.volc .|= macro_cats[type]
-        bulk_cats.volc .|= bulk_cats[type]
+        macro_cats.volc .&= .!macro_cats[type]
+        bulk_cats.volc .&= .!bulk_cats[type]
     end
     for type in minorplut
-        macro_cats.plut .|= macro_cats[type]
-        bulk_cats.plut .|= bulk_cats[type]
+        macro_cats.plut .&= .!macro_cats[type]
+        bulk_cats.plut .&= .!bulk_cats[type]
     end
     for type in minorign
-        macro_cats.ign .|= macro_cats[type]
-        bulk_cats.ign .|= bulk_cats[type]
+        macro_cats.ign .&= .!macro_cats[type]
+        bulk_cats.ign .&= .!bulk_cats[type]
     end
 
-    # Metamorphic rocks (with no known protolith) could be.... anything? Sure, I guess so
-    # Technically, not anything. It's probably not from a chert protolith. Metacarbonates
-    # (or metacarbonatites??) are also probably not defined as a gneiss.
-    # So exclude carbonates, evaporites, chert, phosphorite, coal, and carbonatites
-    protolith = (:siliciclast, :shale, :sed, minorvolc..., minorplut..., :ign);
-    for type in protolith
-        macro_cats.met .|= macro_cats[type]
-        bulk_cats.met .|= bulk_cats[type]
+    # Don't match with metamorphic if you can help it: assume matches to other things
+    # describes the protolith (at least, describes it better than guessing randomly)
+    for type in allrocks
+        type == :met && continue
+        macro_cats.met .&= .!macro_cats[type]
+        bulk_cats.met .&= .!bulk_cats[type]
     end
+
+    # If it's cover and something else, it can just be the something else
+    for type in allrocks
+        type == :cover && continue
+        macro_cats.cover .&= .!macro_cats[type]
+        bulk_cats.cover .&= .!bulk_cats[type]
+    end
+
+    # All granodiorites will also match with diorites, so take out those matches
+    macro_cats.granodiorite .&= .!macro_cats.diorite
+    bulk_cats.granodiorite .&= .!bulk_cats.diorite
 
 
 ## --- Calculate relative abundance of each type in the lithological map
     subminor_ign = (:volc, :plut, :carbonatite)     # Volc and plut MUST include subtypes
 
+    # Counts
     psed = float.([count(macro_cats[i]) for i in minorsed])
     pvolc = float.([count(macro_cats[i]) for i in minorvolc])
     pplut = float.([count(macro_cats[i]) for i in minorplut])
     pign = float.([count(macro_cats[i]) for i in subminor_ign])
     
+    # Relative abundance / fraction
     psed ./= nansum(psed)
     pvolc ./= nansum(pvolc)
     pplut ./= nansum(pplut)
@@ -138,35 +149,23 @@
 
 
 ## --- Match each Macrostrat sample to a single informative rock name and type
-    # Each sample can technically be only one rock type: matches to more than one type
-    # are from grouping rocks together on geologic maps. 
-    # 
-    # Major classifications of sedimentary and igneous, and in some cases, metamorphic,
-    # cannot be used to infer geochemical composition. Samples matched only with major
-    # types are technically minor types: e.g., an igneous rock is either volcanic or 
-    # plutonic, but this information is unknown for major-only matches.
-    
-    # If there are no minor types matched with the rock, randomly select a minor type and
-    # associated rock name from those mapped to the major type. Select such that the
-    # probability is directly proportional to the abundance of that type exposed on the
-    # crust, determined by its abundance in the Macrostrat data.
+    # # Metamorphic rocks (with no known protolith) could be.... anything? Sure, I guess so
+    # # Technically, not anything. It's probably not from a chert protolith. Metacarbonates
+    # # (or metacarbonatites??) are also probably not defined as a gneiss.
+    # # So exclude carbonates, evaporites, chert, phosphorite, coal, and carbonatites
+    # protolith = (:siliciclast, :shale, :sed, minorvolc..., minorplut..., :ign);
+    # for type in protolith
+    #     macro_cats.met .|= macro_cats[type]
+    #     bulk_cats.met .|= bulk_cats[type]
+    # end
 
     # Preallocate
-    sampletypes = Array{Symbol}(undef, length(macrostrat.age), 1)
-    samplenames = Array{Symbol}(undef, length(macrostrat.age), 1)
+    bigtypes = Array{Symbol}(undef, length(macrostrat.age), 1)
+    littletypes = Array{Symbol}(undef, length(macrostrat.age), 1)
 
-    # Metamorphic rock names without useful geochemical information
-    uninformative_met = nondescriptive()
-
-    # Major types should not include minor types, otherwise class_up will give majors
-    typelist = get_rock_class(inclusive=false)
-    minortypes = (sed = minorsed, ign=minorign, met=minormet)
-
-    p = Progress(length(sampletypes) ÷ 10, desc="Sanitizing types...")
-    for i in eachindex(sampletypes)
-        # # Get names and types matched with the sample 
-        # allnames = get_type(name_cats, i, all_keys=true)
-        # alltypes = get_type(macro_cats, i, all_keys=true)
+    p = Progress(length(bigtypes) ÷ 10, desc="Sanitizing types...")
+    for i in eachindex(bigtypes)
+        alltypes = get_type(macro_cats, i, all_keys=true)
 
         # Unweighted random selection of a rock name
         allnames = get_type(name_cats, i, all_keys=true)

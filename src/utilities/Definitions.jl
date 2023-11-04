@@ -144,6 +144,7 @@
 
     julia> typelist, minorsed, minorign = get_rock_class(major=true);
     ```
+    
     """
     function get_rock_class(; major::Bool=false)
         # Sedimentary

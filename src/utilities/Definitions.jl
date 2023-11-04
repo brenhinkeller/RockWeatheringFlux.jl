@@ -260,7 +260,7 @@
         minorvolc = (:komatiite, :basalt, :andesite, :dacite, :rhyolite, :alk_volc, 
             :volcaniclast,)
         minorplut = (:peridotite, :pyroxenite, :gabbro, :diorite, :trondhjemite, :tonalite, 
-            :tonalite, :granodiorite, :granite, :alk_plut, :plut)
+            :tonalite, :granodiorite, :granite, :alk_plut,)
         minorign = (minorvolc..., :volc, minorplut..., :plut, :carbonatite)
 
         if major
@@ -376,33 +376,4 @@
     end
 
 
-
-
-## --- Rock type exclusions to avoid multi-matching
-
-    """
-    ```julia
-    get_specific(list, [minorsed], [minorign])
-    ```
-
-    From a `list` of types, figure which is the best descriptor of a given rock. Intended
-    for metamorphic samples which may identify a protolith. Send this to three of your 
-    friends to totally specify them!
-
-    Include the `minorsed` and `minorign` lists if you want things to run faster.
-    """
-    get_specific(list::Tuple{Symbol})
-        # , minorsed, minorign = get_minor_types(major=true)
-        # minorsed, minorign = get_rock_class(major=true)
-
-
-
-        # return 
-    # end
-
-    # get_specific(list::Tuple{Symbol}, minorsed::Tuple{Symbol}, minorign::Tuple{Symbol})
-
-    #     return 
-    # end
-    
 ## --- End of file

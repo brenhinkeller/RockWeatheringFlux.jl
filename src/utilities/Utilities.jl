@@ -358,6 +358,8 @@
     Return the first key of `cats` where `i` is `true`. Optionally specify `allkeys`=`true`
     to return _all_ keys where `i` is true. Assumes equal length elements of `cats`.
 
+    If there are no matches, return `:none`.
+
     # Examples
     ```julia-repl
     julia> get_type(macro_cats, 254)
@@ -376,7 +378,7 @@
             cats[k][i] && return Symbol(k)
         end
 
-        return nothing
+        return :none
     end
 
     function _get_type(cats, i, all_keys::True)
@@ -389,7 +391,7 @@
             cats[k][i] && (keymatches[k]=true)
         end
 
-        count(keymatches)==0 && return nothing
+        count(keymatches)==0 && return :none
         return catkeys[keymatches]
     end
 

@@ -11,45 +11,41 @@
     include("utilities/Utilities.jl")
 
 
-## --- Match rock names 
+## --- Match rock names
+    @info "Re-matching samples from $macrostrat_io"
+
     # Macrostrat
-    mfid = h5open(macrostrat_io, "r")
+    oldfid = h5open(macrostrat_io, "r")
 
     # Get matches
     macrostrat = (
-        rocktype = read(mfid["vars"]["rocktype"]),
-        rockname = read(mfid["vars"]["rockname"]),
-        rockdescrip = read(mfid["vars"]["rockdescrip"]),
+        rocktype = read(oldfid["vars"]["rocktype"]),
+        rockname = read(oldfid["vars"]["rockname"]),
+        rockdescrip = read(oldfid["vars"]["rockdescrip"]),
     )
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
         macrostrat.rockdescrip, source=:macrostrat
     )
 
-    
-## --- Create new file
-    fid, fex = split("$macrostrat_io", ".")
-    newfid = h5open(fid * "_2." * fex , "w")
 
-    # Copy over existing data
-    g = create_group(newfid, "vars")
-        copy_object(mfid["vars"]["age"], g, "age")
-        copy_object(mfid["vars"]["agemax"], g, "agemax")
-        copy_object(mfid["vars"]["agemin"], g, "agemin")
-        copy_object(mfid["vars"]["elevation"], g, "elevation")
-        copy_object(mfid["vars"]["npoints"], g, "npoints")
-        copy_object(mfid["vars"]["reference"], g, "reference")
-        copy_object(mfid["vars"]["rockcomments"], g, "rockcomments")
-        copy_object(mfid["vars"]["rockdescrip"], g, "rockdescrip")
-        copy_object(mfid["vars"]["rocklat"], g, "rocklat")
-        copy_object(mfid["vars"]["rocklon"], g, "rocklon")
-        copy_object(mfid["vars"]["rockname"], g, "rockname")
-        copy_object(mfid["vars"]["rockstratname"], g, "rockstratname")
-        copy_object(mfid["vars"]["rocktype"], g, "rocktype")
+## --- Put data in new file
+    # Create a copy of the old file
+    fid, fex = split("$macrostrat_io", ".")
+    copyfid = h5open(fid * "_old.h5" , "w")
+
+    keysfid = keys(oldfid)
+    for k in keysfid
+        copy_object(oldfid, k, copyfid, k)
+    end
+
+    close(oldfid)
+
+    # Create a new file and put the old file in it
+    newfid = h5open(macrostrat_io, "w")
+    copy_object(copyfid, "vars", newfid, "vars")    # The stuff that isn't changed
 
     # Rock types and rock names
     bulktypes = create_group(newfid, "type")
-
-    # Rock types
     a = Array{Int64}(undef, length(macro_cats[1]), length(macro_cats))
     for i in eachindex(keys(macro_cats))
         for j in eachindex(macro_cats[i])
@@ -60,7 +56,42 @@
     bulktypes["macro_cats_head"] = string.(collect(keys(macro_cats))) 
 
     close(newfid)
-    close(mfid)
+    close(copyfid)
+
+
+## --- Or if you're working with really old files that don't have the updated structure:
+    # newfid = h5open(macrostrat_io, "w")
+
+    # # Copy over existing data
+    # g = create_group(newfid, "vars")
+    #     copy_object(oldfid["age"], g, "age")
+    #     copy_object(oldfid["agemax"], g, "agemax")
+    #     copy_object(oldfid["agemin"], g, "agemin")
+    #     copy_object(oldfid["elevation"], g, "elevation")
+    #     copy_object(oldfid["npoints"], g, "npoints")
+    #     copy_object(oldfid["reference"], g, "reference")
+    #     copy_object(oldfid["rockcomments"], g, "rockcomments")
+    #     copy_object(oldfid["rockdescrip"], g, "rockdescrip")
+    #     copy_object(oldfid["rocklat"], g, "rocklat")
+    #     copy_object(oldfid["rocklon"], g, "rocklon")
+    #     copy_object(oldfid["rockname"], g, "rockname")
+    #     copy_object(oldfid["rockstratname"], g, "rockstratname")
+    #     copy_object(oldfid["rocktype"], g, "rocktype")
+
+    # # Rock types and rock names
+    # bulktypes = create_group(newfid, "type")
+
+    # # Rock types
+    # a = Array{Int64}(undef, length(macro_cats[1]), length(macro_cats))
+    # for i in eachindex(keys(macro_cats))
+    #     for j in eachindex(macro_cats[i])
+    #         a[j,i] = ifelse(macro_cats[i][j], 1, 0)
+    #     end
+    # end
+    # bulktypes["macro_cats"] = a
+    # bulktypes["macro_cats_head"] = string.(collect(keys(macro_cats))) 
+
+    # close(newfid)
 
 
 ## --- End of File

@@ -391,7 +391,7 @@
             cats[k][i] && (keymatches[k]=true)
         end
 
-        count(keymatches)==0 && return :none
+        count(keymatches)==0 && return (:none,)
         return catkeys[keymatches]
     end
 

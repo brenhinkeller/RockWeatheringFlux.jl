@@ -456,21 +456,21 @@
 
     """
     ```julia
-    class_up(name::Symbol, minorsed, minorign, minormet)
+    class_up(name::Symbol, minorsed, minorign)
     ```
 
     Get the major rock type that describes the minor type `name`.
 
     # Examples
     ```julia-repl
-    julia> class_up(:volc, minorsed, minorign, minormet)
+    julia> class_up(:volc, minorsed, minorign)
     :ign
 
-    julia> class_up(:ign, minorsed, minorign, minormet)
+    julia> class_up(:ign, minorsed, minorign)
     :ign
     ```
     """
-    function class_up(name::Symbol, minorsed, minorign, minormet)
+    function class_up(name::Symbol, minorsed, minorign)
         if name==:sed || name==:ign || name==:met
             return name
         end
@@ -481,12 +481,10 @@
         @inbounds for k in minorign
             name==k && return :ign 
         end
-        @inbounds for k in minormet
-            name==k && return :met 
-        end
 
         return nothing
     end
+
 
     """
     ```julia

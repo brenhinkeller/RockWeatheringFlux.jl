@@ -156,67 +156,53 @@
     ptype.plut ./= nansum(ptype.plut)
     ptype.ign ./= nansum(ptype.ign)
 
+    # I want to calculate the relative abundance of protoliths that could get turned into
+    # metamorphic rocks. Metamorphic rocks (with no known protolith) could be.... 
+    # anything? Or more technically, not anything. It's probably not from a chert 
+    # protolith. Metacarbonates (or metacarbonatites??) are also probably not defined as 
+    # a gneiss. So exclude carbonates, evaporites, chert, phosphorite, coal, and carbonatites
+    protolith = (:siliciclast, :shale, minorvolc..., minorplut...,)
+    pprotolith = float.([count(macro_cats[i]) for i in protolith])
+    pprotolith ./= nansum(pprotolith)
+
 
 ## --- Match each Macrostrat sample to a single informative rock name and type
-    # # Metamorphic rocks (with no known protolith) could be.... anything? Sure, I guess so
-    # # Technically, not anything. It's probably not from a chert protolith. Metacarbonates
-    # # (or metacarbonatites??) are also probably not defined as a gneiss.
-    # # So exclude carbonates, evaporites, chert, phosphorite, coal, and carbonatites
-    # protolith = (:siliciclast, :shale, :sed, minorvolc..., minorplut..., :ign);
-    # for type in protolith
-    #     macro_cats.met .|= macro_cats[type]
-    #     bulk_cats.met .|= bulk_cats[type]
-    # end
+    # Doing this in several passes over the sample set means that I can optimize sections
+    # that can be optimized, which will make this faster. 
 
     # Preallocate
-    bigtypes = Array{Symbol}(undef, length(macrostrat.age), 1)
-    littletypes = Array{Symbol}(undef, length(macrostrat.age), 1)
+    bigtypes = Array{Symbol}(undef, length(macrostrat.age), 1)      # Sed / ign
+    littletypes = Array{Symbol}(undef, length(macrostrat.age), 1)   # Shale, chert, etc.
 
-    p = Progress(length(bigtypes) ÷ 10, desc="Sanitizing types...")
-    for i in eachindex(bigtypes)
+    # Pass one: randomly pick a type for each sample
+    for i in eachindex(littletypes)
         alltypes = get_type(macro_cats, i, all_keys=true)
+        littletypes[i] = rand(alltypes)
+    end
 
-        if alltypes===nothing
-            bigtypes[i] = littletypes[i] = :none
-            i%10==0 && next!(p)
+    # Pass two: reassign major types to a minor subtype
+    @timev for i in eachindex(littletypes)
+        if littletypes[i] == :met
+        # Metamorphic: assign a protolith
+            littletypes[i] = protolith[weighted_rand(pprotolith)]
             continue
-        end
-
-        # Randomly select a rock name, unless there aren't anything
-        sampletype = rand(alltypes)
-
-        # If it's a major type, weighted random selection
-
-        # Unweighted random selection of a corresponding type. If cover, pick again
-        alltypes = class_up(typelist, string(s_name), all_types=true)
-        notcover = .![t==:cover for t in alltypes]
-        if count(notcover)==0
-            sampletypes[i] = samplenames[i] = :none
-            i%10==0 && next!(p)
+        elseif littletypes[i] == :sed
+        # Sedimentary: assign a minor type
+            littletypes[i] = minorsed[weighted_rand(ptype.sed)]
+            bigtypes[i] = :sed
             continue
+        elseif littletypes[i] == :ign
+        # Igneous: assign volcanic / plutonic / carbonatite
+            littletypes[i] = subminor_ign[weighted_rand(ptype.ign)]
+            bigtypes[i] = :ign
         end
-        s_type = rand(alltypes[notcover])
 
-        # Re-assign major types
-        if s_type==:ign || s_type==:sed || s_type==:met
-            # Ign and sed types get weighted-random assignment to a minor type and name.
-            s_type = minortypes[s_type][weighted_rand(p_type[s_type])]
-            s_name = typelist[s_type][weighted_rand(p_name[s_type])]
-
-        # elseif s_type==:met && string(s_name) in uninformative_met
-        #     # Metamorphic rocks get re-assigned only if the name gives no useful information 
-        #     # about its geochemistry
-
-        #     # Otherwise, pick randomly
-        #     s_type = minortypes.met[weighted_rand(p_type.met)]
-        #     s_name = typelist[s_type][weighted_rand(p_name[s_type])]
+        # Volcanic / plutonic samples should be assigned an appropriate subtype
+        if littletypes[i] == :volc 
+            littletypes[i] = minorvolc[weighted_rand(ptype.volc)]
+        elseif littletypes[i] == :plut 
+            littletypes[i] = minorplut[weighted_rand(ptype.plut)]
         end
-        
-        # Assign
-        sampletypes[i] = s_type
-        samplenames[i] = Symbol(s_name)
-
-        i%10==0 && next!(p)
     end
 
 

@@ -3,13 +3,13 @@
 ## --- File names
 
     # 500 Macrostrat samples
-        macrostrat_io = "output/toy_responses.h5"
-        matchedbulk_io = "output/toy_bulkidx.tsv"
+        # macrostrat_io = "output/toy_responses.h5"
+        # matchedbulk_io = "output/toy_bulkidx.tsv"
 
-        ucc_out = "results/toy_exposedcrust.tsv"
-        eroded_out = "output/toy_erodedmaterial.h5"
-        erodedabs_out = "results/toy_erodedmaterial_abs.csv"
-        erodedrel_out = "results/toy_erodedmaterial_rel.csv"
+        # ucc_out = "results/toy_exposedcrust.tsv"
+        # eroded_out = "output/toy_erodedmaterial.h5"
+        # erodedabs_out = "results/toy_erodedmaterial_abs.csv"
+        # erodedrel_out = "results/toy_erodedmaterial_rel.csv"
 
     # 50_000 Macrostrat samples (note: .tsv filetype is deprecated)
         # macrostrat_io = "output/pregenerated_responses.tsv"
@@ -21,13 +21,13 @@
         # erodedrel_out = "results/erodedmaterial_rel.csv"
 
     # 250_000 Macrostrat samples
-        # macrostrat_io = "output/250K_responses.h5"
-        # matchedbulk_io = "output/250K_bulkidx.tsv"
+        macrostrat_io = "output/250K_responses.h5"
+        matchedbulk_io = "output/250K_bulkidx.tsv"
 
-        # ucc_out = "results/250K_exposedcrust.tsv"
-        # eroded_out = "output/250K_erodedmaterial.h5"
-        # erodedabs_out = "results/250K_erodedmaterial_abs.csv"
-        # erodedrel_out = "results/250K_erodedmaterial_rel.csv"
+        ucc_out = "results/250K_exposedcrust.tsv"
+        eroded_out = "output/250K_erodedmaterial.h5"
+        erodedabs_out = "results/250K_erodedmaterial_abs.csv"
+        erodedrel_out = "results/250K_erodedmaterial_rel.csv"
 
     # 1_000_000 Macrostrat samples
         # macrostrat_io = "output/1M_responses.h5"
@@ -397,8 +397,8 @@
 
 
 
-        return 
-    end
+        # return 
+    # end
 
     # get_specific(list::Tuple{Symbol}, minorsed::Tuple{Symbol}, minorign::Tuple{Symbol})
 

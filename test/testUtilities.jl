@@ -1,7 +1,16 @@
 ## -- Test functions from Utilities.jl
     using Test
+    include("../src/utilities/Utilities.jl")
 
+## --- Get umbrella class
+    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
+    @test class_up(:ign, minorsed, minorign) == :ign 
+    @test class_up(:shale, minorsed, minorign) == :sed
+    @test class_up(:volc, minorsed, minorign) == :ign
+    @test class_up(:basalt, minorsed, minorign) == :ign
+    @test class_up(:carbonatite, minorsed, minorign) == :ign
 
+    
 ## --- Rock name matching
     rocktype = ["sedimentary and volcanic rocks", "major: {limestone},minor: {slate}", "", "",]
     rockname = ["precambrian-phanerozoic sedimentary and volcanic rocks", "rabbitkettle fm", 

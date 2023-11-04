@@ -118,7 +118,10 @@
 
     Define sedimentary, igneous, and metamorphic rock types and subtypes. Metamorphic rocks
     are grouped with their protoliths when possible. Return a list of the minor types which
-    map to each major type.
+    map to each major type. 
+
+    Define `major=true` to return only sedimentary, igneous, and metamorphic types. Rather
+    than a list of subtypes, this will return an empty set of values.
 
     ### Possible subtypes
      *  Sedimentary: siliciclastic, shale, carbonate, evaporite, chert, phosphorite, coal,
@@ -132,25 +135,28 @@
          *  Igneous (uncategorized)
       * Metamorphic: metamorphic (uncategorized)
 
-    The lists of major and sub-major types (e.g. sedimentary, igneous, volcanic, etc.) do 
-    __not__ include the minor types which map to them. That is, "igneous" rocks do not 
-    include "volcanic" rocks. The returned lists of mapped minor types can be used to 
-    create inclusive lists. For example, the list of minor igneous types includes volcanic
-    and plutonic rocks, as well as carbonatites. Note that the lists of minor types do not
-    include the major type; that is, "igneous" is not included in "minorign."
+    Subtypes are defined as a list of each bullet point, but the major (uncategorized) type
+    is not included. That is, `minorsed` includes `siliciclastic`, `shale`, `carbonate`, 
+    `evaporite`, `chert`, `phosphorite`, and `coal`, but not `sed`.
 
-    ### Optional kwargs
-        
-        major
-    
-    Return only Tuples for sedimentary, metamorphic, and igneous types. Boolean; defaults 
-    to `false`
+    The `minorvolc` and `minorplut` lists do not include `volc` or `plut`, but these are 
+    included as subtypes of `ign`.
+
+    ### Subtype Inclusion
+    The lists of rock names matched to major rock types (e.g., sedimentary, igneous, etc.)
+    do __not__ include the rock names which match to minor types. That is, the list of 
+    sedimentary rock names does not include names which describe shales or cherts.
+
+    Volcanic and plutonic rocks are similar. The list of volcanic rock names does not
+    include rock names which describe basalts or andesites.
+
+    To include these subtypes in the list of all rock names, set `major=true`.
 
     # Examples
     ```julia-repl
     julia> typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
 
-    julia> typelist, minorsed, minorign = get_rock_class(major=true);
+    julia> typelist, = get_rock_class(major=true);
     ```
 
     """
@@ -259,7 +265,7 @@
 
         if major
             typelist = (sed=(minorsed, sed...,), ign=(minorign, ign...,), met=met, cover=cover)
-            minors = (minorsed, minorign)
+            minors = ()
         else
             typelist = (
                 # Sedimentary
@@ -481,7 +487,7 @@
     # Include the `minorsed` and `minorign` lists if you want things to run faster.
     # """
     # get_specific(list::Tuple{Symbol})
-    #     minorsed, minorign = get_minor_types()
+    #     minorsed, minorign = get_minor_types(major)
 
 
 

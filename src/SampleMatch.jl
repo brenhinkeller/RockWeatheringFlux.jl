@@ -79,15 +79,6 @@
     data = @. data > 0
     bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
 
-    # Rock name matches
-    # For each rock name in this Tuple, get a BitVector of all samples that could
-    # potentially match to that rock name. The rock names which match to sample (i) are
-    # not indicative of the rock names which match to that sample.
-    rocknames = read(fid["bulktypes"]["bulk_lookup_head"])
-    data = read(fid["bulktypes"]["bulk_lookup"])
-    data = @. data > 0
-    bulk_lookup = NamedTuple{Tuple(Symbol.(rocknames))}([data[:,i] for i in eachindex(rocknames)])
-
     close(fid)
     
 
@@ -102,61 +93,40 @@
     # bulk_cats = match_rocktype(bulktext.Rock_Name, bulktext.Type, bulktext.Material; 
     #     unmultimatch=false, inclusive=false, source=:earthchem
     # )
-    
-    # Get EarthChem samples for each rock name
-    # typelist = get_rock_class(inclusive=true)      # Subtypes, major types include minors
-    # class_names = string.(collect(keys(typelist)))
-    # bulk_lookup = NamedTuple{keys(name_cats)}([falses(length(bulktext.Rock_Name)) 
-    #     for _ in eachindex(name_cats)]
-    # )
-
-    # p = Progress(length(rocknames), desc="Finding EarthChem samples for each rock name")
-    # for i in eachindex(rocknames)
-    #     bulk_lookup[i] .= find_earthchem(rocknames[i], bulktext.Rock_Name, bulktext.Type, 
-    #         bulktext.Material
-    #     )
-
-    #     # If no matches, jump up a class. Find everything within that class
-    #     if count(bulk_lookup[i]) == 0
-    #         searchlist = typelist[class_up(typelist, rocknames[i])]
-
-    #         # Search all of those names; each class should at least have something
-    #         for j in eachindex(searchlist)
-    #             bulk_lookup[i] .|= find_earthchem(searchlist[j], bulktext.Rock_Name, 
-    #                 bulktext.Type, bulktext.Material
-    #             )
-    #         end
-    #     end
-    #     next!(p)
-    # end
 
 
-## --- Remove all multimatches from major types
-    # This means that major types should be ONLY those samples which cannot be matched
-    # with any minor types
-    minorsed, minorign, minormet = get_minor_types()
-    
+## --- Major types should include all minor types
+    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
+
+    # We want the lithologic samples to be as descriptive as possible as to what they are.
+    # We want the EarthChem samples to represent the geochemistry of each sample as 
+    # accurately and completely as possible.
     for type in minorsed
-        macro_cats.sed .&= .!macro_cats[type]
-        bulk_cats.sed .&= .!bulk_cats[type]
+        # macro_cats.sed .|= macro_cats[type]
+        bulk_cats.sed .|= bulk_cats[type]
+    end
+    for type in minorvolc
+        # macro_cats.volc .|= macro_cats[type]
+        bulk_cats.volc .|= bulk_cats[type]
+    end
+    for type in minorplut
+        # macro_cats.plut .|= macro_cats[type]
+        bulk_cats.plut .|= bulk_cats[type]
     end
     for type in minorign
-        macro_cats.ign .&= .!macro_cats[type]
-        bulk_cats.ign .&= .!bulk_cats[type]
+        # macro_cats.ign .|= macro_cats[type]
+        bulk_cats.ign .|= bulk_cats[type]
     end
 
-    # Metamorphic rocks are inclusive, but a rock that is both metased and metaign is
-    # re-assigned to just metamorphic
-    for type in minormet
-        macro_cats.met .&= .!macro_cats[type]
-        bulk_cats.met .&= .!bulk_cats[type]     # Avoid metased / metaign cross contamination
+    # Metamorphic rocks (with no known protolith) could be.... anything? Sure, I guess so
+    # Technically, not anything. It's probably not from a chert protolith. Metacarbonates
+    # (or metacarbonatites??) are also probably not defined as a gneiss.
+    # So exclude carbonates, evaporites, chert, phosphorite, coal, and carbonatites
+    protolith = (:siliciclast, :shale, :sed, minorvolc..., minorplut..., :ign);
+    for type in protolith
+        # macro_cats.met .|= macro_cats[type]
+        bulk_cats.met .|= bulk_cats[type]
     end
-
-    # Add multimatches back in to metamorphic EarthChem samples
-    # Metamorphic rocks with unknown protoliths are allowed to be metaseds and metaigns
-    bulk_cats.metased .|= bulk_cats.met
-    bulk_cats.metaign .|= bulk_cats.met
-    bulk_cats.met .|= (bulk_cats.metased .& bulk_cats.metaign)
 
 
 ## --- Get weights for weighted-random selection of rock types and names
@@ -167,7 +137,7 @@
     p_type = (
         sed = float.([count(macro_cats[i]) for i in minorsed]),
         ign = float.([count(macro_cats[i]) for i in minorign]),
-        met = float.([count(macro_cats[i]) for i in minormet])
+        # met = float.([count(macro_cats[i]) for i in minormet])
     )
     [p_type[i] ./= sum(p_type[i]) for i in keys(p_type)]
 
@@ -254,52 +224,62 @@
 
 
 ## --- Load resampled data
-    # Load data
-    fid = h5open("output/resampled/resampled_rocknames.h5", "r")
-    header = read(fid["vars"]["header"])
-    data = read(fid["vars"]["simout"])
-    simout = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    # # Load data
+    # fid = h5open("output/resampled/resampled_rocknames.h5", "r")
+    # header = read(fid["vars"]["header"])
+    # data = read(fid["vars"]["simout"])
+    # simout = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
 
-    # Get rocknames from kz number
-    kz_names = read(fid["vars"]["rocknames_kz"])
-    kz_i = collect(1:length(kz_names))
-    simout_names = NamedTuple{Tuple(Symbol.(kz_names))}([falses(length(simout.Kz_1)) 
-        for _ in eachindex(kz_names)]
-    );
+    # # Get rocknames from kz number
+    # kz_names = read(fid["vars"]["rocknames_kz"])
+    # kz_i = collect(1:length(kz_names))
+    # simout_names = NamedTuple{Tuple(Symbol.(kz_names))}([falses(length(simout.Kz_1)) 
+    #     for _ in eachindex(kz_names)]
+    # );
     
-    kz_out = (:Kz_1, :Kz_2, :Kz_3, :Kz_4, :Kz_5, :Kz_6)
-    for i in kz_i
-        for k in kz_out
-            # Get all samples that match with the given rock name / kz number 
-            t = @. simout[k] == i
-            simout_names[Symbol(kz_names[i])][t] .|= true
-        end
-    end
+    # kz_out = (:Kz_1, :Kz_2, :Kz_3, :Kz_4, :Kz_5, :Kz_6)
+    # for i in kz_i
+    #     for k in kz_out
+    #         # Get all samples that match with the given rock name / kz number 
+    #         t = @. simout[k] == i
+    #         simout_names[Symbol(kz_names[i])][t] .|= true
+    #     end
+    # end
 
-    # For names with no matches, jump up a class and match with all mapped names
-    # Typelist is inclusive, because if something is an unknown sed, we want it to match
-    # with every sedimentary rock
-    typelist = get_rock_class(inclusive=true)
-    for k in keys(simout_names)
-        if count(simout_names[k]) < 3
-            # upper = class_up(typelist, string(k))
-            # for r in typelist[upper]
-            #     simout_names[k] .|= simout_names[Symbol(r)]
-            # end
-            println(k)
-        end
-    end
+    # # For names with no matches, jump up a class and match with all mapped names
+    # # Typelist is inclusive, because if something is an unknown sed, we want it to match
+    # # with every sedimentary rock
+    # typelist = get_rock_class(inclusive=true)
+    # for k in keys(simout_names)
+    #     if count(simout_names[k]) < 3
+    #         upper = class_up(typelist, string(k))
+    #         for r in typelist[upper]
+    #             simout_names[k] .|= simout_names[Symbol(r)]
+    #         end
+    #         # println(k)
+    #     end
+    # end
+
+    # # For major and minor subtypes, match with all names for that subtype 
+    # for k in keys(bulk_cats)
+    #     if haskey(simout_names, k)
+    #         for r in typelist[k]
+    #             if haskey(simout_names, Symbol(r))
+    #                 simout_names[k] .|= simout_names[Symbol(r)]
+    #             end
+    #         end
+    #     end
+    # end
 
 
 ## --- Initialize for EarthChem sample matching
     # Definitions
     geochemkeys = get_elements()[1][1:end-1]        # Major non-volatile elements
-    # bulk_idxs = collect(1:length(bulk.SiO2))        # Indices of bulk samples
-    simout_ind = collect(1:length(simout.SiO2))
+    bulk_idxs = collect(1:length(bulk.SiO2))        # Indices of bulk samples
+    simout_ind = collect(1:length(simout.SiO2))     # Indices of resampled data
 
     # # Zero-NaN version of the major elements in bulk
-    # bulkzero = deepcopy(bulk)
-    # bulkzero = NamedTuple{Tuple(geochemkeys)}([zeronan!(bulkzero[i]) for i in geochemkeys])
+    bulkzero = NamedTuple{Tuple(geochemkeys)}([zeronan(bulkzero[i]) for i in geochemkeys])
 
     # Zero-NaN version of the major elements in the resampled dataset
     simout_zeronan = NamedTuple{Tuple(geochemkeys)}(zeronan(simout[i]) for i in geochemkeys)
@@ -414,29 +394,44 @@
     ylims!(0, ymax*1.05)
     display(h)
 
+    # Would you still have unexpected modes if I was a snail :(
     snails = Symbol.(typelist.shale)
+    snailfig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(snails))
     for i in eachindex(snails)
-        # Plot
+        # How many Burwell samples do we have, and what are they matched to?
         n = count(name_cats[snails[i]])
         samples = matches[t .& name_cats[snails[i]]]
+
+        # Plot
         h = histogram(bulk.SiO2[samples], bins=100, norm=:pdf,
             color=colors.shale, lcolor=:match, framestyle=:box,
-            label="$(snails[i]) n=$n", xlabel="SiO₂ [wt.%]", ylabel="Weight", 
+            title="$(snails[i]); n=$n", xlabel="SiO₂ [wt.%]", ylabel="Weight", label="",
+            xlims=(0,100)
         )
         ymin, ymax = ylims(h)
         ylims!(0, ymax*1.05)
-        display(h)
+        # display(h)
+        snailfig[i] = h
 
         # Get the ratio of number of samples to number of matched samples
-        r = n / length(unique(samples))
+        s = t .& name_cats[snails[i]]
         @info """ $(snails[i]):
-        n burwell samples = $n 
-        n matched samples = $(length(unique(samples)))
-        n earthchem sampl = $(count(simout_names[snails[i]]))
-        n:s = $(round(r, digits=3))
-
+        n burwell samples  = $n
+        n possible samples = $(count(simout_names[snails[i]]))
+        
+        matches:
+        n unique samples   = $(length(unique(samples)))
+        n total samples    = $(count(s))
         """
     end
+
+    nrows = round(Int, length(snails)/2)
+    h = Plots.plot(snailfig..., layout=(nrows, 2), size=(1200,nrows*400),
+        xlabel="", ylabel="",
+        left_margin=(25,:px),
+        legendfont=15
+    )
+    display(h)
 
 
 ## --- Plot

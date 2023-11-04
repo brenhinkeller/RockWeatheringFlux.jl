@@ -113,7 +113,7 @@
 ## --- Rock type classifications
     """
     ```julia
-    get_rock_class([major::Bool], [inclusive::Bool])
+    get_rock_class([major::Bool])
     ```
 
     Define sedimentary, igneous, and metamorphic rock types and subtypes. Metamorphic rocks
@@ -138,15 +138,14 @@
     Return only Tuples for sedimentary, metamorphic, and igneous types. Boolean; defaults 
     to `false`
 
-        inclusive
-    
-    Sedimentary, igneous, and metamorphic lists include terms for all included subtypes. 
-    Boolean; defaults to `false` unless `major` is `true`.
+    # Examples
+    ```julia-repl
+    julia> typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
 
-    Note that volcanic and plutonic rocks will include all nested volcanic / plutonic 
-    subtypes.
+    julia> typelist, minorsed, minorign = get_rock_class(major=true);
+    ```
     """
-    function get_rock_class(; major::Bool=false, inclusive::Bool=false)
+    function get_rock_class(; major::Bool=false)
         # Sedimentary
         siliciclast = ("siliciclast", "conglo", "sand", "psamm", "arenit", "arkos", "silt",
             "breccia", "quartzite")
@@ -177,7 +176,7 @@
         rhyolite = ("rhyolit", "felsite", "liparite", "felsic", "silicic", "pumice", 
             "obsidian", "dellenite", "rhyodacite", "ignimbrite", "lenticulite", 
             "halleflinta", "leptite",)
-        alk_volc = ( "polzenite", "hauynite", "arsoite", "benmoreite", "camptonite", 
+        alk_volc = ("polzenite", "hauynite", "arsoite", "benmoreite", "camptonite", 
             "ciminite", "damkjernite", "damtjernite", "domite", "fortunite", "gauteite",
             "kenyte", "keratophyre", "kersantite", "kivite", "lampro", "madupite",
             "minette", "monchiquite", "mondhaldeite", "orendite", "phonolite", "sannaite", 
@@ -186,7 +185,8 @@
             "grazinite", "hauynophyre", "kalsilit", "leucitite", "mafurite", "melafoidite",
             "nephelinite","ugandite", "ottajanite", "melnoite", "pantellerite", "comendite", 
             "latite", "tristanite", "augitite", "absarokite", "shoshonite", "linosaite",
-            "bergalite", "alnoite", "kimberlite",  "orangeite", "diatreme", "pipe", )
+            "bergalite", "alnoite", "kimberlite",  "orangeite", "diatreme", "pipe", 
+            "alkaline volcan")
         volcaniclast = ("tonstein", "peperite", "volcaniclastic", "lahar",)
         volc = ("volcanic", "extrusive", "lava", "eutaxite", "vitrophyre", "volcan", 
             "ash", "ashfall", "tuff",  "tephra", "cinder", "porphyrite", 
@@ -215,7 +215,8 @@
             "murambite", "tephrite", "tahitite", "vicoite", "urtite", "ankaramite", 
             "basanit", "limburgite", "biotitite", "riedenite", "glimmerite", "kamafugite",
             "turjaite", "essexite", "yamaskite", "teschenite", "crinanite", "vibetoite",  
-            "uncompahgrite", "apatitite", "nelsonite", "phoscorite", "kullaite", )
+            "uncompahgrite", "apatitite", "nelsonite", "phoscorite", "kullaite", 
+            "alkaline pluton")
         plut = ("plutonic", "pluton", "intrusive", "intrus", "sill", "dike", "stock", 
             "laccolith", "lopolith", "batholith", "porphyry", "megacryst",
             "hypabyssal", "chromitite", "topazite", )
@@ -239,47 +240,46 @@
             "quaternary", "soil", "laterite", "surficial deposits", "scree", "peat", 
             "swamp", "marsh", "water", "ice")
 
-        if inclusive || major
-            # Major types include all minor subtypes
-            sed = (siliciclast..., shale..., carb..., evap..., chert..., 
-                phosphorite..., coal..., sed...,)
-            ign = (komatiite..., basalt..., andesite..., dacite..., rhyolite..., 
-                alk_volc..., volcaniclast..., volc..., peridotite..., pyroxenite..., 
-                gabbro..., diorite..., trondhjemite..., tonalite..., granodiorite..., 
-                granite..., alk_plut..., plut..., carbonatite..., ign...,)
+        # Define major and minor rock types
+        minorsed = (:siliciclast, :shale, :carb, :evap, :chert, :phosphorite, :coal,)
+        minorvolc = (:komatiite, :basalt, :andesite, :dacite, :rhyolite, :alk_volc, 
+            :volcaniclast,)
+        minorplut = (:peridotite, :pyroxenite, :gabbro, :diorite, :trondhjemite, :tonalite, 
+            :tonalite, :granodiorite, :granite, :alk_plut, :plut)
+        minorign = (minorvolc..., :volc, minorplut..., :plut, :carbonatite)
 
-            # If only returning major types, do that 
-            if major
-                return (sed=sed, ign=ign, met=met, cover=cover)
-            end
+        if major
+            typelist = (sed=(minorsed, sed...,), ign=(minorign, ign...,), met=met, cover=cover)
+            minors = (minorsed, minorign)
+        else
+            typelist = (
+                # Sedimentary
+                siliciclast=siliciclast, shale=shale, carb=carb, evap=evap, chert=chert, 
+                phosphorite=phosphorite, coal=coal, sed=sed,
+
+                # Volcanic
+                komatiite=komatiite, basalt=basalt, andesite=andesite, dacite=dacite, 
+                rhyolite=rhyolite, alk_volc=alk_volc, volcaniclast=volcaniclast, volc=volc, 
+                
+                # Plutonic
+                peridotite=peridotite, pyroxenite=pyroxenite, gabbro=gabbro, diorite=diorite, 
+                trondhjemite=trondhjemite, tonalite=tonalite, granodiorite=granodiorite, 
+                granite=granite, alk_plut=alk_plut, plut=plut, 
+
+                # Igneous
+                carbonatite=carbonatite,
+                ign=carbonatite,
+
+                # Metamorphic
+                met=met,
+
+                # Cover
+                cover=cover,
+            )
+            minors = (minorsed, minorvolc, minorplut, minorign)
         end
 
-        # If returning minor types, do that. The major types have been set to be inclusive
-        # in the if statement above, if we wanted that
-        return (
-            # Sedimentary
-            siliciclast=siliciclast, shale=shale, carb=carb, evap=evap, chert=chert, 
-            phosphorite=phosphorite, coal=coal, sed=sed,
-
-            # Volcanic
-            komatiite=komatiite, basalt=basalt, andesite=andesite, dacite=dacite, 
-            rhyolite=rhyolite, alk_volc=alk_volc, volcaniclast=volcaniclast, volc=volc, 
-            
-            # Plutonic
-            peridotite=peridotite, pyroxenite=pyroxenite, gabbro=gabbro, diorite=diorite, 
-            trondhjemite=trondhjemite, tonalite=tonalite, granodiorite=granodiorite, 
-            granite=granite, alk_plut=alk_plut, plut=plut, 
-
-            # Igneous
-            carbonatite=carbonatite,
-            ign=carbonatite,
-
-            # Metamorphic
-            met=met,
-
-            # Cover
-            cover=cover,
-        )
+        return typelist, minors...
     end
 
 
@@ -319,10 +319,11 @@
     ```
     """
     function get_cats(major::Bool, npoints::Int64)
-        typelist = get_rock_class(major=major)
+        typelist, = get_rock_class(major=major)
 
         return typelist, NamedTuple{keys(typelist)}([falses(npoints) for _ in 1:length(typelist)]) 
     end
+
 
 ## --- Define minor types
 
@@ -347,6 +348,8 @@
     ```
     """
     function get_minor_types()
+        @warn "get_minor_types has been deprecated. Use get_rock_class instead."
+
         types = get_cats(false, 1)[2]
         allkeys = collect(keys(types))
 
@@ -356,6 +359,8 @@
 
         return Tuple(allkeys[1:sed-1]), Tuple(allkeys[sed+1:ign-1]), Tuple(allkeys[ign+1:met-1])
     end
+
+
 
 
 ## --- Rock type exclusions to avoid multi-matching
@@ -454,5 +459,29 @@
         return cats
     end
 
+
+    # """
+    # ```julia
+    # get_specific(list, [minorsed], [minorign])
+    # ```
+
+    # From a `list` of types, figure which is the best descriptor of a given rock. Intended
+    # for metamorphic samples which may identify a protolith. Send this to three of your 
+    # friends to totally specify them!
+
+    # Include the `minorsed` and `minorign` lists if you want things to run faster.
+    # """
+    # get_specific(list::Tuple{Symbol})
+    #     minorsed, minorign = get_minor_types()
+
+
+
+    #     return 
+    # end
+
+    # get_specific(list::Tuple{Symbol}, minorsed::Tuple{Symbol}, minorign::Tuple{Symbol})
+
+    #     return 
+    # end
     
 ## --- End of file

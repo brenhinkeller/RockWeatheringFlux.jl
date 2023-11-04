@@ -143,16 +143,18 @@
     subminor_ign = (:volc, :plut, :carbonatite)     # Volc and plut MUST include subtypes
 
     # Counts
-    psed = float.([count(macro_cats[i]) for i in minorsed])
-    pvolc = float.([count(macro_cats[i]) for i in minorvolc])
-    pplut = float.([count(macro_cats[i]) for i in minorplut])
-    pign = float.([count(macro_cats[i]) for i in subminor_ign])
+    ptype = (
+        sed = float.([count(macro_cats[i]) for i in minorsed]),
+        volc = float.([count(macro_cats[i]) for i in minorvolc]),
+        plut = float.([count(macro_cats[i]) for i in minorplut]),
+        ign = float.([count(macro_cats[i]) for i in subminor_ign]),
+    )
     
     # Relative abundance / fraction
-    psed ./= nansum(psed)
-    pvolc ./= nansum(pvolc)
-    pplut ./= nansum(pplut)
-    pign ./= nansum(pign)
+    ptype.sed ./= nansum(ptype.sed)
+    ptype.volc ./= nansum(ptype.volc)
+    ptype.plut ./= nansum(ptype.plut)
+    ptype.ign ./= nansum(ptype.ign)
 
 
 ## --- Match each Macrostrat sample to a single informative rock name and type
@@ -181,7 +183,9 @@
         end
 
         # Randomly select a rock name, unless there aren't anything
-        samplename = rand(alltypes)
+        sampletype = rand(alltypes)
+
+        # If it's a major type, weighted random selection
 
         # Unweighted random selection of a corresponding type. If cover, pick again
         alltypes = class_up(typelist, string(s_name), all_types=true)

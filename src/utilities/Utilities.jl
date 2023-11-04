@@ -12,8 +12,8 @@
     ```julia
     match_rocktype(primary, secondary, tertiary; 
         source::Symbol, 
-        [major::Bool], 
-        [unmultimatch::Bool])
+        [major::Bool]
+    )
     ```
 
     Classify rock samples as sedimentary, igneous, or metamorphic (and associated subtypes)
@@ -46,10 +46,8 @@
     """
     match_rocktype(primary::AbstractArray, secondary::AbstractArray, tertiary::AbstractArray; 
         major::Bool=false, 
-        unmultimatch::Bool=true,
-        inclusive::Bool=true, 
         source::Symbol
-    ) = _match_rocktype(primary, secondary, tertiary, major, unmultimatch, inclusive, static(source))
+    ) = _match_rocktype(primary, secondary, tertiary, major, static(source))
 
     """
     ```julia
@@ -58,7 +56,7 @@
 
     Match Macrostrat rock names to defined rock classes.
     """
-    function _match_rocktype(rocktype, rockname, rockdescrip, major, unmultimatch, inclusive,
+    function _match_rocktype(rocktype, rockname, rockdescrip, major,
             source::StaticSymbol{:macrostrat}
         )
 
@@ -110,21 +108,6 @@
             next!(p)
         end
 
-        # If subtypes are true, major types must also be true
-        if !major && inclusive
-            minorsed, minorign, minormet = get_minor_types()
-            for type in minorsed
-                cats.sed .|= cats[type]
-            end
-            for type in minorign
-                cats.ign .|= cats[type]
-            end
-            for type in minormet
-                cats.met .|= cats[type]
-            end
-        end
-
-        unmultimatch && return un_multimatch!(cats, major)
         return cats
     end
 
@@ -135,7 +118,7 @@
 
     Match Earthchem rock names to defined rock classes.
     """
-    function _match_rocktype(Rock_Name, Type, Material, major, unmultimatch, inclusive,
+    function _match_rocktype(Rock_Name, Type, Material, major,
             source::StaticSymbol{:earthchem}
         )
 
@@ -188,21 +171,6 @@
         end
         next!(p)
 
-        # If subtypes are true, major types must also be true
-        if !major && inclusive
-            minorsed, minorign, minormet = get_minor_types()
-            for type in minorsed
-                cats.sed .|= cats[type]
-            end
-            for type in minorign
-                cats.ign .|= cats[type]
-            end
-            for type in minormet
-                cats.met .|= cats[type]
-            end
-        end
-
-        unmultimatch && return un_multimatch!(cats, major)
         return cats
     end
 
@@ -215,6 +183,8 @@
     Return a `NamedTuple` of `BitVector`s catagorizing Macrostrat samples as sedimentary, 
     igneous, metamorphic, and associated subtypes, or cover from types stored as strings 
     in `writtentype`.
+
+    Major types do not include minor subtypes.
     """
     function match_rocktype(writtentype::AbstractArray{String})
         cats = get_cats(false, length(writtentype))[2]
@@ -225,19 +195,6 @@
                 cats[Symbol(writtentype[i])][i] = true
             catch
                 continue
-            end
-        end
-
-        # Define sed / ign / met as true when their subtypes are true
-        minorsed, minorign, minormet = get_minor_types()
-        minortypes = (
-            sed = minorsed,
-            ign = minorign,
-            met = minormet
-        )
-        for k in keys(minortypes)
-            for i in minortypes[k]
-                cats[k][cats[i]] .= true
             end
         end
 
@@ -300,7 +257,7 @@
         rockdescrip::AbstractArray)
 
         # Get rock names as one long list, excluding cover
-        typelist = get_rock_class(major=true)
+        typelist, = get_rock_class(major=true)
         typelist = unique((typelist.sed..., typelist.met..., typelist.ign...))
 
         # Initialize a NamedTuple with a BitVector for each rock name

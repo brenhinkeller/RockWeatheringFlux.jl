@@ -22,10 +22,9 @@
         rockdescrip = read(mfid["vars"]["rockdescrip"]),
     )
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
-        macrostrat.rockdescrip, unmultimatch=false, inclusive=false, source=:macrostrat
+        macrostrat.rockdescrip, source=:macrostrat
     )
-    
-    name_cats = match_rockname(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
+
     
 ## --- Create new file
     fid, fex = split("$macrostrat_io", ".")
@@ -59,16 +58,6 @@
     end
     bulktypes["macro_cats"] = a
     bulktypes["macro_cats_head"] = string.(collect(keys(macro_cats))) 
-
-    # Rock names
-    a = Array{Int64}(undef, length(name_cats[1]), length(name_cats))
-    for i in eachindex(keys(name_cats))
-        for j in eachindex(name_cats[i])
-            a[j,i] = ifelse(name_cats[i][j], 1, 0)
-        end
-    end
-    bulktypes["name_cats"] = a
-    bulktypes["name_cats_head"] = string.(collect(keys(name_cats)))
 
     close(newfid)
     close(mfid)

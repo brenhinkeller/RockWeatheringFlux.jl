@@ -42,12 +42,6 @@
     data = @. data > 0
     macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
 
-    # Rock name matches
-    header = read(fid["type"]["name_cats_head"])
-    data = read(fid["type"]["name_cats"])
-    data = @. data > 0
-    name_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
-
     close(fid)
     
 
@@ -96,25 +90,25 @@
 
 
 ## --- Major types should include all minor types
+    # Lithology: for estimating relative abundances, we want major types to include better
+    # characterized types
+    # Geochemistry: I don't want only weird shit to come up when I pick an igneous rock
     typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
 
-    # We want the lithologic samples to be as descriptive as possible as to what they are.
-    # We want the EarthChem samples to represent the geochemistry of each sample as 
-    # accurately and completely as possible.
     for type in minorsed
-        # macro_cats.sed .|= macro_cats[type]
+        macro_cats.sed .|= macro_cats[type]
         bulk_cats.sed .|= bulk_cats[type]
     end
     for type in minorvolc
-        # macro_cats.volc .|= macro_cats[type]
+        macro_cats.volc .|= macro_cats[type]
         bulk_cats.volc .|= bulk_cats[type]
     end
     for type in minorplut
-        # macro_cats.plut .|= macro_cats[type]
+        macro_cats.plut .|= macro_cats[type]
         bulk_cats.plut .|= bulk_cats[type]
     end
     for type in minorign
-        # macro_cats.ign .|= macro_cats[type]
+        macro_cats.ign .|= macro_cats[type]
         bulk_cats.ign .|= bulk_cats[type]
     end
 
@@ -124,30 +118,23 @@
     # So exclude carbonates, evaporites, chert, phosphorite, coal, and carbonatites
     protolith = (:siliciclast, :shale, :sed, minorvolc..., minorplut..., :ign);
     for type in protolith
-        # macro_cats.met .|= macro_cats[type]
+        macro_cats.met .|= macro_cats[type]
         bulk_cats.met .|= bulk_cats[type]
     end
 
 
-## --- Get weights for weighted-random selection of rock types and names
-    # Major types exclude minor types
-    typelist = get_rock_class(inclusive=false)
-    
-    # Minor rock types
-    p_type = (
-        sed = float.([count(macro_cats[i]) for i in minorsed]),
-        ign = float.([count(macro_cats[i]) for i in minorign]),
-        # met = float.([count(macro_cats[i]) for i in minormet])
-    )
-    [p_type[i] ./= sum(p_type[i]) for i in keys(p_type)]
+## --- Calculate relative abundance of each type in the lithological map
+    subminor_ign = (:volc, :plut, :carbonatite)     # Volc and plut MUST include subtypes
 
-    # Descriptive rock names
-    minortypes = (minorsed..., minorign..., minormet...)
-    p_name = NamedTuple{minortypes}(
-        [[float.(count(name_cats[Symbol(typelist[i][j])])) for j in eachindex(typelist[i])] 
-            for i in minortypes
-    ])
-    [p_name[i] ./= sum(p_name[i]) for i in keys(p_name)]
+    psed = float.([count(macro_cats[i]) for i in minorsed])
+    pvolc = float.([count(macro_cats[i]) for i in minorvolc])
+    pplut = float.([count(macro_cats[i]) for i in minorplut])
+    pign = float.([count(macro_cats[i]) for i in subminor_ign])
+    
+    psed ./= nansum(psed)
+    pvolc ./= nansum(pvolc)
+    pplut ./= nansum(pplut)
+    pign ./= nansum(pign)
 
 
 ## --- Match each Macrostrat sample to a single informative rock name and type

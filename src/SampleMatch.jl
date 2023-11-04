@@ -92,7 +92,6 @@
 ## --- Do terrible things to the lists of matched samples
     # If I get the types that are matched to a given sample, I want them to be as specific
     # as possible so I can characterize the sample as accurately as possible.
-    
     typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
     allrocks = collect(keys(typelist))
 
@@ -189,12 +188,10 @@
         elseif littletypes[i] == :sed
         # Sedimentary: assign a minor type
             littletypes[i] = minorsed[weighted_rand(ptype.sed)]
-            bigtypes[i] = :sed
             continue
         elseif littletypes[i] == :ign
         # Igneous: assign volcanic / plutonic / carbonatite
             littletypes[i] = subminor_ign[weighted_rand(ptype.ign)]
-            bigtypes[i] = :ign
         end
 
         # Volcanic / plutonic samples should be assigned an appropriate subtype
@@ -205,28 +202,29 @@
         end
     end
 
+    # Pass three: figure out if the type is a sedimentary or igneous type
+    for i in eachindex(bigtypes)
+        if littletypes[i]==:none 
+            bigtypes[i] = :none 
+        else
+            bigtypes[i] = class_up(littletypes[i], minorsed, minorign)
+        end
+    end
+
 
 ## --- Initialize for EarthChem sample matching
     # Definitions
     geochemkeys = get_elements()[1][1:end-1]        # Major non-volatile elements
-    bulk_idxs = collect(1:length(bulk.SiO2))        # Indices of bulk samples
-    simout_ind = collect(1:length(simout.SiO2))     # Indices of resampled data
+    bulk_inds = collect(1:length(bulk.SiO2))        # Indices of bulk samples
 
     # # Zero-NaN version of the major elements in bulk
-    bulkzero = NamedTuple{Tuple(geochemkeys)}([zeronan(bulkzero[i]) for i in geochemkeys])
+    bulkzero = NamedTuple{Tuple(geochemkeys)}([zeronan(bulk[i]) for i in geochemkeys])
 
-    # Zero-NaN version of the major elements in the resampled dataset
-    simout_zeronan = NamedTuple{Tuple(geochemkeys)}(zeronan(simout[i]) for i in geochemkeys)
-
-    # # Get average geochemistry for each rock name
-    # geochem_lookup = NamedTuple{keys(name_cats)}([major_elements(bulk, bulk_lookup[i]) 
-    #     for i in eachindex(bulk_lookup)]
-    # )
-
-    # Average geochemistry for each rock name
-    simout_geochem = NamedTuple{keys(simout_names)}(
-        [major_elements(simout, simout_names[i]) for i in eachindex(simout_names)]
-    );
+    # Average geochemistry of each rock type 
+    realrocks = deleteat!(allrocks, findall(x->x==:cover,allrocks))     # That isn't cover
+    geochem_lookup = NamedTuple{Tuple(realrocks)}([major_elements(bulk, bulk_cats[i])
+        for i in eachindex(realrocks)]
+    )
 
 
 ## --- Find matching EarthChem sample for each Macrostrat sample
@@ -236,64 +234,36 @@
     # To preserve any multi-modal distributions in the data, we'll randomly 
     # pick one rock name matched with the sample, and randomly select one EarthChem sample
     # that was also matched with that rock name.
-    # 
-    # The error for each major element will be randomly sampled from a normal distribution 
-    # with a mean and standard deviation equal to the mean and standard deviation for that
-    # major element within the selected rock name.
 
     # Preallocate
     matches = zeros(Int64, length(macro_cats.sed))
 
-    # ismet = macro_cats.met .| macro_cats.metaign .| macro_cats.metased;
-
     @info "Starting sample matching $(Dates.format(now(), "HH:MM"))"
     p = Progress(length(matches), desc="Matching samples...")
     @timev for i in eachindex(matches)
-        # if !ismet[i]
-        #     next!(p)
-        #     continue
-        # end
-
-        type = sampletypes[i]
-        # if type == :none
-        #     next!(p)
-        #     continue
-        # end
-
-        if type != :shale
+        ltype = littletypes[i] 
+        btype = bigtypes[i]
+        if ltype == :none
             next!(p)
             continue
         end
 
-        # # Pick a random EarthChem sample as the assumed geochem of the Macrostrat sample
-        # name = samplenames[i]
-        # randsample = rand(bulk_idxs[bulk_lookup[name]])
-        # geochemdata = geochem_lookup[name]
-        # errs = NamedTuple{Tuple(geochemkeys)}(
-        #     nanunzero!([geochemdata[j].e for j in geochemkeys], 1.0)
-        # )
-        # geochemdata = NamedTuple{Tuple(geochemkeys)}([NamedTuple{(:m, :e)}(
-        #     tuple.((bulkzero[j][randsample]), errs[j])) for j in geochemkeys]
-        # )
+        # Assume the geochemical composition of the lithological sample: pick randomly
+        randsample = rand(bulk_inds[bulk_cats[ltype]])
+        uncert = nanunzero!([geochem_lookup[ltype][elem].e for elem in geochemkeys], 1.0)
+        values = [bulkzero[elem][randsample] for elem in geochemkeys]
 
-        # Pick a random resampled Earthchem sample as the assumed geochemistry of the 
-        # Burwell sample
-        name = samplenames[i]
-        randsample = rand(simout_ind[simout_names[name]])
-        uncertainty = NamedTuple{Tuple(geochemkeys)}(
-            nanunzero!([simout_geochem[name][j].e for j in geochemkeys], 1.0)
-        )
-        geochemdata = NamedTuple{Tuple(geochemkeys)}([NamedTuple{(:m, :e)}(
-            tuple.((simout_zeronan[j][randsample]), uncertainty[j])) for j in geochemkeys]
+        geochemdata = NamedTuple{Tuple(geochemkeys)}(
+            NamedTuple{(:m, :e)}((values[j], uncert[j])) for j in eachindex(values)
         )
 
         # Get EarthChem data
-        bulksamples = bulk_cats[type]
+        bulksamples = bulk_cats[btype]
         EC = (
             bulklat = bulk.Latitude[bulksamples],            # EarthChem latitudes
             bulklon = bulk.Longitude[bulksamples],           # EarthChem longitudes
             bulkage = bulk.Age[bulksamples],                 # EarthChem age
-            sampleidx = bulk_idxs[bulksamples],              # Indices of EarthChem samples
+            sampleinds = bulk_inds[bulksamples],             # Indices of EarthChem samples
         )
         bulkgeochem = NamedTuple{Tuple(geochemkeys)}([bulkzero[i][bulksamples] 
             for i in geochemkeys]
@@ -302,21 +272,21 @@
         # Find match
         matches[i] = likelihood(EC.bulkage, macrostrat.age[i], EC.bulklat, EC.bulklon, 
             macrostrat.rocklat[i], macrostrat.rocklon[i], bulkgeochem, geochemdata, 
-            EC.sampleidx
+            EC.sampleinds
         )
 
         next!(p)
     end
 
-    # # Write data to a file
-    # writedlm("$matchedbulk_io", [matches string.(sampletypes)], '\t')
+    # Write data to a file
+    writedlm("$matchedbulk_io", [matches string.(sampletypes)], '\t')
 
-    # # End timer
-    # stop = now()
-    # @info """
-    # Stop: $(Dates.Date(stop)) $(Dates.format(stop, "HH:MM")).
-    # Total runtime: $(canonicalize(round(stop - start, Dates.Minute))).
-    # """
+    # End timer
+    stop = now()
+    @info """
+    Stop: $(Dates.Date(stop)) $(Dates.format(stop, "HH:MM")).
+    Total runtime: $(canonicalize(round(stop - start, Dates.Minute))).
+    """
 
 ## --- Plot
     t = @. matches > 0;

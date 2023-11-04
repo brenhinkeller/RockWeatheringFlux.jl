@@ -117,7 +117,8 @@
     ```
 
     Define sedimentary, igneous, and metamorphic rock types and subtypes. Metamorphic rocks
-    are grouped with their protoliths when possible.
+    are grouped with their protoliths when possible. Return a list of the minor types which
+    map to each major type.
 
     ### Possible subtypes
      *  Sedimentary: siliciclastic, shale, carbonate, evaporite, chert, phosphorite, coal,
@@ -130,6 +131,13 @@
          *  Carbonatite
          *  Igneous (uncategorized)
       * Metamorphic: metamorphic (uncategorized)
+
+    The lists of major and sub-major types (e.g. sedimentary, igneous, volcanic, etc.) do 
+    __not__ include the minor types which map to them. That is, "igneous" rocks do not 
+    include "volcanic" rocks. The returned lists of mapped minor types can be used to 
+    create inclusive lists. For example, the list of minor igneous types includes volcanic
+    and plutonic rocks, as well as carbonatites. Note that the lists of minor types do not
+    include the major type; that is, "igneous" is not included in "minorign."
 
     ### Optional kwargs
         
@@ -144,7 +152,7 @@
 
     julia> typelist, minorsed, minorign = get_rock_class(major=true);
     ```
-    
+
     """
     function get_rock_class(; major::Bool=false)
         # Sedimentary

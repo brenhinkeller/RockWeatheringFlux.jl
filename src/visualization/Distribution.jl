@@ -20,7 +20,7 @@
 
     # More definitions
     bins = (ign = (40,80,40), sed = (0,100,100), met = (25,100,75))   # xmin, xmax, nbins
-    minorsed, minorign, minormet = get_minor_types()
+    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
     geochemkeys, = get_elements()
 
 
@@ -33,6 +33,20 @@
 
     wtype = string.(vec(data[:,2]))
     macro_cats = match_rocktype(wtype[t])
+
+    # Make matches nice and inclusive
+    for type in minorsed
+        macro_cats.sed .|= macro_cats[type]
+    end
+    for type in minorvolc
+        macro_cats.volc .|= macro_cats[type]
+    end
+    for type in minorplut
+        macro_cats.plut .|= macro_cats[type]
+    end
+    for type in minorign
+        macro_cats.ign .|= macro_cats[type]
+    end
 
     # Matched Macrostrat samples
     macrofid = h5open("$macrostrat_io", "r")
@@ -96,37 +110,35 @@
 
 
 ## --- SiO₂ distribution by rock type
-    fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(macro_cats) - 1)
+    # Except... I don't want 30 plots. I want to plot the sedimentary rocks where silica
+    # distributions are useful, and volcanic / plutonic / igneous rocks. Metamorphic rocks
+    # have been reassigned so no more data there.
+    get_visualized = (:siliciclast, :shale, :carb, :chert, :sed, :volc, :plut, :ign)
+    
+    fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(get_visualized)) 
 
-    # Create all plots
-    rocks = collect(keys(macro_cats))
-    for i in eachindex(rocks)
-        r = rocks[i]
-        if r == :cover
-            continue
-        elseif r == :sed || r == :ign || r == :met
-            type = r
-        else
-            r in minorsed && (type = :sed)
-            r in minorign && (type = :ign)
-            r in minormet && (type = :met)
+    for i in eachindex(get_visualized)
+        # Figure out what kind of bins we want
+        r = get_visualized[i]
+        if r==:sed || r in minorsed
+            nb = bins.sed
+        elseif r==:ign || r in minorign
+            nb = bins.ign
         end
 
-        c, n = bincounts(mbulk.SiO2[macro_cats[r]], bins[type]...)
+        # Lol get visualized 
+        c, n = bincounts(mbulk.SiO2[macro_cats[r]], nb...)
         n = float(n) ./ nansum(float(n) .* step(c))
         h = plot(c, n, seriestype=:bar, framestyle=:box, color=colors[r], linecolor=colors[r],
-            label="$(string(r)); n = $(count(macro_cats[r]))",      
-            # ylabel="Weight", xlabel="SiO2 [wt.%]",
+            title="$(string(r)); n = $(count(macro_cats[r]))", label="",     
             ylims=(0, round(maximum(n), digits=2)+0.01) 
         )
-
         fig[i] = h
     end
 
-    # Put into a layout
-    h = plot(fig..., layout=(5,3), size=(2000, 2000))
+    h = plot(fig..., layout=(3,3), size=(1800, 1200))
     display(h)
-    savefig(h, "results/figures/distributions.png")
+    # savefig(h, "results/figures/distributions.png")
 
 
 ## --- [FN CALL] Igneous modal index and Macrostrat data

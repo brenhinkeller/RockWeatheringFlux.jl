@@ -47,7 +47,7 @@
     colors = (
         ign = :crimson, volc = :tomato, plut = :deeppink,
         sed = :royalblue, siliciclast = :dodgerblue, shale = :cadetblue, carb = :aqua,
-            chert = :deepskyblue, evaporite = :lightskyblue, coal = :midnightblue, 
+            chert = :deepskyblue, evap = :lightskyblue, coal = :midnightblue, 
             phosphorite = :turquoise, volcaniclast = :rebeccapurple,
         met = :peru, metased = :yellowgreen, metaign = :darkorange,
         cover = :grey

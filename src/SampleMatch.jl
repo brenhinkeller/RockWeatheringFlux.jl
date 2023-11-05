@@ -89,11 +89,73 @@
     # )
 
 
-## --- Do terrible things to the lists of matched samples
-    # If I get the types that are matched to a given sample, I want them to be as specific
-    # as possible so I can characterize the sample as accurately as possible.
-    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
+## --- Remove misleading positives from the matches
+    # This is important for getting an accurate representation of the abundance of each
+    # rock type on Earth's surfaces. We're also doing this to the EarthChem rocks for 
+    # consistency
+
+    # If it's cover and something else, it can just be the something else
     allrocks = collect(keys(typelist))
+    for type in allrocks
+        type == :cover && continue
+        macro_cats.cover .&= .!macro_cats[type]
+        bulk_cats.cover .&= .!bulk_cats[type]
+    end
+
+    # If it IS just cover, it's not useful, so just take it out completely
+    macro_cats.cover .= false
+    bulk_cats.cover .= false
+
+    # Don't match with metamorphic if you can help it: assume matches to other things
+    # describes the protolith (at least, describes it better than guessing randomly)
+    for type in allrocks
+        type == :met && continue
+        macro_cats.met .&= .!macro_cats[type]
+        bulk_cats.met .&= .!bulk_cats[type]
+    end
+
+    # All granodiorites will also match with diorites, so take out those matches
+    macro_cats.granodiorite .&= .!macro_cats.diorite
+    bulk_cats.granodiorite .&= .!bulk_cats.diorite
+
+
+## --- Calculate relative abundance of each type in the lithological map
+    # For volcanic / plutonic abundance volcanic and plutonic rocks MUST include subtypes...
+    subminor_ign = (:volc, :plut, :carbonatite) 
+    for type in minorvolc
+        macro_cats.volc .|= macro_cats[type]
+    end
+    for type in minorplut
+        macro_cats.plut .|= macro_cats[type]
+    end
+
+    # Count number of rocks in each subtype
+    ptype = (
+        sed = float.([count(macro_cats[i]) for i in minorsed]),
+        volc = float.([count(macro_cats[i]) for i in minorvolc]),
+        plut = float.([count(macro_cats[i]) for i in minorplut]),
+        ign = float.([count(macro_cats[i]) for i in subminor_ign]),
+    )
+    
+    # Calculate relative abundance / fraction
+    ptype.sed ./= nansum(ptype.sed)
+    ptype.volc ./= nansum(ptype.volc)
+    ptype.plut ./= nansum(ptype.plut)
+    ptype.ign ./= nansum(ptype.ign)
+
+    # I want to calculate the relative abundance of protoliths that could get turned into
+    # metamorphic rocks. Metamorphic rocks (with no known protolith) could be.... 
+    # anything? Or more technically, not anything. It's probably not from a chert 
+    # protolith. Metacarbonates (or metacarbonatites??) are also probably not defined as 
+    # a gneiss. So exclude carbonates, evaporites, chert, phosphorite, coal, and carbonatites
+    protolith = (:siliciclast, :shale, minorvolc..., minorplut...,)
+    pprotolith = float.([count(macro_cats[i]) for i in protolith])
+    pprotolith ./= nansum(pprotolith)
+
+
+## --- If samples are matched to a rock subtype and a rock major type, don't
+    # This is mostly important for figuring out what minor type to assign each sample
+    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
 
     # Don't match with a major type if you can match with a minor type. Also, don't match
     # to volcanic or plutonic if you can do better.
@@ -114,56 +176,6 @@
         bulk_cats.ign .&= .!bulk_cats[type]
     end
 
-    # Don't match with metamorphic if you can help it: assume matches to other things
-    # describes the protolith (at least, describes it better than guessing randomly)
-    for type in allrocks
-        type == :met && continue
-        macro_cats.met .&= .!macro_cats[type]
-        bulk_cats.met .&= .!bulk_cats[type]
-    end
-
-    # If it's cover and something else, it can just be the something else
-    for type in allrocks
-        type == :cover && continue
-        macro_cats.cover .&= .!macro_cats[type]
-        bulk_cats.cover .&= .!bulk_cats[type]
-    end
-
-    # If it IS just cover, it's not useful, so just take it out completely
-    macro_cats.cover .= false
-    bulk_cats.cover .= false
-
-    # All granodiorites will also match with diorites, so take out those matches
-    macro_cats.granodiorite .&= .!macro_cats.diorite
-    bulk_cats.granodiorite .&= .!bulk_cats.diorite
-
-
-## --- Calculate relative abundance of each type in the lithological map
-    subminor_ign = (:volc, :plut, :carbonatite)     # Volc and plut MUST include subtypes
-
-    # Counts
-    ptype = (
-        sed = float.([count(macro_cats[i]) for i in minorsed]),
-        volc = float.([count(macro_cats[i]) for i in minorvolc]),
-        plut = float.([count(macro_cats[i]) for i in minorplut]),
-        ign = float.([count(macro_cats[i]) for i in subminor_ign]),
-    )
-    
-    # Relative abundance / fraction
-    ptype.sed ./= nansum(ptype.sed)
-    ptype.volc ./= nansum(ptype.volc)
-    ptype.plut ./= nansum(ptype.plut)
-    ptype.ign ./= nansum(ptype.ign)
-
-    # I want to calculate the relative abundance of protoliths that could get turned into
-    # metamorphic rocks. Metamorphic rocks (with no known protolith) could be.... 
-    # anything? Or more technically, not anything. It's probably not from a chert 
-    # protolith. Metacarbonates (or metacarbonatites??) are also probably not defined as 
-    # a gneiss. So exclude carbonates, evaporites, chert, phosphorite, coal, and carbonatites
-    protolith = (:siliciclast, :shale, minorvolc..., minorplut...,)
-    pprotolith = float.([count(macro_cats[i]) for i in protolith])
-    pprotolith ./= nansum(pprotolith)
-
 
 ## --- Match each Macrostrat sample to a single informative rock name and type
     # Doing this in several passes over the sample set means that I can optimize sections
@@ -180,7 +192,7 @@
     end
 
     # Pass two: reassign major types to a minor subtype
-    @timev for i in eachindex(littletypes)
+    for i in eachindex(littletypes)
         if littletypes[i] == :met
         # Metamorphic: assign a protolith
             littletypes[i] = protolith[weighted_rand(pprotolith)]
@@ -258,7 +270,7 @@
         )
 
         # Get EarthChem data
-        bulksamples = bulk_cats[btype]
+        bulksamples = bulk_cats[ltype]
         EC = (
             bulklat = bulk.Latitude[bulksamples],            # EarthChem latitudes
             bulklon = bulk.Longitude[bulksamples],           # EarthChem longitudes
@@ -279,7 +291,7 @@
     end
 
     # Write data to a file
-    writedlm("$matchedbulk_io", [matches string.(sampletypes)], '\t')
+    writedlm("$matchedbulk_io", [matches string.(littletypes)], '\t')
 
     # End timer
     stop = now()
@@ -288,79 +300,26 @@
     Total runtime: $(canonicalize(round(stop - start, Dates.Minute))).
     """
 
-## --- Plot
-    t = @. matches > 0;
-    h = histogram(bulk.SiO2[matches[t]], bins=100, norm=:pdf,
-        color=colors.shale, lcolor=:match, 
-        label="Shale", xlabel="SiO₂ [wt.%]", ylabel="Weight", framestyle=:box
-    )
-    ymin, ymax = ylims(h)
-    ylims!(0, ymax*1.05)
-    display(h)
+## --- Quick visualization of distributions
+    using Plots
 
-    # Would you still have unexpected modes if I was a snail :(
-    snails = Symbol.(typelist.shale)
-    snailfig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(snails))
-    for i in eachindex(snails)
-        # How many Burwell samples do we have, and what are they matched to?
-        n = count(name_cats[snails[i]])
-        samples = matches[t .& name_cats[snails[i]]]
-
-        # Plot
-        h = histogram(bulk.SiO2[samples], bins=100, norm=:pdf,
-            color=colors.shale, lcolor=:match, framestyle=:box,
-            title="$(snails[i]); n=$n", xlabel="SiO₂ [wt.%]", ylabel="Weight", label="",
-            xlims=(0,100)
-        )
-        ymin, ymax = ylims(h)
-        ylims!(0, ymax*1.05)
-        # display(h)
-        snailfig[i] = h
-
-        # Get the ratio of number of samples to number of matched samples
-        s = t .& name_cats[snails[i]]
-        @info """ $(snails[i]):
-        n burwell samples  = $n
-        n possible samples = $(count(simout_names[snails[i]]))
-        
-        matches:
-        n unique samples   = $(length(unique(samples)))
-        n total samples    = $(count(s))
-        """
+    # Make matches nice and inclusive
+    for type in minorsed
+        macro_cats.sed .|= macro_cats[type]
+    end
+    for type in minorvolc
+        macro_cats.volc .|= macro_cats[type]
+    end
+    for type in minorplut
+        macro_cats.plut .|= macro_cats[type]
+    end
+    for type in minorign
+        macro_cats.ign .|= macro_cats[type]
     end
 
-    nrows = round(Int, length(snails)/2)
-    h = Plots.plot(snailfig..., layout=(nrows, 2), size=(1200,nrows*400),
-        xlabel="", ylabel="",
-        left_margin=(25,:px),
-        legendfont=15
-    )
-    display(h)
-
-
-## --- Plot
-
-    # # All non-zero samples are metamorphic, so we don't have to restrict
-    # t = @. matches > 0;
-    # h1 = histogram(bulk.SiO2[matches[t]], bins=100, norm=:pdf,
-    #     color=colors.met, lcolor=:match, 
-    #     label="", xlabel="SiO2 [wt.%]", ylabel="Abundance", title="Metamorphic",
-    #     framestyle=:box
-    # )
-    # ymin, ymax = ylims(h1)
-    # ylims!(0, ymax*1.05)
-
-    # t .&= macro_cats.metaign;
-    # h2 = histogram(bulk.SiO2[matches[t]], bins=100, norm=:pdf,
-    #     color=colors.metaign, lcolor=:match, 
-    #     label="", xlabel="SiO2 [wt.%]", ylabel="Abundance", title="Metaigneous",
-    #     framestyle=:box
-    # )
-    # ymin, ymax = ylims(h2)
-    # ylims!(0, ymax*1.05)
-
-    # h = Plots.plot(h1, h2, layout=(2, 1), size=(600,800), left_margin=(25,:px))
-    # display(h)
+    # 
+    get_visualized = (:volc, :plut, :ign, :siliciclast, :shale, :carb, :chert, :sed)
+    fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(get_visualized)) 
 
 
 ## --- End of File

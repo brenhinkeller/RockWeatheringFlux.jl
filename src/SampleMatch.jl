@@ -95,7 +95,7 @@
     # consistency
 
     # If it's cover and something else, it can just be the something else
-    allrocks = collect(keys(typelist))
+    allrocks = collect(keys(macro_cats))
     for type in allrocks
         type == :cover && continue
         macro_cats.cover .&= .!macro_cats[type]
@@ -120,6 +120,8 @@
 
 
 ## --- Calculate relative abundance of each type in the lithological map
+    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
+
     # For volcanic / plutonic abundance volcanic and plutonic rocks MUST include subtypes...
     subminor_ign = (:volc, :plut, :carbonatite) 
     for type in minorvolc
@@ -155,7 +157,6 @@
 
 ## --- If samples are matched to a rock subtype and a rock major type, don't
     # This is mostly important for figuring out what minor type to assign each sample
-    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
 
     # Don't match with a major type if you can match with a minor type. Also, don't match
     # to volcanic or plutonic if you can do better.
@@ -182,7 +183,7 @@
     # that can be optimized, which will make this faster... by two orders of magnitude lol
 
     # Preallocate
-    bigtypes = Array{Symbol}(undef, length(macrostrat.age), 1)      # Sed / ign
+    bigtypes = Array{Symbol}(undef, length(macrostrat.age), 1)      # Sed, volc, ign, etc.
     littletypes = Array{Symbol}(undef, length(macrostrat.age), 1)   # Shale, chert, etc.
 
     # Pass one: randomly pick a type for each sample
@@ -219,7 +220,7 @@
         if littletypes[i]==:none 
             bigtypes[i] = :none 
         else
-            bigtypes[i] = class_up(littletypes[i], minorsed, minorign)
+            bigtypes[i] = class_up(littletypes[i], minorsed, minorvolc, minorplut, minorign)
         end
     end
 
@@ -236,7 +237,25 @@
     realrocks = deleteat!(allrocks, findall(x->x==:cover,allrocks))     # That isn't cover
     geochem_lookup = NamedTuple{Tuple(realrocks)}([major_elements(bulk, bulk_cats[i])
         for i in eachindex(realrocks)]
-    )
+    );
+
+    # Make major types inclusive of minor types?
+    for type in minorsed
+        macro_cats.sed .|= macro_cats[type]
+        bulk_cats.sed .|= bulk_cats[type]
+    end
+    for type in minorvolc
+        macro_cats.volc .|= macro_cats[type]
+        bulk_cats.volc .|= bulk_cats[type]
+    end
+    for type in minorplut
+        macro_cats.plut .|= macro_cats[type]
+        bulk_cats.plut .|= bulk_cats[type]
+    end
+    for type in minorign
+        macro_cats.ign .|= macro_cats[type]
+        bulk_cats.ign .|= bulk_cats[type]
+    end
 
 
 ## --- Find matching EarthChem sample for each Macrostrat sample
@@ -270,7 +289,7 @@
         )
 
         # Get EarthChem data
-        bulksamples = bulk_cats[ltype]
+        bulksamples = bulk_cats[btype]
         EC = (
             bulklat = bulk.Latitude[bulksamples],            # EarthChem latitudes
             bulklon = bulk.Longitude[bulksamples],           # EarthChem longitudes
@@ -317,9 +336,34 @@
         macro_cats.ign .|= macro_cats[type]
     end
 
-    # 
+    # Matched silica 
+    t = matches .> 0;
+    silica = bulk.SiO2[matches[t]]
+
+    # Send this to three of your friends to totally visualize them
     get_visualized = (:volc, :plut, :ign, :siliciclast, :shale, :carb, :chert, :sed)
     fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(get_visualized)) 
+    for i in eachindex(get_visualized)
+        # Figure out what kind of bins we want
+        r = get_visualized[i]
+        if r==:sed || r in minorsed
+            nb = (0,100,100)
+        elseif r==:ign || r in minorign
+            nb = (40,80,40)
+        end
+
+        # Lol get visualized!
+        c, n = bincounts(silica[macro_cats[r][t]], nb...)
+        n = float(n) ./ nansum(float(n) .* step(c))
+        h = plot(c, n, seriestype=:bar, framestyle=:box, color=colors[r], linecolor=colors[r],
+            title="$(string(r)); n = $(count(macro_cats[r]))", label="",     
+            ylims=(0, round(maximum(n), digits=2)+0.01) 
+        )
+        fig[i] = h
+    end
+
+    h = plot(fig..., layout=(3,3), size=(1800, 1200))
+    display(h)
 
 
 ## --- End of File

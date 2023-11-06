@@ -63,18 +63,65 @@
     t_init = @. 84 <= bulkweight <= 104;
     init = count(t)
 
-    
-## --- Run a simulation with this initial restriction, assuming no volatiles
     # Open a file to save data
     fid = h5open("simout.h5", "w")
     g = create_group(fid, "vars")
 
-    # Save the list of elements
-    # This allows us to interpret the order of the crustal composition estimtates
-    g["elements"] = string.([majors; minors])
+    # Save the initial conditions
+    g_init = create_group(g, "init")
+    g_init["elements"] = string.([majors; minors])  # Order of crustal composition
+    g_init["bulkweight"] = bulkweight               # Computed wt.%
+    g_init["volatiles_known"] = volatiles           # Reported volatiles
+    g_init["additional"] = additional               # Assumed sedimentary volatiles
+    g_init["nsamples"] = init                       # Number of samples after initial filter
 
 
-## --- Run simulations
+## --- Run a simulation assuming no volatiles
+    sim_g = create_group(g, "sim_0")
+    sim_g["added"] = 0
+
+    # Restrict the dataset to filtered samples
+    simbulk = merge(bulk, (Volatiles=volatiles,))
+    simbulk = NamedTuple{Tuple(allkeys)}([simbulk[i][t_init] for i in allkeys])
+
+    # Normalize compositions to 100%
+    contributing = [allelements; :Volatiles]                # Re-include volatiles!
+    for i in eachindex(simbulk.SiO2)
+        sample = [simbulk[j][i] for j in contributing]      # Get it
+        normalize!(sample)                                  # Normalize it
+        for j in eachindex(contributing)                    # Put it back
+            simbulk[contributing[j]][i] = sample[j]
+        end
+    end
+
+    # Get rock types for this set of samples
+    bulk_cats = match_rocktype(
+        lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name][t]),
+        lowercase.(bulktext.elements.Type[bulktext.index.Type][t]), 
+        lowercase.(bulktext.elements.Material[bulktext.index.Material][t]), 
+        source=:earthchem
+    )
+
+    # Make a copy of the Macrostrat rock type matches to avoid weird things happening
+    macro_cats = deepcopy(init_macro_cats)
+
+    # Match samples
+    include("sim_SampleMatch.jl")
+    sim_g["matches"] = matches
+
+    # Restrict the bulk dataset down to just the matched samples
+    t = @. matches > 0
+    matchbulk = NamedTuple{Tuple(allkeys)}(
+        [zeronan!(simbulk[k][matches[t]]) for k in eachindex(allkeys)])
+
+    # Calculate the bulk composition of continental crust
+    # majors, minors = get_elements()       # This was done in sim_ScreenBulk.jl
+    # allelements = [majors; minors]
+    simUCC = [nanmean(matchbulk[i]) for i in allelements]
+    sim_g["UCC"] = simUCC
+
+
+## --- Run simulations with assumed volatiles
     simvaluesin = [90, 80, 70, 60, 50, 40, 30, 20, 16]
 
     for j in eachindex(simvaluesin)
@@ -89,7 +136,7 @@
         simadded = count(t) - init                # How many samples did we add?
         sim_g["added"] = simadded
 
-        # Restrict the dataset and normalize compositions to 100%
+        # Restrict the dataset to filtered samples
         simvolatiles = volatiles .+ additional
         simbulk = merge(bulk, (Volatiles=simvolatiles,))
         simbulk = NamedTuple{Tuple(allkeys)}([simbulk[i][t] for i in allkeys])

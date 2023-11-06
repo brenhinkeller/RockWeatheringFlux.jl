@@ -12,6 +12,8 @@
 # the reported composition is not normalized to 100%. We compare this to a simulation
 # where we do not add any assumed volatiles.
 
+# nohup julia test/volatile_sensitivity/VolatileSensitivityTesting.jl &
+
 ## --- Set up 
     # Packages
     using MAT
@@ -61,7 +63,7 @@
 
     # How many samples did we start with?
     t_init = @. 84 <= bulkweight <= 104;
-    init = count(t)
+    init = count(t_init)
 
     # Open a file to save data
     fid = h5open("simout.h5", "w")
@@ -96,9 +98,9 @@
 
     # Get rock types for this set of samples
     bulk_cats = match_rocktype(
-        lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name][t]),
-        lowercase.(bulktext.elements.Type[bulktext.index.Type][t]), 
-        lowercase.(bulktext.elements.Material[bulktext.index.Material][t]), 
+        lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name][t_init]),
+        lowercase.(bulktext.elements.Type[bulktext.index.Type][t_init]), 
+        lowercase.(bulktext.elements.Material[bulktext.index.Material][t_init]), 
         source=:earthchem
     )
 

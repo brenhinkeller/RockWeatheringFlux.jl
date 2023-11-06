@@ -69,6 +69,9 @@
     fid = h5open("test/volatile_sensitivity/simout.h5", "w")
     g = create_group(fid, "vars")
 
+    # majors, minors = get_elements()       # This was done in sim_ScreenBulk.jl
+    # allelements = [majors; minors]
+
     # Save the initial conditions
     g_init = create_group(g, "init")
     g_init["elements"] = string.([majors; minors])  # Order of crustal composition
@@ -77,6 +80,8 @@
     g_init["additional"] = additional               # Assumed sedimentary volatiles
     g_init["nsamples"] = init                       # Number of samples after initial filter
 
+    # Create a group for the simulations
+    g = create_group(fid, "sims")
 
 ## --- Run simulations with assumed volatiles
     simvaluesin = [90, 80, 70, 60, 50, 40, 30, 20, 16]
@@ -133,6 +138,11 @@
         # allelements = [majors; minors]
         simUCC = [nanmean(matchbulk[i]) for i in allelements]
         sim_g["UCC"] = simUCC
+
+        # Standard error
+        n = length(matchbulk.SiO2)
+        simSTD = [nanstd(matchbulk[i]) for i in allelements]
+        sim_g["SEM"] = simSTD ./ sqrt(n)
     end
 
 
@@ -179,6 +189,11 @@
     # allelements = [majors; minors]
     simUCC = [nanmean(matchbulk[i]) for i in allelements]
     sim_g["UCC"] = simUCC
+
+    # Standard error
+    n = length(matchbulk.SiO2)
+    simSTD = [nanstd(matchbulk[i]) for i in allelements]
+    sim_g["SEM"] = simSTD ./ sqrt(n)
 
 
 ## --- End simulation: close file, stop timer

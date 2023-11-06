@@ -18,14 +18,38 @@
     using Static
     using Measurements
     using ProgressMeter
+    using StatsBase
+    using DelimitedFiles
+    using StaticArrays
+    using LogExpFunctions
 
     # Local utilites
     include("../../src/utilities/Utilities.jl")
     
+## --- Load the Macrostrat / burwell source file
+    fid = h5open("output/250K_responses.h5", "r")
+    
+    # Data
+    macrostrat = (
+        rocklat = read(fid["vars"]["rocklat"]),
+        rocklon = read(fid["vars"]["rocklon"]),
+        age = read(fid["vars"]["age"]),
+        rocktype = read(fid["vars"]["rocktype"]),
+        rockname = read(fid["vars"]["rockname"]),
+        rockdescrip = read(fid["vars"]["rockdescrip"]),
+    )
+    
+    # Rock type matches
+    header = read(fid["type"]["macro_cats_head"])
+    data = read(fid["type"]["macro_cats"])
+    data = @. data > 0
+    init_macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
 
-    # Calculate the reported weight and additional sedimentary volatiles needed to get 
-    # to 100% for each sample
-    include("ReportedWeight.jl")
+    close(fid)
+    
+
+## --- Calculate the total reported weight percent and assumed volatiles for each sample
+    include("sim_ScreenBulk.jl")
 
     # How many samples did we start with?
     t = @. 84 <= bulkweight <= 104
@@ -41,18 +65,34 @@
         # Restrict data to 84-104 wt.% and cap assumed volatiles at limit to be tested
         t = @. 84 <= bulkweight .+ additional <= 104
         t .&= additional .< simvaluesin[i]
+        simadd = count(t) - init                # How many samples did we add?
 
-        # How many samples did we add?
-        simadd = count(t) - init
-
-        # Get rock types for the samples we're keeping
+        # Get rock types for this set of samples
         bulkrockname = lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name][t])
         bulkrocktype = lowercase.(bulktext.elements.Type[bulktext.index.Type][t])
         bulkmaterial = lowercase.(bulktext.elements.Material[bulktext.index.Material][t])
-
         bulk_cats = match_rocktype(bulkrockname, bulkrocktype, bulkmaterial, source=:earthchem)
 
+        # Restrict the dataset and normalize compositions to 100%
+        simvolatiles = volatiles .+ additional
+        simbulk = merge(bulk, (Volatiles=simvolatiles,))
+        simbulk = NamedTuple{Tuple(allkeys)}([simbulk[i][t] for i in allkeys])
+
+        # Normalize compositions to 100%
+        contributing = [allelements; :Volatiles]                # Re-include volatiles!
+        for i in eachindex(simbulk.SiO2)
+            sample = [simbulk[j][i] for j in contributing]      # Get it
+            normalize!(sample)                                  # Normalize it
+            for j in eachindex(contributing)                    # Put it back
+                simbulk[contributing[j]][i] = sample[j]
+            end
+        end
+
+        # Make a copy of the Macrostrat rock type matches to avoid weird things happening
+        macro_cats = deepcopy(init_macro_cats)
+
         # Match samples
+        include("sim_SampleMatch.jl")
 
         # Calculate the bulk composition of continental crust
 

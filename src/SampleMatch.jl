@@ -115,8 +115,8 @@
     end
 
     # All granodiorites will also match with diorites, so take out those matches
-    macro_cats.granodiorite .&= .!macro_cats.diorite
-    bulk_cats.granodiorite .&= .!bulk_cats.diorite
+    macro_cats.diorite .&= .!macro_cats.granodiorite
+    bulk_cats.diorite .&= .!bulk_cats.granodiorite
 
 
 ## --- Calculate relative abundance of each type in the lithological map

@@ -66,7 +66,7 @@
     init = count(t_init)
 
     # Open a file to save data
-    fid = h5open("simout.h5", "w")
+    fid = h5open("test/volatile_sensitivity/simout.h5", "w")
     g = create_group(fid, "vars")
 
     # Save the initial conditions

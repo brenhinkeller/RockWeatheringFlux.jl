@@ -168,6 +168,7 @@
         bulk_cats.ign .|= bulk_cats[type]
     end
 
+    
 ## --- Find matching EarthChem sample for each Macrostrat sample
     # Preallocate
     matches = zeros(Int64, length(macro_cats.sed))
@@ -207,6 +208,6 @@
             EC.sampleinds
         )
     end
-    
+
 
 ## --- End of file

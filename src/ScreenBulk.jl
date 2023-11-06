@@ -120,7 +120,7 @@
     
     # We want major types to include minor types
     # Remember there are no minor metamorphic rocks anymore! Goodbye! I'll miss you :(
-    minorsed, minorign, = get_minor_types()
+    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
     for type in minorsed
         bulk_cats.sed .|= bulk_cats[type]
     end
@@ -261,12 +261,12 @@
     """
 
 ## --- Save an intermediate file for analysis
-    fid = h5open("output/intermediate_screen.h5", "w")
-    g = create_group(fid, "vars")
-        g["SiO2"] = bulk.SiO2
-        g["bulkweight"] = bulkweight
-        g["additional"] = additional
-    close(fid)
+    # fid = h5open("output/intermediate_screen.h5", "w")
+    # g = create_group(fid, "vars")
+    #     g["SiO2"] = bulk.SiO2
+    #     g["bulkweight"] = bulkweight
+    #     g["additional"] = additional
+    # close(fid)
 
 
 ## --- Restrict to in-bounds only and normalize compositions
@@ -294,7 +294,6 @@
             [bulktext_methods.index[i][t] for i in restrictmethods]
         )
     )
-    bulkrockname = lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name])
 
     # Other / general elements
     bulktext = (
@@ -312,9 +311,7 @@
     bulkmaterial = lowercase.(bulktext.elements.Material[bulktext.index.Material])
 
     # Match rock types
-    bulk_cats = match_rocktype(bulkrockname, bulkrocktype, bulkmaterial, 
-        unmultimatch=false, inclusive=false, source=:earthchem
-    )
+    bulk_cats = match_rocktype(bulkrockname, bulkrocktype, bulkmaterial, source=:earthchem)
 
 
 ## --- Write data to an HDF5 file

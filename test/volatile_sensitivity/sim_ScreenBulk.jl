@@ -52,7 +52,7 @@
     
     # We want major types to include minor types
     # Remember there are no minor metamorphic rocks anymore! Goodbye! I'll miss you :(
-    minorsed, minorign, = get_minor_types()
+    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
     for type in minorsed
         bulk_cats.sed .|= bulk_cats[type]
     end

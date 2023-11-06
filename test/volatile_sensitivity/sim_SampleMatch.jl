@@ -177,7 +177,6 @@
         ltype = littletypes[i] 
         btype = bigtypes[i]
         if ltype == :none
-            next!(p)
             continue
         end
 

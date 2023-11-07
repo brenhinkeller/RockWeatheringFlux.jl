@@ -81,49 +81,32 @@
     #     macrostrat.rockdescrip, unmultimatch=false, inclusive=false, source=:macrostrat
     # )
 
-    # name_cats = match_rockname(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
-    # rocknames = string.(keys(name_cats))
-
     # bulk_cats = match_rocktype(bulktext.Rock_Name, bulktext.Type, bulktext.Material; 
     #     unmultimatch=false, inclusive=false, source=:earthchem
     # )
 
 
 ## --- Remove misleading positives from the matches
-    # This is important for getting an accurate representation of the abundance of each
-    # rock type on Earth's surfaces. We're also doing this to the EarthChem rocks for 
-    # consistency
+    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
 
-    # If it's cover and something else, it can just be the something else
-    allrocks = collect(keys(macro_cats))
-    for type in allrocks
-        type == :cover && continue
-        macro_cats.cover .&= .!macro_cats[type]
-        bulk_cats.cover .&= .!bulk_cats[type]
-    end
-
-    # If it IS just cover, it's not useful, so just take it out completely
+    # Remove matches with cover
     macro_cats.cover .= false
     bulk_cats.cover .= false
 
-    # Don't match with metamorphic if you can help it: assume matches to other things
-    # describes the protolith (at least, describes it better than guessing randomly)
-    for type in allrocks
-        type == :met && continue
+    # All granodiorites will also match with diorite. Remove these matches
+    macro_cats.diorite .&= .!macro_cats.granodiorite
+    bulk_cats.diorite .&= .!bulk_cats.granodiorite
+
+    # Metamorphic rocks are only metamorphic if we cannot infer a protolith
+    for type in keys(macro_cats)
+        type==:met && continue
         macro_cats.met .&= .!macro_cats[type]
         bulk_cats.met .&= .!bulk_cats[type]
     end
 
-    # All granodiorites will also match with diorites, so take out those matches
-    macro_cats.diorite .&= .!macro_cats.granodiorite
-    bulk_cats.diorite .&= .!bulk_cats.granodiorite
-
 
 ## --- Calculate relative abundance of each type in the lithological map
-    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
-
-    # For volcanic / plutonic abundance volcanic and plutonic rocks MUST include subtypes...
-    subminor_ign = (:volc, :plut, :carbonatite) 
+    # To calculate total volcanic / plutonic abundance, must include subtypes
     for type in minorvolc
         macro_cats.volc .|= macro_cats[type]
     end
@@ -131,35 +114,30 @@
         macro_cats.plut .|= macro_cats[type]
     end
 
-    # Count number of rocks in each subtype
+    # Absolute abundance of each rock type (count)
     ptype = (
         sed = float.([count(macro_cats[i]) for i in minorsed]),
         volc = float.([count(macro_cats[i]) for i in minorvolc]),
         plut = float.([count(macro_cats[i]) for i in minorplut]),
-        ign = float.([count(macro_cats[i]) for i in subminor_ign]),
+        ign = float.([count(macro_cats[i]) for i in minorign]),
     )
     
-    # Calculate relative abundance / fraction
+    # Calculate fractional abundance (fraction of total)
     ptype.sed ./= nansum(ptype.sed)
     ptype.volc ./= nansum(ptype.volc)
     ptype.plut ./= nansum(ptype.plut)
     ptype.ign ./= nansum(ptype.ign)
 
-    # I want to calculate the relative abundance of protoliths that could get turned into
-    # metamorphic rocks. Metamorphic rocks (with no known protolith) could be.... 
-    # anything? Or more technically, not anything. It's probably not from a chert 
-    # protolith. Metacarbonates (or metacarbonatites??) are also probably not defined as 
-    # a gneiss. So exclude carbonates, evaporites, chert, phosphorite, coal, and carbonatites
-    protolith = (:siliciclast, :shale, minorvolc..., minorplut...,)
-    pprotolith = float.([count(macro_cats[i]) for i in protolith])
-    pprotolith ./= nansum(pprotolith)
+    # Calculate the relative abundance of protoliths that could become metamorphic rocks.
+    # Probably not chert / evaporite / coal / carbonatite? Metacarbonates are unlikely to
+    # end up as the type of rocks we have as uncategorized metamorphic (e.g., gneiss)
+    protolith = (:siliciclast, :shale, :volc, :plut)
+    p_protolith = float.([count(macro_cats[i]) for i in protolith])
+    p_protolith ./= nansum(p_protolith)
 
 
 ## --- If samples are matched to a rock subtype and a rock major type, don't
     # This is mostly important for figuring out what minor type to assign each sample
-
-    # Don't match with a major type if you can match with a minor type. Also, don't match
-    # to volcanic or plutonic if you can do better.
     for type in minorsed
         macro_cats.sed .&= .!macro_cats[type]
         bulk_cats.sed .&= .!bulk_cats[type]
@@ -192,35 +170,39 @@
         littletypes[i] = rand(alltypes)
     end
 
-    # Pass two: reassign major types to a minor subtype
+    # Pass two: assign uncategorized metamorphic rocks to a protolith 
     for i in eachindex(littletypes)
-        if littletypes[i] == :met
-        # Metamorphic: assign a protolith
-            littletypes[i] = protolith[weighted_rand(pprotolith)]
-            continue
-        elseif littletypes[i] == :sed
-        # Sedimentary: assign a minor type
-            littletypes[i] = minorsed[weighted_rand(ptype.sed)]
-            continue
-        elseif littletypes[i] == :ign
-        # Igneous: assign volcanic / plutonic / carbonatite
-            littletypes[i] = subminor_ign[weighted_rand(ptype.ign)]
-        end
-
-        # Volcanic / plutonic samples should be assigned an appropriate subtype
-        if littletypes[i] == :volc 
-            littletypes[i] = minorvolc[weighted_rand(ptype.volc)]
-        elseif littletypes[i] == :plut 
-            littletypes[i] = minorplut[weighted_rand(ptype.plut)]
+        if littletypes[i] == :met 
+            littletypes[i] = protolith[weighted_rand(p_protolith)]
         end
     end
 
-    # Pass three: figure out if the type is a sedimentary or igneous type
-    for i in eachindex(bigtypes)
-        if littletypes[i]==:none 
-            bigtypes[i] = :none 
-        else
+    # Pass three: reassign major types to a minor subtype
+    for i in eachindex(littletypes)
+        t = littletypes[i]
+        if t == :sed
+            littletypes[i] = minorsed[weighted_rand(ptype.sed)]
+            bigtypes[i] = :sed
+
+        elseif t == :ign 
+            bigtypes[i] = minorign[weighted_rand(ptype.ign)]
+            if bigtypes[i] == :volc
+                littletypes[i] = minorvolc[weighted_rand(ptype.volc)]
+
+            elseif bigtypes[i] == :plut 
+                littletypes[i] = minorplut[weighted_rand(ptype.plut)]
+
+            elseif bigtypes[i] == :carbonatite
+                littletypes[i] = :carbonatite
+
+            end
+
+        elseif littletypes[i] != :none
             bigtypes[i] = class_up(littletypes[i], minorsed, minorvolc, minorplut, minorign)
+
+        else
+            bigtypes[i] = :none
+        
         end
     end
 

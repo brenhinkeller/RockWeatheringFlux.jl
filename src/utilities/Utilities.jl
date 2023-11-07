@@ -487,7 +487,7 @@
 
     """
     ```julia
-    class_up(name::Symbol, minorsed, minorign)
+    class_up(name::Symbol, minorsed, minorvolc, minorplut, minorign)
     ```
 
     Get the major rock type that describes the minor type `name`.

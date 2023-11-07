@@ -89,11 +89,11 @@
 ## --- Remove misleading positives from the matches
     typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
 
-    # Remove matches with cover
-    macro_cats.cover .= false
-    bulk_cats.cover .= false
+    # I hate cover
+    macro_cats = delete_cover(macro_cats)
+    bulk_cats = delete_cover(bulk_cats)
 
-    # All granodiorites will also match with diorite. Remove these matches
+    # All granodiorites will also match with diorite. Don't do that.
     macro_cats.diorite .&= .!macro_cats.granodiorite
     bulk_cats.diorite .&= .!bulk_cats.granodiorite
 
@@ -334,7 +334,7 @@
             nb = (40,80,40)
         end
 
-        # Lol get visualized!
+        # Get visualized!
         c, n = bincounts(silica[macro_cats[r][t]], nb...)
         n = float(n) ./ nansum(float(n) .* step(c))
         h = plot(c, n, seriestype=:bar, framestyle=:box, color=colors[r], linecolor=colors[r],

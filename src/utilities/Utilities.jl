@@ -239,6 +239,22 @@
 
 
     """
+    ```julia
+    delete_cover(cats)
+    ```
+
+    I don't like cover. It's coarse and rough and irritating, and it gets everywhere. 
+    Not like `cats` after going through this functin. Now the elements are only bedrock.
+    """
+    function delete_cover(cats)
+        start = keys(cats)
+        notcover = start .!= :cover
+
+        kittens = NamedTuple{Tuple(start[t])}(cats[k] for k in start[t])
+        return kittens
+    end
+
+    """
     ```
     match_rockname(rocktype::AbstractArray, rockname::AbstractArray, 
         rockdescrip::AbstractArray)

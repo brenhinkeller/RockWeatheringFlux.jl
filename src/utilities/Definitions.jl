@@ -259,7 +259,7 @@
             :volcaniclast,)
         minorplut = (:peridotite, :pyroxenite, :gabbro, :diorite, :trondhjemite, :tonalite, 
             :tonalite, :granodiorite, :granite, :alk_plut,)
-        minorign = (:volc, plut, :carbonatite)
+        minorign = (:volc, :plut, :carbonatite)
 
         if major
             typelist = (sed=(minorsed, sed...,), ign=(minorign, ign...,), met=met, cover=cover)

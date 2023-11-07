@@ -281,7 +281,7 @@
 
                 # Igneous
                 carbonatite=carbonatite,
-                ign=carbonatite,
+                ign=ign,
 
                 # Metamorphic
                 met=met,

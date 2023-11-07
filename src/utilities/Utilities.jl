@@ -247,10 +247,10 @@
     Not like `cats` after going through this functin. Now the elements are only bedrock.
     """
     function delete_cover(cats)
-        start = keys(cats)
+        start = collect(keys(cats))
         notcover = start .!= :cover
 
-        kittens = NamedTuple{Tuple(start[t])}(cats[k] for k in start[t])
+        kittens = NamedTuple{Tuple(start[notcover])}(cats[k] for k in start[notcover])
         return kittens
     end
 

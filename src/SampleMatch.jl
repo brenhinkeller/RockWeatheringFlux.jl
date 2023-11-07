@@ -215,10 +215,10 @@
     # # Zero-NaN version of the major elements in bulk
     bulkzero = NamedTuple{Tuple(geochemkeys)}([zeronan(bulk[i]) for i in geochemkeys])
 
-    # Average geochemistry of each rock type 
-    realrocks = deleteat!(allrocks, findall(x->x==:cover,allrocks))     # That isn't cover
-    geochem_lookup = NamedTuple{Tuple(realrocks)}([major_elements(bulk, bulk_cats[i])
-        for i in eachindex(realrocks)]
+    # Average geochemistry of each rock type
+    rox = keys(macro_cats)
+    geochem_lookup = NamedTuple{Tuple(rox)}([major_elements(bulk, bulk_cats[i])
+        for i in eachindex(rox)]
     );
 
     # Make major types inclusive of minor types?
@@ -234,20 +234,9 @@
         macro_cats.plut .|= macro_cats[type]
         bulk_cats.plut .|= bulk_cats[type]
     end
-    for type in minorign
-        macro_cats.ign .|= macro_cats[type]
-        bulk_cats.ign .|= bulk_cats[type]
-    end
 
 
 ## --- Find matching EarthChem sample for each Macrostrat sample
-    # As part of this process, we'll need to assume the geochemistry of the Macrostrat 
-    # sample.
-    # 
-    # To preserve any multi-modal distributions in the data, we'll randomly 
-    # pick one rock name matched with the sample, and randomly select one EarthChem sample
-    # that was also matched with that rock name.
-
     # Preallocate
     matches = zeros(Int64, length(macro_cats.sed))
 

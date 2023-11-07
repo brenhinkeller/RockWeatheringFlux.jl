@@ -14,29 +14,27 @@
     sᵢ = findfirst(x->x=="SiO2", allelements)
 
     # How many simulations did we run?
-    folders = keys(fid["vars"])
-    nsims = 0
-    for k in folders
-        occursin("sim", k) && (nsims += 1)
-    end
+    folders = keys(fid["vars"]["sims"])
+    nsims = length(folders)
 
     # Preallcoate
     silica = Array{Float64}(undef, nsims)
+    sem = Array{Float64}(undef, nsims)
     simvalue = Array{Float64}(undef, nsims)
     
     # Get data
-    i = 1   # Counter
-    for k in folders
-        !occursin("sim", k) && continue
+    for i in folders
+        k = folders[i]
 
         # Get the silica composition of the crust
-        comp = read(fid["vars"][k]["UCC"])
+        comp = read(fid["vars"]["sims"][k]["UCC"])
+        err = read(fid["vars"]["sims"][k]["SEM"])
         silica[i] = comp[sᵢ]
+        sem[i] = err[sᵢ]
 
         # Get the maximum wt.% assumed volatiles 
         val = split(k, "_")[2]
         simvalue[i] = parse(Float64, val)
-        i += 1
     end
 
     close(fid)
@@ -52,53 +50,53 @@
 
 
 ## --- I want to add SEM but I don't want to run everything again. Load matches
-    fid = h5open("test/volatile_sensitivity/simout.h5", "r")
-    folders = keys(fid["vars"])
-    nsims = 0
-    for k in folders
-        occursin("sim", k) && (nsims += 1)
-    end
+    # fid = h5open("test/volatile_sensitivity/simout.h5", "r")
+    # folders = keys(fid["vars"])
+    # nsims = 0
+    # for k in folders
+    #     occursin("sim", k) && (nsims += 1)
+    # end
 
-    # Find index of SiO2 measurement
-    allelements = read(fid["vars"]["init"]["elements"])
-    sᵢ = findfirst(x->x=="SiO2", allelements)
+    # # Find index of SiO2 measurement
+    # allelements = read(fid["vars"]["init"]["elements"])
+    # sᵢ = findfirst(x->x=="SiO2", allelements)
 
-    # Preallcoate
-    silica = Array{Float64}(undef, nsims)
-    sem = Array{Float64}(undef, nsims)
-    simvalue = Array{Float64}(undef, nsims)
+    # # Preallcoate
+    # silica = Array{Float64}(undef, nsims)
+    # sem = Array{Float64}(undef, nsims)
+    # simvalue = Array{Float64}(undef, nsims)
 
-    # Re-compute crustal composition and get SEM
-    i = 1   # Generic counter
-    for k in folders
-        !occursin("sim", k) && continue
+    # # Re-compute crustal composition and get SEM
+    # i = 1   # Generic counter
+    # for k in folders
+    #     !occursin("sim", k) && continue
 
-        # Load matches
-        matches = read(fid["vars"]["k"]["matches"])
-        t = @. matches > 0
-        matchbulk = NamedTuple{Tuple(allelements)}(
-            [zeronan!(simbulk[e][matches[t]]) for e in eachindex(allelements)])
+    #     # Load matches
+    #     matches = read(fid["vars"]["k"]["matches"])
+    #     t = @. matches > 0
+    #     matchbulk = NamedTuple{Tuple(allelements)}(
+    #         [zeronan!(simbulk[e][matches[t]]) for e in eachindex(allelements)])
 
-        n = length(matchbulk.SiO2)
-        simUCC = [nanmean(matchbulk[i]) for i in allelements]
-        simSEM = [nanstd(matchbulk[i]) for i in allelements] ./ sqrt(n)
+    #     n = length(matchbulk.SiO2)
+    #     simUCC = [nanmean(matchbulk[i]) for i in allelements]
+    #     simSEM = [nanstd(matchbulk[i]) for i in allelements] ./ sqrt(n)
 
-        # Get the silica composition of the crust
-        silica[i] = simUCC[sᵢ]
-        sem[i] = simSEM[sᵢ]
+    #     # Get the silica composition of the crust
+    #     silica[i] = simUCC[sᵢ]
+    #     sem[i] = simSEM[sᵢ]
 
-        # Get the maximum wt.% assumed volatiles 
-        val = split(k, "_")[2]
-        simvalue[i] = parse(Float64, val)
-        i += 1
-    end
+    #     # Get the maximum wt.% assumed volatiles 
+    #     val = split(k, "_")[2]
+    #     simvalue[i] = parse(Float64, val)
+    #     i += 1
+    # end
 
-    # And visualize
-    h = plot(simvalue, silica, ribbbon=:sem, seriestype=:scatter, framestyle=:box,
-        ylabel="Silica [wt.%]", xlabel="Maximum Assumed Sedimentary Volatiles [wt.%]",
-        label=""
-    )
-    display(h)
+    # # And visualize
+    # h = plot(simvalue, silica, ribbbon=:sem, seriestype=:scatter, framestyle=:box,
+    #     ylabel="Silica [wt.%]", xlabel="Maximum Assumed Sedimentary Volatiles [wt.%]",
+    #     label=""
+    # )
+    # display(h)
 
 
 ## --- End of file 

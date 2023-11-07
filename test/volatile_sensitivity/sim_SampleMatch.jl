@@ -6,28 +6,28 @@
     # consistency
 
     # If it's cover and something else, it can just be the something else
-    allrocks = collect(keys(macro_cats))
+    allrocks = collect(keys(copy_macro_cats))
     for type in allrocks
         type == :cover && continue
-        macro_cats.cover .&= .!macro_cats[type]
-        bulk_cats.cover .&= .!bulk_cats[type]
+        copy_macro_cats.cover .&= .!copy_macro_cats[type]
+        bulk_kittens.cover .&= .!bulk_kittens[type]
     end
 
     # If it IS just cover, it's not useful, so just take it out completely
-    macro_cats.cover .= false
-    bulk_cats.cover .= false
+    copy_macro_cats.cover .= false
+    bulk_kittens.cover .= false
 
     # Don't match with metamorphic if you can help it: assume matches to other things
     # describes the protolith (at least, describes it better than guessing randomly)
     for type in allrocks
         type == :met && continue
-        macro_cats.met .&= .!macro_cats[type]
-        bulk_cats.met .&= .!bulk_cats[type]
+        copy_macro_cats.met .&= .!copy_macro_cats[type]
+        bulk_kittens.met .&= .!bulk_kittens[type]
     end
 
     # All granodiorites will also match with diorites, so take out those matches
-    macro_cats.diorite .&= .!macro_cats.granodiorite
-    bulk_cats.diorite .&= .!bulk_cats.granodiorite
+    copy_macro_cats.diorite .&= .!copy_macro_cats.granodiorite
+    bulk_kittens.diorite .&= .!bulk_kittens.granodiorite
 
 
 ## --- Calculate relative abundance of each type in the lithological map
@@ -36,18 +36,18 @@
     # For volcanic / plutonic abundance volcanic and plutonic rocks MUST include subtypes...
     subminor_ign = (:volc, :plut, :carbonatite) 
     for type in minorvolc
-        macro_cats.volc .|= macro_cats[type]
+        copy_macro_cats.volc .|= copy_macro_cats[type]
     end
     for type in minorplut
-        macro_cats.plut .|= macro_cats[type]
+        copy_macro_cats.plut .|= copy_macro_cats[type]
     end
 
     # Count number of rocks in each subtype
     ptype = (
-        sed = float.([count(macro_cats[i]) for i in minorsed]),
-        volc = float.([count(macro_cats[i]) for i in minorvolc]),
-        plut = float.([count(macro_cats[i]) for i in minorplut]),
-        ign = float.([count(macro_cats[i]) for i in subminor_ign]),
+        sed = float.([count(copy_macro_cats[i]) for i in minorsed]),
+        volc = float.([count(copy_macro_cats[i]) for i in minorvolc]),
+        plut = float.([count(copy_macro_cats[i]) for i in minorplut]),
+        ign = float.([count(copy_macro_cats[i]) for i in subminor_ign]),
     )
 
     # Calculate relative abundance / fraction
@@ -62,7 +62,7 @@
     # protolith. Metacarbonates (or metacarbonatites??) are also probably not defined as 
     # a gneiss. So exclude carbonates, evaporites, chert, phosphorite, coal, and carbonatites
     protolith = (:siliciclast, :shale, minorvolc..., minorplut...,)
-    pprotolith = float.([count(macro_cats[i]) for i in protolith])
+    pprotolith = float.([count(copy_macro_cats[i]) for i in protolith])
     pprotolith ./= nansum(pprotolith)
 
 
@@ -72,20 +72,20 @@
     # Don't match with a major type if you can match with a minor type. Also, don't match
     # to volcanic or plutonic if you can do better.
     for type in minorsed
-        macro_cats.sed .&= .!macro_cats[type]
-        bulk_cats.sed .&= .!bulk_cats[type]
+        copy_macro_cats.sed .&= .!copy_macro_cats[type]
+        bulk_kittens.sed .&= .!bulk_kittens[type]
     end
     for type in minorvolc
-        macro_cats.volc .&= .!macro_cats[type]
-        bulk_cats.volc .&= .!bulk_cats[type]
+        copy_macro_cats.volc .&= .!copy_macro_cats[type]
+        bulk_kittens.volc .&= .!bulk_kittens[type]
     end
     for type in minorplut
-        macro_cats.plut .&= .!macro_cats[type]
-        bulk_cats.plut .&= .!bulk_cats[type]
+        copy_macro_cats.plut .&= .!copy_macro_cats[type]
+        bulk_kittens.plut .&= .!bulk_kittens[type]
     end
     for type in minorign
-        macro_cats.ign .&= .!macro_cats[type]
-        bulk_cats.ign .&= .!bulk_cats[type]
+        copy_macro_cats.ign .&= .!copy_macro_cats[type]
+        bulk_kittens.ign .&= .!bulk_kittens[type]
     end
 
 
@@ -99,7 +99,7 @@
 
     # Pass one: randomly pick a type for each sample
     for i in eachindex(littletypes)
-        alltypes = get_type(macro_cats, i, all_keys=true)
+        alltypes = get_type(copy_macro_cats, i, all_keys=true)
         littletypes[i] = rand(alltypes)
     end
 
@@ -146,32 +146,32 @@
 
     # Average geochemistry of each rock type 
     realrocks = deleteat!(allrocks, findall(x->x==:cover,allrocks))     # That aren't cover
-    geochem_lookup = NamedTuple{Tuple(realrocks)}([major_elements(simbulk, bulk_cats[i])
+    geochem_lookup = NamedTuple{Tuple(realrocks)}([major_elements(simbulk, bulk_kittens[i])
         for i in eachindex(realrocks)]
     );
 
     # Make major types inclusive of minor types?
     for type in minorsed
-        macro_cats.sed .|= macro_cats[type]
-        bulk_cats.sed .|= bulk_cats[type]
+        copy_macro_cats.sed .|= copy_macro_cats[type]
+        bulk_kittens.sed .|= bulk_kittens[type]
     end
     for type in minorvolc
-        macro_cats.volc .|= macro_cats[type]
-        bulk_cats.volc .|= bulk_cats[type]
+        copy_macro_cats.volc .|= copy_macro_cats[type]
+        bulk_kittens.volc .|= bulk_kittens[type]
     end
     for type in minorplut
-        macro_cats.plut .|= macro_cats[type]
-        bulk_cats.plut .|= bulk_cats[type]
+        copy_macro_cats.plut .|= copy_macro_cats[type]
+        bulk_kittens.plut .|= bulk_kittens[type]
     end
     for type in minorign
-        macro_cats.ign .|= macro_cats[type]
-        bulk_cats.ign .|= bulk_cats[type]
+        copy_macro_cats.ign .|= copy_macro_cats[type]
+        bulk_kittens.ign .|= bulk_kittens[type]
     end
 
     
 ## --- Find matching EarthChem sample for each Macrostrat sample
     # Preallocate
-    matches = zeros(Int64, length(macro_cats.sed))
+    matches = zeros(Int64, length(copy_macro_cats.sed))
 
     for i in eachindex(matches)
         ltype = littletypes[i] 
@@ -181,7 +181,7 @@
         end
 
         # Assume the geochemical composition of the lithological sample: pick randomly
-        randsample = rand(bulk_inds[bulk_cats[ltype]])
+        randsample = rand(bulk_inds[bulk_kittens[ltype]])
         uncert = nanunzero!([geochem_lookup[ltype][elem].e for elem in geochemkeys], 1.0)
         values = [bulkzero[elem][randsample] for elem in geochemkeys]
 
@@ -190,7 +190,7 @@
         )
 
         # Get EarthChem data
-        bulksamples = bulk_cats[btype]
+        bulksamples = bulk_kittens[btype]
         EC = (
             bulklat = simbulk.Latitude[bulksamples],            # EarthChem latitudes
             bulklon = simbulk.Longitude[bulksamples],           # EarthChem longitudes

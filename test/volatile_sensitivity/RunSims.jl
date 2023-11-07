@@ -34,6 +34,10 @@
 
     # Start timer
     start = now()
+    @info """ Start: $(Dates.Date(start)) $(Dates.format(start, "HH:MM"))
+    Input: $macrostrat_io
+    Output: $matchedbulk_io
+    """
     
 
 ## --- Load the Macrostrat / burwell source file
@@ -53,7 +57,7 @@
     header = read(fid["type"]["macro_cats_head"])
     data = read(fid["type"]["macro_cats"])
     data = @. data > 0
-    init_macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
 
     close(fid)
     
@@ -83,10 +87,13 @@
     # Create a group for the simulations
     g = create_group(fid, "sims")
 
+
 ## --- Run simulations with assumed volatiles
     simvaluesin = [90, 80, 70, 60, 50, 40, 30, 20, 16]
 
     for j in eachindex(simvaluesin)
+        @info "Starting sim for volatiles at $(simvaluesin[j]) wt.% at $(Dates.format(now(), "HH:MM"))"
+
         # Create a file group for this simulation
         sim_fid = "sim_" * string(round(Int, simvaluesin[j]))
         sim_g = create_group(g, "$sim_fid")
@@ -103,7 +110,7 @@
         simbulk = merge(bulk, (Volatiles=simvolatiles,))
         simbulk = NamedTuple{Tuple(allkeys)}([simbulk[i][t] for i in allkeys])
 
-        # Normalize compositions to 100%
+        # Normalize compositions (of what we're keeping) to 100%
         contributing = [allelements; :Volatiles]                # Re-include volatiles!
         for i in eachindex(simbulk.SiO2)
             sample = [simbulk[j][i] for j in contributing]      # Get it
@@ -114,15 +121,11 @@
         end
 
         # Get rock types for this set of samples
-        bulk_cats = match_rocktype(
-            lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name][t]),
-            lowercase.(bulktext.elements.Type[bulktext.index.Type][t]), 
-            lowercase.(bulktext.elements.Material[bulktext.index.Material][t]), 
-            source=:earthchem
-        )
+        t = vec(t)
+        bulk_kittens = NamedTuple{keys(bulk_cats)}(bulk_cats[k][t] for k in keys(bulk_cats))
 
         # Make a copy of the Macrostrat rock type matches to avoid weird things happening
-        macro_cats = deepcopy(init_macro_cats)
+        copy_macro_cats = deepcopy(macro_cats)
 
         # Match samples
         include("sim_SampleMatch.jl")
@@ -131,7 +134,7 @@
         # Restrict the bulk dataset down to just the matched samples
         t = @. matches > 0
         matchbulk = NamedTuple{Tuple(allkeys)}(
-            [zeronan!(simbulk[k][matches[t]]) for k in eachindex(allkeys)])
+            [zeronan(simbulk[k][matches[t]]) for k in eachindex(allkeys)])
 
         # Calculate the bulk composition of continental crust
         # majors, minors = get_elements()       # This was done in sim_ScreenBulk.jl
@@ -165,15 +168,10 @@
     end
 
     # Get rock types for this set of samples
-    bulk_cats = match_rocktype(
-        lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name][t_init]),
-        lowercase.(bulktext.elements.Type[bulktext.index.Type][t_init]), 
-        lowercase.(bulktext.elements.Material[bulktext.index.Material][t_init]), 
-        source=:earthchem
-    )
+    bulk_kittens = NamedTuple{keys(bulk_cats)}(bulk_cats[k][t] for k in keys(bulk_cats))
 
     # Make a copy of the Macrostrat rock type matches to avoid weird things happening
-    macro_cats = deepcopy(init_macro_cats)
+    copy_macro_cats = deepcopy(macro_cats)
 
     # Match samples
     include("sim_SampleMatch.jl")

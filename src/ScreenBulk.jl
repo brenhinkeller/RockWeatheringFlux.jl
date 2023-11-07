@@ -124,6 +124,12 @@
     for type in minorsed
         bulk_cats.sed .|= bulk_cats[type]
     end
+    for type in minorvolc
+        bulk_cats.volc .|= bulk_cats[type]
+    end
+    for type in minorplut
+        bulk_cats.plut .|= bulk_cats[type]
+    end
     for type in minorign
         bulk_cats.ign .|= bulk_cats[type]
     end

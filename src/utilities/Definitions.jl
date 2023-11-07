@@ -126,13 +126,11 @@
     ### Possible subtypes
      *  Sedimentary: siliciclastic, shale, carbonate, evaporite, chert, phosphorite, coal,
         sedimentary (uncategorized)
-     *  Igneous: 
+     *  Igneous: volcanic, plutonic, carbonatite, igneous (uncategorized)
          *  Volcanic: komatiite, basalt, andesite, dacite, rhyolite, alkaline, 
             volcaniclastic, volcanic (uncategorized)
          *  Plutonic: peridotite, pyroxenite, gabbro, diorite, trondhjemite, tonalite, 
             granodiorite, granite, alkaline, plutonic (uncategorized)
-         *  Carbonatite
-         *  Igneous (uncategorized)
       * Metamorphic: metamorphic (uncategorized)
 
     Subtypes are defined as a list of each bullet point, but the major (uncategorized) type
@@ -261,7 +259,7 @@
             :volcaniclast,)
         minorplut = (:peridotite, :pyroxenite, :gabbro, :diorite, :trondhjemite, :tonalite, 
             :tonalite, :granodiorite, :granite, :alk_plut,)
-        minorign = (minorvolc..., :volc, minorplut..., :plut, :carbonatite)
+        minorign = (:volc, plut, :carbonatite)
 
         if major
             typelist = (sed=(minorsed, sed...,), ign=(minorign, ign...,), met=met, cover=cover)

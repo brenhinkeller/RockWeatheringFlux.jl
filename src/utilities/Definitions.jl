@@ -300,23 +300,6 @@
 
     """
     ```julia
-    nondescriptive()
-    ```
-
-    Get a list of metamorphic rock names that do not provide useful information about the 
-    geochemical composition of the rock.
-
-    """
-    function nondescriptive()
-        return ("meta", "buchite", "tactite","greenschist", "alter", "hydrothermal",
-            "crystalline", "basement", "skarn", "schist", "gneiss", "granulit", 
-            "granofels", "sanidinite", "migma", "high grade metamorphic", "mylonit", 
-            "cataclasite", "melange", "gouge", "tecton",
-        )
-    end
-
-    """
-    ```julia
     get_cats(major::Bool, npoints::Int64)
     ```
     

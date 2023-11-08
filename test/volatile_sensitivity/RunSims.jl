@@ -68,6 +68,7 @@
     # How many samples did we start with?
     t_init = @. 84 <= bulkweight <= 104;
     init = count(t_init)
+    t_init = vec(t_init)
 
     # Normalization etc. is always the same, we only vary *which* samples we keep
     # This shouldn't matter for the bulkweight calculation since that isn't recalculated
@@ -265,7 +266,7 @@
         # Prepare to match samples
         bulk_inds = collect(1:length(simbulk.SiO2))     # Indices of bulk samples
         bulkzero = NamedTuple{Tuple(geochemkeys)}([zeronan(simbulk[i]) for i in geochemkeys])
-        geochem_lookup = NamedTuple{Tuple(rox)}([major_elements(bulk, bulk_cats[i])
+        geochem_lookup = NamedTuple{Tuple(rox)}([major_elements(simbulk, bulk_kittens[i])
             for i in eachindex(rox)]
         );
 
@@ -288,7 +289,7 @@
             )
     
             # Get EarthChem data
-            bulksamples = bulk_kittens[btype]
+            bulksamples = bulk_kittens[ltype]
             EC = (
                 bulklat = simbulk.Latitude[bulksamples],            # EarthChem latitudes
                 bulklon = simbulk.Longitude[bulksamples],           # EarthChem longitudes
@@ -349,10 +350,10 @@
     # Prepare to match samples
     bulk_inds = collect(1:length(simbulk.SiO2))     # Indices of bulk samples
     bulkzero = NamedTuple{Tuple(geochemkeys)}([zeronan(simbulk[i]) for i in geochemkeys])
-    geochem_lookup = NamedTuple{Tuple(rox)}([major_elements(bulk, bulk_cats[i])
+    geochem_lookup = NamedTuple{Tuple(rox)}([major_elements(simbulk, bulk_kittens[i])
         for i in eachindex(rox)]
     );
-
+    
     # Match samples
     matches = zeros(Int64, length(macro_cats.sed))
     for i in eachindex(matches)

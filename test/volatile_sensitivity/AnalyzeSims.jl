@@ -14,7 +14,7 @@
     sᵢ = findfirst(x->x=="SiO2", allelements)
 
     # How many simulations did we run?
-    folders = keys(fid["vars"]["sims"])
+    folders = keys(fid["sims"])
     nsims = length(folders)
 
     # Preallcoate
@@ -23,12 +23,12 @@
     simvalue = Array{Float64}(undef, nsims)
     
     # Get data
-    for i in folders
+    for i in eachindex(folders)
         k = folders[i]
 
         # Get the silica composition of the crust
-        comp = read(fid["vars"]["sims"][k]["UCC"])
-        err = read(fid["vars"]["sims"][k]["SEM"])
+        comp = read(fid["sims"][k]["UCC"])
+        err = read(fid["sims"][k]["SEM"])
         silica[i] = comp[sᵢ]
         sem[i] = err[sᵢ]
 
@@ -42,8 +42,8 @@
 
 ## --- Plot dependence on assumed volatiles
     # We are plotting silica as a function of assumed volatiles
-    h = plot(simvalue, silica, seriestype=:scatter, framestyle=:box,
-        ylabel="Silica [wt.%]", xlabel="Maximum Assumed Sedimentary Volatiles [wt.%]",
+    h = plot(simvalue, silica, seriestype=:scatter, yerror=sem, framestyle=:box,
+        ylabel="Average Crustal Silica [wt.%]", xlabel="Maximum Assumed Sedimentary Volatiles [wt.%]",
         label=""
     )
     display(h)

@@ -279,7 +279,7 @@
         npoints = length(rocktype)
 
         # Get the rock type of each sample
-        macro_cats = match_rocktype(rocktype, rockname, rockdescrip, source=:macrostrat)
+        macro_cats = match_rocktype(rocktype, rockname, rockdescrip)
         types = Array{String}(undef, npoints, 1)
         for i in eachindex(types)
             type = get_type(macro_cats, i)

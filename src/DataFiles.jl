@@ -24,7 +24,7 @@
         rockdescrip = read(oldfid["vars"]["rockdescrip"]),
     )
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
-        macrostrat.rockdescrip, source=:macrostrat
+        macrostrat.rockdescrip
     )
 
 

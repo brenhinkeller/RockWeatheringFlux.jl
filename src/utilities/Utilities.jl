@@ -10,29 +10,18 @@
 
     """
     ```julia
-    match_rocktype(primary, secondary, tertiary; 
-        source::Symbol, 
-        [major::Bool]
-    )
+    match_rocktype(rocktype, rockname, rockdescrip; source=:macrostrat, [major])
     ```
 
+    Match Macrostrat rock names to defined rock classes.
+
     Classify rock samples as sedimentary, igneous, or metamorphic (and associated subtypes)
-    based on `primary`, `secondary`, and `tertiary` sample metadata. Use `primary` metadata 
-    first; if no matches are made, attempt to classify sample using `secondary` metadata, 
+    based on `rocktype`, `rockname`, and `rockdescrip` sample metadata. Use `rocktype` 
+    first; if no matches are made, attempt to classify sample using `rockname` metadata, 
     etc. 
 
-    Specify the source of the samples as `:macrostrat` or `:earthchem`.
-
-    ### Optional kwarg `major`
-    `true` returns: `sed, ign, met`
-
-    `false` returns: `siliciclast, shale, carb, chert, evaporite, coal, sed, volc, plut, 
-    ign, metased, metaign, met, cover`
-
-    Major rock types include subclasses; i.e. `ign` includes volcanic and plutonic samples.
-
-    ### Optional kwarg `unmultimatch`
-    Setting `unmultimatch=false` will not remove multiply-matched samples. Defaults to `true`.
+    Set `major=true` to return only matches for sedimentary, igneous, and metamorphic 
+    rocks. See `get_rock_class` for discussion of rock types and subtypes.
 
     # Example
     ```julia
@@ -43,67 +32,47 @@
     met    = BitVector(50000,)    [false ... false]
     cover  = BitVector(50000,)    [false ... false]
     ```
-    """
-    match_rocktype(primary::AbstractArray, secondary::AbstractArray, tertiary::AbstractArray; 
-        major::Bool=false, 
-        source::Symbol
-    ) = _match_rocktype(primary, secondary, tertiary, major, static(source))
 
     """
-    ```julia
-    match_rocktype(rocktype, rockname, rockdescrip; source=:macrostrat, [major], [unmultimatch])
-    ```
-
-    Match Macrostrat rock names to defined rock classes.
-    """
-    function _match_rocktype(rocktype, rockname, rockdescrip, major,
-            source::StaticSymbol{:macrostrat}
-        )
-
+    function match_rocktype(rocktype::T, rockname::T, rockdescrip::T; major::Bool=false) where T <: AbstractArray{<:String}
         # Get rock type classifications and initialized BitVector
         typelist, cats = get_cats(major, length(rocktype))
+        set = keys(typelist)
+
         p = Progress(length(typelist)*4, desc="Finding Macrostrat rock types...")
 
         # Check major lithology 
-        for j in eachindex(typelist)
-            for i = eachindex(typelist[j])
-                for k in eachindex(cats[j])
-                    cats[j][k] |= match(r"major.*?{(.*?)}", rocktype[k]) |> x -> 
-                    isa(x,RegexMatch) ? containsi(x[1], typelist[j][i]) : false
-                end
+        for s in set
+            for i in eachindex(typelist[s])
+                cats[s] .|= (match.(r"major.*?{(.*?)}", rocktype) .|> 
+                    x -> isa(x, RegexMatch) ? containsi.(x[1], typelist[s][i]) : false)
             end
             next!(p)
         end
 
         # Check the rest of rocktype
         not_matched = find_unmatched(cats)
-        @inbounds for j in eachindex(typelist)
-            for i = eachindex(typelist[j])
-                for k in eachindex(cats[j])
-                    not_matched[k] && (cats[j][k] |= containsi(rocktype[k], typelist[j][i]))
-                end
+        for s in set
+            for i in typelist[s]
+                cats[s][not_matched] .|= containsi.(rocktype[not_matched], i)
             end
             next!(p)
         end
 
         # Then rockname
         not_matched = find_unmatched(cats)
-        @inbounds for j in eachindex(typelist)
-            for i = eachindex(typelist[j])
-                for k in eachindex(cats[j])
-                    not_matched[k] && (cats[j][k] |= containsi(rockname[k], typelist[j][i]))
-                end
+        for s in set
+            for i in typelist[s]
+                cats[s][not_matched] .|= containsi.(rockname[not_matched], i)
             end
             next!(p)
         end
 
         # Then rockdescrip
         not_matched = find_unmatched(cats)
-        @inbounds for j in eachindex(typelist)
-            for i = eachindex(typelist[j])
-                for k in eachindex(cats[j])
-                    not_matched[k] && (cats[j][k] |= containsi(rockdescrip[k], typelist[j][i]))
-                end
+        for s in set
+            for i in typelist[s]
+                cats[s][not_matched] .|= containsi.(rockdescrip[not_matched], i)
             end
             next!(p)
         end
@@ -111,65 +80,82 @@
         return cats
     end
 
+
     """
     ```julia
-    match_rocktype(Rock_Name, Type, Material; source=:earthchem, [major], [unmultimatch])
+    match_rocktype(Rock_Name, Type, Material, sedrocks, ignrocks)
     ```
 
-    Match Earthchem rock names to defined rock classes.
+    Match Earthchem rock names to defined rock classes. Specify rock subtypes of sedimentary
+    and igneous rocks as `sedrocks` and `ignrocks`. Recommended:
+
+    ```julia
+    sedrocks = (minorsed..., :sed,)
+    ignrocks = (minorvolc..., minorplut..., minorign..., :ign)
+    ```
+
+    Rocks will be categorized as minor subtypes; there is no option to match only major rock 
+    types.
     """
-    function _match_rocktype(Rock_Name, Type, Material, major,
-            source::StaticSymbol{:earthchem}
-        )
+    function match_rocktype(Rock_Name::T, Type::T, Material::T, sedrocks, ignrocks) where T <: AbstractArray{<:String}
+        typelist, cats = get_cats(false, length(Rock_Name));
 
-        # Get rock type classifications and initialized BitVector
-        typelist, cats = get_cats(major, length(Rock_Name))
-        p = Progress(length(typelist)+2, desc="Finding Earthchem rock types...")
-
-        # Check rock name
-        @inbounds for j in eachindex(typelist)
-            for i = eachindex(typelist[j])
-                for k in eachindex(cats[j])
-                    cats[j][k] |= containsi(Rock_Name[k], typelist[j][i])
-                end
-            end
-            next!(p)
-        end
-
-        # New typelist for Type
-        # Omitted: vein
-        typelist = (
-            siliciclast = ("siliciclastic", "conglomerate&breccia",),
-            volc = ("volcanic",),
-            plut = ("plutonic", "pegmatitic"),
-        )
-        not_matched = find_unmatched(cats)
-        @inbounds for j in eachindex(typelist)
-            for i = eachindex(typelist[j])
-                for k in eachindex(cats[j])
-                    not_matched[k] && (cats[j][k] |= (Type[k] == typelist[j][i]))
-                end
-            end
-        end
-        next!(p)
-
-        # New typelist for Material
-        # Omitted: vein, ore
-        typelist = (
+        # Broadly categorize samples as igneous and sedimentary based on material and type
+        materials = (
             sed = ("sedimentary",),
-            plut = ("exotic",),
-            ign = ("igneous", "xenolith",),
-            met = ("metamorphic", "alteration",),
+            ign = ("exotic", "igneous", "xenolith",),
+            met = ("metamorphic")
         )
-        not_matched = find_unmatched(cats)
-        @inbounds for j in eachindex(typelist)
-            for i = eachindex(typelist[j])
-                for k in eachindex(cats[j])
-                    not_matched[k] && (cats[j][k] |= (Material[k] == typelist[j][i]))
-                end
+        groups = NamedTuple{keys(materials)}([falses(length(Rock_Name)) for _ in 1:length(materials)])
+        for k in keys(materials)
+            for i in materials[k]
+                groups[k] .|= (Material .== i)
             end
         end
-        next!(p)
+    
+        types = (
+            sed = ("siliciclastic", "conglomerate&breccia",),
+            ign = ("volcanic", "plutonic", "pegmatitic",),
+        )
+        for k in keys(types)
+            for i in types[k]
+                groups[k] .|= (Type .== i)
+            end
+        end
+
+        # Match samples labeled as sedimentary / igneous with sedimentary / igneous rocks
+        # This should stop "pyroclastic / clastic," etc. false positives
+        match_subset!(cats, groups.sed, typelist, sedrocks, Rock_Name)
+        match_subset!(cats, groups.ign, typelist, ignrocks, Rock_Name)
+
+        # Allow unmatched samples to match against all rock types
+        not_matched = find_unmatched(cats);
+        match_subset!(cats, not_matched, typelist, keys(typelist), Rock_Name)
+
+        # Match unmatched samples with a defined type
+        not_matched = find_unmatched(cats);
+
+        t = vec(Type .== "volcanic");
+        cats.volc[t .& not_matched] .= true
+
+        t = vec((Type .== "plutonic") .| (Type .== "pegmatitic"));
+        cats.plut[t .& not_matched] .= true
+
+        t = vec((Type .== "siliciclastic") .| (Type .== "conglomerate&breccia"));
+        cats.siliciclast[t .& not_matched] .= true
+
+        t = vec(Type .== "siliceous")
+        cats.chert[t .& not_matched] .= true
+
+        # Match unmatched samples with a defined sedimentary / igneous material 
+        not_matched = find_unmatched(cats);
+        cats.sed[groups.sed .& not_matched] .= true
+        cats.ign[groups.ign .& not_matched] .= true
+
+        # Match unmatched samples with a defined metamorphic material
+        # This means that protoliths should be mostly 
+        not_matched = find_unmatched(cats);
+        cats.met[groups.met .& not_matched] .= true
 
         return cats
     end
@@ -195,6 +181,39 @@
                 cats[Symbol(writtentype[i])][i] = true
             catch
                 continue
+            end
+        end
+
+        return cats
+    end
+
+
+    """
+    ```julia
+    match_subset!(cats, filter, typelist, subset, rockname)
+    ```
+
+    Match a `subset` of rock type names in `typelist` to rock names in `rockname`. Filter
+    the rock names to be matched by `filter`.
+
+    To get `cats` and `typelist`, see `get_cats` or `get_rock_class`.
+
+    # Example
+    ```julia
+    julia> typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
+    
+    julia> typelist, cats = get_cats(false, length(bulkrockname));
+
+    julia> sedlist = (minorsed..., :sed,)
+
+    julia> match_subset!(cats, groups.sed, typelist, sedlist, bulkrockname)
+    ```
+
+    """
+    function match_subset!(cats::NamedTuple, filter::BitVector, typelist::NamedTuple, subset, rockname::AbstractArray{<:String})
+        for s in subset
+            for i in typelist[s]
+                cats[s][filter] .|= containsi.(rockname[filter], i)
             end
         end
 
@@ -253,6 +272,7 @@
         kittens = NamedTuple{Tuple(start[notcover])}(cats[k] for k in start[notcover])
         return kittens
     end
+
 
     """
     ```

@@ -133,7 +133,7 @@
     bulktypes = create_group(fid, "type")
         # Rock types
         macro_cats = match_rocktype(parsed.rocktype, parsed.rockname, 
-            parsed.rockdescrip, unmultimatch=false, inclusive=false, source=:macrostrat
+            parsed.rockdescrip,
         )
         a = Array{Int64}(undef, length(macro_cats[1]), length(macro_cats))
         for i in eachindex(keys(macro_cats))

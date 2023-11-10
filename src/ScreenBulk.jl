@@ -88,15 +88,15 @@
 
 
 ## --- Get rock type matches for all samples: DIY and save to a file
-    # # Rock names / types / materials for all EarthChem data
-    # bulkrockname = lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name])
-    # bulkrocktype = lowercase.(bulktext.elements.Type[bulktext.index.Type])
-    # bulkmaterial = lowercase.(bulktext.elements.Material[bulktext.index.Material])
+    # Rock names / types / materials for all EarthChem data
+    bulkrockname = lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name])
+    bulkrocktype = lowercase.(bulktext.elements.Type[bulktext.index.Type])
+    bulkmaterial = lowercase.(bulktext.elements.Material[bulktext.index.Material])
 
-    # # Match rock types
-    # bulk_cats = match_rocktype(bulkrockname, bulkrocktype, bulkmaterial; unmultimatch=false, 
-    #     inclusive=false, source=:earthchem
-    # )
+    # Match rock types
+    bulk_cats = match_rocktype(bulkrockname, bulkrocktype, bulkmaterial, 
+        (minorsed..., :sed,), (minorvolc..., minorplut..., minorign..., :ign)
+    )
 
     # # Save to file
     # fid = h5open("output/bulk_unrestricted_types.h5", "w")

@@ -78,11 +78,12 @@
 
 ## --- Alternatively, do the matching yourself
     # macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
-    #     macrostrat.rockdescrip, unmultimatch=false, inclusive=false, source=:macrostrat
+    #     macrostrat.rockdescrip
     # )
 
-    # bulk_cats = match_rocktype(bulktext.Rock_Name, bulktext.Type, bulktext.Material; 
-    #     unmultimatch=false, inclusive=false, source=:earthchem
+    # typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
+    # bulk_cats = match_rocktype(bulktext.Rock_Name, bulktext.Type, bulktext.Material, 
+    #     (minorsed..., :sed,), (minorvolc..., minorplut..., minorign..., :ign)
     # )
 
 

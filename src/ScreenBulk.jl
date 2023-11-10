@@ -318,8 +318,19 @@
         )
     )
 
-    # Rock types
+
+## -- Restrict rock types
+    # bulk_keys = keys(bulk_cats)
+
+    # Restrict
     bulk_kittens = NamedTuple{keys(bulk_cats)}(bulk_cats[k][t] for k in keys(bulk_cats))
+
+    # Check that all rock types have samples
+    for k in keys(bulk_kittens)
+        if count(bulk_kittens[k]) < 10
+            @warn "After filtering, type \"$k\" has $(count(bulk_kittens[k])) samples."
+        end
+    end
 
 
 ## --- Write data to an HDF5 file

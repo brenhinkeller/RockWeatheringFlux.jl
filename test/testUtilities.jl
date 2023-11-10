@@ -2,77 +2,113 @@
     using Test
     include("../src/utilities/Utilities.jl")
 
+
 ## --- Get umbrella class
     typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
+
     @test class_up(:ign, minorsed, minorign) == :ign 
     @test class_up(:shale, minorsed, minorign) == :sed
     @test class_up(:volc, minorsed, minorign) == :ign
-    @test class_up(:basalt, minorsed, minorign) == :ign
     @test class_up(:carbonatite, minorsed, minorign) == :ign
 
+    @test class_up(:basalt, minorsed, minorvolc, minorplut, minorign) == :volc
+    @test class_up(:gabbro, minorsed, minorvolc, minorplut, minorign) == :plut
     
-## --- Rock name matching
-    rocktype = ["sedimentary and volcanic rocks", "major: {limestone},minor: {slate}", "", "",]
-    rockname = ["precambrian-phanerozoic sedimentary and volcanic rocks", "rabbitkettle fm", 
-        "hodgkinson formation - hornfelsed", "",]
-    rockdescrip = ["", "", "hornfelsed arenite and mudstone", "silt, sand, sandstone",]
+    small_type = (
+        a = ("basalt", "granite", "gabbro", ),
+        b = ("granite", "granodiorite", "rhyolite", ),
+        c = ("schist", "gneiss", ),
+    )
+    @test class_up(small_type, "granite") == :a
+    @test class_up(small_type, "granite", all_types=true) == (:a, :b)
+    @test class_up(small_type, "gneiss") == :c
+    
+
+## --- Unmatched vs. unmetamorphosed unmatched types
+    cats = get_cats(true, 4)[2]
+    cats.sed .= [false, true, true, false]
+    cats.met .= [true, true, false, false]
+
+    @test find_unmatched(cats) == [false, false, false, true]
+    @test find_unmetamorphosed_unmatched(cats) == .!cats.sed
+
+
+## --- Macrostrat rock name matching
+    # Define test set
+    rocktype = [
+        "volcanic rocks",                    # 1. Volc
+        "major: {limestone},minor: {slate}", # 2. Carb
+        "", 
+        "",
+    ]
+    rockname = [
+        "volcanic rocks",                    
+        "rabbitkettle fm", 
+        "hornfelsed",                        # 3. Met (keep looking!)
+        "",
+    ]
+    rockdescrip = ["", 
+        "", 
+        "hornfelsed arenite and mudstone",  # 3. siliciclast, shale, met
+        "silt, sand, sandstone"             # 4. siliciclast
+    ]
 
     # Match Macrostrat names to classes
-    cats = match_rocktype(rocktype, rockname, rockdescrip; source=:macrostrat, unmultimatch=false)
+    cats = match_rocktype(rocktype, rockname, rockdescrip)
 
-    @test cats.siliciclast == [false, false, false, true]
-    @test cats.shale == [false, false, false, false, ]
-    @test cats.carb == [false, true, false, false, ]
-    @test cats.chert == [false, false, false, false, ]
-    @test cats.evaporite == [false, false, false, false, ]
-    @test cats.coal == [false, false, false, false, ]
-    @test cats.phosphorite == [false, false, false, false, ]
-    @test cats.volcaniclast == [false, false, false, false, ]
-    @test cats.sed == [true, true, false, true,]
-    @test cats.volc == [true, false, false, false, ]
-    @test cats.plut == [false, false, false, false, ]
-    @test cats.ign == [true, false, false, false, ]
-    @test cats.metased == [false, false, true, false, ]
-    @test cats.metaign == [false, false, false, false, ]
-    @test cats.met == [false, false, true, false, ]
-    @test cats.cover == [false, false, false, false, ]
+    # Test the ID'ed rock types
+    @test cats.volc == [true, false, false, false]
+    @test cats.carb == [false, true, false, false]
+    @test cats.siliciclast == [false, false, true, true]
+    @test cats.shale == [false, false, true, false]
+    @test cats.met == [false, false, true, false]
 
-    @test all(get_type(cats, 1, all_keys=true) == (:sed, :volc, :ign))
-    @test all(get_type(cats, 2, all_keys=true) == (:carb, :sed))
-    @test all(get_type(cats, 3, all_keys=true) == (:metased, :met))
-    @test all(get_type(cats, 4, all_keys=true) == (:siliciclast, :sed))
+    # Make sure there aren't false positives
+    for k in keys(cats)
+        k in (:volc, :carb, :siliciclast, :shale, :met) && continue
+        @test cats[k] == [false, false, false, false]
+    end
 
-    # Match Macrostrat rock names to names
-    cats = match_rockname(rocktype, rockname, rockdescrip)
+    # Get the types matched with each rock
+    @test all(get_type(cats, 1, all_keys=true) == (:volc,))
+    @test all(get_type(cats, 2, all_keys=true) == (:carb,))
+    @test all(get_type(cats, 3, all_keys=true) == (:siliciclast, :shale, :met,))
+    @test all(get_type(cats, 4, all_keys=true) == (:siliciclast,))
 
-    @test all(get_type(cats, 1, all_keys=true) == (:sediment, :volcanic, :volcan))
-    @test all(get_type(cats, 2, all_keys=true) == (:limestone,))
-    @test all(get_type(cats, 3, all_keys=true) == (:hornfels,))
-    @test all(get_type(cats, 4, all_keys=true) == (:sand, :silt))
 
-    # Match EarthChem rock names to classes
-    Rock_Name = ["basalt", "sandstone", ""]
-    Type = ["volcanic", "siliciclastic", ""]
-    Material = ["igneous", "sedimentary", "exotic"]
+## --- EarthChem rock name matching
+    # Define test set
+    Rock_Name = [
+        "basalt",       # Basalt
+        "sandstone",    # Siliciclast
+        ""]
+    RType = [
+        "volcanic",
+        "siliciclastic", 
+        ""
+    ]
+    Material = [
+        "igneous", 
+        "sedimentary", 
+        "exotic"        # Igneous
+    ]
 
-    cats = match_rocktype(Rock_Name, Type, Material; source=:earthchem, unmultimatch=false)
+    # Match
+    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
+    cats = match_rocktype(Rock_Name, RType, Material, (minorsed..., :sed,), 
+        (minorvolc..., minorplut..., minorign..., :ign)
+    )
 
+    # Test the ID'ed rock types
+    @test cats.basalt == [true, false, false]
     @test cats.siliciclast == [false, true, false]
-    @test cats.shale == [false, false, false]
-    @test cats.carb == [false, false, false]
-    @test cats.chert == [false, false, false]
-    @test cats.evaporite == [false, false, false]
-    @test cats.coal == [false, false, false]
-    @test cats.phosphorite == [false, false, false]
-    @test cats.volcaniclast == [false, false, false]
-    @test cats.sed == [false, true, false]
-    @test cats.volc == [true, false, false]
-    @test cats.plut == [false, false, true]
-    @test cats.ign == [true, false, true]
-    @test cats.metased == [false, false, false]
-    @test cats.metaign == [false, false, false]
-    @test cats.met == [false, false, false]
-    @test cats.cover == [false, false, false]
+    @test cats.ign == [false, false, true]
+
+    # Make sure there aren't false positives
+    for k in keys(cats)
+        k in (:basalt, :siliciclast, :ign) && continue
+        @test cats[k] == [false, false, false]
+    end
 
 
 ## --- Points in polygon

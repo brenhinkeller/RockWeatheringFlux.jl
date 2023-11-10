@@ -57,7 +57,7 @@
         end
 
         # Check the rest of rocktype
-        not_matched = find_unmatched(cats)
+        not_matched = find_unmetamorphosed_unmatched(cats)
         for s in set
             for i in typelist[s]
                 cats[s][not_matched] .|= containsi.(rocktype[not_matched], i)
@@ -66,7 +66,7 @@
         end
 
         # Then rockname
-        not_matched = find_unmatched(cats)
+        not_matched = find_unmetamorphosed_unmatched(cats)
         for s in set
             for i in typelist[s]
                 cats[s][not_matched] .|= containsi.(rockname[not_matched], i)
@@ -75,7 +75,7 @@
         end
 
         # Then rockdescrip
-        not_matched = find_unmatched(cats)
+        not_matched = find_unmetamorphosed_unmatched(cats)
         for s in set
             for i in typelist[s]
                 cats[s][not_matched] .|= containsi.(rockdescrip[not_matched], i)
@@ -135,11 +135,11 @@
         match_subset!(cats, groups.sed, typelist, sedrocks, Rock_Name)
         match_subset!(cats, groups.ign, typelist, ignrocks, Rock_Name)
 
-        # Allow unmatched samples to match against all rock types
+        # Allow all unmatched samples to match against all rock types
         not_matched = find_unmatched(cats);
         match_subset!(cats, not_matched, typelist, keys(typelist), Rock_Name)
 
-        # Match unmatched samples with a defined type
+        # Match all unmatched samples with a defined type
         not_matched = find_unmatched(cats);
 
         t = vec(Type .== "volcanic");
@@ -154,13 +154,15 @@
         t = vec(Type .== "siliceous")
         cats.chert[t .& not_matched] .= true
 
-        # Match unmatched samples with a defined sedimentary / igneous material 
+        # Match all unmatched samples with a defined sedimentary / igneous material 
         not_matched = find_unmatched(cats);
         cats.sed[groups.sed .& not_matched] .= true
         cats.ign[groups.ign .& not_matched] .= true
 
-        # Match unmatched samples with a defined metamorphic material
-        # This means that protoliths should be mostly 
+        # Match all unmatched samples with a defined metamorphic material
+        # This means that protoliths should be mostly known, even though we didn't use
+        # find_unmetamorphosed_unmatched: we don't have to use it here, because we know
+        # the values of Material and Type
         not_matched = find_unmatched(cats);
         cats.met[groups.met .& not_matched] .= true
 
@@ -260,6 +262,24 @@
         @inbounds for i in eachindex(cats)
             matched .|= cats[i]
         end
+        return .!matched
+    end
+
+    """
+    ```julia
+    find_unmetamorphosed_unmatched(cats)
+    ```
+
+    As `find_unmatched`, but does not count uncategorized metamorphic rock as a matched
+    type. This allows `match_rocktype` to continue searching rockname and rockdescrip for
+    potential protoliths.
+    """
+    function find_unmetamorphosed_unmatched(cats)
+        matched = falses(length(cats[1]))
+        @inbounds for k in keys(cats)
+            k == :met && continue
+            matched .|= cats[k]
+        end 
         return .!matched
     end
 
@@ -494,6 +514,7 @@
             end
         end
 
+        @warn "No upwards class found for $name"
         return nothing
     end
 
@@ -525,6 +546,7 @@
             name==k && return :ign 
         end
 
+        @warn "No upwards class found for $name"
         return nothing
     end
 
@@ -562,6 +584,7 @@
             name==k && return :ign 
         end
 
+        @warn "No upwards class found for $name"
         return nothing
     end
 

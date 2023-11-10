@@ -224,7 +224,7 @@
     # Exclude rocks below the shelf break
     # etopo = h5read("data/etopo/etopo1.h5", "vars/elevation")
     # elev = find_etopoelev(etopo, bulk.Latitude, bulk.Longitude)
-    # abovesea = elev .> -140;         # Shelf break at 140 m
+    # abovesea = elev .> -140;            # Shelf break at 140 m
     abovesea = bulk.Elevation .> -140   # Equivalent results, but faster
 
     # Compute bulk analyzed weight for rocks above sea level
@@ -254,17 +254,25 @@
     t = @. 84 <= bulkweight <= 104
     tᵢ = count(t)
 
-    # Calculate a reasonable assumption for wt.% assumed volatiles
-    # lim = (12.01+2*16)/(40.08+12.01+16*3)*100               # Limestone
-    # mag = (12.01+2*16)/(24.869+12.01+16*3)*100              # Magnesite
-    dol = (12.01+2*16)/((24.869+40.08)/2+12.01+16*3)*100    # Dolomite
+    # Get all samples that are within acceptable range after assuming volatiles
+    t = @. 84 <= bulkweight .+ additional <= 104;
 
-    # Volatiles includes both known and assumed volatiles
-    volatiles .+= additional
+    # Add total and assumed volatiles
+    @turbo volatiles .+= additional
 
-    # If there are more *total* (not just assumed) volatiles than dolomite, sample is sus
-    t = @. 84 <= bulkweight .+ additional <= 104
-    t .&= volatiles .< dol
+    # Calculate a reasonable assumption for wt.% volatiles
+    # lim = (12.01+2*16)/(40.08+12.01+16*3)*100                     # Limestone
+    # mag = (12.01+2*16)/(24.869+12.01+16*3)*100                    # Magnesite
+    dol = (12.01+2*16)/((24.869+40.08)/2+12.01+16*3)*100          # Dolomite
+    gyp = (32.07+16*3+2*(18))/(40.08+32.07+16*4+2*(18))*100       # Gypsum
+    bas = (32.07+16*3+0.5*(18))/(40.08+32.07+16*4+0.5*(18))*100   # Bassanite (2CaSO₄⋅H₂O)
+
+    # If there are more total (not just assumed!) volatiles than dolomite, sample is sus,
+    # UNLESS it's an evaporite, in which case compare it to bassanite, UNLESS it's gypsum,
+    # in which case compare it to gypsum
+    t .&= volatiles .< dol;                                     # Test all samples against dolomite
+    t[bulk_cats.evap] .= volatiles[bulk_cats.evap] .<= bas;     # Bassanite (general evaporite)
+    t[isgypsum] .= volatiles[isgypsum] .<= gyp;                 # Gypsum (gypsum)
     t = vec(t)
 
     # Print to terminal

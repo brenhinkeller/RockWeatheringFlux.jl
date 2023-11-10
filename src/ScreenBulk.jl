@@ -88,15 +88,17 @@
 
 
 ## --- Get rock type matches for all samples: DIY and save to a file
-    # Rock names / types / materials for all EarthChem data
-    bulkrockname = lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name])
-    bulkrocktype = lowercase.(bulktext.elements.Type[bulktext.index.Type])
-    bulkmaterial = lowercase.(bulktext.elements.Material[bulktext.index.Material])
+    # # Rock names / types / materials for all EarthChem data
+    # bulkrockname = lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name])
+    # bulkrocktype = lowercase.(bulktext.elements.Type[bulktext.index.Type])
+    # bulkmaterial = lowercase.(bulktext.elements.Material[bulktext.index.Material])
 
-    # Match rock types
-    bulk_cats = match_rocktype(bulkrockname, bulkrocktype, bulkmaterial, 
-        (minorsed..., :sed,), (minorvolc..., minorplut..., minorign..., :ign)
-    )
+    # typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
+
+    # # Match rock types
+    # bulk_cats = match_rocktype(bulkrockname, bulkrocktype, bulkmaterial, 
+    #     (minorsed..., :sed,), (minorvolc..., minorplut..., minorign..., :ign)
+    # )
 
     # # Save to file
     # fid = h5open("output/bulk_unrestricted_types.h5", "w")
@@ -220,9 +222,10 @@
 
 ## --- Compute total wt.% analyzed for all samples
     # Exclude rocks below the shelf break
-    etopo = h5read("data/etopo/etopo1.h5", "vars/elevation")
-    elev = find_etopoelev(etopo, bulk.Latitude, bulk.Longitude)
-    abovesea = elev .> -140;    # Shelf break at 140 m
+    # etopo = h5read("data/etopo/etopo1.h5", "vars/elevation")
+    # elev = find_etopoelev(etopo, bulk.Latitude, bulk.Longitude)
+    # abovesea = elev .> -140;         # Shelf break at 140 m
+    abovesea = bulk.Elevation .> -140   # Equivalent results, but faster
 
     # Compute bulk analyzed weight for rocks above sea level
     bulkweight = Array{Float64}(undef, length(bulk.SiO2), 1)
@@ -251,12 +254,18 @@
     t = @. 84 <= bulkweight <= 104
     tᵢ = count(t)
 
-    # Don't let samples through if the assumed volatile is more than 50 wt.%
-    t = @. 84 <= bulkweight .+ additional <= 104
-    t .&= additional .< 50
-    t = vec(t)
+    # Calculate a reasonable assumption for wt.% assumed volatiles
+    # lim = (12.01+2*16)/(40.08+12.01+16*3)*100               # Limestone
+    # mag = (12.01+2*16)/(24.869+12.01+16*3)*100              # Magnesite
+    dol = (12.01+2*16)/((24.869+40.08)/2+12.01+16*3)*100    # Dolomite
 
+    # Volatiles includes both known and assumed volatiles
     volatiles .+= additional
+
+    # If there are more *total* (not just assumed) volatiles than dolomite, sample is sus
+    t = @. 84 <= bulkweight .+ additional <= 104
+    t .&= volatiles .< dol
+    t = vec(t)
 
     # Print to terminal
     nsamples = round(count(t)/length(t)*100, digits=2)
@@ -265,14 +274,6 @@
     Assuming volatiles increased count from $tᵢ to $(count(t))
     Total increase = $up
     """
-
-## --- Save an intermediate file for analysis
-    # fid = h5open("output/intermediate_screen.h5", "w")
-    # g = create_group(fid, "vars")
-    #     g["SiO2"] = bulk.SiO2
-    #     g["bulkweight"] = bulkweight
-    #     g["additional"] = additional
-    # close(fid)
 
 
 ## --- Restrict to in-bounds only and normalize compositions
@@ -309,15 +310,8 @@
         )
     )
 
-
-## --- Classify rock types and names (getting from file is too tricky to debug)
-    # Rock names / types / materials for all EarthChem data
-    bulkrockname = lowercase.(bulktext.elements.Rock_Name[bulktext.index.Rock_Name])
-    bulkrocktype = lowercase.(bulktext.elements.Type[bulktext.index.Type])
-    bulkmaterial = lowercase.(bulktext.elements.Material[bulktext.index.Material])
-
-    # Match rock types
-    bulk_cats = match_rocktype(bulkrockname, bulkrocktype, bulkmaterial, source=:earthchem)
+    # Rock types
+    bulk_kittens = NamedTuple{keys(bulk_cats)}(bulk_cats[k][t] for k in keys(bulk_cats))
 
 
 ## --- Write data to an HDF5 file
@@ -359,14 +353,14 @@
     bulktypes = create_group(fid, "bulktypes")
 
     # Rock types
-    a = Array{Int64}(undef, length(bulk_cats[1]), length(bulk_cats))
-    for i in eachindex(keys(bulk_cats))
-        for j in eachindex(bulk_cats[i])
-            a[j,i] = ifelse(bulk_cats[i][j], 1, 0)
+    a = Array{Int64}(undef, length(bulk_kittens[1]), length(bulk_kittens))
+    for i in eachindex(keys(bulk_kittens))
+        for j in eachindex(bulk_kittens[i])
+            a[j,i] = ifelse(bulk_kittens[i][j], 1, 0)
         end
     end
     bulktypes["bulk_cats"] = a
-    bulktypes["bulk_cats_head"] = string.(collect(keys(bulk_cats))) 
+    bulktypes["bulk_cats_head"] = string.(collect(keys(bulk_kittens))) 
 
     close(fid)
 

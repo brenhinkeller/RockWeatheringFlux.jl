@@ -23,9 +23,7 @@
         rockname = read(oldfid["vars"]["rockname"]),
         rockdescrip = read(oldfid["vars"]["rockdescrip"]),
     )
-    macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
-        macrostrat.rockdescrip
-    )
+    macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
 
 
 ## --- Put data in new file

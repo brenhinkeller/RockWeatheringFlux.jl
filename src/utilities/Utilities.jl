@@ -38,7 +38,7 @@
     ```
 
     """
-    function match_rocktype(rocktype::T, rockname::T, rockdescrip::T; major::Bool=false
+    function match_rocktype(rocktype::T, rockname::T, rockdescrip::T; major::Bool=false,
         showprogress::Bool=true) where T <: AbstractArray{<:String}
         
         # Get rock type classifications and initialized BitVector
@@ -104,6 +104,7 @@
     types.
     """
     function match_rocktype(Rock_Name::T, Type::T, Material::T, sedrocks, ignrocks) where T <: AbstractArray{<:String}
+        # Get rock type classifications and initialized BitVector
         typelist, cats = get_cats(false, length(Rock_Name));
 
         # Broadly categorize samples as igneous and sedimentary based on material and type
@@ -200,8 +201,8 @@
     ```
 
     Match a `subset` of rock type names in `typelist` to rock names in `rockname`. Filter
-    the rock names to be matched by `filter`.
-
+    the rock names to be matched by `filter`. 
+    
     To get `cats` and `typelist`, see `get_cats` or `get_rock_class`.
 
     # Example

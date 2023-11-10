@@ -10,7 +10,10 @@
 
     """
     ```julia
-    match_rocktype(rocktype, rockname, rockdescrip; source=:macrostrat, [major])
+    match_rocktype(rocktype, rockname, rockdescrip; source=:macrostrat; 
+        [major], 
+        [showprogress]
+    )
     ```
 
     Match Macrostrat rock names to defined rock classes.
@@ -21,7 +24,8 @@
     etc. 
 
     Set `major=true` to return only matches for sedimentary, igneous, and metamorphic 
-    rocks. See `get_rock_class` for discussion of rock types and subtypes.
+    rocks. See `get_rock_class` for discussion of rock types and subtypes. Set 
+    `showprogress=false` to suppress the progress bar.
 
     # Example
     ```julia
@@ -34,12 +38,14 @@
     ```
 
     """
-    function match_rocktype(rocktype::T, rockname::T, rockdescrip::T; major::Bool=false) where T <: AbstractArray{<:String}
+    function match_rocktype(rocktype::T, rockname::T, rockdescrip::T; major::Bool=false
+        showprogress::Bool=true) where T <: AbstractArray{<:String}
+        
         # Get rock type classifications and initialized BitVector
         typelist, cats = get_cats(major, length(rocktype))
         set = keys(typelist)
 
-        p = Progress(length(typelist)*4, desc="Finding Macrostrat rock types...")
+        p = Progress(length(typelist)*4, desc="Finding Macrostrat rock types...", enabled=showprogress)
 
         # Check major lithology 
         for s in set

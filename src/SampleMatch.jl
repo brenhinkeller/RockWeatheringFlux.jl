@@ -77,9 +77,7 @@
     
 
 ## --- Alternatively, do the matching yourself
-    # macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
-    #     macrostrat.rockdescrip
-    # )
+    # macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
 
     # typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
     # bulk_cats = match_rocktype(bulktext.Rock_Name, bulktext.Type, bulktext.Material, 
@@ -242,7 +240,7 @@
     matches = zeros(Int64, length(macro_cats.sed))
 
     @info "Starting sample matching $(Dates.format(now(), "HH:MM"))"
-    p = Progress(length(matches), desc="Matching samples...")
+    p = Progress(length(matches)÷10, desc="Matching samples...")
     @timev for i in eachindex(matches)
         ltype = littletypes[i] 
         btype = bigtypes[i]
@@ -261,7 +259,7 @@
         )
 
         # Get EarthChem data
-        bulksamples = bulk_cats[btype]
+        bulksamples = bulk_cats[ltype]
         EC = (
             bulklat = bulk.Latitude[bulksamples],            # EarthChem latitudes
             bulklon = bulk.Longitude[bulksamples],           # EarthChem longitudes
@@ -278,7 +276,7 @@
             EC.sampleinds
         )
 
-        next!(p)
+        i%10==0 && next!(p)
     end
 
     # Write data to a file
@@ -290,23 +288,25 @@
     Stop: $(Dates.Date(stop)) $(Dates.format(stop, "HH:MM")).
     Total runtime: $(canonicalize(round(stop - start, Dates.Minute))).
     """
+    
 
 ## --- Quick visualization of distributions
     using Plots
 
-    # Make matches nice and inclusive
-    for type in minorsed
-        macro_cats.sed .|= macro_cats[type]
-    end
-    for type in minorvolc
-        macro_cats.volc .|= macro_cats[type]
-    end
-    for type in minorplut
-        macro_cats.plut .|= macro_cats[type]
-    end
-    for type in minorign
-        macro_cats.ign .|= macro_cats[type]
-    end
+    # Already did this
+    # # Make matches nice and inclusive
+    # for type in minorsed
+    #     macro_cats.sed .|= macro_cats[type]
+    # end
+    # for type in minorvolc
+    #     macro_cats.volc .|= macro_cats[type]
+    # end
+    # for type in minorplut
+    #     macro_cats.plut .|= macro_cats[type]
+    # end
+    # for type in minorign
+    #     macro_cats.ign .|= macro_cats[type]
+    # end
 
     # Matched silica 
     t = matches .> 0;

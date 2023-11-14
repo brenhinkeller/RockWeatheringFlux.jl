@@ -135,6 +135,16 @@
         match_subset!(cats, groups.sed, typelist, sedrocks, Rock_Name)
         match_subset!(cats, groups.ign, typelist, ignrocks, Rock_Name)
 
+        # Siliciclastic type samples are named only "sedimentary" and need to be specifically
+        # set as siliciclasts
+        t = vec((Type .== "siliciclastic") .| (Type .== "conglomerate&breccia"));
+        cats.siliciclast[t] .= true
+
+        # Volcanic breccia isn't matched since the name "breccia" is sedimentary: it must 
+        # be specifically set as volcanic
+        t = vec((bulkrockname .== "breccia") .& (bulkrocktype .== "volcanic"));
+        cats.volc[t] .= true
+
         # Allow all unmatched samples to match against all rock types
         not_matched = find_unmatched(cats);
         match_subset!(cats, not_matched, typelist, keys(typelist), Rock_Name)
@@ -147,9 +157,6 @@
 
         t = vec((Type .== "plutonic") .| (Type .== "pegmatitic"));
         cats.plut[t .& not_matched] .= true
-
-        t = vec((Type .== "siliciclastic") .| (Type .== "conglomerate&breccia"));
-        cats.siliciclast[t .& not_matched] .= true
 
         t = vec(Type .== "siliceous")
         cats.chert[t .& not_matched] .= true
@@ -203,7 +210,8 @@
     ```
 
     Match a `subset` of rock type names in `typelist` to rock names in `rockname`. Filter
-    the rock names to be matched by `filter`. 
+    the rock names to be matched by `filter`. The types in `subset` should be the same
+    as the keys in `cats` and `typelist` which you want to search.
     
     To get `cats` and `typelist`, see `get_cats` or `get_rock_class`.
 
@@ -213,16 +221,19 @@
     
     julia> typelist, cats = get_cats(false, length(bulkrockname));
 
-    julia> sedlist = (minorsed..., :sed,)
+    julia> sedlist = (minorsed..., :sed,);
 
     julia> match_subset!(cats, groups.sed, typelist, sedlist, bulkrockname)
     ```
 
     """
-    function match_subset!(cats::NamedTuple, filter::BitVector, typelist::NamedTuple, subset, rockname::AbstractArray{<:String})
+    function match_subset!(cats::NamedTuple, rfilter::BitVector, typelist::NamedTuple, 
+            subset, rockname::AbstractArray{<:String}
+        )
+
         for s in subset
             for i in typelist[s]
-                cats[s][filter] .|= containsi.(rockname[filter], i)
+                cats[s][rfilter] .|= containsi.(rockname[rfilter], i)
             end
         end
 

@@ -83,7 +83,7 @@
             next!(p)
         end
 
-        return cats
+        return rm_false_positives!(cats)
     end
 
 
@@ -173,7 +173,7 @@
         not_matched = find_unmatched(cats);
         cats.met[groups.met .& not_matched] .= true
 
-        return cats
+        return rm_false_positives!(cats)
     end
 
 

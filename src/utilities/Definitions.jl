@@ -192,7 +192,7 @@
             "nephelinite","ugandite", "ottajanite", "melnoite", "pantellerite", "comendite", 
             "latite", "tristanite", "augitite", "absarokite", "shoshonite", "linosaite",
             "bergalite", "alnoite", "alnã\u96ite", "kimberlite",  "orangeite", "diatreme", 
-            "pipe", "alkaline volcan", "alkalic igneous")
+            "pipe", "alkaline volcan", "alkalic igneous", "malignite",)
         volcaniclast = ("tonstein", "peperite", "volcaniclastic", "lahar",)
         volc = ("volcanic", "extrusive", "lava", "eutaxite", "vitrophyre", "volcan", 
             "ash", "ashfall", "tuff",  "tephra", "cinder", "porphyrite", 
@@ -222,7 +222,7 @@
             "murambite", "tephrite", "tahitite", "vicoite", "urtite", "ankaramite", 
             "basanit", "limburgite", "biotitite", "riedenite", "glimmerite", "kamafugite",
             "turjaite", "essexite", "yamaskite", "teschenite", "crinanite", "vibetoite",  
-            "uncompahgrite", "apatitite", "nelsonite", "phoscorite", "kullaite", 
+            "uncompahgrite", "apatitite", "nelsonite", "phoscorite", "kullaite", "malignite",
             "alkaline pluton")
         plut = ("plutonic", "pluton", "intrusive", "intrus", "sill", "dike", "stock", 
             "laccolith", "lopolith", "batholith", "porphyry", "megacryst",
@@ -314,6 +314,25 @@
         return typelist, NamedTuple{keys(typelist)}([falses(npoints) for _ in 1:length(typelist)]) 
     end
 
+    """
+    ```julia
+    rm_false_positives!(cats)
+    ```
+
+    Remove false matches from `cats`, where a false match is when a rock name used to
+    identify samples is present in another rock name. For example, all grano*diorite* 
+    samples will match with *diorite*.
+
+    Currently removes:
+     *  Diorite from grano*diorite*.
+     *  Lignite from ma*lignite*.
+    """
+    function rm_false_positives!(cats)
+        cats.diorite .&= cats.granodiorite  # Diorite / granodiorite
+        cats.coal .&= .!cats.alk_volc       # Lignite / malignite 
+
+        return cats
+    end
 
 ## --- Define minor types
 

@@ -10,7 +10,7 @@
 
     """
     ```julia
-    match_rocktype(rocktype, rockname, rockdescrip; source=:macrostrat; 
+    match_rocktype(rocktype, rockname, rockdescrip; 
         [major], 
         [showprogress]
     )
@@ -29,7 +29,7 @@
 
     # Example
     ```julia
-    cats = match_rocktype(rocktype, rockname, rockdescrip, source=:macrostrat, major=true)
+    cats = match_rocktype(rocktype, rockname, rockdescrip, major=true)
     NamedTuple with 4 elements:
     sed    = BitVector(50000,)    [true ... true]
     ign    = BitVector(50000,)    [false ... false]

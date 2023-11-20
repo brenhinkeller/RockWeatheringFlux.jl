@@ -92,10 +92,6 @@
     macro_cats = delete_cover(macro_cats)
     bulk_cats = delete_cover(bulk_cats)
 
-    # All granodiorites will also match with diorite. Don't do that.
-    macro_cats.diorite .&= .!macro_cats.granodiorite
-    bulk_cats.diorite .&= .!bulk_cats.granodiorite
-
     # Metamorphic rocks are only metamorphic if we cannot infer a protolith
     for type in keys(macro_cats)
         type==:met && continue
@@ -135,7 +131,7 @@
     p_protolith ./= nansum(p_protolith)
 
 
-## --- If samples are matched to a rock subtype and a rock major type, don't
+## --- If samples are matched to a rock subtype and a rock major type, don't!
     # This is mostly important for figuring out what minor type to assign each sample
     for type in minorsed
         macro_cats.sed .&= .!macro_cats[type]
@@ -157,7 +153,7 @@
 
 ## --- Match each Macrostrat sample to a single informative rock name and type
     # Doing this in several passes over the sample set means that I can optimize sections
-    # that can be optimized, which will make this faster... by two orders of magnitude lol
+    # that can be optimized, which will make this faster... by two orders of magnitude
 
     # Preallocate
     bigtypes = Array{Symbol}(undef, length(macrostrat.age), 1)      # Sed, volc, ign, etc.
@@ -215,24 +211,9 @@
     bulkzero = NamedTuple{Tuple(geochemkeys)}([zeronan(bulk[i]) for i in geochemkeys])
 
     # Average geochemistry of each rock type
-    rox = keys(macro_cats)
-    geochem_lookup = NamedTuple{Tuple(rox)}([major_elements(bulk, bulk_cats[i])
-        for i in eachindex(rox)]
+    geochem_lookup = NamedTuple{Tuple(keys(macro_cats))}([major_elements(bulk, bulk_cats[i])
+        for i in eachindex(keys(macro_cats))]
     );
-
-    # Make major types inclusive of minor types?
-    for type in minorsed
-        macro_cats.sed .|= macro_cats[type]
-        bulk_cats.sed .|= bulk_cats[type]
-    end
-    for type in minorvolc
-        macro_cats.volc .|= macro_cats[type]
-        bulk_cats.volc .|= bulk_cats[type]
-    end
-    for type in minorplut
-        macro_cats.plut .|= macro_cats[type]
-        bulk_cats.plut .|= bulk_cats[type]
-    end
 
 
 ## --- Find matching EarthChem sample for each Macrostrat sample
@@ -286,56 +267,8 @@
     stop = now()
     @info """
     Stop: $(Dates.Date(stop)) $(Dates.format(stop, "HH:MM")).
-    Total runtime: $(canonicalize(round(stop - start, Dates.Minute))).
+    Program runtime: $(canonicalize(round(stop - start, Dates.Minute))).
     """
     
-
-## --- Quick visualization of distributions
-    using Plots
-
-    # Already did this
-    # # Make matches nice and inclusive
-    # for type in minorsed
-    #     macro_cats.sed .|= macro_cats[type]
-    # end
-    # for type in minorvolc
-    #     macro_cats.volc .|= macro_cats[type]
-    # end
-    # for type in minorplut
-    #     macro_cats.plut .|= macro_cats[type]
-    # end
-    # for type in minorign
-    #     macro_cats.ign .|= macro_cats[type]
-    # end
-
-    # Matched silica 
-    t = matches .> 0;
-    silica = bulk.SiO2[matches[t]]
-
-    # Send this to three of your friends to totally visualize them
-    get_visualized = (:volc, :plut, :ign, :siliciclast, :shale, :carb, :chert, :sed)
-    fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(get_visualized)) 
-    for i in eachindex(get_visualized)
-        # Figure out what kind of bins we want
-        r = get_visualized[i]
-        if r==:sed || r in minorsed
-            nb = (0,100,100)
-        elseif r==:ign || r in minorign
-            nb = (40,80,40)
-        end
-
-        # Get visualized!
-        c, n = bincounts(silica[macro_cats[r][t]], nb...)
-        n = float(n) ./ nansum(float(n) .* step(c))
-        h = plot(c, n, seriestype=:bar, framestyle=:box, color=colors[r], linecolor=colors[r],
-            title="$(string(r)); n = $(count(macro_cats[r]))", label="",     
-            ylims=(0, round(maximum(n), digits=2)+0.01) 
-        )
-        fig[i] = h
-    end
-
-    h = plot(fig..., layout=(3,3), size=(1800, 1200))
-    display(h)
-
 
 ## --- End of File

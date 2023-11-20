@@ -561,17 +561,16 @@
         binedges = collect(0:step:100)
         if binedges[end] != 100 
             binedges[end] = 100
-            bincenters = collect((step/2):step:(100-step/2))
-            bincenters[end] = binedges[end-1] + (binedges[end] - binedges[end-1])/2
-        else
-            bincenters = (step/2):step:(100-step/2)
         end
         
         # Calculate the index of each percentile in x, correcting for zero-indexing
         r = ceil.(Int, binedges ./ 100 .* length(x))
 
-        # Calculate means and variances
+        # Calculate bin centers
         nbins = length(binedges) - 1
+        bincenters = [(x[r[i]+1] + x[r[i+1]]) / 2 for i = 1:nbins]
+
+        # Calculate means and variances
         μ = zeros(nbins)        # Mean
         σȳ = zeros(nbins)      # Y standard deviation
         σx̄ = zeros(nbins)      # X standard deviation

@@ -538,18 +538,25 @@
 
     """
     ```julia
-    binmeans_percentile(x::AbstractArray, y::AbstractArray; step::Number=5)
+    binmeans_percentile(x::AbstractArray, y::AbstractArray; 
+        step::Number=5, 
+        [bounderror]
+    )
     ```
 
     The means of `y` binned by x into bins equally spaced by percentile. Returns bin centers,
-    means, and standard errors of the mean.
+    means, and standard errors of the mean. Optionally set `bounderror=true` to 
+    additionally return the y error as a tuple of 5ᵗʰ and 95ᵗʰ percentiles.
 
     # Example
     ```julia
     (c, m, ex, ey) = binmeans_percentile(x, y, step=5)
     ```
     """
-    function binmeans_percentile(x::AbstractArray, y::AbstractArray; step::Number=5)
+    function binmeans_percentile(x::AbstractArray, y::AbstractArray; 
+            step::Number=5,
+            bounderror::Bool=false
+        )
         @assert length(x) == length(y) "x and y must be equal lengths."
 
         # Sort data by x value
@@ -571,7 +578,7 @@
         bincenters = [(x[r[i]+1] + x[r[i+1]]) / 2 for i = 1:nbins]
 
         # Calculate means and variances
-        μ = zeros(nbins)        # Mean
+        μ = zeros(nbins)       # Mean
         σȳ = zeros(nbins)      # Y standard deviation
         σx̄ = zeros(nbins)      # X standard deviation
 
@@ -584,8 +591,20 @@
             σȳ[i] = nanstd(yᵢ) / sqrt(n)
             σx̄[i] = nanstd(x[r[i]+1:r[i+1]]) / sqrt(n)
         end
+        
+        # Calculate 5th and 95th percentiles for each bin
+        if bounderror == true
+            yp = fill((0.0,0.0), nbins)
+            for i = 1:nbins
+                yᵢ = y[r[i]+1:r[i+1]]
+                yp[i] = percentile(yᵢ, 5), percentile(yᵢ, 95)
+            end
 
-        return bincenters, μ, σx̄, σȳ
+            return bincenters, μ, σx̄, σȳ, yp
+        else
+        # Or don't!
+            return bincenters, μ, σx̄, σȳ
+        end
     end
 
     

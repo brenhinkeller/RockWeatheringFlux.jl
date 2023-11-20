@@ -110,6 +110,16 @@
         @test cats[k] == [false, false, false]
     end
 
+## --- Untupleify
+    A = [
+        (1,2),
+        (3,4),
+        (5,6)
+    ]
+    a, b = untupleify(A)
+    @test a == [1,3,5]
+    @test b == [2,4,6]
+
 
 ## --- Points in polygon
     # Define simple shape

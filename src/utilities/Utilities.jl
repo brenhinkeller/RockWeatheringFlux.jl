@@ -999,6 +999,34 @@
         return val, err
     end
 
+    """
+    ```julia
+    untupleify(A)
+    ```
+
+    Separate an array of `Tuple`s into two arrays.
+
+    # Example
+    ```julia-repl
+    julia> A = [(1,2),(3,4),(5,6)];
+
+    julia> untupleify(A)
+    ([1, 3, 5], [2, 4, 6])
+    ```
+    
+    """
+    function untupleify(A::AbstractArray{T}) where T <: Tuple{Any, Any}
+        Ta = typeof(A[1][1])
+        Tb = typeof(A[1][2])
+        a = Array{Ta}(undef, length(A))
+        b = Array{Tb}(undef, length(A))
+        for i in eachindex(A)
+            a[i] = A[i][1]
+            b[i] = A[i][2]
+        end
+        return a, b
+    end
+
 
 ## --- Geography (PIP, geolprov)
 

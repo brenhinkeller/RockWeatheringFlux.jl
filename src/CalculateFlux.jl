@@ -18,9 +18,9 @@
     bulkidx = Int.(vec(fid[:,1]))
     t = @. bulkidx != 0
 
-    # Matched types, majors inclusive of minors
-    bulktype = string.(vec(fid[:,2]))
-    macro_cats = match_rocktype(bulktype[t])
+    # # Matched types, majors inclusive of minors
+    # bulktype = string.(vec(fid[:,2]))
+    # macro_cats = match_rocktype(bulktype[t])
 
     # Load bulk, but just the samples matched to the Macrostrat data
     fid = h5open("output/bulk.h5", "r")
@@ -46,17 +46,39 @@
     # macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
     close(fid)
 
-    # # Major types include minor types
-    minorsed, minorign, minormet = get_minor_types()
-    # for type in minorsed
-    #     macro_cats.sed .|= macro_cats[type]
-    # end
-    # for type in minorign
-    #     macro_cats.ign .|= macro_cats[type]
-    # end
-    # for type in minormet
-    #     macro_cats.met .|= macro_cats[type]
-    # end
+    
+## --- Matched rock types
+    # From the matched samples
+    fid = readdlm("$matchedbulk_io")
+    bulktype = string.(vec(fid[:,2]))
+    out_cats = match_rocktype(bulktype[t])
+
+    # From Macrostrat
+    fid = h5open("$macrostrat_io", "r")
+    header = read(fid["type"]["macro_cats_head"])
+    data = read(fid["type"]["macro_cats"])
+    data = @. data > 0
+    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
+    close(fid)
+
+    # Major types include minor types
+    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
+    for type in minorsed
+        out_cats.sed .|= out_cats[type]
+        macro_cats.sed .|= macro_cats[type]
+    end
+    for type in minorvolc
+        out_cats.volc .|= out_cats[type]
+        macro_cats.volc .|= macro_cats[type]
+    end
+    for type in minorplut
+        out_cats.plut .|= out_cats[type]
+        macro_cats.plut .|= macro_cats[type]
+    end
+    for type in minorign
+        out_cats.ign .|= out_cats[type]
+        macro_cats.ign .|= macro_cats[type]
+    end
 
     # # Figure out how many data points weren't matched
     # known_rocks = macro_cats.sed .| macro_cats.ign .| macro_cats.met
@@ -74,32 +96,9 @@
     # not matched = $(count(not_matched))
     # """
 
-    # if count(multi_matched) > 0
-    #     @warn """
-    #     $(count(multi_matched)) conflicting matches present
-    #     sed and ign = $(count(macro_cats.sed .& macro_cats.ign))
-    #     sed and met = $(count(macro_cats.sed .& macro_cats.met))
-    #     ign and met = $(count(macro_cats.ign .& macro_cats.met))
-    #     """
-    # end
-    
-
-## --- Definitions
-    # Elements of interest
-    majors, minors = get_elements()
-    allelements = [majors; minors]
-    nelements = length(allelements)
-
-    # Define rock sub-types (do not compute cover)
-    npoints = count(t)
-    subcats = collect(keys(macro_cats))
-    deleteat!(subcats, findall(x->x==:cover,subcats))
-
-    # # Get relative proportion of all rock types
-    # nmajors = count(macro_cats.sed) + count(macro_cats.met) + count(macro_cats.ign)
-    # rel_proportion = NamedTuple{Tuple(subcats)}(
-    #     float.([count(macro_cats[i]) for i in subcats]) / nmajors
-    # )
+    # Delete cover
+    macro_cats = delete_cover(macro_cats)
+    out_cats = delete_cover(out_cats)
     
 
 ## --- Calculate erosion rate at each coordinate point of interest	
@@ -119,13 +118,14 @@
 
 ## --- Calculate denundation at each point
     # Declare constants
+    const npoints = length(macrostrat.rocklat)                  # Number of points
     const crustal_density = 2750                                # kg/m³
     const unit_sample_area = (148940000 * 1000000) / npoints    # Area of contients / npoints (m²)
 
     # Create file to save data
     fid = h5open("$eroded_out", "w")
 
-    # Denundation at each point
+    # Denundation at each point (kg/yr)
     sampleflux = [rock_ersn[i] * unit_sample_area * crustal_density * 1e-6 for i = 1:npoints]
 
     # Save to file
@@ -136,6 +136,11 @@
 
 
 ## --- Calculate flux of each element at each point
+    # Define elements
+    majors, minors = get_elements()
+    allelements = [majors; minors]
+    nelements = length(allelements)
+
     # Preallocate file space
     element_flux = create_group(fid, "element_flux")
     elem_vals = create_dataset(element_flux, "values", Float64, (npoints, nelements))
@@ -144,8 +149,8 @@
 
     for i in eachindex(allelements)
         # Since each Macrostrat point has a corresponding EarthChem sample, use that 
-        # sample to calculate flux of eachelement at each point
-        elementflux = [sampleflux[j] * bulk[i][j] * 1e-2 for j = 1:npoints]
+        # sample to calculate flux of each element at each point
+        elementflux = [sampleflux[j] * bulk[allelements[i]][j] * 1e-2 for j = 1:npoints]
 
         # Save to file
         elementflux_val, elementflux_err = unmeasurementify(elementflux)
@@ -156,7 +161,8 @@
     close(fid)
 
 
-## --- Open, the file. Stop, having it be closed.
+## --- Open the file
+    # Redundant, but means we can skip straight to analyzing things if we want
     fid = h5open("$eroded_out", "r")
 
     # Total / bulk denundation at each point in kg/yr
@@ -184,51 +190,70 @@
     totalelementflux = NamedTuple{keys(elementflux)}([nansum(i) / kg_gt for i in elementflux])
 
     # Sum of all element fluxes in Gt/yr
-    globalflux = nansum(totalelementflux)
+    global_elem = nansum(totalelementflux)
 
     # Print to terminal
     @info """
     Total global denundation: $global_denun Gt/yr
-    Sum of all element fluxes: $globalflux Gt/yr
+    Sum of all element fluxes: $global_elem Gt/yr
     """
-    if globalflux.val > global_denun.val
+    if global_elem.val > global_denun.val
+        diff = global_elem.val - global_denun.val
         @warn """
         Mass of total eroded material from all elements is greater than bulk eroded mass. 
+        Difference: $diff
         """
     end
 
 
 ## --- Export crustal composition results
-    # Preallocate
-    # result = zeros(length(header), length(macro_cats))  # Element row, rock type column
-    result = Array{Float64}(undef, length(header), length(macro_cats))
-    rows = string.(header)
-    cols = hcat("", string.(reshape(subcats, 1, length(subcats))), "total")
+    # Preallocate (element row, rock type column)
+    result = Array{Float64}(undef, length(elementflux), length(out_cats) + 1)
 
-    # # Column numbers for rock types
-    # colnumbers = NamedTuple{Tuple(subcats)}(1:length(subcats))
+    # Calculate the absolute contribution of each rock type to the denudation of each
+    # element. This is the sum of the individual contributions of each point mapped to that
+    # rock type.
 
-    # Absolute contribution of each rock type to element flux, calculated as the sum of
-    # the individual contributions of each point
-    for i in eachindex(subcats)
+    # We use the randomly assigned, single-matched rock types, since the code is easier to
+    # write. By the law of large numbers, this should be equivalent to using multi-matched
+    # samples.
+
+    for i in eachindex(keys(out_cats))
         for j in eachindex(keys(elementflux))
-            # Element row, rock type column
-            result[j,i] += nansum(unmeasurementify(elementflux[j][macro_cats[subcats[i]]])[1])
+            result[j,i] = nansum(unmeasurementify(elementflux[j])[1][out_cats[i]])
         end
     end
 
-    # Unit conversion
+    # Convert units from kg/yr to gt/yr
     result = result ./ kg_gt
 
-    # Add the global total to the last row
-    global_by_element = unmeasurementify(totalelementflux)[1]
-    result[:,end] = global_by_element
+    # Add global total denudation by element to the last row (units already converted)
+    global_element = unmeasurementify(totalelementflux)[1]
+    result[:,end] = global_element
 
-    # Absolute contribution
-    writedlm("$erodedabs_out", vcat(cols, hcat(collect(rows), result)), ',')
+    # Save to file
+    rows = string.(collect(keys(elementflux)))
+    cols = string.(collect(keys(out_cats)))
+    cols = hcat("", reshape(cols, 1, length(cols)), "total")
 
-    # Relative contribution
-    writedlm("$erodedrel_out", vcat(cols, hcat(collect(rows), result ./ global_by_element)), ',')
+    writedlm(erodedabs_out, vcat(cols, hcat(rows, result)))                    # Absolute
+    writedlm(erodedrel_out, vcat(cols, hcat(rows, result./global_element)))    # Relative / fraction
+
+    # Terminal printout
+    majors, minors = get_elements()
+    nmajors = length(majors)
+    majorcomp = round.(result[1:nmajors, end], digits=1)
+    majorcomp_rel = round.(result[1:nmajors, end]./global_denun.val*100, digits=1)
+
+    @info """Composition of bulk eroded material:
+    Absolute (gt/yr)
+    $(join(keys(elementflux)[1:nmajors], " \t "))
+    $(join(majorcomp, " \t "))
+
+    Relative (%)
+    $(join(keys(elementflux)[1:nmajors], " \t "))
+    $(join(majorcomp_rel, " \t "))
+    """
 
     
 ## --- End of File

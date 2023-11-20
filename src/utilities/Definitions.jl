@@ -17,8 +17,8 @@
 
         eroded_out = "output/N_250K/250K_erodedmaterial.h5"
         ucc_out = "results/250K_exposedcrust.tsv"
-        erodedabs_out = "results/250K_erodedmaterial_abs.csv"
-        erodedrel_out = "results/250K_erodedmaterial_rel.csv"
+        erodedabs_out = "results/250K_erodedmaterial_abs.tsv"
+        erodedrel_out = "results/250K_erodedmaterial_rel.tsv"
 
     # 1_000_000 Macrostrat samples
         # macrostrat_io = "output/N_1M/1M_responses.h5"

@@ -542,7 +542,7 @@
     ```
 
     The means of `y` binned by x into bins equally spaced by percentile. Returns bin centers,
-    means, and standard deviations for each bin.
+    means, and standard errors of the mean.
 
     # Example
     ```julia
@@ -550,35 +550,43 @@
     ```
     """
     function binmeans_percentile(x::AbstractArray, y::AbstractArray; step::Number=5)
-        # Get bin edges and centers in terms of percentiles
-        binedges = collect(0:step:100)
-        binedges[end] != 100 && push!(binedges, 100)
+        @assert length(x) == length(y) "x and y must be equal lengths."
 
-        # Sort data
+        # Sort data by x value
         p = sortperm(x)
         x = x[p]
         y = y[p]
 
-        # Get percentile indices and bin centers
-        npoints = length(y)
-        indices = round.(Int, binedges / 100 * npoints)     # Percentile indices
-        indices[1] = 1                                      # Make indices index-able
-        indx = [x[i] for i in indices]
-        c = [(indx[i-1]+indx[i])/2 for i in 2:lastindex(indx)]
+        # Calculate bin edges and centers. Last bin may be larger than expected
+        binedges = collect(0:step:100)
+        if binedges[end] != 100 
+            binedges[end] = 100
+            bincenters = collect((step/2):step:(100-step/2))
+            bincenters[end] = binedges[end-1] + (binedges[end] - binedges[end-1])/2
+        else
+            bincenters = (step/2):step:(100-step/2)
+        end
         
-        # Preallocate
-        m = Array{Float64}(undef, length(c))
-        ey = Array{Float64}(undef, length(c))
-        ex = Array{Float64}(undef, length(c))
+        # Calculate the index of each percentile in x, correcting for zero-indexing
+        r = ceil.(Int, binedges ./ 100 .* length(x))
 
-        # Get means and standard deviations
-        for i = 2:lastindex(indices)
-            m[i-1] = nanmean(y[indices[i-1]:indices[i]])
-            ey[i-1] = nanstd(y[indices[i-1]:indices[i]])
-            ex[i-1] = nanstd(x[indices[i-1]:indices[i]])
+        # Calculate means and variances
+        nbins = length(binedges) - 1
+        μ = zeros(nbins)        # Mean
+        σȳ = zeros(nbins)      # Y standard deviation
+        σx̄ = zeros(nbins)      # X standard deviation
+
+        # Since we've sorted the data, figuring out what bin each value belongs to is easy!
+        for i = 1:nbins
+            yᵢ = y[r[i]+1:r[i+1]]
+            n = length(yᵢ)
+            
+            μ[i] = nanmean(yᵢ)
+            σȳ[i] = nanstd(yᵢ) / sqrt(n)
+            σx̄[i] = nanstd(x[r[i]+1:r[i+1]]) / sqrt(n)
         end
 
-        return c, m, ex, ey
+        return bincenters, μ, σx̄, σȳ
     end
 
     

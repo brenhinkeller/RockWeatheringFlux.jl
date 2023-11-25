@@ -83,7 +83,7 @@
     using MAT 
     using DelimitedFiles
     nsims = Int(1e7)
-    SiO₂_error = 0.1
+    SiO₂_error = 1.0
 
     # Volcanic (spatial)
     volcanic = matread("data/volcanicplutonic/volcanic.mat")["volcanic"];
@@ -218,5 +218,92 @@
     display(h)
     savefig(h, "$filepath/ignsilica.pdf")
     
+
+## --- P content in igneous rocks over time 
+    # Load EarthChem data
+    fid = h5open("output/bulk.h5", "r")
+    header = read(fid["bulk"]["header"])
+    data = read(fid["bulk"]["data"])
+    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+
+    header = read(fid["bulktypes"]["bulk_cats_head"])
+    data = read(fid["bulktypes"]["bulk_cats"])
+    data = @. data > 0
+    bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    close(fid)
+
+    # Condense igneous rocks
+    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
+    for type in minorvolc
+        bulk_cats.volc .|= bulk_cats[type]
+    end
+    for type in minorplut
+        bulk_cats.plut .|= bulk_cats[type]
+    end
+    for type in minorign
+        bulk_cats.ign .|= bulk_cats[type]
+    end
+
+    # Get age uncertainty. If unknonwn, set at 5%
+    age_uncert = Array{Float64}(undef, length(bulk.Age))
+    age_uncert .= (bulk.Age_Max .- bulk.Age_Min)/2
+    t = isnan.(age_uncert)
+    age_uncert[t] .= bulk.Age[t] .* 0.05
+
+    # Resample mafic and felsic silica ranges separately to distinguish mantle melting and
+    # subsequent evolution and fractionation (after Keller and Schoene, 2012)
+    SiO₂_range = ((43,51),(51,62),(62,74),(74,80)) 
+    nsims = Int(1e7)
+    # P₂O₅_error = 0.02       # From volcanic.mat (Keller et al., 2015)
+    P₂O₅_error = 1.0
+    simout = [Array{Float64}(undef, nsims, 2) for _ in 1:length(SiO₂_range)]
+
+    for i in eachindex(SiO₂_range)
+        # Restrict data and calculate resampling weights
+        t = SiO₂_range[i][1] .< bulk.SiO2 .<= SiO₂_range[i][2]
+        t .&= bulk_cats.ign
+        t .&= .!isnan.(bulk.Latitude) .& .!isnan.(bulk.Longitude) .& .!isnan.(bulk.Age)
+        k = invweight(bulk.Latitude[t], bulk.Longitude[t], bulk.Age[t])
+        p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+
+        # Resample
+        data = [bulk.P2O5[t] bulk.Age[t]]
+        uncertainty = [fill(P₂O₅_error, length(bulk.SiO2[t])) age_uncert[t]]
+        simout[i] .= bsresample(data, uncertainty, nsims, p)
+        # c, m, e = bin_bsr_means(bulk.Age[t], bulk.P2O5[t], 0, 3800, 38, 
+        #     x_sigma = bulk.Age[t], y_sigma = fill(P₂O₅_error, length(bulk.SiO2[t])), 
+        #     p=p, nresamplings=nsims
+        # )
+    end
+
+    # Plot!
+    labels=["Mafic", "Intermediate", "Felsic", "High-Silica"]
+    colors=[:darkred, :red, :deeppink, :darkorange]
+    h = plot(
+        xlabel="Age [Ma]",
+        ylabel="P₂O₅ [wt.%]",
+        grid=false,
+        framestyle=:box,
+        fg_color_legend=:white, legendfontsize = 12,
+        fontfamily=:Helvetica, 
+        tickfontsize=12,
+        labelfontsize=15, 
+        xlims=(0,3800),
+        ylims=(0,0.6),
+        yticks=0:0.1:0.6,
+        size=(600,600),
+        bottom_margin=(15,:px), left_margin=(15,:px)
+    )
+    for i in eachindex(simout)
+        c, m, e = binmeans(simout[i][:,2], simout[i][:,1], 0, 3800, 38)
+        plot!(h, c, m, yerror=2*e, 
+            linewidth=2,
+            label=labels[i], 
+            color=colors[i], linecolor=colors[i], msc=colors[i],
+        )
+    end
+    display(h)
+    savefig(h, "$filepath/ign_phos_timeseries.pdf")
+
 
 ## --- End of file 

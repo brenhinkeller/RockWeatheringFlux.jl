@@ -8,13 +8,15 @@
     using Plots
 
     # Local utilities and definitions
-    using Measurements, LoopVectorization, Static
+    using Measurements, Static
+    using LoopVectorization: @turbo
     include("../utilities/Utilities.jl")
     filepath = "results/figures/AGU"
 
 
 ## --- Slope vs. erosion rate 
     using Isoplot
+    using StatsBase
     include("../utilities/yorkfit.jl")
 
     octopusdata = importdataset("output/octopusdata.tsv",'\t', importas=:Tuple)
@@ -41,7 +43,7 @@
     l, u = untupleify(ey_bound)
     l = m .- l      # Lower bound
     u = u .- m      # Upper bound
-    ey_bound = (l, m)
+    ey_bound = [(l[i]*2, m[i]*2) for i in eachindex(l)]
 
     # Fit slope to means
     fobj = yorkfit(collect(c), ex, log.(m), log.(ey))
@@ -56,23 +58,30 @@
         yscale=:log10,
         ylims=(10^-1, 10^4.5),
         yticks=10.0.^(0:2:4),
+        xlims=(0, 675),
+        tickfontsize=24,
+        labelfontsize=36,
+        legendfontsize=36,
+        size=(1500,1000),
+        left_margin=(40,:px), bottom_margin=(40,:px)
     )
     Plots.scatter!(basin_srtm.avg_slope,octopusdata.ebe_mmkyr, label="Be-10", 
         msc=:auto, color=:darkseagreen, 
-        markersize = 2,
+        markersize = 5,
     )
     Plots.scatter!(h, basin_srtm.avg_slope,octopusdata.eal_mmkyr, label="Al-26", 
         msc=:auto, color=:royalblue, 
-        markersize = 2,
+        markersize = 5,
     )
     Plots.scatter!(h, c, m, yerror=ey*2, label="",
         msc=:auto, linecolor=:black, linewidth=2, markersize=0,
     )
     Plots.scatter!(h, c, m, label="Binned Means ± 2 SEM", 
         msc=:auto, color=:black,
+        markersize = 10,
     )
     Plots.plot!(h, 1:length(model), model, label="exp(slope * 0.0098) + 2.97)", 
-        color=:black, linewidth=3
+        color=:black, linewidth=5
     )
     
     display(h)
@@ -159,9 +168,9 @@
     simVP = [simvolcanic, simplutonic, simigneous]
     for i in eachindex(fig)
         h = Plots.plot(
-            framestyle=:box, grid = false,
+            framestyle=:box, 
+            grid = false,
             fontfamily=:Helvetica, 
-            # title=fig_names[i],
             xlims=(40,80),
             xticks=false,
             yticks=false
@@ -186,13 +195,14 @@
         )
 
         Plots.ylims!(0, round(maximum([n₁; n₂]), digits=2)+0.01)
-        # Plots.annotate!(42, ylims()[2]-0.005, fig_names[i])
-        Plots.annotate!(((0.1, 0.92), (fig_names[i], 20)))
+        # Plots.annotate!(((0.1, 0.92), (fig_names[i], 20)))
+        npoints = count(sample_cats[fig_types[i]])
+        Plots.annotate!(((0.03, 0.97), (fig_names[i] * "\nn = $npoints", 24, :left, :top)))
         fig[i] = h
     end
 
     # Make a common legend
-    Plots.plot!(fig[1], legendfontsize = 15, fg_color_legend=:white, legend=:topright)
+    Plots.plot!(fig[1], legendfontsize = 24, fg_color_legend=:white, legend=:topright)
     Plots.plot!(fig[1], [0],[0], color=colors.volc, linecolor=:match, seriestype=:bar, 
         label=" ",)
     Plots.plot!(fig[1], [0],[0], color=colors.plut, linecolor=:match, seriestype=:bar, 
@@ -208,15 +218,118 @@
     xlabel!(fig[3], "SiO₂ [wt.%]")
 
     # Assemble subplots
-    h = Plots.plot(fig..., layout=(3, 1), size=(900, 1800), 
+    h = Plots.plot(fig..., layout=(3, 1), size=(1000, 2000), 
         # legend=false,
-        left_margin=(45,:px), right_margin=(25,:px), # bottom_margin=(15,:px),
-        tickfontsize=15,
+        left_margin=(75,:px), right_margin=(25,:px), bottom_margin=(25,:px),
+        tickfontsize=24,
         # titleloc=:center, titlefont = font(18),
-        labelfontsize=20
+        labelfontsize=36
     )
+
     display(h)
     savefig(h, "$filepath/ignsilica.pdf")
+    
+
+## --- Relative contribution of each rock type to area and erosion
+    using StatsPlots
+
+    # Load rock types, let major types include minor types
+    fid = readdlm("$matchedbulk_io")
+    bulkidx = Int.(vec(fid[:,1]))
+    t = @. bulkidx != 0
+
+    fid = h5open("$macrostrat_io", "r")
+    header = read(fid["type"]["macro_cats_head"])
+    data = read(fid["type"]["macro_cats"])
+    data = @. data > 0
+    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
+    close(fid)
+
+    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
+    for type in minorsed
+        out_cats.sed .|= out_cats[type]
+        macro_cats.sed .|= macro_cats[type]
+    end
+    for type in minorvolc
+        out_cats.volc .|= out_cats[type]
+        macro_cats.volc .|= macro_cats[type]
+    end
+    for type in minorplut
+        out_cats.plut .|= out_cats[type]
+        macro_cats.plut .|= macro_cats[type]
+    end
+    for type in minorign
+        out_cats.ign .|= out_cats[type]
+        macro_cats.ign .|= macro_cats[type]
+    end
+
+    # Load bulk flux at each point, converting from kg/yr to Gt/yr
+    fid = h5open("$eroded_out", "r")
+    path = fid["bulk_denundation"]
+    bulk_denundation = read(path["values"]) .± read(path["errors"])
+    bulk_denundation ./= 1e12
+    global_denun = nansum(bulk_denundation)
+    close(fid)
+
+    # Get relative proportions
+    area = normalize!([
+        count(macro_cats.sed)/length(macro_cats.sed),
+        count(macro_cats.ign)/length(macro_cats.sed),
+        count(macro_cats.met)/length(macro_cats.sed),
+    ])
+    area ./= 100
+
+    ersn = normalize!([
+        nansum(bulk_denundation[macro_cats.sed])/global_denun,
+        nansum(bulk_denundation[macro_cats.ign])/global_denun,
+        nansum(bulk_denundation[macro_cats.met])/global_denun,
+    ])
+    ersn, = unmeasurementify(ersn)
+    ersn ./= 100
+
+    # Make plot
+    a = groupedbar(vcat(ersn', area'), 
+        bar_position = :stack, orientation=:h, # bar_width=0.7,
+        group=repeat(["Sed", "Ign", "Met"], inner = 2),
+        color=repeat([colors.sed, colors.ign, colors.met], inner = 2),
+        framestyle=:box,
+        xlabel="Fractional Contribution",
+        yticks=([1,2], ["Erosion", "Area"]),
+        grid=false,
+        legend=false,
+        # fg_color_legend=:white, legendfontsize = 24, legend=:outerbottom, legendcolumns=3,
+        # legendtitle="",
+        fontfamily=:Helvetica, 
+        tickfontsize=24,
+        labelfontsize=24,
+        size=(1200,800),
+        xlims=(0,1),
+        bottom_margin=(15,:px), top_margin=(15,:px),
+        left_margin=(15,:px), right_margin=(25,:px),
+    )
+    
+    b = plot(
+        framestyle=:none,
+        xticks=false, yticks=false,
+        ylims=(1,2), xlims=(1,2),
+        fg_color_legend=:white, 
+        legendfontsize = 24, 
+        legend=:outerbottom, 
+        legendcolumns=3,
+        legendtitle="",
+        size=(1200,200),
+    )
+    plot!([0], [0], label=rpad("Sedimentary", 20), color=colors.sed, seriestype=:bar)
+    plot!([0], [0], label=rpad("Metamorphic", 20), color=colors.met, seriestype=:bar)
+    plot!([0], [0], label="Igneous", color=colors.ign, seriestype=:bar)
+
+    l = @layout [
+        a{0.9h}
+        b{0.1h}
+    ]
+    h = plot(a, b, layout=l)
+    display(h)
+    savefig(h, "$filepath/proportions.pdf")
     
 
 ## --- P content in igneous rocks over time 
@@ -244,7 +357,7 @@
         bulk_cats.ign .|= bulk_cats[type]
     end
 
-    # Get age uncertainty. If unknonwn, set at 5%
+    # Get age uncertainty. If unknown, set at 5%
     age_uncert = Array{Float64}(undef, length(bulk.Age))
     age_uncert .= (bulk.Age_Max .- bulk.Age_Min)/2
     t = isnan.(age_uncert)
@@ -274,6 +387,9 @@
         #     x_sigma = bulk.Age[t], y_sigma = fill(P₂O₅_error, length(bulk.SiO2[t])), 
         #     p=p, nresamplings=nsims
         # )
+
+        # For binmeans to get correct SEMs
+        # resamplingratio=length(simout[i][:,1])/length(data[:,1])
     end
 
     # Plot!

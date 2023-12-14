@@ -172,7 +172,7 @@
             grid = false,
             fontfamily=:Helvetica, 
             xlims=(40,80),
-            xticks=false,
+            xticks=(40:10:80, string.(40:10:80)),
             yticks=false
         )
 
@@ -213,12 +213,12 @@
     Plots.plot!(fig[1], [0], [0], linewidth=5, color=:black, label=" Keller et al., 2015")
     
     # Set axes
-    ylabel!(fig[2], "Abundance")
-    xticks!(fig[3], (40:10:80, string.(40:10:80)))
-    xlabel!(fig[3], "SiO₂ [wt.%]")
+    # ylabel!(fig[1], "Abundance")
+    # xticks!(fig[3], (40:10:80, string.(40:10:80)))
+    xlabel!(fig[2], "SiO₂ [wt.%]")
 
     # Assemble subplots
-    h = Plots.plot(fig..., layout=(3, 1), size=(1000, 2000), 
+    h = Plots.plot(fig..., layout=(1, 3), size=(2700, 800), 
         # legend=false,
         left_margin=(75,:px), right_margin=(25,:px), bottom_margin=(25,:px),
         tickfontsize=24,
@@ -302,12 +302,13 @@
         fontfamily=:Helvetica, 
         tickfontsize=24,
         labelfontsize=24,
-        size=(1200,800),
+        size=(1500,800),
         xlims=(0,1),
-        bottom_margin=(15,:px), top_margin=(15,:px),
+        bottom_margin=(50,:px), top_margin=(15,:px),
         left_margin=(15,:px), right_margin=(25,:px),
     )
-    
+    # savefig(a, "$filepath/proportions_a.pdf")
+
     b = plot(
         framestyle=:none,
         xticks=false, yticks=false,
@@ -318,14 +319,15 @@
         legendcolumns=3,
         legendtitle="",
         size=(1200,200),
+        # size=(800,200)
     )
-    plot!([0], [0], label=rpad("Sedimentary", 20), color=colors.sed, seriestype=:bar)
-    plot!([0], [0], label=rpad("Metamorphic", 20), color=colors.met, seriestype=:bar)
-    plot!([0], [0], label="Igneous", color=colors.ign, seriestype=:bar)
+    plot!([0], [0], label=" Sedimentary", color=colors.sed, seriestype=:bar)
+    plot!([0], [0], label=" Metamorphic", color=colors.met, seriestype=:bar)
+    plot!([0], [0], label=" Igneous", color=colors.ign, seriestype=:bar)
 
     l = @layout [
-        a{0.9h}
-        b{0.1h}
+        a{0.85h} 
+        b{0.15h}
     ]
     h = plot(a, b, layout=l)
     display(h)

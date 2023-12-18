@@ -32,22 +32,59 @@
 
 ## --- Color names for visualization
 
+    # Gradients
     c_gradient = :jet1
-
-    # Observed samples by rock type
-    colors = (
-        ign = :crimson, volc = :tomato, plut = :deeppink,
-        sed = :mediumblue, siliciclast = :dodgerblue, shale = :cadetblue, carb = :aqua,
-            chert = :deepskyblue, evap = :lightskyblue, coal = :midnightblue, 
-            phosphorite = :turquoise, volcaniclast = :rebeccapurple,
-        met = :peru, metased = :yellowgreen, metaign = :darkorange,
-        cover = :grey
-    )
 
     # Resampled
     c_rs = :grey
 
+    # Observed samples by rock type
+    lithclass = importdataset("data/lithclass_colors.tsv",'\t', importas=:Tuple)
+    colortext = (
+        ign = "Diabase", 
+            volc = "Volcanic rock", 
+                komatiite = "Ultramafitite",
+                basalt = "Basalt",
+                andesite = "Andesite",
+                dacite = "Dacite",
+                rhyolite = "Rhyolite",
+                alk_volc = "Alkalic volcanic rock",
+                volcaniclast = "Mixed volcanic/clastic rock",
+            plut = "Plutonic rock",
+                peridotite = "Peridotite",
+                pyroxenite = "Pyroxenite",
+                gabbro = "Gabbro",
+                diorite = "Diorite",
+                trondhjemite = "Trondhjemite",
+                tonalite = "Tonalite",
+                granodiorite = "Granodiorite",
+                granite = "Granite",
+                alk_plut = "Alkalic intrusive rock",
+            carbonatite = "Intrusive carbonatite",
+        sed = "Sedimentary rock", 
+            siliciclast = "Medium-grained mixed clastic rock", 
+            shale = "Shale", 
+            carb = "Carbonate rock",
+            chert = "Chert", 
+            evap = "Evaporite", 
+            coal = "Coal", 
+            phosphorite = "Phosphorite",
+        met = "Metamorphic rock",
+        cover = "Unconsolidated material",
+    )
 
+    """
+    Colors for each rock type from `get_rock_class`, based on the USGS lithologic 
+    classification colors: https://mrdata.usgs.gov/catalog/lithclass-color.php.
+    """
+    colors = Dict{Symbol, RGB{Float64}}()
+    for c in eachindex(colortext)
+        i = findfirst(x -> x == colortext[c], lithclass.text)
+        colors[c] = RGB(lithclass.r[i]/255, lithclass.g[i]/255, lithclass.b[i]/255)
+    end
+    colors = NamedTuple{Tuple(keys(colors))}(values(colors))
+
+    
 ## --- Major and minor elements
 
     """

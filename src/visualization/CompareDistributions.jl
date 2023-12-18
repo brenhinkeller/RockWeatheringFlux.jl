@@ -248,12 +248,12 @@
     Plots.plot!(c, n₁, seriestype=:bar, color=colors.metaign, linecolor=colors.metaign,
         label="Matched metaigneous", barwidths = ((SiO2max-SiO2min)/nbins_matched))
     
-        c, n = bincounts(bulk.SiO2[bulk_cats[types[i]]], SiO2min, SiO2max, nbins)
+    c, n = bincounts(bulk.SiO2[bulk_cats[types[i]]], SiO2min, SiO2max, nbins)
     n₂ = float(n) ./ nansum(float(n) .* step(c))
     Plots.plot!(c, n₂, seriestype=:path, color=:red, linecolor=:red, linewidth=3,
         label="EarthChem prior",)
     
-        c, n = bincounts(bsrsilica.metaign, SiO2min, SiO2max, nbins)
+    c, n = bincounts(bsrsilica.metaign, SiO2min, SiO2max, nbins)
     n₃ = float(n) ./ nansum(float(n) .* step(c))
     Plots.plot!(c, n₃, seriestype=:path, color=:black, linecolor=:black, linewidth=3,
         label="Resampled EarthChem",

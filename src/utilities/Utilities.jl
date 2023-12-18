@@ -301,7 +301,7 @@
     ```
 
     I don't like cover. It's coarse and rough and irritating, and it gets everywhere. 
-    Not like `cats` after going through this functin. Now the elements are only bedrock.
+    Not like `cats` after going through this function. Now the elements are only bedrock.
     """
     function delete_cover(cats)
         start = collect(keys(cats))

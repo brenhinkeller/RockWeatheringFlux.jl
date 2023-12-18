@@ -7,6 +7,7 @@
     using DelimitedFiles
     using KernelDensity
     using Plots
+    using Colors
 
     # Local utilities
     using Measurements, Static
@@ -131,7 +132,7 @@
         Plots.plot!(c, n₂, 
             seriestype=:path, linewidth=2,
             color=:black, linecolor=:black,
-            linestyle=:dash,
+            linestyle=:dot,
             # label="Keller et al., 2015",
             label=""
         )
@@ -172,7 +173,7 @@
     Plots.plot!(fig[1], [0],[0], color=colors.ign, linewidth=5, label=" ")
 
     Plots.plot!(fig[1], [0],[0], color=:white, linecolor=:match, label=" ")
-    Plots.plot!(fig[1], [0], [0], linewidth=2, color=:black, linestyle=:dash,
+    Plots.plot!(fig[1], [0], [0], linewidth=2, color=:black, linestyle=:dot,
         label=" Keller et al., 2015")
 
     # Assemble plots
@@ -188,8 +189,102 @@
     
     
 ## --- All rock types (supplemental figure)
+    # Set up. 
+    # Some rock types removed if silica content has no pattern and sample density is low
+    fig_types = collect(keys(sample_cats))
+    # deleteat!(fig_types, findall(x->x==:coal,fig_types))            # Poor silica content
+    # deleteat!(fig_types, findall(x->x==:phosphorite,fig_types))     # Poor silica content
+    # deleteat!(fig_types, findall(x->x==:carbonatite,fig_types))     # Low sample density
 
-    # savefig(h, "$filepath/silica_all.pdf")
+    # fig_names =  ("Siliciclastic", "Shale", "Carbonate", "Evaporite", "Chert",
+    #     "Sedimentary", "Komatiite", "Basalt", "Andesite", "Dacite", 
+    #     "Rhyolite", "Alkaline Volcanic", "Volcaniclastic", "Volcanic", "Peridotite", 
+    #     "Pyroxenite", "Gabbro", "Diorite", "Trondhjemite", "Tonalite", "Granodiorite", 
+    #     "Granite", "Alkaline Plutonic", "Plutonic", "Igneous", "Metamorphic"
+    # )
+    fig_names =  ("Siliciclastic", "Shale", "Carbonate", "Evaporite", "Chert", 
+        "Phosphorite", "Coal", "Sedimentary", "Komatiite", "Basalt", "Andesite", "Dacite", 
+        "Rhyolite", "Alkaline Volcanic", "Volcaniclastic", "Volcanic", "Peridotite", 
+        "Pyroxenite", "Gabbro", "Diorite", "Trondhjemite", "Tonalite", "Granodiorite", 
+        "Granite", "Alkaline Plutonic", "Plutonic", "Carbonatite", "Igneous", 
+        "Unspecified Metamorphic"
+    )
+    
+    fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(fig_names) + 1)
+
+    # Note that some rock types, particularly carbonate and chert, will have apparently
+    # odd silica distribution. This is because these rock types often occur together
+    # (e.g. chert nodules in silica) but are mapped as a single unit. The anomalous 
+    # distributions are the impact of this "cross-contamination"
+
+    # Build plots
+    for i in eachindex(fig_types)
+        h = plot(
+            framestyle=:box, 
+            grid = false,
+            fontfamily=:Helvetica, 
+            xlims=(0,100),
+            xticks=(0:20:100, string.(0:20:100)),
+            yticks=false
+        )
+
+        # Raw data
+        c, n = bincounts(mbulk.SiO2[sample_cats[fig_types[i]]], 0, 100, 100)
+        n₁ = float(n) ./ nansum(float(n) .* step(c))
+        Plots.plot!(c, n₁, 
+            seriestype=:bar, barwidths=0.5,
+            color=colors[fig_types[i]], linecolor=:match, alpha=0.25,
+            # label="Matched samples",
+            label=""
+        )
+
+        # Kernel density estimate 
+        u = kde(mbulk.SiO2[sample_cats[fig_types[i]] .& here])
+        Plots.plot!(u.x, u.density, 
+            seriestype=:path, linewidth=4,
+            color=colors[fig_types[i]], linecolor=colors[fig_types[i]],
+            # label="Kernel density estimate",
+            label=""
+        )
+
+        # Final formatting
+        Plots.ylims!(0, round(maximum([n₁; u.density]), digits=2)+0.01)
+        npoints = count(sample_cats[fig_types[i]])
+        Plots.annotate!(((0.03, 0.97), (fig_names[i] * "\nn = $npoints", 12, :left, :top)))
+        fig[i] = h
+    end
+    
+    # Axis labels
+    ylabel!(fig[11], "Relative Abundance")
+    xlabel!(fig[28], "SiO2 [wt.%]")
+
+    # Common legend, as it's own plot
+    h = Plots.plot(
+        framestyle=:none, grid = false,
+        fontfamily=:Helvetica,
+        xlims = (1, 10), ylims = (1, 10),
+        xticks=false, yticks=false
+    )
+    h = Plots.plot!(h, legendfontsize = 24, fg_color_legend=:white, legend=:inside)
+    Plots.plot!(h, [0],[0], color=colors.evap, linecolor=:match, seriestype=:bar, 
+        alpha=0.25, label=" Matched Samples")
+
+    Plots.plot!(h, [0],[0], color=:white, linecolor=:match, label=" ")
+    Plots.plot!(h, [0],[0], color=colors.evap, linewidth=5, 
+        label=" Kernel Density Estimate")
+    fig[30] = h
+
+    # Assemble plots
+    # Size: 500px for each row, 600 px for each column
+    h = Plots.plot(fig..., layout=(6, 5), size=(3000, 3000), 
+        # legend=false,
+        left_margin=(75,:px), right_margin=(25,:px), bottom_margin=(45,:px),
+        tickfontsize=12,
+        # titleloc=:center, titlefont = font(18),
+        labelfontsize=24
+    )
+    display(h)
+    savefig(h, "$filepath/silica_all.pdf")
 
 
 ## --- End of file

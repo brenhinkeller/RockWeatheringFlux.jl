@@ -2,23 +2,23 @@
 Sample exposed rock types and correlate with local erosion rates as a function of slope to calculate total erosive flux
 
 ## Contents
-### /data
+### `/data`
 
-/octopus: data from the OCTOPUS compilation (https://doi.org10.5194/essd-10-2123-2018); cosmogenic isotopes used for erosion rates. 
+`/octopus`: data from the OCTOPUS compilation (https://doi.org10.5194/essd-10-2123-2018); cosmogenic isotopes used for erosion rates. 
 
-### /src
+### `/src`
 
 All source code.
 
-/utilities: functions specific to this project.
+`/utilities`: functions specific to this project.
 
-/visualization: figure generation and visualization of results.
+`/visualization`: figure generation and visualization of results.
 
-### /test
+### `/test`
 
 Unit tests.
 
-/volatile_sensitivity: sensitivity testing for assummptions of volatile content in sedimentary rocks.
+`/volatile_sensitivity`: sensitivity testing for assummptions of volatile content in sedimentary rocks.
 
 ## Data Availability
 Datasets are too large to be stored in GitHub, even with Git LFS. All data will be stored in a non-GitHub repository when this research is published. Email rowan.m.gregoire.23 (at) dartmouth.edu with questions.

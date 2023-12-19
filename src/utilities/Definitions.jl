@@ -81,8 +81,24 @@
     for c in eachindex(colortext)
         i = findfirst(x -> x == colortext[c], lithclass.text)
         colors[c] = RGB(lithclass.r[i]/255, lithclass.g[i]/255, lithclass.b[i]/255)
-    end
+    end    
     colors = NamedTuple{Tuple(keys(colors))}(values(colors))
+
+    """
+    ```julia
+    display_colors()
+    ```
+
+    Display all colors in `colors` to the plots window.
+    """
+    function display_colors()
+        typelist, =  get_rock_class()
+        k = keys(typelist)
+        for i in eachindex(k)
+            t[i] = colors[k[i]]
+        end
+        display(t)
+    end
 
     
 ## --- Major and minor elements

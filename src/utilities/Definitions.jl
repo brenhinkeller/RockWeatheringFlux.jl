@@ -121,7 +121,16 @@
         return majors, minors
     end
 
+    """
+    ```julia
+    get_REE()
+    ```
 
+    Return a `Vector` of rare earth elements.
+    """
+    get_REE() = return [:La, :Ce, :Pr, :Nd, :Pm, :Sm, :Eu, :Gd, :Tb, :Dy, :Ho, :Er, :Tm, :Yb, :Lu]
+
+    
 ## --- Igneous rock classifications by silica content
 
     """

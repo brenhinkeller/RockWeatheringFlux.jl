@@ -123,12 +123,37 @@
 
     """
     ```julia
-    get_REE()
+    get_REEs()
     ```
 
-    Return a `Vector` of rare earth elements.
+    Rare earth elements. Note that Pm is often excluded from REE diagrams.
     """
-    get_REE() = return [:La, :Ce, :Pr, :Nd, :Pm, :Sm, :Eu, :Gd, :Tb, :Dy, :Ho, :Er, :Tm, :Yb, :Lu]
+    get_REEs() = return [:La, :Ce, :Pr, :Nd, :Pm, :Sm, :Eu, :Gd, :Tb, :Dy, :Ho, :Er, :Tm, 
+        :Yb, :Lu,
+    ]
+
+    """
+    ```julia
+    get_chondrite_norm
+    ```
+    Chondrite values from Taylor and McLennan (1985).
+    """
+    get_chondrite_norm() = return (
+        La = 0.367,
+        Ce = 0.957,
+        Pr = 0.137,
+        Nd = 0.711,
+        Sm = 0.231,
+        Eu = 0.087,
+        Gd = 0.306,
+        Tb = 0.058,
+        Dy = 0.381,
+        Ho = 0.085,
+        Er = 0.249,
+        Tm = 0.036,
+        Yb = 0.248,
+        Lu = 0.038,
+    )
 
     
 ## --- Igneous rock classifications by silica content

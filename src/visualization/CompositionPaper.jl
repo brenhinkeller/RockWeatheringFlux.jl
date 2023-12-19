@@ -287,6 +287,53 @@
     savefig(h, "$filepath/silica_all.pdf")
 
 
+## --- Compare trace elements to Rudnick and Gao, 2014 (10.1016/B978-0-08-095975-7.00301-6)
+    rg = importdataset("data/rudnick_gao_2014.csv", ',', importas=:Tuple)
+    ucc = importdataset(ucc_out, '\t', importas=:Tuple)
+
+    # My estimate is normalized to 100% hydrous... R&G is not normalized, but major 
+    # elements are recast to 100% anhydrous. I need to get our estimates to consider the
+    # same things!
+    
+    # Get the elements we want to analyze
+    REEs = get_REEs()
+    cnorm = get_chondrite_norm()
+
+    # Convert estimates into normalized REE space. My estimates have to be converted from
+    # wt.% to mg/g
+    elem = keys(cnorm)
+    rg_REE = NamedTuple{keys(cnorm)}([
+        rg.Value[findfirst(x->x==string(i), rg.Element)] / cnorm[i] 
+        for i in keys(cnorm)
+    ])
+    ucc_REE = NamedTuple{keys(cnorm)}([
+        ucc.bulk[findfirst(x->x==string(i), ucc[Symbol("")])] * 10000 / cnorm[i] 
+        for i in keys(cnorm)
+    ])
+
+    # Spider diagram
+    h = Plots.plot(
+        ylabel="Chondrite Normalized",
+        fg_color_legend=:white,
+        framestyle=:box,
+        yaxis=:log10,
+        ylims=(10^0, 10^3),
+        yticks=(10.0.^(0:3), ("1", "10", "100", "1000")),
+        xticks=(1:length(rg_REE), string.(keys(rg_REE))),
+    )
+    Plots.plot!(h, 1:length(rg_REE), collect(values(rg_REE)),
+        markershape=:utriangle,
+        label="Rudnick and Gao, 2014",
+    )
+    Plots.plot!(h, 1:length(ucc_REE), collect(values(ucc_REE)),
+        markershape=:circle,
+        label="This study",
+    )
+
+    display(h)
+    # savefig("$filepath/spidergram.pdf")
+
+
 ## --- Slope vs. erosion rate
     using Isoplot
     using StatsBase

@@ -303,31 +303,39 @@
     rg = Dict(zip(keys(rg), normalize!(collect(values(rg)))))
     ucc = Dict(zip(keys(ucc), normalize!(collect(values(ucc)))))
     
-    # Get the elements we want to analyze
+    # Get the elements we want to analyze, adding an empty value for Pm
     cnorm = get_chondrite_norm()
     REEs = keys(cnorm)
 
     # Convert estimates into normalized REE space. Because we recast in percent space, we
     # need to convert BOTH estimates from wt.% to mg/g
-    rg_REE = NamedTuple{REEs}([rg[string(i)] / cnorm[i] * 10000 for i in REEs])
-    ucc_REE = NamedTuple{REEs}([ucc[string(i)] / cnorm[i] * 10000 for i in REEs])
+    rg_REE = NamedTuple{Tuple(REEs)}([rg[string(i)] / cnorm[i] * 10000 for i in REEs])
+    ucc_REE = NamedTuple{Tuple(REEs)}([ucc[string(i)] / cnorm[i] * 10000 for i in REEs])
 
     # Spider diagram
+    all_REEs = get_REEs()
+    i = findfirst(x->x==:Pm, all_REEs)
+    x = collect([1:i-1; i+1:length(all_REEs)])
+
+    all_REEs = string.(all_REEs)
+    all_REEs[i] = ""
+
     h = Plots.plot(
         ylabel="Chondrite Normalized",
         fg_color_legend=:white,
         framestyle=:box,
+        grid=false,
         yaxis=:log10,
         ylims=(10^0, 10^3),
         yticks=(10.0.^(0:3), ("1", "10", "100", "1000")),
-        xticks=(1:length(REEs), string.(REEs)),
-        yminorticks=log.(1:10)
+        xticks=(x, string.(REEs)),
+        yminorticks=log.(1:10),
     )
-    Plots.plot!(h, 1:length(rg_REE), collect(values(rg_REE)),
+    Plots.plot!(h, x, collect(values(rg_REE)),
         markershape=:utriangle, color=:blue, msc=:blue,
         label="Rudnick and Gao, 2014",
     )
-    Plots.plot!(h, 1:length(ucc_REE), collect(values(ucc_REE)),
+    Plots.plot!(h, x, collect(values(ucc_REE)),
         markershape=:circle, color=:darkorange, msc=:darkorange,
         label="This study",
     )

@@ -288,37 +288,63 @@
 
 
 ## --- Compare trace elements to Rudnick and Gao, 2014 (10.1016/B978-0-08-095975-7.00301-6)
-    # My estimate is normalized to 100% hydrous... R&G is not normalized, but major 
-    # elements are recast to 100% anhydrous. I need to get our estimates to consider the
-    # same things!
-    rg = importdataset("data/rudnick_gao_2014.csv", ',', importas=:Tuple)
+    # Load all estimates from Rudnick and Gao. 
+    rg_all = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple)
     ucc = importdataset(ucc_out, '\t', importas=:Tuple)
 
-    # Get R&G and my estimates into index-able by element formats
-    rg = Dict(zip(rg.Element, rg.Percent))
-    ucc = Dict(zip(ucc.element, ucc.bulk))
+    # rg = Dict(zip(rg.Element, rg.Percent))
+    ucc = Dict(zip(ucc.element, ucc.bulk))                              # My estimate
+    rg = Dict(zip(rg_all.Element, rg_all.This_Study))                   # Rudnick and Gao
+    tm = Dict(zip(rg_all.Element, rg_all.Taylor_and_McLennan_1985))     # Taylor and McLennan
+    sw = Dict(zip(rg_all.Element, rg_all.Shaw_et_al__1967))             # Shaw et al.
+    kc = Dict(zip(rg_all.Element, rg_all.Condie_1993))                  # Condie
+    sg = Dict(zip(rg_all.Element, rg_all.Gao_et_al_1998))               # Gao et al.
 
-    # Remove volatiles from my estimate and normalize both to 100%
+    estimates = [rg, tm, sw, kc, sg]
+
+    # Convert units to percent for normalization
+    units = Dict(zip(rg_all.Element, rg_all.Units))
+    for e in eachindex(estimates)
+        for k in keys(estimates[e])
+            if units[k] == "percent"
+                continue
+            elseif units[k] == "ppm"
+                estimates[e][k] = estimates[e][k] / 10_000
+            elseif units[k] == "ppb"
+                estimates[e][k] = estimates[e][k] / 10_000_000
+            end
+        end
+    end
+
+    # Remove volatiles from my estimate and normalize all estimates to 100%
     delete!(ucc_recast, "Volatiles")
-    rg = Dict(zip(keys(rg), normalize!(collect(values(rg)))))
     ucc = Dict(zip(keys(ucc), normalize!(collect(values(ucc)))))
+    for e in eachindex(estimates)
+        estimates[e] = Dict(
+            zip(keys(estimates[e]), normalize!(collect(values(estimates[e]))))
+        )
+    end
     
-    # Get the elements we want to analyze, adding an empty value for Pm
+    # Get the elements we want to analyze
     cnorm = get_chondrite_norm()
     REEs = keys(cnorm)
 
-    # Convert estimates into normalized REE space. Because we recast in percent space, we
-    # need to convert BOTH estimates from wt.% to mg/g
-    rg_REE = NamedTuple{Tuple(REEs)}([rg[string(i)] / cnorm[i] * 10000 for i in REEs])
+    # Convert estimates into normalized REE space, recasting to mg/g
     ucc_REE = NamedTuple{Tuple(REEs)}([ucc[string(i)] / cnorm[i] * 10000 for i in REEs])
 
-    # Spider diagram
+    # Spider diagram, add an empty value for Pm
     all_REEs = get_REEs()
     i = findfirst(x->x==:Pm, all_REEs)
     x = collect([1:i-1; i+1:length(all_REEs)])
 
     all_REEs = string.(all_REEs)
     all_REEs[i] = ""
+
+    labels = ["Rudnick and Gao, 2014", "Taylor and McLennan, 1985/1995", 
+        "Shaw et al., 1967", "Condie, 1993", "Gao et al., 1998"
+    ]
+    estcolors = [:blue, :green, :hotpink, :purple, :red]
+    shapes = [:utriangle, :dtriangle, :star5, :diamond, :x]
 
     h = Plots.plot(
         ylabel="Chondrite Normalized",
@@ -331,17 +357,25 @@
         xticks=(x, string.(REEs)),
         yminorticks=log.(1:10),
     )
-    Plots.plot!(h, x, collect(values(rg_REE)),
-        markershape=:utriangle, color=:blue, msc=:blue,
-        label="Rudnick and Gao, 2014",
-    )
+    for e in eachindex(estimates)
+        # Normalize REEs, recasting into mg/g
+        REE_i = NamedTuple{Tuple(REEs)}([
+            estimates[e][string(i)] / cnorm[i] * 10000 for i in REEs
+        ])
+
+        # Plot
+        Plots.plot!(h, x, collect(values(REE_i)),
+            markershape=shapes[e], color=estcolors[e], msc=estcolors[e],
+            label=labels[e],
+        )
+    end
     Plots.plot!(h, x, collect(values(ucc_REE)),
         markershape=:circle, color=:darkorange, msc=:darkorange,
         label="This study",
     )
 
     display(h)
-    # savefig("$filepath/spidergram.pdf")
+    savefig("$filepath/spidergram.pdf")
 
 
 ## --- Slope vs. erosion rate

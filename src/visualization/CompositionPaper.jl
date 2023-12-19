@@ -365,6 +365,61 @@
     savefig("$filepath/spidergram.pdf")
 
 
+## --- Archean igneous and metamorphic rocks
+    # Load unmatched EarthChem
+    fid = h5open("output/bulk.h5", "r")
+    header = read(fid["bulk"]["header"])
+    data = read(fid["bulk"]["data"])
+    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+
+    header = read(fid["bulktypes"]["bulk_cats_head"])
+    data = read(fid["bulktypes"]["bulk_cats"])
+    data = @. data > 0
+    bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    close(fid)
+
+    # Load 1M sample Macrostrat data
+    fid = h5open("output/N_1M/1M_responses.h5", "r")
+    macrostrat = (
+        rocklat = read(fid["vars"]["rocklat"]),
+        rocklon = read(fid["vars"]["rocklon"]),
+        age = read(fid["vars"]["age"]),
+    )
+    header = read(fid["type"]["macro_cats_head"])
+    data = read(fid["type"]["macro_cats"])
+    data = @. data > 0
+    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    close(fid)
+
+    # Mapped rock types in Australia
+    catkeys = collect(keys(macro_cats))
+    rockclass = get_rock_names();
+    s = @. (-40 < macrostrat.rocklat < -10) .& (110 < macrostrat.rocklon < 130);
+    h = Plots.plot(
+        framestyle=:box,
+        grid=false,
+        fontfamily=:Helvetica,
+        xlims=(116, 121),
+        ylims=(-26, -20),
+        xlabel="Longitude",
+        ylabel="Latitude",
+        legend=:outerright,
+        size=(600,400),
+    )
+    for i in eachindex(catkeys)
+        k = catkeys[i]
+        t = macro_cats[k] .& s
+        Plots.plot!(h, 
+            macrostrat.rocklon[t], macrostrat.rocklat[t],
+            seriestype=:scatter, markersize=5,
+            # color=colors[k], 
+            msc=:auto, 
+            label=rockclass[i]
+        )
+    end
+    display(h)
+
+
 ## --- Slope vs. erosion rate
     using Isoplot
     using StatsBase

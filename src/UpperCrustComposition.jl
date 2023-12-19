@@ -85,7 +85,7 @@
 
     # Save to file
     rows = string.(allelements)
-    cols = hcat("", string.(reshape(collect(keys(UCC)), (1, length(keys(UCC))))))
+    cols = hcat("element", string.(reshape(collect(keys(UCC)), (1, length(keys(UCC))))))
     results = Array{Float64}(undef, (length(allelements), length(UCC)))
     for i in eachindex(keys(UCC))
         results[:,i] = UCC[i]

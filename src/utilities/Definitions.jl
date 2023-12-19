@@ -379,6 +379,23 @@
 
     """
     ```julia
+    get_rock_names()
+
+    Major and minor rock names from `get_rock_class`, unabbreviated for plot labels.
+    ```
+    """
+    get_rock_names() = return ("Siliciclastic", "Shale", "Carbonate", "Evaporite", 
+        "Chert", "Phosphorite", "Coal", "Sedimentary", "Komatiite", 
+        "Basalt", "Andesite", "Dacite", "Rhyolite", "Alkaline Volcanic", 
+        "Volcaniclastic", "Volcanic", "Peridotite", "Pyroxenite", "Gabbro", 
+        "Diorite", "Trondhjemite", "Tonalite", "Granodiorite", "Granite", 
+        "Alkaline Plutonic", "Plutonic", "Carbonatite", "Igneous", 
+        "Unspecified Metamorphic", "Cover"
+    )
+
+
+    """
+    ```julia
     get_cats(major::Bool, npoints::Int64)
     ```
     
@@ -420,6 +437,7 @@
 
         return cats
     end
+
 
 ## --- Define minor types
 

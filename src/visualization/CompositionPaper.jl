@@ -102,7 +102,7 @@
     # Plot igneous samples
     fig = Array{Plots.Plot{Plots.GRBackend}}(undef, 3)
     fig_types = (:volc, :plut, :ign)
-    fig_names = ("Volcanic", "Plutonic", "Igneous")
+    fig_names = ("A. Volcanic", "B. Plutonic", "C. Igneous")
     simVP = [simvolcanic, simplutonic, simigneous]
 
     # Build plots
@@ -188,34 +188,21 @@
     savefig(h, "$filepath/silica_ign.pdf")
     
     
-## --- All rock types (supplemental figure)
-    # Set up. 
-    # Some rock types removed if silica content has no pattern and sample density is low
-    fig_types = collect(keys(sample_cats))
-    # deleteat!(fig_types, findall(x->x==:coal,fig_types))            # Poor silica content
-    # deleteat!(fig_types, findall(x->x==:phosphorite,fig_types))     # Poor silica content
-    # deleteat!(fig_types, findall(x->x==:carbonatite,fig_types))     # Low sample density
-
-    # fig_names =  ("Siliciclastic", "Shale", "Carbonate", "Evaporite", "Chert",
-    #     "Sedimentary", "Komatiite", "Basalt", "Andesite", "Dacite", 
-    #     "Rhyolite", "Alkaline Volcanic", "Volcaniclastic", "Volcanic", "Peridotite", 
-    #     "Pyroxenite", "Gabbro", "Diorite", "Trondhjemite", "Tonalite", "Granodiorite", 
-    #     "Granite", "Alkaline Plutonic", "Plutonic", "Igneous", "Metamorphic"
-    # )
-    fig_names =  ("Siliciclastic", "Shale", "Carbonate", "Evaporite", "Chert", 
-        "Phosphorite", "Coal", "Sedimentary", "Komatiite", "Basalt", "Andesite", "Dacite", 
-        "Rhyolite", "Alkaline Volcanic", "Volcaniclastic", "Volcanic", "Peridotite", 
-        "Pyroxenite", "Gabbro", "Diorite", "Trondhjemite", "Tonalite", "Granodiorite", 
-        "Granite", "Alkaline Plutonic", "Plutonic", "Carbonatite", "Igneous", 
-        "Unspecified Metamorphic"
-    )
-    
-    fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(fig_names) + 1)
-
+## --- And to all rock types (supplemental figure)
     # Note that some rock types, particularly carbonate and chert, will have apparently
     # odd silica distribution. This is because these rock types often occur together
     # (e.g. chert nodules in silica) but are mapped as a single unit. The anomalous 
     # distributions are the impact of this "cross-contamination"
+    fig_types = collect(keys(sample_cats))
+    fig_names =  ("A. Siliciclastic", "B. Shale", "C. Carbonate", "D. Evaporite", 
+        "E. Chert", "F. Phosphorite", "G. Coal", "H. Sedimentary", "I. Komatiite", 
+        "J. Basalt", "K. Andesite", "L. Dacite", "M. Rhyolite", "N. Alkaline Volcanic", 
+        "O. Volcaniclastic", "P. Volcanic", "Q. Peridotite", "R. Pyroxenite", "S. Gabbro", 
+        "T. Diorite", "U. Trondhjemite", "V. Tonalite", "W. Granodiorite", "X. Granite", 
+        "Y. Alkaline Plutonic", "Z. Plutonic", "AA. Carbonatite", "AB. Igneous", 
+        "AC. Unspecified Metamorphic"
+    )
+    fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(fig_names) + 1)
 
     # Build plots
     for i in eachindex(fig_types)
@@ -250,7 +237,7 @@
         # Final formatting
         Plots.ylims!(0, round(maximum([n₁; u.density]), digits=2)+0.01)
         npoints = count(sample_cats[fig_types[i]])
-        Plots.annotate!(((0.03, 0.97), (fig_names[i] * "\nn = $npoints", 12, :left, :top)))
+        Plots.annotate!(((0.03, 0.97), (fig_names[i] * "\nn = $npoints", 18, :left, :top)))
         fig[i] = h
     end
     

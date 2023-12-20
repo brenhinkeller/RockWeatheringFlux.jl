@@ -516,7 +516,7 @@
         framestyle=:box,
         fontfamily=:Helvetica,
         grid=false,
-        xlabel="SiO₂ [wt.%]", 
+        xlabel="SiO2 [wt.%]", 
         ylabel="Relative Abundance",
         xlims=(40,80),
         legend=:topleft, 
@@ -550,7 +550,67 @@
     )
 
     ylims!(0, round(maximum([n₁; n₂; u.density]), digits=2))
+    
     display(h)
+    savefig("$filepath/archeansilica.pdf")
+
+
+## --- Rock types in Archean samples 
+    # Load matched Macrostrat samples
+    fid = readdlm(matchedbulk_io)
+    matches = Int.(vec(fid[:,1]))
+    t = @. matches != 0
+
+    fid = h5open("$macrostrat_io", "r")
+    macrostrat = (
+        rocklat = read(fid["vars"]["rocklat"])[t],
+        rocklon = read(fid["vars"]["rocklon"])[t],
+        age = read(fid["vars"]["age"])[t],
+    )
+    header = read(fid["type"]["macro_cats_head"])
+    data = read(fid["type"]["macro_cats"])
+    data = @. data > 0
+    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
+    close(fid)
+
+    # Filter for just Archean samples
+    ms_archean = macrostrat.age .>= 2500;
+
+    # Define felsic / intermediate / mafic / ultramafic types
+    fels = (:rhyolite, :trondhjemite, :tonalite, :granodiorite, :granite,)
+    intr = (:andesite, :dacite, :diorite,) 
+    mafc = (:basalt, :gabbro,)
+    umaf = (:komatiite, :peridotite, :pyroxenite,)
+    alkn = (:alk_volc, :alk_plut)
+
+    types = [alkn, fels, intr, mafc, umaf]
+    counts = zeros(Int, length(types))
+    for t in eachindex(types)
+        for k in types[t]
+            counts[t] += count(macro_cats[k] .& ms_archean)
+        end
+    end
+
+    # Visualize!
+    xlabels = ["Alkaline", "Felsic", "Intermediate", "Mafic", "Ultramafic"]
+    h = Plots.plot(
+        framestyle=:box,
+        fontfamily=:Helvetica,
+        grid=false,
+        xticks=(1:length(types), xlabels),
+        xlabel="Rock Class",
+        ylabel="Count",
+        ylims=(0, maximum(counts)+100),
+        legend=:topleft, 
+        fg_color_legend=:white, 
+    )
+    Plots.plot!(h, 1:length(types), counts, 
+        color=:steelblue, linecolor=:match,
+        seriestype=:bar, label=""
+    )
+
+    display(h)
+    savefig("$filepath/archeanrockclass.pdf")
 
 
 ## --- Slope vs. erosion rate

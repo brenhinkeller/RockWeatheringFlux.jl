@@ -308,11 +308,21 @@
     ucc = Dict(zip(ucc.element, ucc.bulk))                              # My estimate
     rg = Dict(zip(rg_all.Element, rg_all.This_Study))                   # Rudnick and Gao
     tm = Dict(zip(rg_all.Element, rg_all.Taylor_and_McLennan_1985))     # Taylor and McLennan
-    sw = Dict(zip(rg_all.Element, rg_all.Shaw_et_al__1967))             # Shaw et al.
-    kc = Dict(zip(rg_all.Element, rg_all.Condie_1993))                  # Condie
-    sg = Dict(zip(rg_all.Element, rg_all.Gao_et_al_1998))               # Gao et al.
+    # sw = Dict(zip(rg_all.Element, rg_all.Shaw_et_al__1967))             # Shaw et al.
+    # kc = Dict(zip(rg_all.Element, rg_all.Condie_1993))                  # Condie
+    # sg = Dict(zip(rg_all.Element, rg_all.Gao_et_al_1998))               # Gao et al.
 
-    estimates = [rg, tm, sw, kc, sg]
+    # estimates = [rg, tm, sw, kc, sg]
+    # labels = ["Rudnick and Gao, 2014", "Taylor and McLennan, 1985/1995", 
+    #     "Shaw et al., 1967", "Condie, 1993", "Gao et al., 1998"
+    # ]
+    # estcolors = [:blue, :green, :hotpink, :purple, :red]
+    # shapes = [:utriangle, :dtriangle, :star5, :diamond, :x]
+
+    estimates = [rg, tm]
+    labels = ["Rudnick and Gao, 2014", "Taylor and McLennan, 1985/1995",]
+    estcolors = [:cadetblue, :olivedrab]
+    shapes = [:utriangle, :dtriangle,]
 
     # Convert units to percent for normalization
     units = Dict(zip(rg_all.Element, rg_all.Units))
@@ -329,7 +339,7 @@
     end
 
     # Remove volatiles from my estimate and normalize all estimates to 100%
-    delete!(ucc_recast, "Volatiles")
+    delete!(ucc, "Volatiles")
     ucc = Dict(zip(keys(ucc), normalize!(collect(values(ucc)))))
     for e in eachindex(estimates)
         estimates[e] = Dict(
@@ -351,12 +361,6 @@
 
     all_REEs = string.(all_REEs)
     all_REEs[i] = ""
-
-    labels = ["Rudnick and Gao, 2014", "Taylor and McLennan, 1985/1995", 
-        "Shaw et al., 1967", "Condie, 1993", "Gao et al., 1998"
-    ]
-    estcolors = [:blue, :green, :hotpink, :purple, :red]
-    shapes = [:utriangle, :dtriangle, :star5, :diamond, :x]
 
     h = Plots.plot(
         ylabel="Chondrite Normalized",
@@ -390,7 +394,83 @@
     savefig("$filepath/spidergram.pdf")
 
 
-## --- Archean igneous and metamorphic rocks
+## --- REE patterns by rock type?
+    # Load data
+    rg_all = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple)
+    ucc = importdataset(ucc_out, '\t', importas=:Tuple)
+
+    ucc_ign = Dict(zip(ucc.element, ucc.ign))
+    ucc_sed = Dict(zip(ucc.element, ucc.sed))
+    ucc_met = Dict(zip(ucc.element, ucc.met))
+    ucc = Dict(zip(ucc.element, ucc.bulk))                              # My estimate
+    rg = Dict(zip(rg_all.Element, rg_all.This_Study))                   # Rudnick and Gao
+
+    # Normalize all estimates to 100% anhydrous
+    units = Dict(zip(rg_all.Element, rg_all.Units))
+    for k in keys(rg)
+        if units[k] == "percent"
+            continue
+        elseif units[k] == "ppm"
+            rg[k] = rg[k] / 10_000
+        elseif units[k] == "ppb"
+            rg[k] = rg[k] / 10_000_000
+        end
+    end
+    rg = Dict(zip(keys(rg), normalize!(collect(values(rg)))))
+
+    delete!(ucc, "Volatiles")
+    delete!(ucc_ign, "Volatiles")
+    delete!(ucc_sed, "Volatiles")
+    delete!(ucc_met, "Volatiles")
+    ucc = Dict(zip(keys(ucc), normalize!(collect(values(ucc)))))
+    ucc_ign = Dict(zip(keys(ucc_ign), normalize!(collect(values(ucc_ign)))))
+    ucc_sed = Dict(zip(keys(ucc_sed), normalize!(collect(values(ucc_sed)))))
+    ucc_met = Dict(zip(keys(ucc), normalize!(collect(values(ucc_met)))))
+
+    # Set up plot
+    all_REEs = get_REEs()                           # Skip a space for Pm
+    i = findfirst(x->x==:Pm, all_REEs)
+    x = collect([1:i-1; i+1:length(all_REEs)])
+    all_REEs = string.(all_REEs)
+    all_REEs[i] = ""
+
+    cnorm = get_chondrite_norm()                    # REEs and chondrite values
+    REEs = keys(cnorm)
+
+    series = [rg, ucc, ucc_met, ucc_sed, ucc_ign]
+    labels = ["Bulk Crust (Rudnick and Gao)", "Bulk Crust (This Study)", "Metamorphic", 
+        "Sedimentary", "Igneous",
+    ]
+    seriescolor = [:grey, :black, colors.met, colors.sed, colors.ign]
+
+    h = Plots.plot(
+        ylabel="Chondrite Normalized",
+        fg_color_legend=:white,
+        framestyle=:box,
+        grid=false,
+        yaxis=:log10,
+        ylims=(10^0, 10^3),
+        yticks=(10.0.^(0:3), ("1", "10", "100", "1000")),
+        xticks=(x, string.(REEs)),
+        yminorticks=log.(1:10),
+    )
+    for i in eachindex(series)
+        # Get REEs into chondrite normalized space, recasting wt.% to mg/g
+        REEᵢ = NamedTuple{Tuple(REEs)}(series[i][string(e)] / cnorm[e] * 10000 for e in REEs)
+
+        Plots.plot!(h, x, collect(values(REEᵢ)),
+            # markershape=shapes[i], 
+            color=seriescolor[i], msc=seriescolor[i],
+            label=labels[i],
+        )
+        display(h)
+    end
+    display(h)
+
+
+## --
+
+## --- [TEMP?] Archean igneous and metamorphic rocks
     # Re-create Keller, 2016 Fig. 6.9 2D histogram of EarthChem silica and age 
     # Then do the same thing with my matched dataset
 
@@ -466,7 +546,6 @@
         out_mbulk[i,:] .= n
     end
 
-## --
     # Plot EarthChem
     h1 = Plots.plot(
         ylims=(0,380),
@@ -503,7 +582,7 @@
     )
 
     # Assemble all plots with a common color bar
-    l = @layout [p1{0.95w} p2{0.05w}]
+    l = @layout [a{0.95w} b{0.05w}]
     a = Plots.plot(h1, h2, layout=(1,2),
         size=(1000, 400),
         framestyle=:box,
@@ -520,10 +599,12 @@
     h = Plots.plot(a, b, layout=l)
 
     display(h)
-    savefig("$filepath/archeansilica_heatmap.pdf")
+    savefig("$filepath/silica_heatmap.pdf")
 
 
-## --- Resample unmatched, but filtered, EarthChem samples
+## --- [TEMP?] Rock types in Archean samples 
+    using StatsPlots
+    # Resample unmatched, but filtered, EarthChem samples
     # Load unmatched EarthChem
     fid = h5open("output/bulk.h5", "r")
     header = read(fid["bulk"]["header"])
@@ -565,10 +646,6 @@
     data = [bulk.SiO2[t] bulk.Age[t]]
     uncertainty = [fill(1.0, count(t)) ageuncert]
     simbulk = bsresample(data, uncertainty, nsims, p)
-
-
-## --- Rock types in Archean samples 
-    using StatsPlots
 
     # Load matched Macrostrat samples
     fid = readdlm(matchedbulk_io)
@@ -652,7 +729,7 @@
     savefig("$filepath/archeanrockclass.pdf")
 
 
-## --- Histograms of silica distributiosn in matched vs. EarthChem samples
+## --- 2D Histograms of age / silica distribution in matched vs. EarthChem samples
     # Load matched Macrostrat samples
     fid = readdlm(matchedbulk_io)
     matches = Int.(vec(fid[:,1]))

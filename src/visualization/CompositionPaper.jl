@@ -378,46 +378,99 @@
     bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
     close(fid)
 
-    # Load 1M sample Macrostrat data
-    fid = h5open("output/N_1M/1M_responses.h5", "r")
-    macrostrat = (
-        rocklat = read(fid["vars"]["rocklat"]),
-        rocklon = read(fid["vars"]["rocklon"]),
-        age = read(fid["vars"]["age"]),
-    )
-    header = read(fid["type"]["macro_cats_head"])
-    data = read(fid["type"]["macro_cats"])
-    data = @. data > 0
-    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
-    close(fid)
+    for type in minorsed
+        bulk_cats.sed .|= bulk_cats[type]
+    end
+    for type in minorvolc
+        bulk_cats.volc .|= bulk_cats[type]
+    end
+    for type in minorplut
+        bulk_cats.plut .|= bulk_cats[type]
+    end
+    for type in minorign
+        bulk_cats.ign .|= bulk_cats[type]
+    end
 
-    # Mapped rock types in Australia
-    catkeys = collect(keys(macro_cats))
-    rockclass = get_rock_names();
-    s = @. (-40 < macrostrat.rocklat < -10) .& (110 < macrostrat.rocklon < 130);
+    # Re-create Keller, 2016 Fig. 6.9 2D histogram of silica distribution over time 
+    # Resample (spatiotemporal) all non-sedimentary silica with a large error
+    notsed = bulk_cats.ign .| bulk_cats.met
+    t = @. !isnan(bulk.Latitude) & !isnan(bulk.Longitude) & !isnan(bulk.Age) & notsed
+
+    # Get age uncertainty, if unknown set to 5%
+    ageuncert = Array{Float64}(undef, count(t), 1)
+    ageuncert .= (bulk.Age_Max[t] .- bulk.Age_Min[t])/2
+    s = vec(isnan.(ageuncert))
+    ageuncert[s] .= bulk.Age[t][s] .* 0.05
+
+    # Resample!
+    k = invweight(bulk.Latitude[t], bulk.Longitude[t], bulk.Age[t])
+    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+    data = [bulk.SiO2[t] bulk.Age[t]]
+    uncertainty = [fill(1.0, count(t)) ageuncert]
+    simbulk = bsresample(data, uncertainty, nsims, p)
+
+    # Make a 2d-histogram / heatmap. Normalize each time step to between 0 and 1
+    xmin, xmax, xbins = 40, 80, 80          # Silica
+    xedges = xmin:(xmax-xmin)/xbins:xmax
+    ymin, ymax, ybins = 0, 3800, 380        # Age
+    yedges = ymin:(ymax-ymin)/ybins:ymax
+    out = zeros(ybins, xbins)               # Preallocate
+    for i = 1:ybins
+        # Filter for samples in this age bin
+        t = @. yedges[i] <= simbulk[:,2] < yedges[i+1]
+
+        # Count and normalize distribution of silica
+        c, n = bincounts(simbulk[:,1][t], xmin, xmax, xbins)
+        n = (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
+
+        # Put the output in the output array
+        out[i,:] .= n
+    end
+
     h = Plots.plot(
         framestyle=:box,
         grid=false,
         fontfamily=:Helvetica,
-        xlims=(116, 121),
-        ylims=(-26, -20),
-        xlabel="Longitude",
-        ylabel="Latitude",
-        legend=:outerright,
-        size=(600,400),
+        xticks=(0:20:80, string.(40:10:80)),
+        ylims=(0,380),
+        yticks=(0:50:380, string.(0:500:3800)),
+        yflip=true,
+        xlabel="SiO₂ [wt.%]", 
+        ylabel="Age [Ma]",
+        size=(700,400),
+        left_margin=(25,:px), bottom_margin=(15,:px)
     )
-    for i in eachindex(catkeys)
-        k = catkeys[i]
-        t = macro_cats[k] .& s
-        Plots.plot!(h, 
-            macrostrat.rocklon[t], macrostrat.rocklat[t],
-            seriestype=:scatter, markersize=5,
-            # color=colors[k], 
-            msc=:auto, 
-            label=rockclass[i]
-        )
-    end
-    display(h)
+    Plots.heatmap!(h, out, colorbar_title="Relative Sample Density", color=c_gradient,)
+
+    # # Load 1M sample Macrostrat data
+    # fid = h5open("output/N_1M/1M_responses.h5", "r")
+    # macrostrat = (
+    #     rocklat = read(fid["vars"]["rocklat"]),
+    #     rocklon = read(fid["vars"]["rocklon"]),
+    #     age = read(fid["vars"]["age"]),
+    # )
+    # header = read(fid["type"]["macro_cats_head"])
+    # data = read(fid["type"]["macro_cats"])
+    # data = @. data > 0
+    # macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    # close(fid)
+
+    # # Load Macrostrat data
+    # fid = readdlm(matchedbulk_io)
+    # matches = Int.(vec(fid[:,1]))
+    # t = @. matches != 0
+
+    # fid = h5open("$macrostrat_io", "r")
+    # macrostrat = (
+    #     rocklat = read(fid["vars"]["rocklat"])[t],
+    #     rocklon = read(fid["vars"]["rocklon"])[t],
+    #     age = read(fid["vars"]["age"])[t],
+    # )
+    # header = read(fid["type"]["macro_cats_head"])
+    # data = read(fid["type"]["macro_cats"])
+    # data = @. data > 0
+    # macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
+    # close(fid)
 
 
 ## --- Slope vs. erosion rate

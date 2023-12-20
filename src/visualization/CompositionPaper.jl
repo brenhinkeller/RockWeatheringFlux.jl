@@ -556,6 +556,8 @@
 
 
 ## --- Rock types in Archean samples 
+    using StatsPlots
+
     # Load matched Macrostrat samples
     fid = readdlm(matchedbulk_io)
     matches = Int.(vec(fid[:,1]))
@@ -592,22 +594,47 @@
     end
 
     # Visualize!
-    xlabels = ["Alkaline", "Felsic", "Intermediate", "Mafic", "Ultramafic"]
-    h = Plots.plot(
-        framestyle=:box,
+    xlabels = 
+    a = Plots.plot(
+        framestyle=:none,
         fontfamily=:Helvetica,
         grid=false,
-        xticks=(1:length(types), xlabels),
-        xlabel="Rock Class",
-        ylabel="Count",
-        ylims=(0, maximum(counts)+100),
-        legend=:topleft, 
+        xticks=false,
+        yticks=false,
+        ylims=(0.5, 1), 
+        legend=false,
+        size=(800,200)
+    )
+    StatsPlots.groupedbar!(a, counts', 
+        bar_position = :stack, orientation=:h, bar_width=1,
+        group = ["Alkaline", "Felsic", "Intermediate", "Mafic", "Ultramafic"],
+        color = [colors.alk_plut, colors.rhyolite, colors.andesite, colors.basalt, 
+            colors.peridotite], 
+        linecolor=:match
+    )
+
+    b = plot(
+        framestyle=:none,
+        xticks=false, yticks=false,
+        ylims=(1,2), xlims=(1,2),
         fg_color_legend=:white, 
+        legendfontsize = 12, 
+        legend=:outerbottom, 
+        legendcolumns=5,
+        legendtitle="",
+        size=(1200,200),
     )
-    Plots.plot!(h, 1:length(types), counts, 
-        color=:steelblue, linecolor=:match,
-        seriestype=:bar, label=""
-    )
+    plot!(b, [0], [0], label=" Ultramafic", color=colors.peridotite, seriestype=:bar)
+    plot!(b, [0], [0], label=" Mafic", color=colors.basalt, seriestype=:bar)
+    plot!(b, [0], [0], label=" Intermediate", color=colors.andesite, seriestype=:bar)
+    plot!(b, [0], [0], label=" Felsic", color=colors.rhyolite, seriestype=:bar)
+    plot!(b, [0], [0], label=" Alkaline", color=colors.alk_plut, seriestype=:bar)
+
+    l = @layout [
+        a{0.95h} 
+        b{0.05h}
+    ]
+    h = plot(a, b, layout=l)
 
     display(h)
     savefig("$filepath/archeanrockclass.pdf")

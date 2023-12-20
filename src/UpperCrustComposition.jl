@@ -7,6 +7,7 @@
     using ProgressMeter
     using LoopVectorization
     using Static
+    using Colors
 
     # Local utilities
     include("utilities/Utilities.jl")
@@ -20,11 +21,7 @@
     fid = readdlm("$matchedbulk_io")
     bulkidx = Int.(vec(fid[:,1]))
     t = @. bulkidx != 0
-
-    # Matched types, majors inclusive of minors
-    bulktype = string.(vec(fid[:,2]))
-    macro_cats = match_rocktype(bulktype[t])
-
+    
     # Macrostrat
     fid = h5open("$macrostrat_io", "r")
     macrostrat = (
@@ -32,7 +29,25 @@
         rocklon = read(fid["vars"]["rocklon"])[t],
         age = read(fid["vars"]["age"])[t],
     )
+    header = read(fid["type"]["macro_cats_head"])
+    data = read(fid["type"]["macro_cats"])
+    data = @. data > 0
+    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
     close(fid)
+
+    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
+    for type in minorsed
+        macro_cats.sed .|= macro_cats[type]
+    end
+    for type in minorvolc
+        macro_cats.volc .|= macro_cats[type]
+    end
+    for type in minorplut
+        macro_cats.plut .|= macro_cats[type]
+    end
+    for type in minorign
+        macro_cats.ign .|= macro_cats[type]
+    end
 
     # Earthchem
     fid = h5open("output/bulk.h5", "r")

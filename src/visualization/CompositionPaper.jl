@@ -16,7 +16,7 @@
     filepath = "results/figures/CompPaper"
 
 
-## --- Load data
+## --- Load matched and unmatched EarthChem data
     # Load matched EarthChem data
     fid = readdlm(matchedbulk_io)
     matches = Int.(vec(fid[:,1]))
@@ -56,6 +56,31 @@
 
     # I hate cover.
     sample_cats = delete_cover(sample_cats)
+
+    # Load unmatched EarthChem
+    fid = h5open("output/bulk.h5", "r")
+    header = read(fid["bulk"]["header"])
+    data = read(fid["bulk"]["data"])
+    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+
+    header = read(fid["bulktypes"]["bulk_cats_head"])
+    data = read(fid["bulktypes"]["bulk_cats"])
+    data = @. data > 0
+    bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    close(fid)
+
+    for type in minorsed
+        bulk_cats.sed .|= bulk_cats[type]
+    end
+    for type in minorvolc
+        bulk_cats.volc .|= bulk_cats[type]
+    end
+    for type in minorplut
+        bulk_cats.plut .|= bulk_cats[type]
+    end
+    for type in minorign
+        bulk_cats.ign .|= bulk_cats[type]
+    end
 
 
 ## --- Apply a kernel density estimate to the matched igneous distributions
@@ -366,55 +391,38 @@
 
 
 ## --- Archean igneous and metamorphic rocks
-    # Load unmatched EarthChem
-    fid = h5open("output/bulk.h5", "r")
-    header = read(fid["bulk"]["header"])
-    data = read(fid["bulk"]["data"])
-    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    # Re-create Keller, 2016 Fig. 6.9 2D histogram of EarthChem silica and age 
+    # Then do the same thing with my matched dataset
 
-    header = read(fid["bulktypes"]["bulk_cats_head"])
-    data = read(fid["bulktypes"]["bulk_cats"])
-    data = @. data > 0
-    bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
-    close(fid)
+    # Preallocate
+    nsims = Int(1e7)                         # 10 M simulations
+    SiO2_error = 5.0                         # Large SiO₂ error to smooth data
+    age_min_error = 0.15                     # Minimum 15% age error
 
-    for type in minorsed
-        bulk_cats.sed .|= bulk_cats[type]
-    end
-    for type in minorvolc
-        bulk_cats.volc .|= bulk_cats[type]
-    end
-    for type in minorplut
-        bulk_cats.plut .|= bulk_cats[type]
-    end
-    for type in minorign
-        bulk_cats.ign .|= bulk_cats[type]
-    end
+    xmin, xmax, xbins = 40, 80, 240          # Silica
+    xedges = xmin:(xmax-xmin)/xbins:xmax
+    ymin, ymax, ybins = 0, 3800, 380         # Age
+    yedges = ymin:(ymax-ymin)/ybins:ymax
 
-    # Re-create Keller, 2016 Fig. 6.9 2D histogram of silica distribution over time 
-    # Resample (spatiotemporal) all non-sedimentary silica with a large error
+    # EarthChem
     notsed = bulk_cats.ign .| bulk_cats.met
     t = @. !isnan(bulk.Latitude) & !isnan(bulk.Longitude) & !isnan(bulk.Age) & notsed
 
-    # Get age uncertainty, if unknown set to 5%
-    ageuncert = Array{Float64}(undef, count(t), 1)
-    ageuncert .= (bulk.Age_Max[t] .- bulk.Age_Min[t])/2
-    s = vec(isnan.(ageuncert))
-    ageuncert[s] .= bulk.Age[t][s] .* 0.05
+    s = vec(isnan.(bulk.Age))
+    ageuncert = bulk.Age .* age_min_error
+    for i in eachindex(ageuncert)
+        calc_uncert = (bulk.Age_Max[i] .- bulk.Age_Min[i])/2
+        ageuncert[i] = ifelse(calc_uncert > ageuncert[i], calc_uncert, ageuncert[i])
+    end
 
-    # Resample!
     k = invweight(bulk.Latitude[t], bulk.Longitude[t], bulk.Age[t])
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
     data = [bulk.SiO2[t] bulk.Age[t]]
-    uncertainty = [fill(1.0, count(t)) ageuncert]
+    uncertainty = [fill(SiO2_error, count(t)) ageuncert[t]]
     simbulk = bsresample(data, uncertainty, nsims, p)
 
     # Make a 2d-histogram / heatmap. Normalize each time step to between 0 and 1
-    xmin, xmax, xbins = 40, 80, 80          # Silica
-    xedges = xmin:(xmax-xmin)/xbins:xmax
-    ymin, ymax, ybins = 0, 3800, 380        # Age
-    yedges = ymin:(ymax-ymin)/ybins:ymax
-    out = zeros(ybins, xbins)               # Preallocate
+    out_bulk = zeros(ybins, xbins)                # Preallocate
     for i = 1:ybins
         # Filter for samples in this age bin
         t = @. yedges[i] <= simbulk[:,2] < yedges[i+1]
@@ -424,23 +432,95 @@
         n = (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
 
         # Put the output in the output array
-        out[i,:] .= n
+        out_bulk[i,:] .= n
     end
 
-    h = Plots.plot(
-        framestyle=:box,
-        grid=false,
-        fontfamily=:Helvetica,
-        xticks=(0:20:80, string.(40:10:80)),
+    # Repeat with matched data
+    notsed = sample_cats.ign .| sample_cats.met
+    t = @. !isnan(mbulk.Latitude) & !isnan(mbulk.Longitude) & !isnan(mbulk.Age) & notsed
+
+    s = vec(isnan.(mbulk.Age))
+    ageuncert = mbulk.Age .* age_min_error
+    for i in eachindex(ageuncert)
+        calc_uncert = (mbulk.Age_Max[i] .- mbulk.Age_Min[i])/2
+        ageuncert[i] = ifelse(calc_uncert > ageuncert[i], calc_uncert, ageuncert[i])
+    end
+
+    k = invweight_age(mbulk.Age[t])     # Already spatially corrected
+    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+    data = [mbulk.SiO2[t] mbulk.Age[t]]
+    uncertainty = [fill(SiO2_error, count(t)) ageuncert[t]]
+    sim_mbulk = bsresample(data, uncertainty, nsims, p)
+
+    # Make a 2d-histogram / heatmap. Normalize each time step to between 0 and 1
+    out_mbulk = zeros(ybins, xbins)                # Preallocate
+    for i = 1:ybins
+        # Filter for samples in this age bin
+        t = @. yedges[i] <= sim_mbulk[:,2] < yedges[i+1]
+
+        # Count and normalize distribution of silica
+        c, n = bincounts(sim_mbulk[:,1][t], xmin, xmax, xbins)
+        n = (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
+
+        # Put the output in the output array
+        out_mbulk[i,:] .= n
+    end
+
+## --
+    # Plot EarthChem
+    h1 = Plots.plot(
         ylims=(0,380),
         yticks=(0:50:380, string.(0:500:3800)),
         yflip=true,
         xlabel="SiO₂ [wt.%]", 
         ylabel="Age [Ma]",
-        size=(700,400),
-        left_margin=(25,:px), bottom_margin=(15,:px)
+        size=(600,500),
     )
-    Plots.heatmap!(h, out, colorbar_title="Relative Sample Density", color=c_gradient,)
+    Plots.heatmap!(h1, out_bulk, 
+        # aspectratio=:equal,
+        # colorbar_title="Relative Sample Density",
+        colorbar=false,
+        color=c_gradient,
+        title="A. Resampled EarthChem Samples\n"
+    )
+
+    # Plot matched samples
+    h2 = Plots.plot(
+        ylims=(0,380),
+        # yticks=(0:50:380, string.(0:500:3800)),
+        yticks=false,
+        yflip=true,
+        xlabel="SiO₂ [wt.%]", 
+        # ylabel="Age [Ma]",
+        size=(600,500),
+    )
+    Plots.heatmap!(h2, out_mbulk, 
+        # aspectratio=:equal,
+        # colorbar_title="Relative Sample Density",
+        colorbar=false,
+        color=c_gradient,
+        title="B. Resampled Matched Samples\n"
+    )
+
+    # Assemble all plots with a common color bar
+    l = @layout [p1{0.95w} p2{0.05w}]
+    a = Plots.plot(h1, h2, layout=(1,2),
+        size=(1000, 400),
+        framestyle=:box,
+        grid=false,
+        fontfamily=:Helvetica,
+        xticks=(0:60:240, string.(40:10:80)),
+        left_margin=(25,:px), bottom_margin=(15,:px),
+        titleloc=:left, titlefont = font(12),
+    )
+    b = Plots.heatmap(rand(2,2), clims=(0,1), 
+        framestyle=:none, color=c_gradient, colorbar_title="Relative Sample Density", 
+        lims=(-1,0)
+    )
+    h = Plots.plot(a, b, layout=l)
+
+    display(h)
+    savefig("$filepath/archeansilica_heatmap.pdf")
 
 
 ## --- Resample unmatched, but filtered, EarthChem samples
@@ -485,74 +565,6 @@
     data = [bulk.SiO2[t] bulk.Age[t]]
     uncertainty = [fill(1.0, count(t)) ageuncert]
     simbulk = bsresample(data, uncertainty, nsims, p)
-
-
-## --- Histograms of silica distributiosn in matched vs. EarthChem samples
-    # Load matched Macrostrat samples
-    fid = readdlm(matchedbulk_io)
-    matches = Int.(vec(fid[:,1]))
-    t = @. matches != 0
-
-    fid = h5open("$macrostrat_io", "r")
-    macrostrat = (
-        rocklat = read(fid["vars"]["rocklat"])[t],
-        rocklon = read(fid["vars"]["rocklon"])[t],
-        age = read(fid["vars"]["age"])[t],
-    )
-    header = read(fid["type"]["macro_cats_head"])
-    data = read(fid["type"]["macro_cats"])
-    data = @. data > 0
-    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
-    close(fid)
-
-    # Filter for just Archean samples
-    ms_notsed = macro_cats.ign .| macro_cats.met;
-    ms_archean = macrostrat.age .>= 2500;
-    ms_t = .!isnan.(mbulk.SiO2)
-
-    bk_archean = simbulk[:,2] .<= 2500;
-    
-    h = Plots.plot(
-        framestyle=:box,
-        fontfamily=:Helvetica,
-        grid=false,
-        xlabel="SiO2 [wt.%]", 
-        ylabel="Relative Abundance",
-        xlims=(40,80),
-        legend=:topleft, 
-        fg_color_legend=:white, 
-    )
-
-    # Matched Macrostrat samples
-    c, n = bincounts(mbulk.SiO2[ms_archean .& ms_notsed .& ms_t], 40, 80, 80)
-    n₁ = float(n) ./ nansum(float(n) .* step(c))
-    Plots.plot!(h, c, n₁, 
-        seriestype=:bar, barwidths=0.5, 
-        color=:steelblue, linecolor=:match, alpha=0.25,
-        label="Matched Samples"
-    )
-
-    # Resampled EarthChem
-    c, n = bincounts(simbulk[:,1][bk_archean], 40, 80, 80)
-    n₂ = float(n) ./ nansum(float(n) .* step(c))
-    Plots.plot!(h, c, n₂, 
-        seriestype=:path, linewidth=2,
-        color=:grey, linecolor=:match, 
-        label="Resampled EarthChem"
-    )
-
-    # Smoothed matched data
-    u = kde(mbulk.SiO2[ms_archean .& ms_notsed .& ms_t])
-    Plots.plot!(h, u.x, u.density,
-        seriestype=:path, linewidth=4,
-        color=:steelblue, linecolor=:match,
-        label="Kernel Density Estimate"
-    )
-
-    ylims!(0, round(maximum([n₁; n₂; u.density]), digits=2))
-    
-    display(h)
-    savefig("$filepath/archeansilica.pdf")
 
 
 ## --- Rock types in Archean samples 
@@ -638,6 +650,74 @@
 
     display(h)
     savefig("$filepath/archeanrockclass.pdf")
+
+
+## --- Histograms of silica distributiosn in matched vs. EarthChem samples
+    # Load matched Macrostrat samples
+    fid = readdlm(matchedbulk_io)
+    matches = Int.(vec(fid[:,1]))
+    t = @. matches != 0
+
+    fid = h5open("$macrostrat_io", "r")
+    macrostrat = (
+        rocklat = read(fid["vars"]["rocklat"])[t],
+        rocklon = read(fid["vars"]["rocklon"])[t],
+        age = read(fid["vars"]["age"])[t],
+    )
+    header = read(fid["type"]["macro_cats_head"])
+    data = read(fid["type"]["macro_cats"])
+    data = @. data > 0
+    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
+    close(fid)
+
+    # Filter for just Archean samples
+    ms_notsed = macro_cats.ign .| macro_cats.met;
+    ms_archean = macrostrat.age .>= 2500;
+    ms_t = .!isnan.(mbulk.SiO2)
+
+    bk_archean = simbulk[:,2] .<= 2500;
+    
+    h = Plots.plot(
+        framestyle=:box,
+        fontfamily=:Helvetica,
+        grid=false,
+        xlabel="SiO2 [wt.%]", 
+        ylabel="Relative Abundance",
+        xlims=(40,80),
+        legend=:topleft, 
+        fg_color_legend=:white, 
+    )
+
+    # Matched Macrostrat samples
+    c, n = bincounts(mbulk.SiO2[ms_archean .& ms_notsed .& ms_t], 40, 80, 80)
+    n₁ = float(n) ./ nansum(float(n) .* step(c))
+    Plots.plot!(h, c, n₁, 
+        seriestype=:bar, barwidths=0.5, 
+        color=:steelblue, linecolor=:match, alpha=0.25,
+        label="Matched Samples"
+    )
+
+    # Resampled EarthChem
+    c, n = bincounts(simbulk[:,1][bk_archean], 40, 80, 80)
+    n₂ = float(n) ./ nansum(float(n) .* step(c))
+    Plots.plot!(h, c, n₂, 
+        seriestype=:path, linewidth=2,
+        color=:grey, linecolor=:match, 
+        label="Resampled EarthChem"
+    )
+
+    # Smoothed matched data
+    u = kde(mbulk.SiO2[ms_archean .& ms_notsed .& ms_t])
+    Plots.plot!(h, u.x, u.density,
+        seriestype=:path, linewidth=4,
+        color=:steelblue, linecolor=:match,
+        label="Kernel Density Estimate"
+    )
+
+    ylims!(0, round(maximum([n₁; n₂; u.density]), digits=2))
+    
+    display(h)
+    savefig("$filepath/archeansilica.pdf")
 
 
 ## --- Slope vs. erosion rate

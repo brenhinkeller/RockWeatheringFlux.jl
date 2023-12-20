@@ -339,7 +339,7 @@
         minorvolc = (:komatiite, :basalt, :andesite, :dacite, :rhyolite, :alk_volc, 
             :volcaniclast,)
         minorplut = (:peridotite, :pyroxenite, :gabbro, :diorite, :trondhjemite, :tonalite, 
-            :tonalite, :granodiorite, :granite, :alk_plut,)
+            :granodiorite, :granite, :alk_plut,)
         minorign = (:volc, :plut, :carbonatite)
 
         if major

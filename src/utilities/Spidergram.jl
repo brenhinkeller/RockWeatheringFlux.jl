@@ -6,7 +6,7 @@
 
 ## --- Definitions
     # Chondrite values from Taylor and McLennan (1985).
-    chondrite_taylormclennan = (
+    taylormclennan = (
         La = 0.367,
         Ce = 0.957,
         Pr = 0.137,
@@ -24,69 +24,66 @@
     )
 
     
-
-
 ## --- Functions
+    # I want to take data as an unorganized dictionary, NamedTuple, or an organized array
+    # the organized array can get sent straight through
+    # the dict and namedtuple should be parsed
     """
-    ```julia
-    spidergram(data::Dict, [chondrite::NamedTuple]; 
-        markershape::Symbol=:auto,
-        seriescolor::Symbol=:auto,
-        label::AbstractString=""
-    )
-    ```
-
-    Construct a `chondrite` normalized multi-element diagrams (spider diagram) from the rare 
-    earth elements in `data`. 
+    Construct a `chondrite` normalized multi-element diagram (spider diagram) from the 
+    rare earth elements in `data`. 
 
     Use `spidergram` to create a new plot object, and `spidergram!` to add to an existing 
     one:
     ```julia
-    spidergram(args...; kw...)              # Create a new spider diagram
-    spidergram!(plotobj, args...; kw...)    # Add to the plot `plotobj`
+    spidergram(data; [chondrite], kwargs...)              # Create a new spider diagram
+    spidergram!(plotobj, data; [chondrite], kwargs...)    # Add to the plot `plotobj`
     ```
 
-    ## Data Formatting
-    REE `data` should be in a dictionary organized by element, in units of ppm (mg/g):
-    ```julia
-    Dict{String, Float64} with 14 entries:
-    "La" => 0.001883
-    "Ce" => 0.00323
-    "Pr" => 0.00021
-    "Nd" => 0.00142
-    ⋮    => ⋮
-    ```
+    If no chondrite values are specified, `data` will be normalized to the values reported
+    by Taylor and McLennan (1985).
 
-    (Optional) Chondrite normalized values should be in a `Dictonary` organised by element.
-    If no values are specified, the plot will be normalized to chondrite values from 
-    Taylor and McLennan, 1985:
-    ```julia
-    NamedTuple with 14 elements:
-    La  = Float64 0.367
-    Ce  = Float64 0.957
-    Pr  = Float64 0.137
-    ⋮   = ⋮
-    ```
+    Values in `data` and `chondrite` may be passed as a dictonary, named tuple, or an 
+    array. All arrays should be in element order:
+
+        La, Ce, Pr, Nd, Sm, Eu, Gd, Tb, Dy, Ho, Er, Tm, Yb, Lu
+
+    Dictonaries and NamedTuples should be organized by element:
+
+        NamedTuple with 14 elements:
+        La  = Float64 0.367
+        Ce  = Float64 0.957
+        Pr  = Float64 0.137
+        ⋮   = ⋮
+
+    Or
+
+        Dict{String, Float64} with 14 entries:
+        "La" => 20.78
+        "Ce" => 35.61
+        "Pr" => 2.344
+        ⋮    => ⋮
+
+    If `data` is not passed as an array, `chondrite` must be a named tuple in element 
+    order.
     """
-    function spidergram(data::Dict, chondrite::NamedTuple=chondrite_taylormclennan; 
-            markershape::Symbol=:auto,
-            seriescolor=:auto,
-            label::AbstractString=""
-        )
-        # Get REEs in chondrite normalized space
-        REEᵢ = NamedTuple{Tuple(keys(chondrite))}(data[string(e)] / chondrite[e] 
-            for e in keys(chondrite)
-        )
+    spidergram(data; chondrite=taylormclennan, kwargs...) = 
+        spidergram!(plot(), data; chondrite=chondrite, kwargs...)
+    
+    function spidergram!(h, data::Dict; chondrite::NamedTuple=taylormclennan, kwargs...)
+        Key = keytype(data)
+        data = [data[Key(k)] for k in keys(chondrite)]
+        _spidergram!(h, data, values(chondrite); kwargs...)
+    end
+    function spidergram!(h, data::NamedTuple; chondrite::NamedTuple=taylormclennan, kwargs...)
+        data = [data[Symbol(k)] for k in keys(chondrite)]
+        _spidergram!(h, data, values(chondrite); kwargs...)
+    end
 
-        # X-Axis should skip a space for Pm
-        REEs = [:La, :Ce, :Pr, :Nd, :Pm, :Sm, :Eu, :Gd, :Tb, :Dy, :Ho, :Er, :Tm, :Yb, :Lu,]
-        i = findfirst(x->x==:Pm, REEs)
-        x = collect([1:i-1; i+1:length(REEs)])
-        REEs = string.(REEs)
-        REEs[i] = ""
+    spidergram!(h, data::AbstractArray; chondrite=taylormclennan, kwargs...) = 
+        _spidergram!(h, data, collect(values(chondrite)); kwargs...)
 
-        # Build plot
-        h = Plots.plot(
+    function _spidergram!(h, data::AbstractArray, chondrite; kwargs...,)
+        Plots.plot!(h, 
             ylabel="Chondrite Normalized",
             fg_color_legend=:white,
             framestyle=:box,
@@ -94,52 +91,11 @@
             yaxis=:log10,
             ylims=(10^0, 10^3),
             yticks=(10.0.^(0:3), ("1", "10", "100", "1000")),
-            xticks=(1:length(REEs), string.(REEs)),
+            xticks=(1:15, ["La","Ce","Pr","Nd","","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm",
+                "Yb","Lu"]),
             yminorticks=log.(1:10),
         )
-        Plots.plot!(h, x, collect(values(REEᵢ)),
-            markershape=markershape, 
-            seriescolor=seriescolor, msc=seriescolor,
-            label=label,
-        )
-
-        return h
-    end
-
-    """
-    ```julia
-    spidergram!(h, data::Dict, [chondrite::NamedTuple]; 
-    markershape::Symbol=:auto,
-    seriescolor::Symbol=:auto,
-    label::AbstractString="")
-    ```
-
-    Add a new `spidergram` to the plot object `h`.
-    """
-    function spidergram!(h::Plots.Plot{Plots.GRBackend}, 
-            data::Dict, chondrite::NamedTuple=chondrite_taylormclennan; 
-            markershape::Symbol=:auto,
-            seriescolor=:auto,
-            label::AbstractString=""
-        )
-
-        # Get REEs in chondrite normalized space
-        REEᵢ = NamedTuple{Tuple(keys(chondrite))}(data[string(e)] / chondrite[e] 
-            for e in keys(chondrite)
-        )
-
-        # X-Axis should skip a space for Pm
-        REEs = [:La, :Ce, :Pr, :Nd, :Pm, :Sm, :Eu, :Gd, :Tb, :Dy, :Ho, :Er, :Tm, :Yb, :Lu,]
-        i = findfirst(x->x==:Pm, REEs)
-        x = collect([1:i-1; i+1:length(REEs)])
-        REEs = string.(REEs)
-        REEs[i] = ""
-
-        Plots.plot!(h, x, collect(values(REEᵢ)),
-            markershape=markershape, 
-            seriescolor=seriescolor, msc=seriescolor,
-            label=label,
-        )
+        Plots.plot!(h, collect([1:4; 6:15]), data ./ chondrite; kwargs...)
 
         return h
     end

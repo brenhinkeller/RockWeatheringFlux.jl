@@ -304,6 +304,8 @@
     rg = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple)
     ucc = importdataset(ucc_out, '\t', importas=:Tuple)
 
+    units = Dict(zip(rg.Element, rg.Units))                     # Units for Rudnick and Gao
+
     # Get dictionaried
     ucc_ign = Dict(zip(ucc.element, ucc.ign))
     ucc_sed = Dict(zip(ucc.element, ucc.sed))
@@ -313,7 +315,6 @@
     rg = Dict(zip(rg.Element, rg.This_Study))                   # Rudnick and Gao
     
     # Convert units to percent for normalization
-    units = Dict(zip(rg_all.Element, rg_all.Units))
     for d in (rg, tm)
         for k in keys(rg)
             if units[k] == "percent"

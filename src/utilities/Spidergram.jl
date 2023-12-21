@@ -1,11 +1,6 @@
-## Fully independent (does not need to call other files) function for plotting REE spider
-# diagrams
+# Fully independent (does not call other internal functions) plotting function for REEs
 
-## --- Dependencies
-    using Plots
-
-## --- Definitions
-    # Chondrite values from Taylor and McLennan (1985).
+## --- Default chondrite values from Taylor and McLennan (1985).
     taylormclennan = (
         La = 0.367,
         Ce = 0.957,
@@ -23,11 +18,7 @@
         Lu = 0.038,
     )
 
-    
-## --- Functions
-    # I want to take data as an unorganized dictionary, NamedTuple, or an organized array
-    # the organized array can get sent straight through
-    # the dict and namedtuple should be parsed
+## --- Define functions
     """
     Construct a `chondrite` normalized multi-element diagram (spider diagram) from the 
     rare earth elements in `data`. 

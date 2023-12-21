@@ -4,6 +4,7 @@
     include("NaNMeasurements.jl")
     include("Macrostrat.jl")
     include("Analysis.jl")
+    include("Spidergram.jl")
 
 
 ## --- Match rock names / types / descriptions to defined rock classes

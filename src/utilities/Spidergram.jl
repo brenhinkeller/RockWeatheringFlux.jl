@@ -70,7 +70,7 @@
     """
     function spidergram(data::Dict, chondrite::NamedTuple=chondrite_taylormclennan; 
             markershape::Symbol=:auto,
-            seriescolor::Symbol=:auto,
+            seriescolor=:auto,
             label::AbstractString=""
         )
         # Get REEs in chondrite normalized space
@@ -119,7 +119,7 @@
     function spidergram!(h::Plots.Plot{Plots.GRBackend}, 
             data::Dict, chondrite::NamedTuple=chondrite_taylormclennan; 
             markershape::Symbol=:auto,
-            seriescolor::Symbol=:auto,
+            seriescolor=:auto,
             label::AbstractString=""
         )
 

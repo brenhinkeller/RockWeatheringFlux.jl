@@ -300,175 +300,70 @@
 
 
 ## --- Compare trace elements to Rudnick and Gao, 2014 (10.1016/B978-0-08-095975-7.00301-6)
-    # Load all estimates from Rudnick and Gao. 
-    rg_all = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple)
-    ucc = importdataset(ucc_out, '\t', importas=:Tuple)
-
-    # rg = Dict(zip(rg.Element, rg.Percent))
-    ucc = Dict(zip(ucc.element, ucc.bulk))                              # My estimate
-    rg = Dict(zip(rg_all.Element, rg_all.This_Study))                   # Rudnick and Gao
-    tm = Dict(zip(rg_all.Element, rg_all.Taylor_and_McLennan_1985))     # Taylor and McLennan
-    # sw = Dict(zip(rg_all.Element, rg_all.Shaw_et_al__1967))             # Shaw et al.
-    # kc = Dict(zip(rg_all.Element, rg_all.Condie_1993))                  # Condie
-    # sg = Dict(zip(rg_all.Element, rg_all.Gao_et_al_1998))               # Gao et al.
-
-    # estimates = [rg, tm, sw, kc, sg]
-    # labels = ["Rudnick and Gao, 2014", "Taylor and McLennan, 1985/1995", 
-    #     "Shaw et al., 1967", "Condie, 1993", "Gao et al., 1998"
-    # ]
-    # estcolors = [:blue, :green, :hotpink, :purple, :red]
-    # shapes = [:utriangle, :dtriangle, :star5, :diamond, :x]
-
-    estimates = [rg, tm]
-    labels = ["Rudnick and Gao, 2014", "Taylor and McLennan, 1985/1995",]
-    estcolors = [:cadetblue, :olivedrab]
-    shapes = [:utriangle, :dtriangle,]
-
-    # Convert units to percent for normalization
-    units = Dict(zip(rg_all.Element, rg_all.Units))
-    for e in eachindex(estimates)
-        for k in keys(estimates[e])
-            if units[k] == "percent"
-                continue
-            elseif units[k] == "ppm"
-                estimates[e][k] = estimates[e][k] / 10_000
-            elseif units[k] == "ppb"
-                estimates[e][k] = estimates[e][k] / 10_000_000
-            end
-        end
-    end
-
-    # Remove volatiles from my estimate and normalize all estimates to 100%
-    delete!(ucc, "Volatiles")
-    ucc = Dict(zip(keys(ucc), normalize!(collect(values(ucc)))))
-    for e in eachindex(estimates)
-        estimates[e] = Dict(
-            zip(keys(estimates[e]), normalize!(collect(values(estimates[e]))))
-        )
-    end
-    
-    # Get the elements we want to analyze
-    cnorm = get_chondrite_norm()
-    REEs = keys(cnorm)
-
-    # Convert estimates into normalized REE space, recasting to mg/g
-    ucc_REE = NamedTuple{Tuple(REEs)}([ucc[string(i)] / cnorm[i] * 10000 for i in REEs])
-
-    # Spider diagram, add an empty value for Pm
-    all_REEs = get_REEs()
-    i = findfirst(x->x==:Pm, all_REEs)
-    x = collect([1:i-1; i+1:length(all_REEs)])
-
-    all_REEs = string.(all_REEs)
-    all_REEs[i] = ""
-
-    h = Plots.plot(
-        ylabel="Chondrite Normalized",
-        fg_color_legend=:white,
-        framestyle=:box,
-        grid=false,
-        yaxis=:log10,
-        ylims=(10^0, 10^3),
-        yticks=(10.0.^(0:3), ("1", "10", "100", "1000")),
-        xticks=(x, string.(REEs)),
-        yminorticks=log.(1:10),
-    )
-    for e in eachindex(estimates)
-        # Normalize REEs, recasting into mg/g
-        REE_i = NamedTuple{Tuple(REEs)}([
-            estimates[e][string(i)] / cnorm[i] * 10000 for i in REEs
-        ])
-
-        # Plot
-        Plots.plot!(h, x, collect(values(REE_i)),
-            markershape=shapes[e], color=estcolors[e], msc=estcolors[e],
-            label=labels[e],
-        )
-    end
-    Plots.plot!(h, x, collect(values(ucc_REE)),
-        markershape=:circle, color=:darkorange, msc=:darkorange,
-        label="This study",
-    )
-
-    display(h)
-    savefig("$filepath/spidergram.pdf")
-
-
-## --- REE patterns by rock type?
     # Load data
-    rg_all = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple)
+    rg = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple)
     ucc = importdataset(ucc_out, '\t', importas=:Tuple)
 
+    # Get dictionaried
     ucc_ign = Dict(zip(ucc.element, ucc.ign))
     ucc_sed = Dict(zip(ucc.element, ucc.sed))
     ucc_met = Dict(zip(ucc.element, ucc.met))
-    ucc = Dict(zip(ucc.element, ucc.bulk))                              # My estimate
-    rg = Dict(zip(rg_all.Element, rg_all.This_Study))                   # Rudnick and Gao
-
-    # Normalize all estimates to 100% anhydrous
+    ucc = Dict(zip(ucc.element, ucc.bulk))                      # My estimate (bulk Earth)
+    tm = Dict(zip(rg.Element, rg.Taylor_and_McLennan_1985))     # Taylor and McLennan
+    rg = Dict(zip(rg.Element, rg.This_Study))                   # Rudnick and Gao
+    
+    # Convert units to percent for normalization
     units = Dict(zip(rg_all.Element, rg_all.Units))
-    for k in keys(rg)
-        if units[k] == "percent"
-            continue
-        elseif units[k] == "ppm"
-            rg[k] = rg[k] / 10_000
-        elseif units[k] == "ppb"
-            rg[k] = rg[k] / 10_000_000
+    for d in (rg, tm)
+        for k in keys(rg)
+            if units[k] == "percent"
+                continue
+            elseif units[k] == "ppm"
+                d[k] = d[k] / 10_000
+            elseif units[k] == "ppb"
+                d[k] = d[k] / 10_000_000
+            end
         end
     end
     rg = Dict(zip(keys(rg), normalize!(collect(values(rg)))))
+    tm = Dict(zip(keys(tm), normalize!(collect(values(tm)))))
 
-    delete!(ucc, "Volatiles")
-    delete!(ucc_ign, "Volatiles")
-    delete!(ucc_sed, "Volatiles")
-    delete!(ucc_met, "Volatiles")
+    # Normalize to 100% anhydrous
+    for d in (ucc, ucc_ign, ucc_sed, ucc_met)
+        delete!(d, "Volatiles")
+    end
     ucc = Dict(zip(keys(ucc), normalize!(collect(values(ucc)))))
     ucc_ign = Dict(zip(keys(ucc_ign), normalize!(collect(values(ucc_ign)))))
     ucc_sed = Dict(zip(keys(ucc_sed), normalize!(collect(values(ucc_sed)))))
     ucc_met = Dict(zip(keys(ucc), normalize!(collect(values(ucc_met)))))
 
-    # Set up plot
-    all_REEs = get_REEs()                           # Skip a space for Pm
-    i = findfirst(x->x==:Pm, all_REEs)
-    x = collect([1:i-1; i+1:length(all_REEs)])
-    all_REEs = string.(all_REEs)
-    all_REEs[i] = ""
-
-    cnorm = get_chondrite_norm()                    # REEs and chondrite values
-    REEs = keys(cnorm)
-
-    series = [rg, ucc, ucc_met, ucc_sed, ucc_ign]
-    labels = ["Bulk Crust (Rudnick and Gao)", "Bulk Crust (This Study)", "Metamorphic", 
-        "Sedimentary", "Igneous",
-    ]
-    seriescolor = [:grey, :black, colors.met, colors.sed, colors.ign]
-
-    h = Plots.plot(
-        ylabel="Chondrite Normalized",
-        fg_color_legend=:white,
-        framestyle=:box,
-        grid=false,
-        yaxis=:log10,
-        ylims=(10^0, 10^3),
-        yticks=(10.0.^(0:3), ("1", "10", "100", "1000")),
-        xticks=(x, string.(REEs)),
-        yminorticks=log.(1:10),
-    )
-    for i in eachindex(series)
-        # Get REEs into chondrite normalized space, recasting wt.% to mg/g
-        REEᵢ = NamedTuple{Tuple(REEs)}(series[i][string(e)] / cnorm[e] * 10000 for e in REEs)
-
-        Plots.plot!(h, x, collect(values(REEᵢ)),
-            # markershape=shapes[i], 
-            color=seriescolor[i], msc=seriescolor[i],
-            label=labels[i],
-        )
-        display(h)
+    # We changed everything to wt.%, but spidergram needs ppm
+    REEs = get_REEs()
+    for d in (rg, tm, ucc, ucc_ign, ucc_sed, ucc_met)
+        for k in REEs
+            haskey(d, string(k)) && (d[string(k)] *= 10_000)
+        end
     end
+
+    # Spider... gram. Spidergram.
+    h = spidergram(tm, label="Taylor and McLennan, 1985 / 1995", 
+        markershape=:dtriangle, seriescolor=:olivedrab)
+    spidergram!(h, rg, label="Rudnick and Gao, 2014", 
+        markershape=:utriangle, seriescolor=:cadetblue)
+    
+    spidergram!(h, ucc_ign, label="This Study (Bulk Igneous)",
+        markershape=:star5, seriescolor=colors.ign)
+    spidergram!(h, ucc_sed, label="This Study (Bulk Sedimentary)",
+        markershape=:+, seriescolor=colors.sed)
+    spidergram!(h, ucc_met, label="This Study (Bulk Metamorphic)",
+        markershape=:x, seriescolor=colors.met)
+
+    spidergram!(h, ucc, label="This Study (Bulk Earth)",
+        markershape=:circle, seriescolor=:black)
+
     display(h)
-
-
-## --
+    savefig("$filepath/spidergram.pdf")
+    
 
 ## --- [TEMP?] Archean igneous and metamorphic rocks
     # Re-create Keller, 2016 Fig. 6.9 2D histogram of EarthChem silica and age 

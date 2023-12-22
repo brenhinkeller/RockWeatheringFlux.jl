@@ -21,6 +21,7 @@ output/
 *.gz
 *.kml
 *.kml.gz
+*.h5
 
 # Some intermediate julia file types to ignore
 *.jl.cov

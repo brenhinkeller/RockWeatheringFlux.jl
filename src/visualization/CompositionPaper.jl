@@ -7,11 +7,8 @@
     using DelimitedFiles
     using KernelDensity
     using Plots
-    using Colors
 
     # Local utilities
-    using Measurements, Static
-    using LoopVectorization: @turbo
     include("../utilities/Utilities.jl")
     filepath = "results/figures/CompPaper"
 

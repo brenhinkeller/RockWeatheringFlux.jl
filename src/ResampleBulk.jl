@@ -9,12 +9,9 @@
     # Packages
     using StatGeochem
     using DelimitedFiles
-    using Measurements
     using HDF5
     using MAT
     using ProgressMeter
-    using LoopVectorization
-    using Static
 
     # Local utilities
     include("utilities/Utilities.jl")

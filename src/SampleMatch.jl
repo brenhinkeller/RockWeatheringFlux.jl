@@ -6,9 +6,6 @@
     using StatsBase
     using DelimitedFiles
     using StaticArrays
-    using LoopVectorization
-    using Static
-    using Measurements
     using Dates
     using LogExpFunctions
 

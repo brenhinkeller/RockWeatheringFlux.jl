@@ -1,3 +1,10 @@
+## --- Load required packages for compilation
+    using Measurements
+    using Static 
+    using Colors: RGB
+    using LoopVectorization: @turbo
+
+    
 ## --- Run all sub-utilities
     include("Definitions.jl")
     include("Slope.jl")

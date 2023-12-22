@@ -2,16 +2,13 @@
     # Computational Packages
     using StatGeochem
     using HDF5
-    using LoopVectorization
-    using Measurements
-    using Static
 
     # Plotting Packages
     using GeoMakie
     using ImageMagick
 
     # Local utilities
-    include("utilities/Utilities.jl")
+    include("../utilities/Utilities.jl")
 
 
 ## --- Get data

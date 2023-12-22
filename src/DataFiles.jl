@@ -3,9 +3,6 @@
 ## --- Set up
     using HDF5
     using StatGeochem
-    using Static
-    using LoopVectorization
-    using Measurements
     using ProgressMeter
     
     include("utilities/Utilities.jl")

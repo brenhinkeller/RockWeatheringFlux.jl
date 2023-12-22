@@ -4,9 +4,6 @@
     using DelimitedFiles
     using ProgressMeter
     using HDF5
-    using LoopVectorization
-    using Static
-    using Measurements
 
     # Local utilities
     include("utilities/Utilities.jl")

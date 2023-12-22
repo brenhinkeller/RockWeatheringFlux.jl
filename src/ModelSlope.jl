@@ -3,13 +3,10 @@
     using StatGeochem
     using StatsBase
     using HDF5
-    using Measurements
     using DelimitedFiles
     using Plots
     using NetCDF
     using Isoplot
-    using LoopVectorization
-    using Static
 
     # Local utilities
     include("utilities/Utilities.jl")

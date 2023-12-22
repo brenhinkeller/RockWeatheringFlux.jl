@@ -21,10 +21,7 @@
     # Packages
     using MAT
     using StatGeochem
-    using LoopVectorization
     using HDF5
-    using Static
-    using Measurements
     using ProgressMeter
 
     # Local utilities

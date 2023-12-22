@@ -2,11 +2,8 @@
     # Packages
     using StatGeochem
     using DelimitedFiles
-    using Measurements
     using HDF5
     using ProgressMeter
-    using LoopVectorization
-    using Static
     using Colors
 
     # Local utilities

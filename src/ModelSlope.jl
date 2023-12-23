@@ -4,9 +4,6 @@
     using DelimitedFiles, HDF5, Plots
     using Isoplot: yorkfit
 
-    # Local utilities
-    # include("utilities/yorkfit.jl")
-
 
 ## --- Get OCTOPUS basin polygon outlines [Linux / Mac OS only]
     # @info "Loading OCTOPUS data"
@@ -90,30 +87,31 @@
     # Fit slope to means
     fobj = yorkfit(c, ex, log.(m), log.(ey))
     emmkyr(slp) = exp(slp * (fobj.slope) + (fobj.intercept))
-
+    export emmkyr
+    
     
 ## --- Plot results
-    h = Plots.plot(xlabel="SRTM15+ Slope (m/km)", ylabel="Erosion rate (mm/kyr)",
-        framestyle=:box, legend=:topleft, fg_color_legend=:white,
-    )
+    # h = Plots.plot(xlabel="SRTM15+ Slope (m/km)", ylabel="Erosion rate (mm/kyr)",
+    #     framestyle=:box, legend=:topleft, fg_color_legend=:white,
+    # )
 
-    # Data
-    Plots.scatter!(basin_srtm.avg_slope,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", 
-        msc=:auto, color=:blue, yscale=:log10,
-    )
-    Plots.scatter!(h, basin_srtm.avg_slope,octopusdata.eal_mmkyr, label="OCTOPUS Al-26 data", 
-        msc=:auto, color=:orange, markershape=:square
-    )
-    Plots.scatter!(h, c, m, label="Binned Means", yerror=ex, color=:black, lcolor=:black, 
-        msc=:black,
-    )
+    # # Data
+    # Plots.scatter!(basin_srtm.avg_slope,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", 
+    #     msc=:auto, color=:blue, yscale=:log10,
+    # )
+    # Plots.scatter!(h, basin_srtm.avg_slope,octopusdata.eal_mmkyr, label="OCTOPUS Al-26 data", 
+    #     msc=:auto, color=:orange, markershape=:square
+    # )
+    # Plots.scatter!(h, c, m, label="Binned Means", yerror=ex, color=:black, lcolor=:black, 
+    #     msc=:black,
+    # )
 
-    # Model
-    modelval, = unmeasurementify(emmkyr.(1:600))
-    Plots.plot!(h, 1:length(modelval), modelval, label="Model", color=:black, width=3)
+    # # Model
+    # modelval, = unmeasurementify(emmkyr.(1:600))
+    # Plots.plot!(h, 1:length(modelval), modelval, label="Model", color=:black, width=3)
     
-    display(h)
-    savefig("results/figures/erosionslope.pdf")
+    # display(h)
+    # savefig("results/figures/erosionslope.pdf")
 
 
 ## --- Model erosion as the product of slope and precipitation

@@ -363,7 +363,7 @@
     savefig("$filepath/spidergram.pdf")
     
 
-## --- [TEMP?] Archean igneous and metamorphic rocks
+## --- 2D-histograms of age / silica distributions in EarthChem and matched data
     # Re-create Keller, 2016 Fig. 6.9 2D histogram of EarthChem silica and age 
     # Then do the same thing with my matched dataset
 
@@ -622,7 +622,52 @@
     savefig("$filepath/archeanrockclass.pdf")
 
 
-## --- 2D Histograms of age / silica distribution in matched vs. EarthChem samples
+## --- [TEMP?] Silica distribution of Archean EarthChem vs. matched samples 
+    nsims = Int(1e6)                         # 1 M simulations
+    SiO2_error = 1.0                         # Large SiO₂ error to smooth data
+
+    # Load unmatched EarthChem
+    fid = h5open("output/bulk.h5", "r")
+    header = read(fid["bulk"]["header"])
+    data = read(fid["bulk"]["data"])
+    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+
+    header = read(fid["bulktypes"]["bulk_cats_head"])
+    data = read(fid["bulktypes"]["bulk_cats"])
+    data = @. data > 0
+    bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    close(fid)
+
+    for type in minorsed
+        bulk_cats.sed .|= bulk_cats[type]
+    end
+    for type in minorvolc
+        bulk_cats.volc .|= bulk_cats[type]
+    end
+    for type in minorplut
+        bulk_cats.plut .|= bulk_cats[type]
+    end
+    for type in minorign
+        bulk_cats.ign .|= bulk_cats[type]
+    end
+
+    # Only look at igneous and undifferentiated metamorphic rocks
+    notsed = bulk_cats.ign .| bulk_cats.met
+    t = @. !isnan(bulk.Latitude) & !isnan(bulk.Longitude) & !isnan(bulk.Age) & notsed
+
+    # Get age uncertainty, if unknown set to 5%
+    ageuncert = Array{Float64}(undef, count(t), 1)
+    ageuncert .= (bulk.Age_Max[t] .- bulk.Age_Min[t])/2
+    s = vec(isnan.(ageuncert))
+    ageuncert[s] .= bulk.Age[t][s] .* 0.05
+
+    # Resample!
+    k = invweight(bulk.Latitude[t], bulk.Longitude[t], bulk.Age[t])
+    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+    data = [bulk.SiO2[t] bulk.Age[t]]
+    uncertainty = [fill(SiO2_error, count(t)) ageuncert]
+    simbulk = bsresample(data, uncertainty, nsims, p)
+
     # Load matched Macrostrat samples
     fid = readdlm(matchedbulk_io)
     matches = Int.(vec(fid[:,1]))

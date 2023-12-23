@@ -4,16 +4,9 @@
 
 ## --- Set up
     # Packages
-    using StatGeochem
+    using RockWeatheringFlux
     using Dates
-    using DelimitedFiles
-    using JLD
-	using HDF5
-	using HTTP
-	using JSON
-    
-    # Local utilities
-    include("utilities/Utilities.jl")
+    using DelimitedFiles, HDF5, JLD, HTTP, JSON
 
 
 ## --- Generate random points on the continental crust

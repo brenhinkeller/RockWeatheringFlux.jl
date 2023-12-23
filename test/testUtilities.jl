@@ -1,8 +1,3 @@
-## -- Test functions from Utilities.jl
-    using Test
-    include("../src/utilities/Utilities.jl")
-
-
 ## --- Get umbrella class
     typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
 

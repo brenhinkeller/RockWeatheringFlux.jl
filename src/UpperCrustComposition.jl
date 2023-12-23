@@ -1,13 +1,7 @@
 ## --- Set up
     # Packages
-    using StatGeochem
-    using DelimitedFiles
-    using HDF5
-    using ProgressMeter
-    using Colors
-
-    # Local utilities
-    include("utilities/Utilities.jl")
+    using RockWeatheringFlux
+    using DelimitedFiles, HDF5
 
     # Get igneous rock silica definitions
     ignsilica = get_ignsilica()

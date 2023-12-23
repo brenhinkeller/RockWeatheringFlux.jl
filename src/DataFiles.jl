@@ -1,11 +1,8 @@
 # Create a duplicate Macrostrat / Burwell file with new rock type and rock name matches
 
 ## --- Set up
+    using RockWeatheringFlux
     using HDF5
-    using StatGeochem
-    using ProgressMeter
-    
-    include("utilities/Utilities.jl")
 
 
 ## --- Match rock names

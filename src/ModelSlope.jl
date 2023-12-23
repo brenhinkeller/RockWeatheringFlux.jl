@@ -1,16 +1,11 @@
 ## --- Set up
     # Packages
-    using StatGeochem
-    using StatsBase
-    using HDF5
-    using DelimitedFiles
-    using Plots
-    using NetCDF
-    using Isoplot
+    using RockWeatheringFlux
+    using DelimitedFiles, HDF5, Plots
+    using Isoplot: yorkfit
 
     # Local utilities
-    include("utilities/Utilities.jl")
-    include("utilities/yorkfit.jl")
+    # include("utilities/yorkfit.jl")
 
 
 ## --- Get OCTOPUS basin polygon outlines [Linux / Mac OS only]
@@ -122,55 +117,56 @@
 
 
 ## --- Model erosion as the product of slope and precipitation
-    # Get basin precipitation
-    precip = ncread("data/prate.sfc.mon.ltm.nc","prate")
-    precip = mean(precip, dims=3)[:,:,1]
-    basin_precip = find_precip(octopusdata.y_wgs84, octopusdata.x_wgs84, precip)
+    # using NetCDF
 
-    # Get slope ⋅ precipitation
-    slopeprecip = (basin_srtm.avg_slope .± basin_srtm.err) .* basin_precip
-    v, e = unmeasurementify(slopeprecip)
-    slopeprecip = (v=v, e=e)
+    # # Get basin precipitation
+    # precip = ncread("data/prate.sfc.mon.ltm.nc","prate")
+    # precip = mean(precip, dims=3)[:,:,1]
+    # basin_precip = find_precip(octopusdata.y_wgs84, octopusdata.x_wgs84, precip)
 
-    # Get erosion
-    t = .!isnan.(slopeprecip.v) .& .!isnan.(slopeprecip.e)
-    t_be = t .& .!isnan.(octopusdata.ebe_mmkyr) .& .!isnan.(octopusdata.ebe_err)
-    t_al = t .& .!isnan.(octopusdata.eal_mmkyr) .& .!isnan.(octopusdata.eal_err)
+    # # Get slope ⋅ precipitation
+    # slopeprecip = (basin_srtm.avg_slope .± basin_srtm.err) .* basin_precip
+    # v, e = unmeasurementify(slopeprecip)
+    # slopeprecip = (v=v, e=e)
 
-    x = (
-        v = [slopeprecip.v[t_be]; slopeprecip.v[t_al]],
-        e = [slopeprecip.e[t_be]; slopeprecip.e[t_al]]
-    )
-    y = (
-        v = [octopusdata.ebe_mmkyr[t_be]; octopusdata.eal_mmkyr[t_al]],
-        e = [octopusdata.ebe_err[t_be]; octopusdata.eal_err[t_al]]
-    )
+    # # Get erosion
+    # t = .!isnan.(slopeprecip.v) .& .!isnan.(slopeprecip.e)
+    # t_be = t .& .!isnan.(octopusdata.ebe_mmkyr) .& .!isnan.(octopusdata.ebe_err)
+    # t_al = t .& .!isnan.(octopusdata.eal_mmkyr) .& .!isnan.(octopusdata.eal_err)
 
-    # Get bin averages in regular space
-    c, m, ex, ey = binmeans_percentile(x.v, y.v, step=5)
+    # x = (
+    #     v = [slopeprecip.v[t_be]; slopeprecip.v[t_al]],
+    #     e = [slopeprecip.e[t_be]; slopeprecip.e[t_al]]
+    # )
+    # y = (
+    #     v = [octopusdata.ebe_mmkyr[t_be]; octopusdata.eal_mmkyr[t_al]],
+    #     e = [octopusdata.ebe_err[t_be]; octopusdata.eal_err[t_al]]
+    # )
 
-    # Log transform **both** x and y and fit model
-    fobj = yorkfit(log.(c), log.(ex), log.(m), log.(ey))
-    # emmkyr_precip(slp) = exp(slp * (fobj.slope) + (fobj.intercept))
+    # # Get bin averages in regular space
+    # c, m, ex, ey = binmeans_percentile(x.v, y.v, step=5)
 
-    # Plot results
-    h = scatter(slopeprecip.v,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", 
-        msc=:auto, color=:blue, alpha=0.5
-    )
-    scatter!(h, slopeprecip.v,octopusdata.eal_mmkyr, label="OCTOPUS Al-26 data", 
-        msc=:auto, color=:orange, alpha=0.5
-    )
-    scatter!(h, c, m, label="Binned Means", msc=:auto, color=:black)
+    # # Log transform **both** x and y and fit model
+    # fobj = yorkfit(log.(c), log.(ex), log.(m), log.(ey))
+    # # emmkyr_precip(slp) = exp(slp * (fobj.slope) + (fobj.intercept))
 
-    # Model
-    modelin = range(start=0, stop=0.4, length=100)
-    modelval, modelerr = unmeasurementify(emmkyr_precip.(modelin))
-    # plot!(h, 1:length(modelval), modelval, label="Model", color=:black, width=3)
-    plot!(xlabel="SRTM15+ Slope (m/km)", ylabel="Erosion rate (mm/kyr)",
-        xscale=:log10, yscale=:log10, framestyle=:box, legend=:topleft, 
-        fg_color_legend=:white,
-    )
-    display(h)
-    
+    # # Plot results
+    # h = scatter(slopeprecip.v,octopusdata.ebe_mmkyr, label="OCTOPUS Be-10 data", 
+    #     msc=:auto, color=:blue, alpha=0.5
+    # )
+    # scatter!(h, slopeprecip.v,octopusdata.eal_mmkyr, label="OCTOPUS Al-26 data", 
+    #     msc=:auto, color=:orange, alpha=0.5
+    # )
+    # scatter!(h, c, m, label="Binned Means", msc=:auto, color=:black)
+
+    # # Model
+    # modelin = range(start=0, stop=0.4, length=100)
+    # modelval, modelerr = unmeasurementify(emmkyr_precip.(modelin))
+    # # plot!(h, 1:length(modelval), modelval, label="Model", color=:black, width=3)
+    # plot!(xlabel="SRTM15+ Slope (m/km)", ylabel="Erosion rate (mm/kyr)",
+    #     xscale=:log10, yscale=:log10, framestyle=:box, legend=:topleft, 
+    #     fg_color_legend=:white,
+    # )
+    # display(h)
 
 ## --- End of file

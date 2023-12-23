@@ -7,15 +7,9 @@
 
 ## --- Set up
     # Packages
-    using StatGeochem
-    using DelimitedFiles
-    using HDF5
-    using MAT
-    using ProgressMeter
-
-    # Local utilities
-    include("utilities/Utilities.jl")
-
+    using RockWeatheringFlux
+    using DelimitedFiles, HDF5, MAT
+    
 
 ## --- Load EarthChem data 
     # Filtered and normalized to 100%

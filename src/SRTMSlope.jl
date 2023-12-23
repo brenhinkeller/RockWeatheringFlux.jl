@@ -1,8 +1,7 @@
 ## --- Set up
     # Packages
-    using StatGeochem
-    using HDF5
-    using Dates
+    using RockWeatheringFlux
+    using HDF5, Dates
 
     # Get SRTM15+ file
     @info "Loading SRTM"

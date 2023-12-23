@@ -26,6 +26,7 @@
 
         return v, f
     end
+    export modal
 
     """
     ```julia
@@ -145,6 +146,7 @@
 
         return j
     end
+    export sameindex
 
 
     """
@@ -216,6 +218,6 @@
         \tRock description: $(descm[1]) (n = $(descm[2]) of $(descm[3]))
         """
     end
-
+    export get_matched_samples
 
 ## --- End of file

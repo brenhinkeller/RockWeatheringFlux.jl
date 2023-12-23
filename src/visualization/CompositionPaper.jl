@@ -1,15 +1,12 @@
 # Figures for the submitted paper
 
     # Packages
-    using StatGeochem
-    using HDF5
-    using MAT
-    using DelimitedFiles
+    using RockWeatheringFlux
+    using DelimitedFiles, HDF5, MAT 
     using KernelDensity
     using Plots
 
-    # Local utilities
-    include("../utilities/Utilities.jl")
+    # Definitions
     filepath = "results/figures/CompPaper"
 
 

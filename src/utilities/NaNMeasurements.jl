@@ -2,12 +2,15 @@
 
 # Ignore any NaN ± NaN and NaN ± err values. Convert val ± NaN to val ± 0
 
+using NaNStatistics, Measurements
+
 function NaNStatistics.nanadd(a::Measurement, b::Measurement)
     a = a.val*(a.val==a.val) ± a.err*(a.err==a.err)
     b = b.val*(b.val==b.val) ± b.err*(b.err==b.err)
 
     return a + b
 end
+export nanadd
 
 function NaNStatistics.nansum(A::AbstractArray{Measurement{Float64}})
     Aᵥ, Aₑ = unmeasurementify(A)
@@ -25,6 +28,7 @@ function NaNStatistics.nansum(A::AbstractArray{Measurement{Float64}})
     end
     return Σᵥ ± sqrt(sum(Σₑ))
 end
+export nansum
 
 function NaNStatistics.nanmean(A::AbstractArray{Measurement{Float64}})
     Aᵥ, Aₑ = unmeasurementify(A)
@@ -45,6 +49,7 @@ function NaNStatistics.nanmean(A::AbstractArray{Measurement{Float64}})
     end
     return (Σᵥ / n) ± (sqrt(sum(Σₑ)) / n)
 end
+export nanmean
 
 NaNStatistics.nanstd(A::AbstractArray{Measurement{Float64}}; mean=nothing, corrected=true) = 
     NaNStatistics.sqrt!(NaNStatistics._nanvar(mean, corrected, A::AbstractArray{Measurement{Float64}}))
@@ -106,6 +111,8 @@ function NaNStatistics._nanvar(μ::Number, corrected::Bool, A::AbstractArray{T})
     return (σ²ᵥ / max(n-corrected,0)) ± (sqrt(sum(σ²ₑ)) / max(n-corrected,0))
 end
 
+export nanvar, nanstd
+
 """
 ```julia
 zeronan!(A::AbstractArray{Measurement{Float64}}, allnans=true)
@@ -151,6 +158,7 @@ function NaNStatistics.zeronan!(A::AbstractArray{Measurement{Float64}}, allnans:
     end
     return A
 end
+export zeronan!
 
 """
 ```julia
@@ -169,6 +177,7 @@ function zeronan(A::AbstractArray{T}) where T
     end
     return out
 end
+export zeronan
 
 """
 ```julia
@@ -197,7 +206,7 @@ function onenan!(A::AbstractArray{T}) where T
     end
     return A
 end
-
+export onenan!
 
 """
 ```julia
@@ -213,6 +222,7 @@ function nanunzero!(A::AbstractArray{T}, val) where T
     end
     return A
 end
+export nanunzero!
 
 
 """
@@ -244,6 +254,6 @@ function nanzero!(A::AbstractArray{T}) where T
     end
     return A
 end
-
+export nanzero!
 
 ## --- End of file

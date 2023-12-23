@@ -1,5 +1,6 @@
 # Fully independent (does not call other internal functions) plotting function for REEs
-
+    using Plots
+    
 ## --- Default chondrite values from Taylor and McLennan (1985).
     taylormclennan = (
         La = 0.367,
@@ -90,6 +91,6 @@
 
         return h
     end
-
+    export spidergram, spidergram!
 
 ## --- End of File

@@ -1,5 +1,7 @@
 # Slope and flux computations
+    using ProgressMeter: @showprogress, Progress, next!
 
+    
 ## --- Slope and erosion rate relationship
 
     """
@@ -10,6 +12,7 @@
     Find erosion rate in mm/kyr given slope `slp`.
     """
     emmkyr(slp) = exp(slp * (0.0098 ± 0.0047) + (2.97 ± 0.64))
+    export emmkyr
 
     # Previously 10^(slp*0.00567517 + 0.971075)
 
@@ -180,6 +183,7 @@
 
         return out
     end
+    export movingwindow
 
 
 ## --- Parse OCTOPUS data
@@ -251,7 +255,7 @@
 
         return str, isfirstcoord, nbasins, subbasins
     end
-
+    export load_octopus_kml
 
     """
     ```julia
@@ -296,7 +300,7 @@
 
         return data
     end
-
+    export parse_octopus_kml_variables
 
     """
     ```julia
@@ -328,6 +332,7 @@
 
         return basin_polygon_n, basin_polygon_lat, basin_polygon_lon
     end
+    export parse_octopus_polygon_outlines
 
 
 ## --- DEM and slope computations
@@ -390,7 +395,7 @@
 
         return basinslope_avg, basinslope_err
     end
-
+    export get_basin_srtm15plus_aveslope
 
     # Read srtm15plus file from HDF5 storage, downloading from cloud if necessary
     resourcepath = "data"
@@ -454,6 +459,7 @@
 
         return out
     end
+    export get_srtm15plus_aveslope
 
     function find_srtm15plus_aveslope_around(srtm15plus,lat,lon; halfwidth=1::Integer, max_allowed_slope=1000::Number)
 
@@ -504,6 +510,7 @@
 
         return out
     end
+    export find_srtm15plus_aveslope_around
 
 
 ## --- Calculate precipitation
@@ -532,6 +539,7 @@
 
         return out
     end
+    export find_precip
 
 
 ## --- Bin means with percentile bin edges
@@ -606,6 +614,6 @@
             return bincenters, μ, σx̄, σȳ
         end
     end
-
+    export binmeans_percentile
     
 ## --- End of file

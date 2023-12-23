@@ -42,6 +42,7 @@
 
         return rocklat, rocklon, elevations
     end
+    export gen_continental_points
 
 
 ## --- Ping Macrostrat API
@@ -67,6 +68,7 @@
         end
         return parsed
     end
+    export query_macrostrat
 
 
 ## --- Get data from the unparsed response dictionary
@@ -77,6 +79,7 @@
             return NaN
         end
     end
+    export get_macrostrat_min_age
 
     function get_macrostrat_max_age(jobj)
         try
@@ -85,6 +88,7 @@
             return NaN
         end
     end
+    export get_macrostrat_max_age
 
     function get_macrostrat_map_id(jobj)
         try
@@ -93,6 +97,7 @@
             return NaN
         end
     end
+    export get_macrostrat_map_id
 
     function get_macrostrat_lith(jobj)
         try
@@ -101,6 +106,7 @@
             return "NA"
         end
     end
+    export get_macrostrat_lith
 
     function get_macrostrat_descrip(jobj)
         try
@@ -109,6 +115,7 @@
             return "NA"
         end
     end
+    export get_macrostrat_descrip
 
     function get_macrostrat_name(jobj)
         try
@@ -117,6 +124,7 @@
             return "NA"
         end
     end
+    export get_macrostrat_name
 
     function get_macrostrat_strat_name(jobj)
         try
@@ -125,6 +133,7 @@
             return "NA"
         end
     end
+    export get_macrostrat_strat_name
 
     function get_macrostrat_comments(jobj)
         try
@@ -133,6 +142,7 @@
             return "NA"
         end
     end
+    export get_macrostrat_comments
 
     function get_macrostrat_ref_title(jobj)
         try
@@ -141,6 +151,7 @@
             return "NA"
         end
     end
+    export get_macrostrat_ref_title
 
     function get_macrostrat_ref_authors(jobj)
         try
@@ -149,6 +160,7 @@
             return "NA"
         end
     end
+    export get_macrostrat_ref_authors
 
     function get_macrostrat_ref_year(jobj)
         try
@@ -157,6 +169,7 @@
             return "NA"
         end
     end
+    export get_macrostrat_ref_year
 
     function get_macrostrat_ref_doi(jobj)
         try
@@ -165,6 +178,7 @@
             return "NA"
         end
     end
+    export get_macrostrat_ref_doi
 
 
 ## --- Parse responses
@@ -244,6 +258,7 @@
             refstrings = refstrings
         )
     end
+    export parse_macrostrat_responses
 
 
 ## --- Crop intermediate files
@@ -305,5 +320,6 @@
             fid["typecategory"] = types
         close(fid)
     end
+    export crop_intermediate!
 
 ## --- End of File

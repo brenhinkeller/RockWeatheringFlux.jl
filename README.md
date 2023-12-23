@@ -1,5 +1,11 @@
 # RockWeatheringFlux.jl
-Sample exposed rock types and correlate with local erosion rates as a function of slope to calculate total erosive flux
+Estimate the composition of the continental crust, and correlate this estimate with erosion rate to estimate volume and composition of eroded material.
+
+In addition to performing computations and defining its own functions, RockWeatheringFlux reexports (and internally depends on):
+
+* [Measurements.jl](https://github.com/JuliaPhysics/Measurements.jl)
+* [StatGeochem.jl](https://github.com/brenhinkeller/StatGeochem.jl)
+* [ProgressMeter.jl](https://github.com/timholy/ProgressMeter.jl): `@showprogress`, `Progress`, `next!`
 
 ## Contents
 ### `/data`

@@ -1,12 +1,7 @@
 ## --- Setup
     # Packages
-    using StatGeochem
-    using DelimitedFiles
-    using ProgressMeter
-    using HDF5
-
-    # Local utilities
-    include("utilities/Utilities.jl")
+    using RockWeatheringFlux
+    using DelimitedFiles, HDF5
 
 
 ## --- Load EarthChem data

@@ -1,13 +1,3 @@
-## -- NaNMeasurements.jl
-    using StatGeochem
-    using Measurements
-    using Statistics
-    using Test
-
-    using Static
-    using LoopVectorization
-    include("../src/utilities/NaNMeasurements.jl")
-
 ## --- Create test arrays
     A = collect(1:10) .± reverse!(collect(1:10))
     B = copy(A)

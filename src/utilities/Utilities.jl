@@ -1,17 +1,6 @@
-## --- Load required packages for compilation
-    using Measurements
-    using Static 
-    using Colors: RGB
-    using LoopVectorization: @turbo
-
-    
-## --- Run all sub-utilities
-    include("Definitions.jl")
-    include("Slope.jl")
-    include("NaNMeasurements.jl")
-    include("Macrostrat.jl")
-    include("Analysis.jl")
-    include("Spidergram.jl")
+## --- Packages 
+    using ProgressMeter: @showprogress, Progress, next!
+    using LogExpFunctions: logsumexp
 
 
 ## --- Match rock names / types / descriptions to defined rock classes
@@ -210,7 +199,7 @@
 
         return cats
     end
-
+    export match_rocktype
 
     """
     ```julia
@@ -247,7 +236,6 @@
 
         return cats
     end
-
 
     """
     ```julia
@@ -318,77 +306,78 @@
         kittens = NamedTuple{Tuple(start[notcover])}(cats[k] for k in start[notcover])
         return kittens
     end
+    export delete_cover
 
 
-    """
-    ```
-    match_rockname(rocktype::AbstractArray, rockname::AbstractArray, 
-        rockdescrip::AbstractArray)
-    ```
+    # """
+    # ```
+    # match_rockname(rocktype::AbstractArray, rockname::AbstractArray, 
+    #     rockdescrip::AbstractArray)
+    # ```
 
-    Find samples in Macrostrat matching pre-defined rock names (e.g., basalt, sandstone,
-    gneiss, etc.). Return a `NamedTuple` of `BitVectors` where the elements of the 
-    `NamedTuple` are the rock names, and the `BitVectors` are true at element `i` iff
-    sample `i` is that rock name.
+    # Find samples in Macrostrat matching pre-defined rock names (e.g., basalt, sandstone,
+    # gneiss, etc.). Return a `NamedTuple` of `BitVectors` where the elements of the 
+    # `NamedTuple` are the rock names, and the `BitVectors` are true at element `i` iff
+    # sample `i` is that rock name.
 
-    Does not match rock names defined as cover by `get_rock_class`.
+    # Does not match rock names defined as cover by `get_rock_class`.
 
-    See also: `match_rocktype`.
-    """
-    function match_rockname(rocktype::AbstractArray, rockname::AbstractArray, 
-        rockdescrip::AbstractArray)
+    # See also: `match_rocktype`.
+    # """
+    # function match_rockname(rocktype::AbstractArray, rockname::AbstractArray, 
+    #     rockdescrip::AbstractArray)
 
-        # Get rock names as one long list, excluding cover
-        typelist, = get_rock_class(major=true)
-        typelist = unique((typelist.sed..., typelist.met..., typelist.ign...))
+    #     # Get rock names as one long list, excluding cover
+    #     typelist, = get_rock_class(major=true)
+    #     typelist = unique((typelist.sed..., typelist.met..., typelist.ign...))
 
-        # Initialize a NamedTuple with a BitVector for each rock name
-        cats = NamedTuple{Symbol.(Tuple(typelist))}([falses(length(rocktype))
-            for _ in 1:length(typelist)]
-        )
+    #     # Initialize a NamedTuple with a BitVector for each rock name
+    #     cats = NamedTuple{Symbol.(Tuple(typelist))}([falses(length(rocktype))
+    #         for _ in 1:length(typelist)]
+    #     )
 
-        # If you can't improve the algorithm the least you can do is add a progress bar
-        p = Progress(length(typelist)*4+1, desc="Finding Macrostrat rock names...")
-        next!(p)
+    #     # If you can't improve the algorithm the least you can do is add a progress bar
+    #     p = Progress(length(typelist)*4+1, desc="Finding Macrostrat rock names...")
+    #     next!(p)
 
-        # Check major lithology first
-        for i in eachindex(typelist)
-            for j in eachindex(rocktype)
-                cats[i][j] |= match(r"major.*?{(.*?)}", rocktype[j]) |> x -> isa(x,RegexMatch) ? 
-                containsi(x[1], typelist[i]) : false
-            end
-            next!(p)
-        end
+    #     # Check major lithology first
+    #     for i in eachindex(typelist)
+    #         for j in eachindex(rocktype)
+    #             cats[i][j] |= match(r"major.*?{(.*?)}", rocktype[j]) |> x -> isa(x,RegexMatch) ? 
+    #             containsi(x[1], typelist[i]) : false
+    #         end
+    #         next!(p)
+    #     end
 
-        # Check the rest of rocktype
-        not_matched = find_unmatched(cats)
-        @inbounds for i in eachindex(typelist)
-            for j in eachindex(rocktype)
-                not_matched[j] && (cats[i][j] |= containsi(rocktype[j], typelist[i]))
-            end
-            next!(p)
-        end
+    #     # Check the rest of rocktype
+    #     not_matched = find_unmatched(cats)
+    #     @inbounds for i in eachindex(typelist)
+    #         for j in eachindex(rocktype)
+    #             not_matched[j] && (cats[i][j] |= containsi(rocktype[j], typelist[i]))
+    #         end
+    #         next!(p)
+    #     end
 
-        # Then rockname
-        not_matched = find_unmatched(cats)
-        @inbounds for i in eachindex(typelist)
-            for j in eachindex(rockname)
-                not_matched[j] && (cats[i][j] |= containsi(rockname[j], typelist[i]))
-            end
-            next!(p)
-        end
+    #     # Then rockname
+    #     not_matched = find_unmatched(cats)
+    #     @inbounds for i in eachindex(typelist)
+    #         for j in eachindex(rockname)
+    #             not_matched[j] && (cats[i][j] |= containsi(rockname[j], typelist[i]))
+    #         end
+    #         next!(p)
+    #     end
 
-        # Then rockdescrip
-        not_matched = find_unmatched(cats)
-        @inbounds for i in eachindex(typelist)
-            for j in eachindex(rockdescrip)
-                not_matched[j] && (cats[i][j] |= containsi(rockdescrip[j], typelist[i]))
-            end
-            next!(p)
-        end
+    #     # Then rockdescrip
+    #     not_matched = find_unmatched(cats)
+    #     @inbounds for i in eachindex(typelist)
+    #         for j in eachindex(rockdescrip)
+    #             not_matched[j] && (cats[i][j] |= containsi(rockdescrip[j], typelist[i]))
+    #         end
+    #         next!(p)
+    #     end
 
-        return cats
-    end
+    #     return cats
+    # end
 
 
 ## --- Find all EarthChem samples matching a Macrostrat sample
@@ -428,6 +417,7 @@
 
         return matches
     end
+    export find_earthchem
 
 
 ## --- Metadata for a specific sample
@@ -476,7 +466,7 @@
         count(keymatches)==0 && return (:none,)
         return catkeys[keymatches]
     end
-
+    export get_type
 
     """
     ```julia
@@ -606,50 +596,50 @@
         @warn "No upwards class found for $name"
         return nothing
     end
+    export class_up
 
+    # """
+    # ```julia
+    # majorminor(type::Tuple, minorsed, minorign, minormet)
+    # ```
 
-    """
-    ```julia
-    majorminor(type::Tuple, minorsed, minorign, minormet)
-    ```
+    # Classify `type` as major or minor types. 
 
-    Classify `type` as major or minor types. 
+    # ### Return
+    #  *  `maj`: Vector of all types converted to major types.
+    #  *  `ismaj`: BitVector which is `true` where `type` is a major type.
+    #  *  `ctypes`: NamedTuple with the number of minor types present for each major type.
 
-    ### Return
-     *  `maj`: Vector of all types converted to major types.
-     *  `ismaj`: BitVector which is `true` where `type` is a major type.
-     *  `ctypes`: NamedTuple with the number of minor types present for each major type.
+    # # Example
+    # ```julia-repl
+    # julia> minorsed, minorign, minormet = get_minor_types();
 
-    # Example
-    ```julia-repl
-    julia> minorsed, minorign, minormet = get_minor_types();
+    # julia> type=(:ign, :volc);
 
-    julia> type=(:ign, :volc);
+    # julia> maj, ismaj, ctypes = majorminor(type, minorsed, minorign, minormet)
+    # ([:ign, :ign], Bool[1, 0], (ign = 1,))
+    # ```
 
-    julia> maj, ismaj, ctypes = majorminor(type, minorsed, minorign, minormet)
-    ([:ign, :ign], Bool[1, 0], (ign = 1,))
-    ```
+    # Note that since `type` includes one major type (`:ign`) and one minor type (`:volc`),
+    # where `:volc` is a subtype of the `:ign` major type, `type` contains one minor type,
+    # so `ctypes` contains one element (`ctypes.ign`), equal to 1.
+    # """
+    # function majorminor(type::Tuple, minorsed, minorign, minormet)
+    #     # Preallocate
+    #     maj = similar(collect(type))
+    #     ismaj = falses(length(maj))
 
-    Note that since `type` includes one major type (`:ign`) and one minor type (`:volc`),
-    where `:volc` is a subtype of the `:ign` major type, `type` contains one minor type,
-    so `ctypes` contains one element (`ctypes.ign`), equal to 1.
-    """
-    function majorminor(type::Tuple, minorsed, minorign, minormet)
-        # Preallocate
-        maj = similar(collect(type))
-        ismaj = falses(length(maj))
+    #     # Assign
+    #     for j in eachindex(type)
+    #         maj[j] = class_up(type[j], minorsed, minorign, minormet)
+    #         ismaj[j] = maj[j] == type[j]
+    #     end
 
-        # Assign
-        for j in eachindex(type)
-            maj[j] = class_up(type[j], minorsed, minorign, minormet)
-            ismaj[j] = maj[j] == type[j]
-        end
+    #     utype = unique(maj)
+    #     ctypes = NamedTuple{Tuple(utype)}([count(==(i), maj) for i in utype] .- 1)
 
-        utype = unique(maj)
-        ctypes = NamedTuple{Tuple(utype)}([count(==(i), maj) for i in utype] .- 1)
-
-        return maj, ismaj, ctypes
-    end
+    #     return maj, ismaj, ctypes
+    # end
 
 
 ## --- Geochemistry
@@ -671,7 +661,7 @@
 
         return NamedTuple{Tuple(major)}(element)
     end
-
+    export major_elements
 
     """
     ```julia
@@ -687,7 +677,7 @@
         end
         return A
     end
-
+    export normalize!
 
     """
     ```julia
@@ -755,7 +745,7 @@
             end
         end
     end
-
+    export standardize_units!
 
 ## --- Sample matching
 
@@ -822,7 +812,7 @@
         matched_sample = rand_prop_liklihood(ll_total)
         return sampleidx[matched_sample]
     end
-
+    export likelihood
 
     """
     ```julia
@@ -846,7 +836,7 @@
         end
         return lastindex(ll)
     end
-
+    export rand_prop_liklihood
 
     """
     ```julia
@@ -869,101 +859,101 @@
         end
         return lastindex(p)
     end
+    export weighted_rand
+
+    # """
+    # ```julia
+    # replace_major(type::Tuple, minortypes::NamedTuple, p::NamedTuple)
+    # ```
+
+    # Replace `:sed`, `:ign`, and `:met` types in `type` with a weighted-random selection 
+    # of a subtype from `minortypes` based on the weights in `p`. Remove duplicate types.
+
+    # Weights `p` must have the keys `sed`, `ign`, and `met`.
+
+    # ### Kwargs `ign`, `sed`, and `met`
+
+    # Minor rock types classified under the igneous, sedimentary, and metamorphic major 
+    # types.
+
+    # # Example
+    # ```julia-repl
+    # julia> minortypes = (
+    #         sed=(:carb, :shale), 
+    #         ign=(:volc, :plut), 
+    #         met=(:metased, :metaign)
+    #     );
+
+    # julia> p = (
+    #         sed = [0.6, 0.4],
+    #         ign = [0.5, 0.5],
+    #         met = [0.3, 0.7],
+    #     );
+
+    # julia> type = (:ign, :met, :carb, :plut,);
+
+    # julia> replace_major(type, p, minortypes)
+    # (:volc, :metaign, :carb, :plut)
+    # ```
+    # """
+    # function replace_major(type::Tuple, p::NamedTuple, minortypes::NamedTuple)
+    #     type = collect(type)
+    #     for i in eachindex(type)
+    #         if type[i]==:ign 
+    #             type[i] = minortypes.ign[weighted_rand(p.ign)]
+    #         elseif type[i]==:sed
+    #             type[i] = minortypes.sed[weighted_rand(p.sed)]
+    #         elseif type[i]==:met 
+    #             type[i] = minortypes.met[weighted_rand(p.met)]
+    #         end
+    #     end
+
+    #     return Tuple(unique(type))
+    # end
 
 
-    """
-    ```julia
-    replace_major(type::Tuple, minortypes::NamedTuple, p::NamedTuple)
-    ```
+    # """
+    # ```julia
+    # get_descriptive_name(samplenames::Tuple, p_name::NamedTuple, sampletypes::Tuple,
+    #         p_type::NamedTuple, typelist::NamedTuple, minortypes::NamedTuple
+    #     )
+    # ```
 
-    Replace `:sed`, `:ign`, and `:met` types in `type` with a weighted-random selection 
-    of a subtype from `minortypes` based on the weights in `p`. Remove duplicate types.
+    # Given matched rock names `samplenames` and matched rock types `sampletypes`, return a 
+    # list of minor types and a randomly-selected descriptive rock name.
 
-    Weights `p` must have the keys `sed`, `ign`, and `met`.
+    # # Example
+    # ```julia-repl
+    # name, types = get_descriptive_name(samplenames, p_name, sampletypes, p_type, typelist, minortypes)
+    # ```
+    # """
+    # function get_descriptive_name(samplenames::Tuple, p_name::NamedTuple, sampletypes::Tuple,
+    #         p_type::NamedTuple, typelist::NamedTuple, minortypes::NamedTuple
+    #     )
 
-    ### Kwargs `ign`, `sed`, and `met`
+    #     # Randomly pick a matched type
+    #     i = rand(1:length(sampletypes))
+    #     t = sampletypes[i]
 
-    Minor rock types classified under the igneous, sedimentary, and metamorphic major 
-    types.
+    #     if t==:sed || t==:ign || t==:met 
+    #     # If the type is a major type, replace type and pick a rock name from mapped names
+    #         t = minortypes[t][weighted_rand(p_type[t])]
+    #         name = typelist[t][weighted_rand(p_name[t])]
 
-    # Example
-    ```julia-repl
-    julia> minortypes = (
-            sed=(:carb, :shale), 
-            ign=(:volc, :plut), 
-            met=(:metased, :metaign)
-        );
+    #         # Replace any other majors, but keep the already-replaced type
+    #         sampletypes = collect(sampletypes)
+    #         sampletypes[i] = t
+    #         sampletypes = replace_major(Tuple(sampletypes), p_type, minortypes)
 
-    julia> p = (
-            sed = [0.6, 0.4],
-            ign = [0.5, 0.5],
-            met = [0.3, 0.7],
-        );
-
-    julia> type = (:ign, :met, :carb, :plut,);
-
-    julia> replace_major(type, p, minortypes)
-    (:volc, :metaign, :carb, :plut)
-    ```
-    """
-    function replace_major(type::Tuple, p::NamedTuple, minortypes::NamedTuple)
-        type = collect(type)
-        for i in eachindex(type)
-            if type[i]==:ign 
-                type[i] = minortypes.ign[weighted_rand(p.ign)]
-            elseif type[i]==:sed
-                type[i] = minortypes.sed[weighted_rand(p.sed)]
-            elseif type[i]==:met 
-                type[i] = minortypes.met[weighted_rand(p.met)]
-            end
-        end
-
-        return Tuple(unique(type))
-    end
-
-
-    """
-    ```julia
-    get_descriptive_name(samplenames::Tuple, p_name::NamedTuple, sampletypes::Tuple,
-            p_type::NamedTuple, typelist::NamedTuple, minortypes::NamedTuple
-        )
-    ```
-
-    Given matched rock names `samplenames` and matched rock types `sampletypes`, return a 
-    list of minor types and a randomly-selected descriptive rock name.
-
-    # Example
-    ```julia-repl
-    name, types = get_descriptive_name(samplenames, p_name, sampletypes, p_type, typelist, minortypes)
-    ```
-    """
-    function get_descriptive_name(samplenames::Tuple, p_name::NamedTuple, sampletypes::Tuple,
-            p_type::NamedTuple, typelist::NamedTuple, minortypes::NamedTuple
-        )
-
-        # Randomly pick a matched type
-        i = rand(1:length(sampletypes))
-        t = sampletypes[i]
-
-        if t==:sed || t==:ign || t==:met 
-        # If the type is a major type, replace type and pick a rock name from mapped names
-            t = minortypes[t][weighted_rand(p_type[t])]
-            name = typelist[t][weighted_rand(p_name[t])]
-
-            # Replace any other majors, but keep the already-replaced type
-            sampletypes = collect(sampletypes)
-            sampletypes[i] = t
-            sampletypes = replace_major(Tuple(sampletypes), p_type, minortypes)
-
-            return Symbol(name), sampletypes
+    #         return Symbol(name), sampletypes
             
-        else
-        # If the type is a minor type, randomly pick a matched name that maps to that type
-            q = [string(n) in typelist[t] for n in samplenames]
+    #     else
+    #     # If the type is a minor type, randomly pick a matched name that maps to that type
+    #         q = [string(n) in typelist[t] for n in samplenames]
 
-            return rand(samplenames[q]), replace_major(sampletypes, p_type, minortypes)
-        end 
-    end
+    #         return rand(samplenames[q]), replace_major(sampletypes, p_type, minortypes)
+    #     end 
+    # end
     
 
 ## --- Measurements
@@ -1006,6 +996,7 @@
         end
         return val, err
     end
+    export unmeasurementify
 
     """
     ```julia
@@ -1034,7 +1025,7 @@
         end
         return a, b
     end
-
+    export untupleify
 
 ## --- Geography (PIP, geolprov)
 
@@ -1122,7 +1113,7 @@
         
         return data_x[inpolygon], data_y[inpolygon], inpolygon
     end
-
+    export points_in_shape
 
     """
     ```julia
@@ -1166,6 +1157,7 @@
 
         return datalons[inpolygon], datalats[inpolygon], inpolygon
     end
+    export coords_in_shape
 
 
     """
@@ -1221,6 +1213,6 @@
 
         return vec(out)
     end
-
+    export decode_find_geolprov
 
 ## --- End of file

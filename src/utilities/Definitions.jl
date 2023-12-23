@@ -1,4 +1,5 @@
 # Definitions, file names, etc. Contains most hard-coded values.
+    using StatGeochem: importdataset
 
 ## --- File names
 
@@ -29,14 +30,20 @@
         # erodedabs_out = "results/1M_erodedmaterial_abs.csv"
         # erodedrel_out = "results/1M_erodedmaterial_rel.csv"
 
+    export macrostrat_io, matchedbulk_io
+    export ucc_out
+    export eroded_out, erodedabs_out, erodedrel_out
+
 
 ## --- Color names for visualization
 
     # Gradients
     c_gradient = :jet1
+    export c_gradient
 
     # Resampled
     c_rs = :grey
+    export c_rs
 
     # Observed samples by rock type
     lithclass = importdataset("data/lithclass_colors.tsv",'\t', importas=:Tuple)
@@ -83,6 +90,7 @@
         colors[c] = RGB(lithclass.r[i]/255, lithclass.g[i]/255, lithclass.b[i]/255)
     end    
     colors = NamedTuple{Tuple(keys(colors))}(values(colors))
+    export colors
 
     """
     ```julia
@@ -99,6 +107,7 @@
         end
         display(t)
     end
+    export display_colors
 
     
 ## --- Major and minor elements
@@ -136,6 +145,7 @@
 
         return majors, minors
     end
+    export get_elements
 
     """
     ```julia
@@ -147,7 +157,9 @@
     get_REEs() = return [:La, :Ce, :Pr, :Nd, :Pm, :Sm, :Eu, :Gd, :Tb, :Dy, :Ho, :Er, :Tm, 
         :Yb, :Lu,
     ]
+    export get_REEs
 
+    # This will be deprecated after I update StatGeochem
     """
     ```julia
     get_chondrite_norm
@@ -170,6 +182,7 @@
         Yb = 0.248,
         Lu = 0.038,
     )
+    export get_chondrite_norm
 
     
 ## --- Igneous rock classifications by silica content
@@ -186,6 +199,7 @@
       * Mafic: 43-51%
     """
     get_ignsilica() = return (fel = (62, 74), int = (51, 62), maf = (43, 51))
+    export get_ignsilica
 
 
 ## --- Rock type classifications
@@ -375,7 +389,7 @@
 
         return typelist, minors...
     end
-
+    export get_rock_class
 
     """
     ```julia
@@ -392,7 +406,7 @@
         "Alkaline Plutonic", "Plutonic", "Carbonatite", "Igneous", 
         "Unspecified Metamorphic", "Cover"
     )
-
+    export get_rock_names
 
     """
     ```julia
@@ -417,6 +431,7 @@
 
         return typelist, NamedTuple{keys(typelist)}([falses(npoints) for _ in 1:length(typelist)]) 
     end
+    export get_cats
 
     """
     ```julia
@@ -437,6 +452,7 @@
 
         return cats
     end
+    export rm_false_positives!
 
 
 ## --- Define minor types
@@ -473,6 +489,7 @@
 
         return Tuple(allkeys[1:sed-1]), Tuple(allkeys[sed+1:ign-1]), Tuple(allkeys[ign+1:met-1])
     end
+    export get_minor_types
 
 
 ## --- End of file

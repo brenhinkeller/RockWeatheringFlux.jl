@@ -1,16 +1,7 @@
 ## --- Match Macrostrat samples to the most likely EarthChem sample
     # Packages
-    using HDF5
-    using StatGeochem
-    using ProgressMeter
-    using StatsBase
-    using DelimitedFiles
-    using StaticArrays
-    using Dates
-    using LogExpFunctions
-
-    # Local utilities
-    include("utilities/Utilities.jl")
+    using RockWeatheringFlux
+    using DelimitedFiles, HDF5, StaticArrays, Dates
 
     # Start timer
     start = now()

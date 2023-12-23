@@ -19,14 +19,9 @@
 
 ## --- Set up
     # Packages
-    using MAT
-    using StatGeochem
-    using HDF5
-    using ProgressMeter
-
-    # Local utilities
-    include("utilities/Utilities.jl")
-
+    using RockWeatheringFlux
+    using MAT, HDF5
+    
 
 ## --- Load and parse data file
     bulk = matread("data/bulk.mat")["bulk"];

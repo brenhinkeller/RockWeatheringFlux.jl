@@ -5,7 +5,7 @@ module RockWeatheringFlux
     @reexport using StatGeochem
     @reexport using Measurements
     @reexport using ProgressMeter: @showprogress, Progress, next!
-
+    
     # Vectorization tools
     using LoopVectorization: @turbo
 
@@ -13,6 +13,7 @@ module RockWeatheringFlux
     using Static 
     using Colors: RGB
     using StatsBase: percentile
+    using LogExpFunctions: logsumexp
     
     # Utilities
     include("../src/utilities/Definitions.jl")
@@ -21,7 +22,6 @@ module RockWeatheringFlux
     include("../src/utilities/NaNMeasurements.jl")
     include("../src/utilities/Macrostrat.jl")
     include("../src/utilities/Analysis.jl")
-    include("../src/utilities/Spidergram.jl")
 
     include("../src/utilities/Utilities.jl")
 

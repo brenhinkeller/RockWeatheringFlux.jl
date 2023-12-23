@@ -1,8 +1,3 @@
-## --- Packages 
-    using ProgressMeter: @showprogress, Progress, next!
-    using LogExpFunctions: logsumexp
-
-
 ## --- Match rock names / types / descriptions to defined rock classes
 
     """

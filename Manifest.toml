@@ -1089,9 +1089,9 @@ version = "0.1.1"
 
 [[deps.StatGeochem]]
 deps = ["Colors", "DelimitedFiles", "Downloads", "FileIO", "HDF5", "ImageIO", "LazyArtifacts", "LoopVectorization", "NaNStatistics", "Polyester", "ProgressMeter", "Random", "Reexport", "StatGeochemBase", "Statistics"]
-git-tree-sha1 = "9b39274fd35734369c915692a12775ac6b1672c3"
+git-tree-sha1 = "2f7eb85a0160a395f67a5bc6cdaf23eb48227b0b"
 uuid = "df4de05a-b714-11e8-3c2a-c30fb13e804c"
-version = "0.6.1"
+version = "0.6.2"
 weakdeps = ["Plots"]
 
     [deps.StatGeochem.extensions]

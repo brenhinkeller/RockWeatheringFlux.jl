@@ -1,7 +1,7 @@
 # RockWeatheringFlux.jl
 Estimate the composition of the continental crust, and correlate this estimate with erosion rate to estimate volume and composition of eroded material.
 
-In addition to performing computations and defining its own functions, RockWeatheringFlux reexports (and internally depends on):
+In addition to performing computations and defining its own functions, RockWeatheringFlux reexports:
 
 * [Measurements.jl](https://github.com/JuliaPhysics/Measurements.jl)
 * [StatGeochem.jl](https://github.com/brenhinkeller/StatGeochem.jl)
@@ -17,6 +17,8 @@ In addition to performing computations and defining its own functions, RockWeath
 All source code.
 
 `/utilities`: functions specific to this project.
+
+* `src/utilities/NaNMeasurements.jl` defines new methods for [NaNStatistics.jl](https://github.com/brenhinkeller/NaNStatistics.jl) when NaNs appear in measurement types.
 
 `/visualization`: figure generation and visualization of results.
 

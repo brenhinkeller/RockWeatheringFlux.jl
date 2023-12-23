@@ -20,11 +20,11 @@ All source code.
 
 `/visualization`: figure generation and visualization of results.
 
+`/volatile_sensitivity`: sensitivity testing for assummptions of volatile content in sedimentary rocks.
+
 ### `/test`
 
 Unit tests.
-
-`/volatile_sensitivity`: sensitivity testing for assummptions of volatile content in sedimentary rocks.
 
 ## Data Availability
 Datasets are too large to be stored in GitHub, even with Git LFS. All data will be stored in a non-GitHub repository when this research is published. Email rowan.m.gregoire.23 (at) dartmouth.edu with questions.

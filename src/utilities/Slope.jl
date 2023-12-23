@@ -1,7 +1,3 @@
-# Slope and flux computations
-    using ProgressMeter: @showprogress, Progress, next!
-
-    
 ## --- Slope and erosion rate relationship
 
     """

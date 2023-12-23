@@ -1,6 +1,3 @@
-# Definitions, file names, etc. Contains most hard-coded values.
-    using StatGeochem: importdataset
-
 ## --- File names
 
     # 500 Macrostrat samples

@@ -1,4 +1,3 @@
-# To do: make this so I can just put using RWF in my files?
 module RockWeatheringFlux
 
     using Reexport

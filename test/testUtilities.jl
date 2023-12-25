@@ -1,34 +1,6 @@
-## --- Get umbrella class
-    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
+## --- [MISSING] Match Macrostrat metadata to defined rock classes
+    # all methods for match_rocktype
 
-    @test class_up(:ign, minorsed, minorign) == :ign 
-    @test class_up(:shale, minorsed, minorign) == :sed
-    @test class_up(:volc, minorsed, minorign) == :ign
-    @test class_up(:carbonatite, minorsed, minorign) == :ign
-
-    @test class_up(:basalt, minorsed, minorvolc, minorplut, minorign) == :volc
-    @test class_up(:gabbro, minorsed, minorvolc, minorplut, minorign) == :plut
-    
-    small_type = (
-        a = ("basalt", "granite", "gabbro", ),
-        b = ("granite", "granodiorite", "rhyolite", ),
-        c = ("schist", "gneiss", ),
-    )
-    @test class_up(small_type, "granite") == :a
-    @test class_up(small_type, "granite", all_types=true) == (:a, :b)
-    @test class_up(small_type, "gneiss") == :c
-    
-
-## --- Unmatched vs. unmetamorphosed unmatched types
-    cats = get_cats(true, 4)[2]
-    cats.sed .= [false, true, true, false]
-    cats.met .= [true, true, false, false]
-
-    @test find_unmatched(cats) == [false, false, false, true]
-    @test find_unmetamorphosed_unmatched(cats) == .!cats.sed
-
-
-## --- Macrostrat rock name matching
     # Define test set
     rocktype = [
         "volcanic rocks",                    # 1. Volc
@@ -71,7 +43,17 @@
     @test all(get_type(cats, 4, all_keys=true) == (:siliciclast,))
 
 
-## --- EarthChem rock name matching
+## --- [MISSING] Match rock names / types / descriptions to defined rock classes
+    # match_subset!, delete_cover
+    cats = get_cats(true, 4)[2]
+    cats.sed .= [false, true, true, false]
+    cats.met .= [true, true, false, false]
+
+    @test find_unmatched(cats) == [false, false, false, true]
+    @test find_unmetamorphosed_unmatched(cats) == .!cats.sed
+
+
+## --- Find all EarthChem samples matching a Macrostrat sample
     # Define test set
     Rock_Name = [
         "basalt",       # Basalt
@@ -105,7 +87,88 @@
         @test cats[k] == [false, false, false]
     end
 
-## --- Untupleify
+
+## --- [MISSING] Metadata for a specific sample
+    # get_type
+
+    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
+
+    # Method #1
+    @test class_up(typelist, "dacit") == :volc
+    @test class_up(typelist, "evaporite") == :evap
+
+    small_type = (
+        a = ("basalt", "granite", "gabbro", ),
+        b = ("granite", "granodiorite", "rhyolite", ),
+        c = ("schist", "gneiss", ),
+    )
+    @test class_up(small_type, "granite") == :a
+    @test class_up(small_type, "granite", all_types=true) == (:a, :b)
+    @test class_up(small_type, "gneiss") == :c
+
+    # Method #2
+    @test class_up(:ign, minorsed, minorign) == :ign 
+    @test class_up(:shale, minorsed, minorign) == :sed
+    @test class_up(:volc, minorsed, minorign) == :ign
+    @test class_up(:carbonatite, minorsed, minorign) == :ign
+    @test class_up(:alk_volc, minorsed, minorign) == :ign
+
+    # Method #3
+    @test class_up(:basalt, minorsed, minorvolc, minorplut, minorign) == :volc
+    @test class_up(:gabbro, minorsed, minorvolc, minorplut, minorign) == :plut
+    @test class_up(:shale, minorsed, minorvolc, minorplut, minorign) == :sed
+    @test class_up(:shale, minorsed, minorvolc, minorplut, minorign) == :met
+
+
+## --- [MISSING] Geochemistry
+    # major_elements, normalize!, standardize_units!
+
+    dol = (12.01+2*16)/((24.869+40.08)/2+12.01+16*3)*100          # Dolomite
+    gyp = (32.07+16*3+2*(18))/(40.08+32.07+16*4+2*(18))*100       # Gypsum
+    bas = (32.07+16*3+0.5*(18))/(40.08+32.07+16*4+0.5*(18))*100   # Bassanite (2CaSO₄⋅H₂O)
+
+    volatiles = rand(20) .* 100
+    t, isevap, isgypsum = trues(20), falses(20), falses(20)
+    
+    s = rand(1:20, 4)
+    isevap[s] .= true
+    isgypsum[rand(s, 2)] .= true
+
+    n_dol = volatiles .<= dol
+    n_bas = (dol .< volatiles .<= bas) .& isevap
+    n_gyp = (bas .< volatiles .<= gyp) .& isgypsum
+
+    screenvolatiles!(t, volatiles, isevap=isevap, isgypsum=vec(isgypsum),
+        general=dol, evaporite=bas, gypsum=gyp    
+    )
+
+    @test t != trues(20)
+    @test count(t) == (count(n_dol) + count(n_bas) + count(n_gyp))
+
+    
+## --- [MISSING] Sample matching
+    # likelihood, rand_prop_liklihood, weighted_rand
+
+
+## --- [MISSING] Measurements and tuples
+    A = [
+        1 ± 2,
+        3 ± 4,
+        5 ± 6,
+    ]
+    a, b = unmeasurementify(A)
+    @test a == [1,3,5]
+    @test b == [2,4,6]
+
+    A = (
+        a = 1 ± 2,
+        b = 3 ± 4,
+        c = 5 ± 6,
+    )
+    a, b = unmeasurementify(A)
+    @test a == [1,3,5]
+    @test b == [2,4,6]
+
     A = [
         (1,2),
         (3,4),
@@ -116,7 +179,9 @@
     @test b == [2,4,6]
 
 
-## --- Points in polygon
+## --- [MISSING] Geography
+    # decode_find_geolprov
+
     # Define simple shape
     polyx = [0, 10, 10, 0, 0]
     polyy = [0, 0, 10, 10, 0]

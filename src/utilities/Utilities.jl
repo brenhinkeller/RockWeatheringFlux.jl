@@ -742,8 +742,6 @@
     end
     export standardize_units!
 
-
-## --- Sample screening
     dol = (12.01+2*16)/((24.869+40.08)/2+12.01+16*3)*100          # Dolomite
     gyp = (32.07+16*3+2*(18))/(40.08+32.07+16*4+2*(18))*100       # Gypsum
     bas = (32.07+16*3+0.5*(18))/(40.08+32.07+16*4+0.5*(18))*100   # Bassanite (2CaSO₄⋅H₂O)
@@ -986,7 +984,7 @@
     # end
     
 
-## --- Measurements
+## --- Measurements and tuples
 
     """
     ```julia
@@ -1056,6 +1054,7 @@
         return a, b
     end
     export untupleify
+
 
 ## --- Geography (PIP, geolprov)
 

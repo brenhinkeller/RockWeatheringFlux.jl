@@ -742,6 +742,41 @@
     end
     export standardize_units!
 
+
+## --- Sample screening
+    dol = (12.01+2*16)/((24.869+40.08)/2+12.01+16*3)*100          # Dolomite
+    gyp = (32.07+16*3+2*(18))/(40.08+32.07+16*4+2*(18))*100       # Gypsum
+    bas = (32.07+16*3+0.5*(18))/(40.08+32.07+16*4+0.5*(18))*100   # Bassanite (2CaSO₄⋅H₂O)
+
+    """
+    ```julia
+    screenvolatiles!(t, volatiles; 
+        isevap, isgypsum, [general], [evaporite], [gypsum]
+    )
+    ```
+    
+    Restrict the filtered samples `t` based on the total calculated and assumed wt.% 
+    `volatiles`. 
+
+    Test all samples against `general`, evaporites against `evaporite`, and gypsum 
+    against `gypsum`. Values respectively default to the wt.% volatiles in dolomite (47.6%), 
+    bassanite (61.4%), and gypsum (67.4%).
+
+    """
+    function screenvolatiles!(t::BitVector, volatiles::AbstractArray; 
+            isevap::BitVector, isgypsum::BitVector, 
+            general::Number=dol, evaporite::Number=bas, gypsum::Number=gyp
+        )
+
+        t .&= volatiles .< general;                         # All samples
+        t[isevap] .= volatiles[isevap] .<= evaporite;       # All evaporites
+        t[isgypsum] .= volatiles[isgypsum] .<= gypsum;      # Gypsum           
+
+        return vec(t)
+    end
+    export screenvolatiles!
+
+
 ## --- Sample matching
 
     """

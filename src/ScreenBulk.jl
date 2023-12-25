@@ -15,10 +15,6 @@
     # File name IO
     fileout = "output/bulk.h5"
 
-    # Restriction 
-    range_low = 84
-    range_high = 104
-
     # Calculate a reasonable assumption for wt.% volatiles
     # lim = (12.01+2*16)/(40.08+12.01+16*3)*100                     # Limestone
     # mag = (12.01+2*16)/(24.869+12.01+16*3)*100                    # Magnesite

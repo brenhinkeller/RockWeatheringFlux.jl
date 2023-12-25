@@ -251,11 +251,11 @@
     end
 
     # How many samples before assuming additional volatiles?
-    t = @. range_low <= bulkweight <= range_high
+    t = @. 84 <= bulkweight <= 104
     tᵢ = count(t)
 
     # Get all samples that are within acceptable range after assuming volatiles
-    t = @. range_low <= bulkweight .+ volatiles_assumed <= range_high;
+    t = @. 84 <= bulkweight .+ volatiles_assumed <= 104;
 
     # Add calculated and assumed volatiles for the total volatiles value
     @turbo volatiles .+= volatiles_assumed

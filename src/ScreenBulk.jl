@@ -9,11 +9,17 @@
 ## --- Set up
     # Packages
     using RockWeatheringFlux
-    using MAT, HDF5
+    using MAT, HDF5, Dates
     using LoopVectorization: @turbo
     
     # File name IO
     fileout = "output/bulk.h5"
+
+    # Start timer 
+    start = now()
+    @info """ Start: $(Dates.Date(start)) $(Dates.format(start, "HH:MM"))
+    Output: $fileout
+    """
 
     # Calculate a reasonable assumption for wt.% volatiles
     # lim = (12.01+2*16)/(40.08+12.01+16*3)*100                     # Limestone
@@ -24,6 +30,13 @@
 
     # Call file
     include("ScreenBulkBase.jl")
+
+    # End timer
+    stop = now()
+    @info """
+    Stop: $(Dates.Date(stop)) $(Dates.format(stop, "HH:MM")).
+    Program runtime: $(canonicalize(round(stop - start, Dates.Minute))).
+    """
 
 ## --- End of File
 

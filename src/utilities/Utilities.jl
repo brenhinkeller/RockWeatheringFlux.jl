@@ -754,7 +754,7 @@
         isevap, isgypsum, [general], [evaporite], [gypsum]
     )
     ```
-    
+
     Restrict the filtered samples `t` based on the total calculated and assumed wt.% 
     `volatiles`. 
 
@@ -768,7 +768,7 @@
             general::Number=dol, evaporite::Number=bas, gypsum::Number=gyp
         )
 
-        t .&= volatiles .< general;                         # All samples
+        t .&= volatiles .<= general;                        # All samples
         t[isevap] .= volatiles[isevap] .<= evaporite;       # All evaporites
         t[isgypsum] .= volatiles[isgypsum] .<= gypsum;      # Gypsum           
 

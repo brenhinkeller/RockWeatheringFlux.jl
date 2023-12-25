@@ -1,5 +1,10 @@
-# This file will read bulk.mat and bulktext.mat and standardize all units as wt.%, save
-# data as a new file.
+# This file is a wrapper for ScreenBulkBase.jl, which reads bulk.mat and bulktext.mat,
+# converts all units to wt.%, restricts data to whole-rock analyses, and saves the data as
+# a new file.
+
+# Using a wrapper allows me to call ScreenBulkBase.jl in sensitivity tests, meaning I can 
+# use the same code to run my tests as I do in the actual computations. This should reduce
+# unintended errors from editing or not updating the simulation code!
 
 # TO DO: 
     # Re-read in old files, and figure out what to do for parsing / correcting element 
@@ -21,6 +26,7 @@
     # Packages
     using RockWeatheringFlux
     using MAT, HDF5
+    using LoopVectorization: @turbo
     
 
 ## --- Load and parse data file
@@ -130,12 +136,15 @@
 
 
 ## --- Define and organize elements to convert units
-    # Get major and minor elements, but remove :Volatiles from before it causes problems
+    # Define keys for the output file. Some already exist, volatile information needs added
     majors, minors = get_elements()
     allelements = [majors; minors]
-    allkeys = [allelements; [:Latitude, :Longitude, :Loc_Prec, :Age, :Age_Max, :Age_Min]]
     deleteat!(allelements, findall(x->x==:Volatiles,allelements))
 
+    existing = [:Latitude, :Longitude, :Loc_Prec, :Age, :Age_Max, :Age_Min]
+    new = [:Volatiles, :Volatiles_Reported, :Volatiles_Calc, :Volatiles_Assumed]
+    allkeys = [allelements; new; existing]
+    
     # LOI, CaCO3, H2O, and CO2 don't get reported in the output, but we'll want them with 
     # the correct units for conversions 
     source_elements = [allelements; [:Loi, :CaCO3, :H2O, :CO2]]
@@ -162,8 +171,14 @@
     end
 
 
-## --- Fix some missing data and weird conversions
-    # Pre-compute some conversion factors
+## --- Prepare to calculate volatiles and note all steps 
+    # Preallocate
+    volatiles_reported = Array{Float64}(undef, length(bulk.SiO2), 1)    # [CO₂ + H₂O] OR LOI
+    volatiles_calc = Array{Float64}(undef, length(bulk.SiO2), 1)        # E.g. carbonate CO2
+    volatiles_assumed = Array{Float64}(undef, length(bulk.SiO2), 1)     # 100 - bulk weight
+    volatiles = Array{Float64}(undef, length(bulk.SiO2), 1)             # Calc + assumed
+
+    # Compute some conversion factors
     CaCO3_to_CaO = (40.078+15.999)/(40.078+15.999*3+12.01)
     CaCO3_to_CO2 = (15.999*2+12.01)/(40.078+15.999*3+12.01)
 
@@ -171,46 +186,70 @@
     CaO_to_H2O = 2*(2*1.00784+15.999)/(40.078+15.999)
     CaO_to_SO3 = (32.065+3*15.999)/(40.078+15.999)
 
-    # CaCO₃ → CaO + CO₂, and get CO₂ from CaO
-    # Replace the existing CaO value with the computed CaO value
-    # Add the existing CO2 value to the computed CO2 values 
+
+## --- Calculate reported volatiles as the larger of [CO₂ + H₂O] OR LOI
+    @turbo volatiles_reported .= nanadd.(bulk.CO2, bulk.H2O)
+
+    @turbo for i in eachindex(volatiles)
+        volatiles_reported[i] = ifelse(bulk.Loi[i] > volatiles_reported[i], 
+            bulk.Loi[i], volatiles_reported[i]
+        )
+    end
+
+
+## --- Calculate CO2 and SO3 from CaO for carbonates and evaporites 
+    # There are a lot of limestones with only CaO :(
+
+    # All samples: convert CaCO₃ to CaO + CO₂, and get CO₂ from CaO
+    converted = falses(length(bulk.CaCO3));
     @turbo for i in eachindex(bulk.CaCO3)
+        # Replace the existing CaO value with the computed CaO value
         bulk.CaO[i] = ifelse(bulk.CaCO3[i] > 0, CaCO3_to_CaO * bulk.CaCO3[i], bulk.CaO[i])
-        bulk.CO2[i] = ifelse(bulk.CaCO3[i] > 0, CaCO3_to_CO2 * bulk.CaCO3[i] + bulk.CO2[i],
+
+        # Add calculated CO2 to the reported values
+        bulk.CO2[i] = ifelse(bulk.CaCO3[i] > 0, 
+            nanadd(CaCO3_to_CO2 * bulk.CaCO3[i], bulk.CO2[i]), 
+            bulk.CO2[i]
+        )
+        converted[i] = (bulk.CaCO3[i] > 0)
+    end
+
+    # Carbonates, siliciclasts, and shales: calculate CO₂ from CaO and add to existing values
+    target = bulk_cats.carb .| bulk_cats.siliciclast .| bulk_cats.shale;
+    @turbo for i in eachindex(bulk.CaO)
+        bulk.CO2[i] = ifelse(target[i] & !converted[i],     # Unless we did that before
+            nanadd(bulk.CaO[i]*CaO_to_CO2, bulk.CO2[i]), 
             bulk.CO2[i]
         )
     end
 
-    # Carbonates, siliciclasts, and shales: Calculate CO₂ from CaO
-    # There are a lot of limestones with only CaO :(
-    target = bulk_cats.carb .| bulk_cats.siliciclast .| bulk_cats.shale;
-    @turbo for i in eachindex(bulk.CaO)
-        bulk.CO2[i] += ifelse(target[i], bulk.CaO[i]*CaO_to_CO2, NaN)
-    end
-
-    # GYPSUM ONLY: CaO → H₂O, SO₄ (technically SO₃ because already have an oxygen in CaO)
+    # Gypsum: calculate H₂O and SO₃ from CaO 
     SO3 = Array{Float64}(undef, length(bulk.SiO2), 1)
     isgypsum = bulktext.elements.Rock_Name[bulktext.index.Rock_Name] .== "GYPSUM"
     @turbo for i in eachindex(bulk.H2O)
         bulk.H2O[i] = ifelse(isgypsum[i], bulk.CaO[i]*CaO_to_H2O, NaN)
-        SO3[i] = ifelse(isgypsum[i], bulk.CaO[i]*CaO_to_SO3, 0)
+        SO3[i] = ifelse(isgypsum[i], bulk.CaO[i]*CaO_to_SO3, NaN)
     end
 
-
-## --- Create new volatiles measurement
-    # Initialize as the larger of (CO₂ + H₂O) OR LOI, and add calculated SO₃
-    volatiles = Array{Float64}(undef, length(bulk.SiO2), 1)
-
+    # Compute volatiles
+    # Initialize array with the larger of (calculated!) [CO₂ + H₂O] OR LOI
+    novalue = @. isnan(bulk.H2O) & isnan(bulk.CO2) & isnan(SO3);
     zeronan!(bulk.CO2)
     zeronan!(bulk.H2O)
-    @turbo volatiles .= bulk.CO2 .+ bulk.H2O
 
+    @turbo volatiles .= bulk.CO2 .+ bulk.H2O
     @turbo for i in eachindex(volatiles)
         volatiles[i] = ifelse(bulk.Loi[i] > volatiles[i], bulk.Loi[i], volatiles[i])
     end
 
+    # Add SO₃
+    zeronan!(SO3)
     @turbo volatiles .+= SO3
 
+    # Save the calculated volatiles
+    volatiles_calc .= volatiles
+    volatiles_calc[novalue] .= NaN
+    
 
 ## --- Compute total wt.% analyzed for all samples
     # Exclude rocks below the shelf break
@@ -236,9 +275,9 @@
 ## --- Correct for assumed unmeasured volatile loss in sedimentary rocks
     # If the sample is a sedimentary rock with a total analyzed wt.% below 84%, assume 
     # the "missing" data is volatiles that were not included in the analysis
-    additional = zeros(length(bulkweight))
+    # additional = zeros(length(bulkweight))
     for i in eachindex(bulkweight)
-        additional[i] = ifelse(bulk_cats.sed[i] && bulkweight[i] < 100, 
+        volatiles_assumed[i] = ifelse(bulk_cats.sed[i] && bulkweight[i] < 100, 
             (100 - bulkweight[i]), 0.0)
     end
 
@@ -247,10 +286,10 @@
     tᵢ = count(t)
 
     # Get all samples that are within acceptable range after assuming volatiles
-    t = @. 84 <= bulkweight .+ additional <= 104;
+    t = @. 84 <= bulkweight .+ volatiles_assumed <= 104;
 
-    # Add total and assumed volatiles
-    @turbo volatiles .+= additional
+    # Add calculated and assumed volatiles for the total volatiles value
+    @turbo volatiles .+= volatiles_assumed
 
     # Calculate a reasonable assumption for wt.% volatiles
     # lim = (12.01+2*16)/(40.08+12.01+16*3)*100                     # Limestone
@@ -278,7 +317,12 @@
 
 ## --- Restrict to in-bounds only and normalize compositions
     # This is inefficient, but is not sensitive to changes in the order of any elements
-    newbulk = merge(bulk, (Volatiles=volatiles,))
+    newbulk = merge(bulk, (
+        Volatiles=volatiles, 
+        Volatiles_Reported=volatiles_reported, 
+        Volatiles_Calc=volatiles_calc, 
+        Volatiles_Assumed=volatiles_assumed
+    ))
     bulk = NamedTuple{Tuple(allkeys)}([newbulk[i][t] for i in allkeys])
 
     # Normalize compositions to 100%

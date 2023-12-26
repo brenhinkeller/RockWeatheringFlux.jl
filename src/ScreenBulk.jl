@@ -6,7 +6,7 @@
 # use the same code to run my tests as I do in the actual computations. This should reduce
 # unintended errors from editing or not updating the simulation code!
 
-## --- Set up
+## --- Code
     # Packages
     using RockWeatheringFlux
     using MAT, HDF5, Dates

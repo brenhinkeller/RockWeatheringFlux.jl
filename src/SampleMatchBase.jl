@@ -199,8 +199,9 @@
     p = Progress(length(matches)÷10, desc="Matching samples...")
     @timev for i in eachindex(matches)
         ltype = littletypes[i] 
-        btype = bigtypes[i]
-        if ltype == :none
+
+        # Skip if no type assigned or no samples present
+        if ltype == :none || isempty(bulk_inds[bulk_cats[ltype]]) || isempty(geochem_lookup[ltype])
             next!(p)
             continue
         end

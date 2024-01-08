@@ -1,14 +1,14 @@
 # Test the sensitivity of upper crustal composition estimates to the amount of assumed
 # volatiles in sedimentary rocks.
 
-# Each simulation will further restrict the wt.% of volatiltes we assume are not 
-# reported in sedimentary rocks. For example, the first run will allow samples to pass 
-# the filter if they have less than 90 wt.% assumed volatiles (i.e., they report at 
-# minimum 10 wt.%). 
-
-# nohup julia test/volatile_sensitivity/RunSims.jl &
+# nohup julia src/volatile_sensitivity/RunSims.jl &
+# TO DO: I need to activate an environment to run this, but I can't seem to do that via 
+# terminal to run a nohup process :(
 
 ## --- Set up 
+    # using Pkg
+    # Pkg.activate()
+
     # Packages
     using RockWeatheringFlux
     using MAT, HDF5, DelimitedFiles, StaticArrays, Dates
@@ -59,21 +59,23 @@
     g_index = create_group(sims, "indices")
     g_types = create_group(sims, "type_assigned")
     g_crust = create_group(sims, "UCC")
+    g_err = create_group(sims, "UCC_stdev")
     g_increase = create_group(sims, "addition")
 
 
 ## --- Run ScreenBulkBase restrictions
     for i in eachindex(init)
+        # @info "Starting $(init[i][1])% volatiles simulation."
+
         # Initialize and call file
         global fileout = stem * init[i][1] * ".h5"     # Output file name 
         global dol, gyp, bas = init[i][2]              # Volatile restriction 
         include("../ScreenBulkBase.jl")
 
-        # Save BitVector to simout file
+        # Save BitVector and sample increase to simout file
         a = zeros(Int64, length(t))
         a[t] .= 1
         g_bitvec["sim_$(init[i][1])"] = a
-
         g_increase["sim_$(init[i][1])"] = up
     end
 
@@ -90,7 +92,7 @@
         g_types["sim_$(init[i][1])"] = string.(littletypes)
 
         # Remove the simbulk file to avoid generating 5GB of test files
-        run(`rm filebulk`)
+        run(`rm $filebulk`)
 
         # Compute composition of upper continental crust
         s = matches .!= 0;
@@ -100,6 +102,7 @@
         end
 
         g_crust["sim_$(init[i][1])"] = [nanmean(mbulk[i]) for i in allelements]
+        g_err["sim_$(init[i][1])"] = [nanstd(mbulk[i]) for i in allelements]
     end
 
     close(fid)

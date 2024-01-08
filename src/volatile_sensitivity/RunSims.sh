@@ -35,14 +35,14 @@ printf "Starting simulations $(date +'%D %T')\n"
     # Run simulations with volatiles 
     for i in "${volatiles[@]}"
     do
-        printf "\n\nRunning simulation with ${i} wt.%% volatiles.\n"
+        printf "\nRunning simulation with ${i} wt.%% volatiles.\n"
 
         julia --project="../RockWeatheringFlux.jl/Project.toml" src/volatile_sensitivity/Simulation.jl\
         $simout $stem $i $i $i $i
     done
 
     # Run current experimental conditions
-    printf "\n\nRunning simulation for current experimental conditions.\n"
+    printf "\nRunning simulation for current experimental conditions.\n"
     fname='initial'
     julia --project="../RockWeatheringFlux.jl/Project.toml" src/volatile_sensitivity/Simulation.jl\
     $simout $stem $fname $gyp $dol $bas

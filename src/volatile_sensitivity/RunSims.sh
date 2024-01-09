@@ -1,6 +1,7 @@
 #! /usr/bin/bash
 
-# nohup bash src/volatile_sensitivity/RunSims.sh
+# Takes roughly an hour to run
+# nohup bash src/volatile_sensitivity/RunSims.sh &
 
 # Fail if any command fails 
 set -e 

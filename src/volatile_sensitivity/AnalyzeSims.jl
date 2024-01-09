@@ -17,15 +17,17 @@
     sim = Array{Float64}(undef, length(simid), 1)
     silica = Array{Float64}(undef, length(simid), 1)
     stdev = Array{Float64}(undef, length(simid), 1)
+    c = 0
 
-    # Find bulk silica distribution
+    # Find bulk silica distribution for iterative experiments
     for i in eachindex(simid)
         silica[i] = read(fid["sims"]["UCC"][simid[i]])[sᵢ]
         stdev[i] = read(fid["sims"]["UCC_stdev"][simid[i]])[sᵢ]
 
         try 
-            sim[i] = parse(Float64, simid[i]) 
+            sim[i] = parse(Float64, split(simid[i],"_")[2]) 
         catch
+            c = i
             sim[i] = 47
         end
     end
@@ -35,16 +37,22 @@
     h = Plots.plot(
         framestyle=:box, 
         grid = false,
-        fontfamily=:Helvetica, 
-        # xlims=(40,80),
-        # xticks=(40:10:80, string.(40:10:80)),
-        yticks=false,
+        fontfamily=:Helvetica,
         ylabel="Average Crustal Silica [wt.%]",
         xlabel="Maximum Assumed Sedimentary Volatiles [wt.%]",
+        legend=:bottomleft
     )
-    Plots.plot!(simvalue, silica, yerror=stdev*2, 
-        seriestype=:scatter,
+    Plots.plot!(sim[1:end .!= c], silica[1:end .!= c], ribbon=stdev[1:end .!= c], 
+        # seriestype=:scatter,
+        markershape=:circle,
+        msc=:auto,
         label=""
+    )
+    Plots.plot!([sim[c]], [silica[c]], yerror=stdev[c], 
+        markershape=:diamond,
+        markersize=7,
+        msc=:auto,
+        label="Current Experimental Setup"
     )
     display(h)
 

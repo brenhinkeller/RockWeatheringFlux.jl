@@ -230,7 +230,7 @@
     # Compute bulk analyzed weight for rocks above sea level
     bulkweight = Array{Float64}(undef, length(bulk.SiO2), 1)
 
-    p = Progress(length(bulkweight) ÷ 10, desc="Calculating wt.% ...")
+    p = Progress(length(bulkweight) ÷ 10, desc="Calculating wt.% ...", enabled=show_progress)
     @inbounds for i in eachindex(bulkweight)
         if abovesea[i]
             bulkweight[i] = nansum([bulk[j][i] for j in allelements]) + volatiles[i]

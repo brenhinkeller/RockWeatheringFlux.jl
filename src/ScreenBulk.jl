@@ -29,6 +29,7 @@
     bas = (32.07+16*3+0.5*(18))/(40.08+32.07+16*4+0.5*(18))*100   # Bassanite (2CaSO₄⋅H₂O)
 
     # Call file
+    show_progress = true
     include("ScreenBulkBase.jl")
 
     # End timer

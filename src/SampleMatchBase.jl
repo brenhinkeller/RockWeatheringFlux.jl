@@ -196,7 +196,7 @@
     matches = zeros(Int64, length(macro_cats.sed))
 
     @info "Starting sample matching $(Dates.format(now(), "HH:MM"))"
-    p = Progress(length(matches)÷10, desc="Matching samples...")
+    p = Progress(length(matches)÷10, desc="Matching samples...", enabled=show_progress)
     @timev for i in eachindex(matches)
         ltype = littletypes[i] 
 

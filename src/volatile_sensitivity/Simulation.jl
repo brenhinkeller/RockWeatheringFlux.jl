@@ -18,6 +18,9 @@
     dol = parse(Float64, ARGS[5])
     bas = parse(Float64, ARGS[6])
 
+    # Suppress progress bars
+    show_progress = false
+
 
 ## --- Run simulation
     # Open simulation output file

@@ -1,6 +1,6 @@
 #! /usr/bin/bash
 
-# Takes roughly an hour to run
+# Takes roughly an hour and a half to run
 # nohup bash src/volatile_sensitivity/RunSims.sh &
 
 # Fail if any command fails 
@@ -12,8 +12,9 @@ printf "Starting simulations $(date +'%D %T')\n"
 
 ## Initialize variables
     # File names 
-    simout="src/volatile_sensitivity/simout.h5"     # Simulation output file for results
-    stem="src/volatile_sensitivity/simbulk_"        # Temporary simulation data file
+    simout="src/volatile_sensitivity/simout.h5"             # Simulation output file for results
+    simout_prop="src/volatile_sensitivity/simout_prop.h5"   # Proportional volatiles output
+    stem="src/volatile_sensitivity/simbulk_"                # Temporary simulation data file
 
     # Set array for volatile cutoffs
     volatiles=( 90 80 70 60 50 40 30 20 16 )
@@ -48,6 +49,24 @@ printf "Starting simulations $(date +'%D %T')\n"
     julia --project="../RockWeatheringFlux.jl/Project.toml" src/volatile_sensitivity/Simulation.jl\
     $simout $stem $fname $gyp $dol $bas
 
+
+## Run a set of simulations with proportional general / evaporite 
+    # Bassanite / Dolomite = 0.91
+
+    # Set up output file
+    julia --project="../RockWeatheringFlux.jl/Project.toml" src/volatile_sensitivity/DefineOutput.jl $simout_prop
+
+    # Define volatile measurements
+    evap=( 90 80 70 60 50 40 30 20 16 )
+    seds=( 81.9 72.8 63.7 54.6 45.5 36.4 27.3 18.2 14.56)
+
+    for i in "${!evap[@]}"
+    do
+        printf "\nRunning simulation with ${evap[i]} wt.%% evaporite volatiles.\n"
+
+        julia --project="../RockWeatheringFlux.jl/Project.toml" src/volatile_sensitivity/Simulation.jl\
+        $simout_prop $stem ${seds[i]} ${seds[i]} ${evap[i]} ${evap[i]}
+    done
 
 # Stop timer
 printf "Ending simulations $(date +'%D %T')\n"

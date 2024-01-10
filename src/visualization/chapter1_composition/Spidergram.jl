@@ -1,30 +1,72 @@
 ## --- Set up 
     # REE patterns in my data compared to Rudnick and Gao, 2014 (10.1016/B978-0-08-095975-7.00301-6)
+    # REE patterns in the bulk EarthChem data
 
     # Load data and base packages
     if !@isdefined(filepath)
         include("Definitions.jl")
     end
 
+    # Get a list of REEs
+    REEs = get_REEs()
 
-## --- Load and parse data
-    # Load data
-    rg = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple)
+
+## --- Load my data
+    # Load data and convert to dictionaries
     ucc = importdataset(ucc_out, '\t', importas=:Tuple)
 
-    units = Dict(zip(rg.Element, rg.Units))                     # Units for Rudnick and Gao
-
-    # Get dictionaried
     ucc_ign = Dict(zip(ucc.element, ucc.ign))
     ucc_sed = Dict(zip(ucc.element, ucc.sed))
-    ucc_met = Dict(zip(ucc.element, ucc.met))
-    ucc = Dict(zip(ucc.element, ucc.bulk))                      # My estimate (bulk Earth)
-    tm = Dict(zip(rg.Element, rg.Taylor_and_McLennan_1985))     # Taylor and McLennan
-    rg = Dict(zip(rg.Element, rg.This_Study))                   # Rudnick and Gao
+    ucc = Dict(zip(ucc.element, ucc.bulk))
 
-    # Convert units to percent for normalization
-    for d in (rg, tm)
-        for k in keys(rg)
+    # Normalize to 100% anhydrous
+    for d in (ucc, ucc_ign, ucc_sed)
+        delete!(d, "Volatiles")
+    end
+    ucc = Dict(zip(keys(ucc), normalize!(collect(values(ucc)))))
+    ucc_ign = Dict(zip(keys(ucc_ign), normalize!(collect(values(ucc_ign)))))
+    ucc_sed = Dict(zip(keys(ucc_sed), normalize!(collect(values(ucc_sed)))))
+
+    # Convert normalized REE values to ppm for spidergram
+    for d in (ucc, ucc_ign, ucc_sed)
+        for k in REEs
+            haskey(d, string(k)) && (d[string(k)] *= 10_000)
+        end
+    end
+
+
+## --- Load undifferentiated EarthChem data
+    # Load data into dictionaries and convert to ppm
+    absent = findfirst(x->x==:Pm, REEs)
+    spider_REEs = REEs[1:end .!= absent]
+    bulk_earth = Dict(zip(spider_REEs, 
+        [nanmean(bulk[k]) for k in spider_REEs] .*= 10_000)
+    )
+    bulk_sed = Dict(zip(spider_REEs, 
+        [nanmean(bulk[k][bulk_cats.sed]) for k in spider_REEs] .*= 10_000)
+    )
+    bulk_ign = Dict(zip(spider_REEs, 
+        [nanmean(bulk[k][bulk_cats.ign]) for k in spider_REEs] .*= 10_000)
+    )
+    bulk_granite = Dict(zip(spider_REEs, 
+        [nanmean(bulk[k][bulk_cats.granite]) for k in spider_REEs] .*= 10_000)
+    )
+    bulk_basalt = Dict(zip(spider_REEs, 
+        [nanmean(bulk[k][bulk_cats.basalt]) for k in spider_REEs] .*= 10_000)
+    )
+
+
+## --- Load Rudnick and Gao, 2014; Taylor and McLennan, 1985
+    # Load data and convert to dictionaries
+    rudnick_gao = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple)
+    units = Dict(zip(rudnick_gao.Element, rudnick_gao.Units))
+
+    taylor_mclennan = Dict(zip(rudnick_gao.Element, rudnick_gao.Taylor_and_McLennan_1985))
+    rudnick_gao = Dict(zip(rudnick_gao.Element, rudnick_gao.This_Study))
+
+    # Convert units to wt.% and normalize to 100%
+    for d in (rudnick_gao, taylor_mclennan)
+        for k in keys(rudnick_gao)
             if units[k] == "percent"
                 continue
             elseif units[k] == "ppm"
@@ -34,21 +76,11 @@
             end
         end
     end
-    rg = Dict(zip(keys(rg), normalize!(collect(values(rg)))))
-    tm = Dict(zip(keys(tm), normalize!(collect(values(tm)))))
+    rudnick_gao = Dict(zip(keys(rudnick_gao), normalize!(collect(values(rudnick_gao)))))
+    taylor_mclennan = Dict(zip(keys(taylor_mclennan), normalize!(collect(values(taylor_mclennan)))))
 
-    # Normalize to 100% anhydrous
-    for d in (ucc, ucc_ign, ucc_sed, ucc_met)
-        delete!(d, "Volatiles")
-    end
-    ucc = Dict(zip(keys(ucc), normalize!(collect(values(ucc)))))
-    ucc_ign = Dict(zip(keys(ucc_ign), normalize!(collect(values(ucc_ign)))))
-    ucc_sed = Dict(zip(keys(ucc_sed), normalize!(collect(values(ucc_sed)))))
-    ucc_met = Dict(zip(keys(ucc), normalize!(collect(values(ucc_met)))))
-
-    # We changed everything to wt.%, but spidergram needs ppm
-    REEs = get_REEs()
-    for d in (rg, tm, ucc, ucc_ign, ucc_sed, ucc_met)
+    # Convert normalized REE values to ppm for spidergram
+    for d in (rudnick_gao, taylor_mclennan)
         for k in REEs
             haskey(d, string(k)) && (d[string(k)] *= 10_000)
         end
@@ -56,23 +88,46 @@
 
     
 ## --- Spider... gram. Spidergram.
-    h = spidergram(tm, label="Taylor and McLennan, 1985 / 1995", 
+    h = spidergram(taylor_mclennan, label="Taylor and McLennan, 1985 / 1995", 
         markershape=:dtriangle, seriescolor=:olivedrab)
-    spidergram!(h, rg, label="Rudnick and Gao, 2014", 
+    spidergram!(h, rudnick_gao, label="Rudnick and Gao, 2014", 
         markershape=:utriangle, seriescolor=:cadetblue)
 
     spidergram!(h, ucc_ign, label="This Study (Bulk Igneous)",
         markershape=:star5, seriescolor=colors.ign)
     spidergram!(h, ucc_sed, label="This Study (Bulk Sedimentary)",
         markershape=:+, seriescolor=colors.sed)
-    spidergram!(h, ucc_met, label="This Study (Bulk Metamorphic)",
-        markershape=:x, seriescolor=colors.met)
 
     spidergram!(h, ucc, label="This Study (Bulk Earth)",
         markershape=:circle, seriescolor=:black)
 
     display(h)
     savefig("$filepath/spidergram.pdf")
+
+
+## --- Spidergram comparing bulk EarthChem REEs and Rudnick and Gao estimation
+    h = spidergram(rudnick_gao, label="Rudnick and Gao, 2014", 
+        markershape=:diamond, seriescolor=:black)
+
+    spidergram!(h, bulk_sed, label="Bulk Sedimentary EarthChem", 
+        markershape=:utriangle, seriescolor=colors.sed)
+    spidergram!(h, bulk_ign, label="Bulk Igneous EarthChem",
+        markershape=:utriangle, seriescolor=colors.ign)
+
+    spidergram!(h, bulk_granite, label="Bulk Granite EarthChem",
+        markershape=:utriangle, seriescolor=colors.granite)
+    spidergram!(h, bulk_basalt, label="Bulk Basalt EarthChem",
+        markershape=:utriangle, seriescolor=colors.basalt)
+
+    spidergram!(h, bulk_earth, label="Bulk EarthChem",
+        markershape=:utriangle, seriescolor=:brown)
+
+    spidergram!(h, ucc_ign, label="This Study (Bulk Igneous)",
+        markershape=:circle, seriescolor=colors.ign)
+    spidergram!(h, ucc_sed, label="This Study (Bulk Sedimentary)",
+        markershape=:circle, seriescolor=colors.sed)
+    spidergram!(h, ucc, label="This Study (Bulk Earth)",
+        markershape=:circle, seriescolor=:brown)
 
 
 ## --- End of file 

@@ -55,6 +55,26 @@
     close(fid)
 
 
+## --- Load simulation with proportional assumed volatiles (gypsum:dolomite:bassanite)
+    fid = h5open("src/volatile_sensitivity/simout_prop.h5", "r")
+    allelements = read(fid["vars"]["elements"])
+    sᵢ = findfirst(x->x=="SiO2", allelements)
+
+    # Preallocate 
+    simid = keys(fid["sims"]["UCC"])
+    sim_prop2 = Array{Float64}(undef, length(simid), 1)
+    silica_prop2 = Array{Float64}(undef, length(simid), 1)
+    stdev_prop2 = Array{Float64}(undef, length(simid), 1)
+
+    # Find bulk silica distribution for iterative experiments
+    for i in eachindex(simid)
+        sim_prop2[i] = parse(Float64, split(simid[i],"_")[2]) 
+        silica_prop2[i] = read(fid["sims"]["UCC"][simid[i]])[sᵢ]
+        stdev_prop2[i] = read(fid["sims"]["UCC_stdev"][simid[i]])[sᵢ]
+    end
+    close(fid)
+
+
 ## --- Plot simulations
     # Build plot 
     h = Plots.plot(
@@ -63,7 +83,8 @@
         fontfamily=:Helvetica,
         ylabel="Average Crustal Silica [wt.%]",
         xlabel="Maximum Assumed Sedimentary Volatiles [wt.%]",
-        legend=:bottomleft
+        legend=:bottomleft,
+        fg_color_legend=:white,
     )
 
     # Equal volatiles
@@ -72,27 +93,33 @@
         markershape=:circle,
         msc=:auto,
         fillalpha=0.5,
-        label="Equal volatiles"
+        label="Carbonate = Evaporite = Gypsum"
     )
 
-    # Proportional volatiles
+    # Proportional volatiles (carbonate / evaporite)
     Plots.plot!(sim_prop, silica_prop, ribbon=stdev_prop, 
         markershape=:circle,
         msc=:auto,
         fillalpha=0.5,
-        label="Proportional volatiles"
+        label="Carbonate ≠ Evaporite = Gypsum"
+    )
+
+    # Proportional volatiles (carbonate / evaporite / gypsum)
+    Plots.plot!(sim_prop2, silica_prop2, ribbon=stdev_prop2, 
+        markershape=:circle,
+        msc=:auto,
+        fillalpha=0.5,
+        label="Carbonate ≠ Evaporite ≠ Gypsum"
     )
 
     # Current experimental conditions 
     Plots.plot!([sim[c]], [silica[c]], yerror=stdev[c], 
         markershape=:diamond,
         markersize=7,
-        msc=:auto,
+        linewidth=2,
+        color=:black, linecolor=:black, msc=:auto,
         label="Current Experimental Setup"
     )
     display(h)
-
-## --- 
-
 
 ## --- End of file 

@@ -1,6 +1,6 @@
 #! /usr/bin/bash
 
-# Takes roughly an hour and a half to run
+# Takes roughly two hours to run
 # nohup bash src/volatile_sensitivity/RunSims.sh &
 
 # Fail if any command fails 
@@ -14,19 +14,22 @@ printf "Starting simulations $(date +'%D %T')\n"
     # File names 
     simout="src/volatile_sensitivity/simout.h5"             # Simulation output file for results
     simout_prop="src/volatile_sensitivity/simout_prop.h5"   # Proportional volatiles output
-    simout_prop2="src/volatile_sensitivity/simout_prop.h5"  # Proportional volatiles output version 2
+    simout_prop2="src/volatile_sensitivity/simout_prop2.h5" # Proportional volatiles output version 2
     stem="src/volatile_sensitivity/simbulk_"                # Temporary simulation data file
+
+    # Project location
+    proj="../RockWeatheringFlux.jl/Project.toml"
 
     # Set array for volatile cutoffs
     volatiles=( 90 80 70 60 50 40 30 20 16 )
 
     # Current experimental setup must be declared separately
-    gyp=47.5863523076   # Dolomite   (12.01+2*16)/((24.869+40.08)/2+12.01+16*3)*100 
-    dol=67.4237583502   # Gypsum     (32.07+16*3+2*(18))/(40.08+32.07+16*4+2*(18))*100
+    dol=47.5863523076   # Dolomite   (12.01+2*16)/((24.869+40.08)/2+12.01+16*3)*100 
+    gyp=67.4237583502   # Gypsum     (32.07+16*3+2*(18))/(40.08+32.07+16*4+2*(18))*100
     bas=61.3641060971   # Bassanite  (32.07+16*3+0.5*(18))/(40.08+32.07+16*4+0.5*(18))*100
 
 ## Set up output file
-    julia --project="../RockWeatheringFlux.jl/Project.toml" src/volatile_sensitivity/DefineOutput.jl $simout
+    julia --project=$proj src/volatile_sensitivity/DefineOutput.jl $simout
 
 ## Run simulations
     # Pass arguments in the order:
@@ -40,42 +43,42 @@ printf "Starting simulations $(date +'%D %T')\n"
     do
         printf "\nRunning simulation with ${i} wt.%% volatiles.\n"
 
-        julia --project="../RockWeatheringFlux.jl/Project.toml" src/volatile_sensitivity/Simulation.jl\
+        julia --project=$proj src/volatile_sensitivity/Simulation.jl\
         $simout $stem $i $i $i $i
     done
 
     # Run current experimental conditions
     printf "\nRunning simulation for current experimental conditions.\n"
     fname='initial'
-    julia --project="../RockWeatheringFlux.jl/Project.toml" src/volatile_sensitivity/Simulation.jl\
+    julia --project=$proj src/volatile_sensitivity/Simulation.jl\
     $simout $stem $fname $gyp $dol $bas
 
 
 ## Run a set of simulations with proportional general / evaporite 
-    # Bassanite / Dolomite = 0.91
+    # Dolomite / Bassanite = 0.78
 
     # Set up output file
-    julia --project="../RockWeatheringFlux.jl/Project.toml" src/volatile_sensitivity/DefineOutput.jl $simout_prop
+    julia --project=$proj src/volatile_sensitivity/DefineOutput.jl $simout_prop
 
     # Define volatile measurements
     evap=( 90 80 70 60 50 40 30 20 16 )
-    seds=( 81.9 72.8 63.7 54.6 45.5 36.4 27.3 18.2 14.56)
+    seds=( 70.2 62.4 54.6 46.8 39.0 31.2 23.4 15.6 12.48 )
 
     for i in "${!evap[@]}"
     do
         printf "\nRunning simulation with ${evap[i]} wt.%% evaporite volatiles.\n"
 
-        julia --project="../RockWeatheringFlux.jl/Project.toml" src/volatile_sensitivity/Simulation.jl\
+        julia --project=$proj src/volatile_sensitivity/Simulation.jl\
         $simout_prop $stem ${seds[i]} ${seds[i]} ${evap[i]} ${evap[i]}
     done
 
 
 ## Run a set of simulations with proportional general sed / general evaporite / gypsum
-    # Gypsum / Bassanite = 0.77
-    # Gypsum / Dolomite = 0.71
+    # Bassanite / Gypsum = 0.91
+    # Dolomite / Gypsum = 0.71
 
     gyp_sim=( 90 80 70 60 50 40 30 20 16 )
-    bas_sim=( 69.3 61.6 53.9 46.2 38.5 30.8 23.1 15.4 12.32 )
+    bas_sim=( 81.9 72.8 63.7 54.6 45.5 36.4 27.3 18.2 14.56 )
     dol_sim=( 63.9 56.8 49.7 42.6 35.5 28.4 21.3 14.2 11.36 )
 
     # Initialize output file
@@ -86,7 +89,7 @@ printf "Starting simulations $(date +'%D %T')\n"
     do
         printf "\nRunning simulation with ${gyp_sim[i]} wt.%% evaporite (gypsum) volatiles.\n"
 
-        julia --project="../RockWeatheringFlux.jl/Project.toml" src/volatile_sensitivity/Simulation.jl\
+        julia --project=$proj src/volatile_sensitivity/Simulation.jl\
         $simout_prop2 $stem ${dol_sim[i]} ${gyp_sim[i]} ${dol_sim[i]} ${bas_sim[i]}
     done
 

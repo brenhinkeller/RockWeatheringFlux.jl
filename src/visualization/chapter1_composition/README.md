@@ -10,3 +10,4 @@ Each figure (or "family" of related figures) has its own file. Common packages a
  * `SilicaDistribution.jl`: Silica distribution by rock class.
  * `SlopeErosion.jl`: Erosion as a function of slope.
  * `Spidergram.jl`: REE patterns in my estimation of the bulk continental crust compared to those from Rudnick and Gao, 2014.
+ * `VolatileSensitivity.jl`: Results from sensitivity testing the impact of wt.% assumed volatiles in data screening.

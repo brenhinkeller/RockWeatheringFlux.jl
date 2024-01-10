@@ -1,14 +1,19 @@
-# Look at the simulated crust compositions and see what happens
+## --- Set up 
+    # Visualize simulated crust compositions as a function of assumed volatiles
 
-## --- Set up
-    # Packages
-    using RockWeatheringFlux
-    using HDF5, Plots
+    # Load data and base packages
+    if !@isdefined(filepath)
+        include("Definitions.jl")
+    end
 
+    # Define simulation filepaths
+    sim1 = "src/volatile_sensitivity/simout.h5"
+    sim2 = "src/volatile_sensitivity/simout_prop.h5"
+    sim3 = "src/volatile_sensitivity/simout_prop2.h5"
 
 ## --- Load simulation with equal assumed volatiles and current experimental conditions
     # Load data and find SiO₂ index
-    fid = h5open("src/volatile_sensitivity/simout.h5", "r")
+    fid = h5open(sim1, "r")
     allelements = read(fid["vars"]["elements"])
     sᵢ = findfirst(x->x=="SiO2", allelements)
 
@@ -36,7 +41,7 @@
 
 
 ## --- Load simulation with proportional assumed volatiles (bassanite:dolomite)
-    fid = h5open("src/volatile_sensitivity/simout_prop.h5", "r")
+    fid = h5open(sim2, "r")
     allelements = read(fid["vars"]["elements"])
     sᵢ = findfirst(x->x=="SiO2", allelements)
     
@@ -56,7 +61,7 @@
 
 
 ## --- Load simulation with proportional assumed volatiles (gypsum:dolomite:bassanite)
-    fid = h5open("src/volatile_sensitivity/simout_prop.h5", "r")
+    fid = h5open(sim3, "r")
     allelements = read(fid["vars"]["elements"])
     sᵢ = findfirst(x->x=="SiO2", allelements)
 
@@ -89,10 +94,9 @@
 
     # Equal volatiles
     Plots.plot!(sim[1:end .!= c], silica[1:end .!= c], ribbon=stdev[1:end .!= c], 
-        # seriestype=:scatter,
         markershape=:circle,
         msc=:auto,
-        fillalpha=0.5,
+        fillalpha=0.15,
         label="Carbonate = Evaporite = Gypsum"
     )
 
@@ -100,7 +104,7 @@
     Plots.plot!(sim_prop, silica_prop, ribbon=stdev_prop, 
         markershape=:circle,
         msc=:auto,
-        fillalpha=0.5,
+        fillalpha=0.15,
         label="Carbonate ≠ Evaporite = Gypsum"
     )
 
@@ -108,18 +112,20 @@
     Plots.plot!(sim_prop2, silica_prop2, ribbon=stdev_prop2, 
         markershape=:circle,
         msc=:auto,
-        fillalpha=0.5,
+        fillalpha=0.15,
         label="Carbonate ≠ Evaporite ≠ Gypsum"
     )
 
     # Current experimental conditions 
     Plots.plot!([sim[c]], [silica[c]], yerror=stdev[c], 
         markershape=:diamond,
-        markersize=7,
-        linewidth=2,
+        markersize=5,
+        linewidth=1,
         color=:black, linecolor=:black, msc=:auto,
         label="Current Experimental Setup"
     )
     display(h)
+    savefig(h, "$filepath/volatile_sensitivity.pdf")
 
-## --- End of file 
+
+## --- End of file

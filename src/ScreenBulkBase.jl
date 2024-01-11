@@ -183,12 +183,13 @@
         converted[i] = (bulk.CaCO3[i] > 0)
     end
 
-    # Carbonates, siliciclasts, and shales: calculate CO₂ from CaO and add to existing values
+    # Carbonates, siliciclasts, and shales: calculate CO₂ from CaO
+    # Replace existing values, in case any samples already did this
     target = bulk_cats.carb .| bulk_cats.siliciclast .| bulk_cats.shale;
     @turbo for i in eachindex(bulk.CaO)
-        bulk.CO2[i] = ifelse(target[i] & !converted[i],     # Unless we did that before
-            nanadd(bulk.CaO[i]*CaO_to_CO2, bulk.CO2[i]), 
-            bulk.CO2[i]
+        bulk.CO2[i] = ifelse(target[i] & !converted[i],     # Unless we did that before...
+            bulk.CaO[i]*CaO_to_CO2,                         # Replace value with calculated CO₂
+            bulk.CO2[i]                                     # Otherwise, use reported CO₂
         )
     end
 

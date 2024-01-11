@@ -12,13 +12,13 @@ set -e
 
 ## Initialize variables
     # File names 
-    simout="src/volatile_sensitivity/simout.h5"             # Simulation output file for results
-    simout1="src/volatile_sensitivity/simout_prop.h5"       # Proportional volatiles output
-    simout2="src/volatile_sensitivity/simout_prop2.h5"      # Proportional volatiles output version 2
-    stem="src/volatile_sensitivity/simbulk_"                # Temporary simulation data file
+    simout='src/volatile_sensitivity/simout.h5'             # Simulation output file for results
+    simout1='src/volatile_sensitivity/simout_prop.h5'       # Proportional volatiles output
+    simout2='src/volatile_sensitivity/simout_prop2.h5'      # Proportional volatiles output version 2
+    stem='src/volatile_sensitivity/simbulk_'                # Temporary simulation data file
 
     # Project location
-    proj="../RockWeatheringFlux.jl/Project.toml"
+    proj='../RockWeatheringFlux.jl/Project.toml'
 
     # Set arrays for volatile cutoffs
     # Dolomite = 1; Gypsum / Dolomite = 1.42; Bassanite / Dolomite = 1.29
@@ -45,8 +45,9 @@ set -e
         # 3) File name extension for simulation (dolomite value)
         # 4) Volatile restrictions for gypsum, dolomite, and bassanite
 
-    for i in "${!dol_sim[@]}"; do
-        printf "\nRunning simulation with ${dol_sim[i]} wt.%% volatiles.\n"
+    for i in "${!dol_sim[@]}"
+    do
+        printf "\nRunning simulation with ${dol_sim[i]} wt.%% volatiles $(date +'%D %T').\n"
 
         # Equal volatiles
         julia --project=$proj src/volatile_sensitivity/Simulation.jl\
@@ -63,11 +64,10 @@ set -e
 
 
 ## Run current experimental conditions
-    printf "\nRunning simulation for current experimental conditions.\n"
+    printf "\nRunning simulation for current experimental conditions $(date +'%D %T').\n"
 
-    fname='initial'
     julia --project=$proj src/volatile_sensitivity/Simulation.jl\
-    $simout $stem $fname $gyp $dol $bas
+    $simout $stem 'initial' $gyp $dol $bas
 
 
 ## Stop timer

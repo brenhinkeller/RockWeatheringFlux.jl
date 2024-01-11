@@ -112,7 +112,6 @@
     uncertainty = [fill(SiO2_error, count(t)) ageuncert]
     simmacro = bsresample(data, uncertainty, nsims, p)
 
-## --
     # Filter archean samples
     old_bulk = simbulk[:,2] .<= 2500;
     old_macro = simmacro[:,2] .<= 2500;
@@ -149,6 +148,7 @@
 
     ylims!(0, round(maximum([n₁; n₂]), digits=2)+0.01,)
     display(h)
+    savefig("$filepath/archeansilica_resampled.pdf")
 
     
 ## --- End of file

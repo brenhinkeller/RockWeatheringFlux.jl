@@ -52,18 +52,18 @@
 
 ## --- Matched samples
     notsed = macro_cats.ign .| macro_cats.met
-    t = @. !isnan(mbulk.Latitude) & !isnan(mbulk.Longitude) & !isnan(mbulk.Age) & notsed
+    t = @. !isnan(macrostrat.rocklat) & !isnan(macrostrat.rocklon) & !isnan(macrostrat.age) & notsed
 
-    s = vec(isnan.(mbulk.Age))
-    ageuncert = mbulk.Age .* age_min_error
+    s = vec(isnan.(macrostrat.age))
+    ageuncert = macrostrat.age .* age_min_error
     for i in eachindex(ageuncert)
-        calc_uncert = (mbulk.Age_Max[i] .- mbulk.Age_Min[i])/2
+        calc_uncert = (macrostrat.agemax[i] .- macrostrat.agemin[i])/2
         ageuncert[i] = ifelse(calc_uncert > ageuncert[i], calc_uncert, ageuncert[i])
     end
 
-    k = invweight_age(mbulk.Age[t])     # Already spatially corrected
+    k = invweight_age(macrostrat.age[t])     # Already spatially corrected
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    data = [mbulk.SiO2[t] mbulk.Age[t]]
+    data = [mbulk.SiO2[t] macrostrat.age[t]]
     uncertainty = [fill(SiO2_error, count(t)) ageuncert[t]]
     sim_mbulk = bsresample(data, uncertainty, nsims, p)
 

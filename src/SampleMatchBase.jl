@@ -28,19 +28,19 @@
     data = read(fid["bulk"]["data"])
     bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
 
-    # Bulk rock name, type, and material
-    path = fid["bulktext"]["sampledata"]
-    header = read(path["header"])
-    index = read(path["index"])
+    # # Bulk rock name, type, and material (only required if not loading class matches)
+    # path = fid["bulktext"]["sampledata"]
+    # header = read(path["header"])
+    # index = read(path["index"])
 
-    target = ["Rock_Name", "Type", "Material"]
-    targetind = [findall(==(i), header)[1] for i in target]
+    # target = ["Rock_Name", "Type", "Material"]
+    # targetind = [findall(==(i), header)[1] for i in target]
 
-    bulktext = NamedTuple{Tuple(Symbol.(target))}(
-        [lowercase.(read(path["elements"][target[i]]))[index[:,targetind[i]]] 
-            for i in eachindex(target)
-        ]
-    )
+    # bulktext = NamedTuple{Tuple(Symbol.(target))}(
+    #     [lowercase.(read(path["elements"][target[i]]))[index[:,targetind[i]]] 
+    #         for i in eachindex(target)
+    #     ]
+    # )
 
     # Rock type matches
     header = read(fid["bulktypes"]["bulk_cats_head"])
@@ -149,12 +149,11 @@
 
     # Pass three: reassign major types to a minor subtype
     for i in eachindex(littletypes)
-        t = littletypes[i]
-        if t == :sed
+        if littletypes[i] == :sed
             littletypes[i] = minorsed[weighted_rand(ptype.sed)]
             bigtypes[i] = :sed
 
-        elseif t == :ign 
+        elseif littletypes[i] == :ign 
             bigtypes[i] = minorign[weighted_rand(ptype.ign)]
             if bigtypes[i] == :volc
                 littletypes[i] = minorvolc[weighted_rand(ptype.volc)]

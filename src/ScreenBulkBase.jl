@@ -197,24 +197,21 @@
     SO3 = Array{Float64}(undef, length(bulk.SiO2), 1)
     isgypsum = bulktext.elements.Rock_Name[bulktext.index.Rock_Name] .== "GYPSUM"
     @turbo for i in eachindex(bulk.H2O)
-        bulk.H2O[i] = ifelse(isgypsum[i], bulk.CaO[i]*CaO_to_H2O, NaN)
+        bulk.H2O[i] = ifelse(isgypsum[i], bulk.CaO[i]*CaO_to_H2O, bulk.H2O[i])
         SO3[i] = ifelse(isgypsum[i], bulk.CaO[i]*CaO_to_SO3, NaN)
     end
 
     # Compute volatiles
-    # Initialize array with the larger of (calculated!) [CO₂ + H₂O] OR LOI
+    # Initialize array with the larger of (calculated!) [CO₂ + H₂O + SO₃] OR LOI
     novalue = @. isnan(bulk.H2O) & isnan(bulk.CO2) & isnan(SO3);
     zeronan!(bulk.CO2)
     zeronan!(bulk.H2O)
+    zeronan!(SO3)
 
-    @turbo volatiles .= bulk.CO2 .+ bulk.H2O
+    @turbo volatiles .= bulk.CO2 .+ bulk.H2O .+ SO3
     @turbo for i in eachindex(volatiles)
         volatiles[i] = ifelse(bulk.Loi[i] > volatiles[i], bulk.Loi[i], volatiles[i])
     end
-
-    # Add SO₃
-    zeronan!(SO3)
-    @turbo volatiles .+= SO3
 
     # Save the calculated volatiles
     volatiles_calc .= volatiles

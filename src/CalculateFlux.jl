@@ -109,10 +109,15 @@
 
 
 ## --- Calculate denundation at each point
+    # Area of land:
+        # Total: 149,733,926
+        # Antarctica: 14,200,000 
+        # Greenland: 2,166,086
+        # Area in this study = Total - (Antarctica + Greenland) = 133_367_840
     # Declare constants
     const npoints = length(macrostrat.rocklat)                  # Number of points
     const crustal_density = 2750                                # kg/m³
-    const unit_sample_area = (148940000 * 1000000) / npoints    # Area of contients / npoints (m²)
+    const unit_sample_area = (133367840 * 1000000) / npoints  # Area of continents / npoints (m²)
 
     # Create file to save data
     fid = h5open("$eroded_out", "w")

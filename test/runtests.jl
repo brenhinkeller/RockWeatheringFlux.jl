@@ -12,6 +12,7 @@
         # Slope
     # To do: remove the functions I'm not using anymore. Organize debugging functions 
     # into a better-named debugging file (this is currently Analysis.jl)
+    @testset "GTS" begin include("testGTS.jl") end
     @testset "NaN Measurements" begin include("testNaNMeasurements.jl") end
     @testset "Other Utiliities" begin include("testUtilities.jl") end
 

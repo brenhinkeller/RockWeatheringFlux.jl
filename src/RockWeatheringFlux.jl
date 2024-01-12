@@ -21,6 +21,7 @@ module RockWeatheringFlux
     include("../src/utilities/NaNMeasurements.jl")
     include("../src/utilities/Macrostrat.jl")
     include("../src/utilities/Analysis.jl")
+    include("../src/utilities/GTS.jl")
 
     include("../src/utilities/Utilities.jl")
 

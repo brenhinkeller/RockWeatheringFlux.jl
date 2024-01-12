@@ -11,6 +11,7 @@
     sim2 = "src/volatile_sensitivity/simout_prop.h5"
     sim3 = "src/volatile_sensitivity/simout_prop2.h5"
 
+
 ## --- Load simulation with equal assumed volatiles and current experimental conditions
     # Load data and find SiO₂ index
     fid = h5open(sim1, "r")
@@ -27,7 +28,7 @@
     # Find bulk silica distribution for iterative experiments
     for i in eachindex(simid)
         silica[i] = read(fid["sims"]["UCC"][simid[i]])[sᵢ]
-        stdev[i] = read(fid["sims"]["UCC_stdev"][simid[i]])[sᵢ]
+        stdev[i] = read(fid["sims"]["UCC_sem"][simid[i]])[sᵢ]
 
         try 
             sim[i] = parse(Float64, split(simid[i],"_")[2]) 
@@ -55,7 +56,7 @@
     for i in eachindex(simid)
         sim_prop[i] = parse(Float64, split(simid[i],"_")[2]) 
         silica_prop[i] = read(fid["sims"]["UCC"][simid[i]])[sᵢ]
-        stdev_prop[i] = read(fid["sims"]["UCC_stdev"][simid[i]])[sᵢ]
+        stdev_prop[i] = read(fid["sims"]["UCC_sem"][simid[i]])[sᵢ]
     end
     close(fid)
 
@@ -75,7 +76,7 @@
     for i in eachindex(simid)
         sim_prop2[i] = parse(Float64, split(simid[i],"_")[2]) 
         silica_prop2[i] = read(fid["sims"]["UCC"][simid[i]])[sᵢ]
-        stdev_prop2[i] = read(fid["sims"]["UCC_stdev"][simid[i]])[sᵢ]
+        stdev_prop2[i] = read(fid["sims"]["UCC_sem"][simid[i]])[sᵢ]
     end
     close(fid)
 
@@ -88,8 +89,17 @@
         fontfamily=:Helvetica,
         ylabel="Average Crustal Silica [wt.%]",
         xlabel="Maximum Assumed Sedimentary Volatiles [wt.%]",
+        xlims=(10,100),
         legend=:bottomleft,
         fg_color_legend=:white,
+    )
+
+    # Plot other estimates for comparison
+    Plots.hline!([66.62], label="Rudnick and Gao, 2014", 
+        linewidth=3, linestyle=:dash, color=colors.siliciclast
+    )
+    Plots.hline!([59.5], label="Pease et al., 2023 [EarthChem prior]", 
+        linewidth=3, linestyle=:dash, color=colors.plut
     )
 
     # # Equal volatiles
@@ -112,20 +122,21 @@
     # Proportional volatiles (carbonate / evaporite / gypsum)
     Plots.plot!(sim_prop2, silica_prop2, ribbon=stdev_prop2, 
         markershape=:circle,
-        msc=:auto,
+        color=colors.evap, msc=:auto,
         fillalpha=0.15,
         # label="Carbonate ≠ Evaporite ≠ Gypsum"
-        label=""
+        label="Simulations"
     )
 
     # Current experimental conditions 
-    Plots.plot!([sim[c]], [silica[c]], yerror=stdev[c], 
-        markershape=:diamond,
-        markersize=5,
+    Plots.scatter!([sim[c]], [silica[c]], # yerror=stdev[c], 
+        markershape=:star5,
+        markersize=10,
         linewidth=1,
-        color=:black, linecolor=:black, msc=:auto,
+        color=colors.rhyolite, linecolor=:black, msc=:black,
         label="Current Experimental Conditions"
     )
+
     display(h)
     savefig(h, "$filepath/volatile_sensitivity.pdf")
 

@@ -23,7 +23,7 @@
         g_index = create_group(sims, "indices")
         g_types = create_group(sims, "class_assigned")
         g_crust = create_group(sims, "UCC")
-        g_err = create_group(sims, "UCC_stdev")
+        g_err = create_group(sims, "UCC_sem")
         g_increase = create_group(sims, "addition")
 
     close(fid)

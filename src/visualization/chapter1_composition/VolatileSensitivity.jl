@@ -92,28 +92,30 @@
         fg_color_legend=:white,
     )
 
-    # Equal volatiles
-    Plots.plot!(sim[1:end .!= c], silica[1:end .!= c], ribbon=stdev[1:end .!= c], 
-        markershape=:circle,
-        msc=:auto,
-        fillalpha=0.15,
-        label="Carbonate = Evaporite = Gypsum"
-    )
+    # # Equal volatiles
+    # Plots.plot!(sim[1:end .!= c], silica[1:end .!= c], ribbon=stdev[1:end .!= c], 
+    #     markershape=:circle,
+    #     msc=:auto,
+    #     fillalpha=0.15,
+    #     label="Carbonate = Evaporite = Gypsum",
+    #     # label=""
+    # )
 
-    # Proportional volatiles (carbonate / evaporite)
-    Plots.plot!(sim_prop, silica_prop, ribbon=stdev_prop, 
-        markershape=:circle,
-        msc=:auto,
-        fillalpha=0.15,
-        label="Carbonate ≠ Evaporite = Gypsum"
-    )
+    # # Proportional volatiles (carbonate / evaporite)
+    # Plots.plot!(sim_prop, silica_prop, ribbon=stdev_prop, 
+    #     markershape=:circle,
+    #     msc=:auto,
+    #     fillalpha=0.15,
+    #     label="Carbonate ≠ Evaporite = Gypsum"
+    # )
 
     # Proportional volatiles (carbonate / evaporite / gypsum)
     Plots.plot!(sim_prop2, silica_prop2, ribbon=stdev_prop2, 
         markershape=:circle,
         msc=:auto,
         fillalpha=0.15,
-        label="Carbonate ≠ Evaporite ≠ Gypsum"
+        # label="Carbonate ≠ Evaporite ≠ Gypsum"
+        label=""
     )
 
     # Current experimental conditions 
@@ -122,7 +124,7 @@
         markersize=5,
         linewidth=1,
         color=:black, linecolor=:black, msc=:auto,
-        label="Current Experimental Setup"
+        label="Current Experimental Conditions"
     )
     display(h)
     savefig(h, "$filepath/volatile_sensitivity.pdf")

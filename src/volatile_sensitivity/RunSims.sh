@@ -1,6 +1,6 @@
 #! /usr/bin/bash
 
-# Takes roughly two hours to run
+# Takes roughly two and a half hours to run
 # nohup bash src/volatile_sensitivity/RunSims.sh &
 
 # Fail if any command fails 
@@ -71,7 +71,7 @@ set -e
 
 
 ## Stop timer
-    printf "Ending simulations $(date +'%D %T')\n"
+    printf "\nEnding simulations $(date +'%D %T')\n"
 
 # TO DO:
 # We also test the sensitivity of the estimtate to normalization. Setting a maximum

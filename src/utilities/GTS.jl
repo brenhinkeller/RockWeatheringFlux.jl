@@ -1,12 +1,12 @@
 # Convert a .csv of geologic time boundaries to a set of NamedTuples
 
-## --- Main function 
+## --- Main functions
     """
     ```julia
     get_GTS_boundaries()
     ```
 
-    Return NamedTuples with the upper and lower ages (with 1σ uncertainty) for the 
+    Return a NamedTuple with the upper and lower ages (with 1σ uncertainty) for the 
     geologic time scale eons, eras, periods, epochs, and stages.
 
     Phanerozoic stage boundaries are from Green et al., 2022 (10.1073/pnas.2120441119). 
@@ -15,7 +15,7 @@
 
     # Example
     ```julia-repl
-    eon, era, period, epoch, stage = get_GTS_boundaries()
+    bounds = get_GTS_boundaries()
     ```
     """
     function get_GTS_boundaries()
@@ -24,21 +24,39 @@
         boundaries = importdataset("data/boundaries_green2022.csv", ',', importas=:Tuple)
 
         return (
-            GTS_to_age(boundaries, lowercase.(boundaries.Eon)),
-            GTS_to_age(boundaries, lowercase.(boundaries.Era)),
-            GTS_to_age(boundaries, lowercase.(boundaries.Period)),
-            GTS_to_age(boundaries, lowercase.(boundaries.Epoch)),
-            GTS_to_age(boundaries, lowercase.(boundaries.Age_Stage_above_boundary)),
+            eon = GTS_to_age(boundaries, lowercase.(boundaries.Eon)),
+            era = GTS_to_age(boundaries, lowercase.(boundaries.Era)),
+            period = GTS_to_age(boundaries, lowercase.(boundaries.Period)),
+            epoch = GTS_to_age(boundaries, lowercase.(boundaries.Epoch)),
+            stage = GTS_to_age(boundaries, lowercase.(boundaries.Age_Stage_above_boundary)),
         )
     end
     export get_GTS_boundaries
 
 
+    """
+    ```julia
+    assign_GTS_age(target, names_GTS, bounds_GTS)
+    ```
+
+    Given a `target` GTS name, return the upper and lower ages.
+    """
+    function assign_GTS_age(target::String, names_GTS::NamedTuple, bounds_GTS::NamedTuple)
+        div = get_GTS_division(target, names_GTS)
+        div === nothing && @error("Could not identify $target as a GTS name.")
+
+        return bounds_GTS[div][Symbol(target)]
+    end
+    export assign_GTS_age
+
+
+
 ## --- Supporting (non-exported) functions
     # Translate the .csv file to a NamedTuple
     function GTS_to_age(boundaries::NamedTuple, division::AbstractArray{String})
-        # Get list of unique names
+        # Get list of unique names, absent empty strings
         unique_names = unique(division)
+        deleteat!(unique_names, findall(x->x=="",unique_names))
 
         # Preallocate
         result = [[NaN ± NaN, NaN ± NaN] for _ in unique_names]
@@ -84,6 +102,18 @@
         end
         
         return age
+    end
+
+
+    # Figure out if we're looking at an eon, era, period, etc.
+    function get_GTS_division(target::String, names_GTS::NamedTuple)
+        for k in keys(names_GTS)
+            for i in names_GTS[k]
+                target == i && return k
+            end
+        end
+
+        return nothing
     end
 
 

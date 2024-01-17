@@ -3,7 +3,7 @@
 ## --- Main functions
     """
     ```julia
-    get_GTS_boundaries()
+    get_GTS_boundaries(path)
     ```
 
     Return a NamedTuple with the upper and lower ages (with 1σ uncertainty) for the 
@@ -15,13 +15,15 @@
 
     # Example
     ```julia-repl
-    bounds = get_GTS_boundaries()
+    bounds = get_GTS_boundaries(path)
     ```
     """
-    function get_GTS_boundaries()
+    function get_GTS_boundaries(path::String)
+        @assert isfile(path)
+
         # Load stage boundaries
         # Note ages are for the base of the named age / stage
-        boundaries = importdataset("data/boundaries_green2022.csv", ',', importas=:Tuple)
+        boundaries = importdataset(path, ',', importas=:Tuple)
 
         return (
             eon = GTS_to_age(boundaries, lowercase.(boundaries.Eon)),

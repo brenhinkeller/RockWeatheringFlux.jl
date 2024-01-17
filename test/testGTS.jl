@@ -1,6 +1,6 @@
 ## --- Main function
     # Get a list of bounds
-    bounds_GTS = get_GTS_boundaries();
+    bounds_GTS = get_GTS_boundaries("../data/boundaries_green2022.csv");
     @test isa(bounds_GTS.eon, NamedTuple)
     @test isa(bounds_GTS.era, NamedTuple)
     @test isa(bounds_GTS.period, NamedTuple)
@@ -8,7 +8,15 @@
     @test isa(bounds_GTS.stage, NamedTuple)
 
     # Assign bounds to a name
-    boundaries = importdataset("data/boundaries_green2022.csv", ',', importas=:Tuple)
+    names_GTS = (
+        eon = string.(keys(bounds_GTS.eon)),
+        era = string.(keys(bounds_GTS.era)),
+        period = string.(keys(bounds_GTS.period)),
+        epoch = string.(keys(bounds_GTS.epoch)),
+        stage = string.(keys(bounds_GTS.stage)),
+    )
+
+    boundaries = importdataset("../data/boundaries_green2022.csv", ',', importas=:Tuple)
 
     bound = RockWeatheringFlux.get_boundaries("holocene", boundaries, lowercase.(boundaries.Epoch))
     @test assign_GTS_age("holocene", names_GTS, bounds_GTS) == Tuple(bound)
@@ -38,7 +46,7 @@
     @test bound[2].val == boundaries.Age_Ma[end]
 
     # Get time division (era, eon, etc.) for a name
-    bounds_GTS = get_GTS_boundaries();
+    bounds_GTS = get_GTS_boundaries("../data/boundaries_green2022.csv");
     names_GTS = (
         eon = string.(keys(bounds_GTS.eon)),
         era = string.(keys(bounds_GTS.era)),

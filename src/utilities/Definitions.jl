@@ -250,7 +250,7 @@
     function get_rock_class(; major::Bool=false)
         # Sedimentary
         siliciclast = ("siliciclast", "conglo", "sand", "psamm", "arenit", "arkos", "silt",
-            "breccia", "quartzite", "quarzite")
+            "breccia", "quartzite", "quarzite", "sst", "cgl")
         shale = ("lutite", "mud", "clay", "shale", "wacke", "argillite", "argillaceous", 
             "flysch", "pelit", "turbidite", "tasmanite", "slate", "phyllite", 
             "metapellite", "micaschist", "mica schist")
@@ -388,6 +388,7 @@
     end
     export get_rock_class
 
+    
     """
     ```julia
     get_rock_names()

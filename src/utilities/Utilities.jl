@@ -171,6 +171,120 @@
 
     """
     ```julia
+    match_rocktype(rock_name, sample_description, qap_name, rgroup_id;
+        rockgroup_id, rockgroup_name,
+        [showprogress]
+    )
+    ```
+
+    Match rock names from Gard et al., 2019 (10.5194/essd-11-1553-2019) to defined rock 
+    classes. Attempts to match names based on information given by the original authors
+    (`rock_name` and `sample_description`) before using computed or assigned rock classes
+    (`qap_name` and `rgroup_id`).
+
+    ## Required kwargs 
+
+    `rockgroup_id`: rock group ID numbers from the rockgroup.csv file. Must be integers.
+    
+    `rockgroup_name`: A _single_ string of rock group descriptions (group, origin, and 
+    facies) from the rockgroup.csv file.
+
+    ## Optional kwargs
+    `showprogress`: enable or disable the progress bar. Bool, defaults to `true`.
+
+    """
+    function match_rocktype(rock_name::T, sample_description::T, qap_name::T, rgroup_id::AbstractArray{Int};
+            rockgroup_id::AbstractArray{Int}, rockgroup_name::T,
+            showprogress::Bool=true
+        ) where T <: AbstractArray{String}
+
+        # Get rock type classifications and initialized BitVector
+        typelist, cats = get_cats(false, length(rock_name))
+        set = keys(typelist)
+
+        p = Progress(length(typelist)*3,
+            desc="Finding Gard et al., rock types...", enabled=showprogress
+        )
+
+        # Check rock name designated by original authors 
+        for s in set
+            for i in typelist[s]
+                cats[s] .|= containsi.(rock_name, i)
+            end
+            next!(p)
+        end
+
+        # Check sample description inherited from previous databases
+        not_matched = find_unmetamorphosed_unmatched(cats)
+        for s in set
+            for i in typelist[s]
+                cats[s][not_matched] .|= containsi.(sample_description[not_matched], i)
+            end
+            next!(p)
+        end
+
+        # Check QAP name
+        not_matched = find_unmetamorphosed_unmatched(cats)
+        for s in set
+            for i in typelist[s]
+                cats[s][not_matched] .|= containsi.(qap_name[not_matched], i)
+            end
+            next!(p)
+        end
+
+        # Assign unmatched rocks by rock ID
+        not_matched = find_unmetamorphosed_unmatched(cats)
+
+        id_cats = get_cats(false, length(rockgroup_id))[2]
+        for s in set
+            for i in typelist[s]
+                id_cats[s] .|= containsi.(rockgroup_name, i)
+            end
+        end
+        
+        for i in eachindex(rgroup_id)
+            if not_matched[i]
+                for s in set
+                    cats[s][i] |= id_cats[s][rgroup_id[i]]
+                end
+            end
+        end
+
+        # For sedimentary rock group ID 88 (clastics), remove soils and cover
+        cover = ("silt", "sand", "muddy", "mud", "gravel", "clay", "soil", "soils", 
+            "andosol", "loam", "sediment", "ooze")
+        for i in eachindex(rgroup_id)
+            if rgroup_id[i] == 88
+                # Split into groups of whole words
+                samplenames = replace(rock_name[i], "/" => " ", "-" => " ", "." => " ", 
+                    "," => " ", "(" => " ", ")"=> " ", 
+                )
+                samplenames = split(samplenames, " ")
+
+                # Check if any of the words match any cover. If yes, remove all matches
+                # Matches with clastics should have already been caught. Also, their 
+                # clastics don't really match my clastics, because I differentiate 
+                # siliciclastics and fine-grained siliciclastics
+                for n in samplenames
+                    for k in cover
+                        if n == k
+                            [cats[s][i] = false for s in set]
+                            cats.cover[i] = true
+                            break
+                        end
+                    end
+                end
+            end
+
+        end
+        
+        # Remove false positives and return
+        return rm_false_positives!(cats)
+    end
+
+
+    """
+    ```julia
     match_rocktype(writtentype::AbstractArray{String})
     ```
 
@@ -195,6 +309,7 @@
         return cats
     end
     export match_rocktype
+
 
     """
     ```julia
@@ -1243,5 +1358,32 @@
         return vec(out)
     end
     export decode_find_geolprov
+
+
+## --- Strings 
+    """
+    ```
+    replace_malformed_char(str::String)
+    ```
+
+    Replace invalid or malformed characters in `str` with spaces.
+
+    # Example 
+    ```julia-repl
+    julia> str = "volcanic basementb (b\xec\x81lsamo fmt.) "
+
+    julia> replace_malformed_char(str)
+    "volcanic basementb (b lsamo fmt.) "
+    ```
+    """
+    function replace_malformed_char(str::String)
+        str = collect(str)
+        for i in eachindex(str)
+            str[i] = ifelse(isvalid(str[i]), str[i], ' ')
+        end
+        return String(str)
+    end
+    export replace_malformed_char
+
 
 ## --- End of file

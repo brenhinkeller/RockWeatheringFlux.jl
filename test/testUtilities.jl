@@ -223,4 +223,12 @@
     @test lon_in == [0, -80, 36, 156]
 
 
+## --- Strings
+    str = "volcanic basementb (b\xec\x81lsamo fmt.) "
+    @test isvalid(str) == false
+
+    out = replace_malformed_char(str)
+    @test isvalid(out) == true
+
+    
 ## --- End of file

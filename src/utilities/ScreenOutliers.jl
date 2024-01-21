@@ -1,3 +1,11 @@
+#=
+TO DO:
+- Warn for any keys in bulk that aren't being screened
+- Put the bounds in a Tuple so they can be checked element by element in tests
+    - This will also make it possible to do the above
+    - Also, we could add a progress bar!
+=#
+
 """
 ```julia
 screen_outliers!(bulk)
@@ -95,6 +103,7 @@ function screen_outliers!(bulk::NamedTuple)
 
     return bulk
 end
+export screen_outliers!
 
 # bulk.Na[bulk.Na .> 1e5 .| bulk.Na .< 100] .= NaN
 # bulk.Mg[bulk.Mg .> 2e5 .| bulk.Mg .< 15] .= NaN
@@ -107,24 +116,3 @@ end
 # bulk.Mn[bulk.Mn .>= 3e5 .| bulk.Mn .<= 5] .= NaN #Max is pure MnO
 # bulk.Fe[bulk.Fe .>= 7e5 .| bulk.Fe .<= 1e2] .= NaN #Max is pure Fe3O4
 # bulk.Ni[bulk.Ni .>= 1e4 .| bulk.Ni .<= 0.2] .= NaN
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

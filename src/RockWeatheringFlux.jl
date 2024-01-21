@@ -22,6 +22,7 @@ module RockWeatheringFlux
     include("../src/utilities/Macrostrat.jl")
     include("../src/utilities/Analysis.jl")
     include("../src/utilities/GTS.jl")
+    include("../src/utilities/ScreenOutliers.jl")
 
     include("../src/utilities/Utilities.jl")
 

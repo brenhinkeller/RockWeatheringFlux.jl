@@ -168,7 +168,7 @@
     Non-mutating variant of `zeronan!`.
 
     """
-    zeronan(A::AbstractArray{T}; allnans::Bool=true) where T = 
+    zeronan(A::AbstractArray{Measurement{Float64}}; allnans::Bool=true) = 
         _zeronan(A, static(allnans))
 
     function _zeronan(A::AbstractArray{Measurement{Float64}}, allnans::True)

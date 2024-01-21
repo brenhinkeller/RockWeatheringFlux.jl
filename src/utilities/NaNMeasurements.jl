@@ -1,259 +1,270 @@
 # New NaNStatistics methods for Measurements with NaN values
-
 # Ignore any NaN ± NaN and NaN ± err values. Convert val ± NaN to val ± 0
 
-using NaNStatistics, Measurements
+## --- Summary Statistics
+    """
+    ```julia
+    nanadd(A ± B, C ± D)
+    ```
 
-function NaNStatistics.nanadd(a::Measurement, b::Measurement)
-    a = a.val*(a.val==a.val) ± a.err*(a.err==a.err)
-    b = b.val*(b.val==b.val) ± b.err*(b.err==b.err)
+    As `nanadd`, but if `A` or `C` is `NaN`, ignore the value. Convert any `NaN` errors to zeros.
 
-    return a + b
-end
-export nanadd
+    # Examples
+    ```julia-repl
+    julia> nanadd(NaN ± NaN, 3 ± 4)
+    3 ± 4
 
-function NaNStatistics.nansum(A::AbstractArray{Measurement{Float64}})
-    Aᵥ, Aₑ = unmeasurementify(A)
-    Tₒ = Base.promote_op(+, eltype(Aᵥ), Int)
-    Σᵥ = Σₑ = ∅ = zero(Tₒ)
+    julia> nanadd(2 ± 4, NaN ± 1)
+    2 ± 4
 
-    @inbounds for i ∈ eachindex(A)
-        Avalᵢ = Aᵥ[i]
-        notnanval = Avalᵢ==Avalᵢ
-        Σᵥ += ifelse(notnanval, Avalᵢ, ∅)
+    julia> nanadd(4 ± 1, 2 ± NaN)
+    6 ± 1
 
-        Aerrᵢ = Aₑ[i]
-        notnanerr = Aerrᵢ==Aerrᵢ
-        Σₑ += ifelse(notnanerr, Aerrᵢ * Aerrᵢ, ∅)
+    julia> nanadd(6 ± NaN, 2 ± NaN)
+    8.0 ± 0.0
+
+    julia> nanadd(NaN±NaN, NaN±NaN)
+    0.0 ± 0.0
+    ```
+
+    """
+    function NaNStatistics.nanadd(a::Measurement, b::Measurement)
+        a = a.val*(a.val==a.val) ± ifelse(a.val==a.val, a.err*(a.err==a.err), 0)
+        b = b.val*(b.val==b.val) ± ifelse(b.val==b.val, b.err*(b.err==b.err), 0)
+
+        return a + b
     end
-    return Σᵥ ± sqrt(sum(Σₑ))
-end
-export nansum
+    export nanadd
 
-function NaNStatistics.nanmean(A::AbstractArray{Measurement{Float64}})
-    Aᵥ, Aₑ = unmeasurementify(A)
-    Tₒ = Base.promote_op(/, eltype(Aᵥ), Int)
-    n = 0
-    Σᵥ = Σₑ = ∅ = zero(Tₒ)
+
+    """
+    ```julia
+    nansum(A)
+    ```
+
+    Calculate the sum of a collection of measurements `A`. Ignore all `NaN` values and convert
+    all `NaN` errors to zero.
+
+    """
+    function NaNStatistics.nansum(A::AbstractArray{Measurement{Float64}})
+        Tₒ = Base.promote_op(+, eltype(A[1].val), Int)
+        Σ = ∅ = zero(Tₒ)
+        
+        @inbounds for i ∈ eachindex(A)
+            Avalᵢ = A[i].val
+            Aerrᵢ = A[i].err*(A[i].err==A[i].err)
+            
+            Σ += ifelse(Avalᵢ==Avalᵢ, (Avalᵢ ± ifelse(Aerrᵢ==Aerrᵢ, Aerrᵢ, ∅)), ∅)
+        end
+
+        return Σ
+    end
+    export nansum
+
+
+    """
+    ```julia
+    nanmean(A)
+    ```
+
+    Calculate the mean of a collection of measurements `A`. Ignore all `NaN` values and convert
+    all `NaN` errors to zero.
+
+    """
+    function NaNStatistics.nanmean(A::AbstractArray{Measurement{Float64}})
+        Tₒ = Base.promote_op(/, eltype(A[1].val), Int)
+        n = 0
+        Σ =  ∅ = zero(Tₒ)
+        
+        @inbounds for i ∈ eachindex(A)
+            Avalᵢ = A[i].val
+            Aerrᵢ = A[i].err*(A[i].err==A[i].err)
+
+            Σ += ifelse(Avalᵢ==Avalᵢ, Avalᵢ ± Aerrᵢ, ∅)
+            n += (Avalᵢ==Avalᵢ)
+        end
+        return (Σ/n)
+    end
+    export nanmean
+
+
+## --- Variance and standard deviation
+    NaNStatistics.nanstd(A::AbstractArray{Measurement{Float64}}; 
+        mean=nothing, corrected::Bool=true) = 
+        NaNStatistics.sqrt!(_nanvar(mean, corrected, A))
+
+    NaNStatistics.nanvar(A::AbstractArray{Measurement{Float64}}; 
+        mean=nothing, corrected::Bool=true) = _nanvar(mean, corrected, A)
+
+    _nanvar(::Nothing, corrected, A) = _nanvar(nanmean(A), corrected, A)
+
+    function _nanvar(μ::Measurement{Float64}, corrected::Bool, A::Vector{Measurement{Float64}})
+        n = 0
+        σ² = ∅ = zero(typeof(μ))
+        @inbounds for i ∈ eachindex(A)
+            δ = nanadd(A[i], - μ)
+            notnan = A[i].val==A[i].val
+            n += notnan
+            σ² += ifelse(notnan, δ * δ, ∅)
+        end
+        return σ² / max(n-corrected, 0)
+    end
+    export nanvar, nanstd
+
+
+## --- NaNs in arrays 
+    """
+    ```julia
+    zeronan!(A, [allnans])
+    ```
+
+    Replace all `NaN`s in A with zeros of the same type.
     
-    @inbounds for i ∈ eachindex(Aᵥ)
-        Avalᵢ = Aᵥ[i]
-        notnanval = Avalᵢ==Avalᵢ
-        Σᵥ += ifelse(notnanval, Avalᵢ, ∅)
+    Any element containing a `NaN` in _either_ the value or error will be replaced with 
+    `0.0 ± 0.0`. To replace only `NaN`s and keep all non-`NaN` values, set 
+    `allnans=false`.
 
-        Aerrᵢ = Aₑ[i]
-        notnanerr = Aerrᵢ==Aerrᵢ
-        Σₑ += ifelse(notnanerr, Aerrᵢ * Aerrᵢ, ∅)
+    # Examples
+    ```julia-repl
+    julia> A = [2.0 ± NaN];
 
-        n += (notnanval || notnanerr)
-    end
-    return (Σᵥ / n) ± (sqrt(sum(Σₑ)) / n)
-end
-export nanmean
+    julia> zeronan!(A)
+    1-element Vector{Measurement{Float64}}:
+    0.0 ± 0.0
 
-NaNStatistics.nanstd(A::AbstractArray{Measurement{Float64}}; mean=nothing, corrected=true) = 
-    NaNStatistics.sqrt!(NaNStatistics._nanvar(mean, corrected, A::AbstractArray{Measurement{Float64}}))
+    julia> A = [2.0 ± NaN];
 
-NaNStatistics.nanvar(A::AbstractArray{Measurement{Float64}}; mean=nothing, corrected=true) = 
-    NaNStatistics._nanvar(mean, corrected, A::AbstractArray{Measurement{Float64}})
+    julia> zeronan!(A, allnans=false)
+    1-element Vector{Measurement{Float64}}:
+    2.0 ± 0.0
+    ```
+    """
+    NaNStatistics.zeronan!(A::AbstractArray{Measurement{Float64}}; allnans::Bool=true) = 
+        _zeronan!(A, static(allnans))
 
-function NaNStatistics._nanvar(::Nothing, corrected::Bool, A::AbstractArray{T}) where T <: Measurement{Float64}
-    @warn "Unpredictable behavior in nanvar when errors are 0"
-
-    Aᵥ, Aₑ = unmeasurementify(A)
-    Tₒ = Base.promote_op(/, eltype(Aᵥ), Int)
-    n = 0
-    Σᵥ = Σₑ = ∅ = zero(Tₒ)
-    @inbounds for i ∈ eachindex(A)
-        Avalᵢ = Aᵥ[i]
-        notnanval = Avalᵢ==Avalᵢ
-        Σᵥ += ifelse(notnanval, Avalᵢ, ∅)
-
-        Aerrᵢ = Aₑ[i]
-        notnanerr = Aerrᵢ==Aerrᵢ
-        Σₑ += ifelse(notnanerr, Aerrᵢ * Aerrᵢ, ∅)
-
-        n += (notnanval || notnanerr)
-    end
-    μᵥ = Σᵥ / n
-    μₑ = sqrt(sum(Σₑ)) / n
-
-    σ²ᵥ = σ²ₑ = ∅ = zero(typeof(μᵥ))
-    @inbounds for i ∈ eachindex(A)
-        δᵥ = Aᵥ[i] - μᵥ
-        notnanval = δᵥ==δᵥ
-        σ²ᵥ += ifelse(notnanval, δᵥ * δᵥ, ∅)
-
-        δₑ = (δᵥ * δᵥ) * sqrt(4 * (Aₑ[i] * Aₑ[i] + μₑ * μₑ) / (δᵥ * δᵥ))
-        notnanerr = δₑ==δₑ
-        σ²ₑ += ifelse(notnanerr, δₑ * δₑ, ∅)
-    end
-    return (σ²ᵥ / max(n-corrected,0)) ± (sqrt(sum(σ²ₑ)) / max(n-corrected,0))
-end
-
-function NaNStatistics._nanvar(μ::Number, corrected::Bool, A::AbstractArray{T}) where T <: Measurement{Float64}
-    @warn "Unpredictable behavior in nanvar when errors are 0"
-
-    Aᵥ, Aₑ = unmeasurementify(A)
-    μᵥ = μ.val
-    μₑ = μ.err
-    σ²ᵥ = σ²ₑ = ∅ = zero(typeof(μᵥ))
-
-    @inbounds for i ∈ eachindex(A)
-        δᵥ = Aᵥ[i] - μᵥ
-        notnanval = δᵥ==δᵥ
-        σ²ᵥ += ifelse(notnanval, δᵥ * δᵥ, ∅)
-
-        δₑ = (δᵥ * δᵥ) * sqrt(4 * (Aₑ[i] * Aₑ[i] + μₑ * μₑ) / (δᵥ * δᵥ))
-        notnanerr = δₑ==δₑ
-        σ²ₑ += ifelse(notnanerr, δₑ * δₑ, ∅)
-    end
-    return (σ²ᵥ / max(n-corrected,0)) ± (sqrt(sum(σ²ₑ)) / max(n-corrected,0))
-end
-
-export nanvar, nanstd
-
-"""
-```julia
-zeronan!(A::AbstractArray{Measurement{Float64}}, allnans=true)
-```
-
-Replace all `NaN`s in A with zeros of the same type.
-
-Any element containing a `NaN` in _either_ the value or error will be replaced with 
-0.0 ± 0.0. Optionally specify `allnans` as `false` to replace the `NaN` value with a zero
-while retaining the non-`NaN` value in the value or error. 
-
-# Examples
-```julia-repl
-julia> A = [2.0 ± NaN]
-1-element Vector{Measurement{Float64}}:
- 2.0 ± NaN
-
-julia> zeronan!(A)
-1-element Vector{Measurement{Float64}}:
- 0.0 ± 0.0
-
-julia> A = [2.0 ± NaN]
-1-element Vector{Measurement{Float64}}:
- 2.0 ± NaN
-
-julia> zeronan!(A, allnans=false)
-1-element Vector{Measurement{Float64}}:
- 2.0 ± 0.0
-```
-"""
-NaNStatistics.zeronan!(A, allnans::Bool) = NaNStatistics.zeronan!(A, static(allnans))
-
-NaNStatistics.zeronan!(A, allnans::True) = NaNStatistics.zeronan!(A)
-
-function NaNStatistics.zeronan!(A::AbstractArray{Measurement{Float64}}, allnans::False)
-    ∅ = zero(eltype(A))
-    @inbounds for i ∈ eachindex(A)
-        Aᵢ = A[i]
-        notnan = Aᵢ.val==Aᵢ.val && Aᵢ.err==Aᵢ.err
-        if !notnan
-            A[i] = Aᵢ.val*(Aᵢ.val==Aᵢ.val) ± Aᵢ.err*(Aᵢ.err==Aᵢ.err)
+    function _zeronan!(A::AbstractArray{Measurement{Float64}}, allnans::True)
+        ∅ = zero(eltype(A))
+        @inbounds for i ∈ eachindex(A)
+            A[i] = ifelse(A[i] == A[i], A[i], ∅)
         end
+        return A
     end
-    return A
-end
-export zeronan!
 
-"""
-```julia
-zeronan!(A)
-```
-
-Variant of `zeronan!` that returns a copy of `A` with all `NaN`s replace with zeros,
-leaving `A` unmodified.
-"""
-function zeronan(A::AbstractArray{T}) where T
-    out = similar(A)
-    ∅ = zero(T)
-    @turbo for i ∈ eachindex(A)
-        Aᵢ = A[i]
-        out[i] = ifelse(Aᵢ==Aᵢ, Aᵢ, ∅)
-    end
-    return out
-end
-export zeronan
-
-"""
-```julia
-onenan!(A)
-```
-Replace all `NaN`s in A with ones of the same type.
-"""
-function onenan!(A::StridedArray{T}) where T<:Number
-    # TO DO: modified from T<:PrimitiveNumber because that won't compile?
-    # How does NaNStatistics compile / what am I missing?
-    ∅ = one(T)
-    @turbo for i ∈ eachindex(A)
-        Aᵢ = A[i]
-        A[i] = ifelse(Aᵢ==Aᵢ, Aᵢ, ∅)
-    end
-    return A
-end
-
-function onenan!(A::AbstractArray{T}) where T
-    ∅ = one(T)
-    @inbounds for i ∈ eachindex(A)
-        Aᵢ = A[i]
-        if isnan(Aᵢ)
-            A[i] = ∅
+    function _zeronan!(A::AbstractArray{Measurement{Float64}}, allnans::False)
+        @inbounds for i ∈ eachindex(A)
+            Aᵢ = A[i]
+            A[i] = Aᵢ.val*(Aᵢ.val==Aᵢ.val) ± Aᵢ.err*(Aᵢ.err==Aᵢ.err) 
         end
+        return A
     end
-    return A
-end
-export onenan!
-
-"""
-```julia
-nanunzero!(A, val)
-```
-
-Replace `NaN`s and zeros in `A` with a value specified by `val`.
-"""
-function nanunzero!(A::AbstractArray{T}, val) where T
-    @inbounds for i ∈ eachindex(A)
-        Aᵢ = A[i]
-        A[i] = ifelse(Aᵢ==Aᵢ, ifelse(Aᵢ==0.0, val, Aᵢ), val)
-    end
-    return A
-end
-export nanunzero!
+    export zeronan!
 
 
-"""
-```julia
-nanzero!(A)
-```
+    """
+    ```julia
+    zeronan(A; [allnans])
+    ```
 
-The reverse of `zeronan!`: replace all zeros with `NaN`s.
-"""
-function nanzero!(A::AbstractArray{T}) where T <: Float64
-    ∅ = 0.0
-    @inbounds for i ∈ eachindex(A)
-        Aᵢ = A[i]
-        if Aᵢ == ∅
-            A[i] = NaN
+    Non-mutating variant of `zeronan!`.
+
+    """
+    zeronan(A::AbstractArray{T}; allnans::Bool=true) where T = 
+        _zeronan(A, static(allnans))
+
+    function _zeronan(A::AbstractArray{Measurement{Float64}}, allnans::True)
+        out = similar(A)
+        ∅ = zero(eltype(A))
+        @inbounds for i ∈ eachindex(A)
+            out[i] = ifelse(A[i] == A[i], A[i], ∅)
         end
+        return out
     end
-    return A
-end
 
-function nanzero!(A::AbstractArray{T}) where T
-    A = convert(AbstractArray{Float64}, A)
-    ∅ = 0.0
-    @inbounds for i ∈ eachindex(A)
-        Aᵢ = A[i]
-        if Aᵢ == ∅
-            A[i] = NaN
+    function _zeronan(A::AbstractArray{Measurement{Float64}}, allnans::False)
+        out = similar(A)
+        @inbounds for i ∈ eachindex(A)
+            Aᵢ = A[i]
+            out[i] = Aᵢ.val*(Aᵢ.val==Aᵢ.val) ± Aᵢ.err*(Aᵢ.err==Aᵢ.err) 
         end
+        return out
     end
-    return A
-end
-export nanzero!
+    export zeronan
+
+    function zeronan(A::AbstractArray{T}) where T
+        out = similar(A)
+        ∅ = zero(T)
+        @inbounds for i ∈ eachindex(A)
+            Aᵢ = A[i]
+            out[i] = ifelse(Aᵢ==Aᵢ, Aᵢ, ∅)
+        end
+        return out
+    end
+    export zeronan
+
+
+    # """
+    # ```julia
+    # onenan!(A)
+    # ```
+    # Replace all `NaN`s in A with ones of the same type.
+    # """
+    # function onenan!(A::StridedArray{T}) where T<:Number
+    #     ∅ = one(T)
+    #     @turbo for i ∈ eachindex(A)
+    #         Aᵢ = A[i]
+    #         A[i] = ifelse(Aᵢ==Aᵢ, Aᵢ, ∅)
+    #     end
+    #     return A
+    # end
+
+    # function onenan!(A::AbstractArray{T}) where T
+    #     ∅ = one(T)
+    #     @inbounds for i ∈ eachindex(A)
+    #         Aᵢ = A[i]
+    #         if isnan(Aᵢ)
+    #             A[i] = ∅
+    #         end
+    #     end
+    #     return A
+    # end
+    # export onenan!
+
+
+    """
+    ```julia
+    nanunzero!(A, val)
+    ```
+
+    Replace `NaN`s and zeros in `A` with a value specified by `val`.
+    """
+    function nanunzero!(A::AbstractArray{T}, val) where T
+        @inbounds for i ∈ eachindex(A)
+            Aᵢ = A[i]
+            A[i] = ifelse(Aᵢ==Aᵢ, ifelse(Aᵢ==0.0, val, Aᵢ), val)
+        end
+        return A
+    end
+    export nanunzero!
+
+
+    """
+    ```julia
+    nanzero!(A)
+    ```
+
+    The reverse of `zeronan!`: replace all zeros with `NaN`s.
+    """
+    function nanzero!(A::AbstractArray{Float64})
+        ∅ = 0.0
+        @inbounds for i ∈ eachindex(A)
+            Aᵢ = A[i]
+            if Aᵢ == ∅
+                A[i] = NaN
+            end
+        end
+        return A
+    end
+    export nanzero!
+
 
 ## --- End of file

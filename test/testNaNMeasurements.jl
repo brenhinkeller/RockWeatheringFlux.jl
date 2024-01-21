@@ -1,56 +1,107 @@
-## --- Create test arrays
-    A = collect(1:10) .± reverse!(collect(1:10))
-    B = copy(A)
-    B_znan_all = copy(B)
-    B_znan_par = copy(B)
+## --- Basic statistics
+    a = NaN ± NaN
+    b = rand() ± NaN
+    c = NaN ± rand()
+    d = rand() ± rand()
+    e = rand() ± rand()
 
-    A[1] = A[1].val ± NaN
-    B[1] = B[1].val ± 0.0
-    B_znan_all[1] = 0.0 ± 0.0
-    B_znan_par[1] = B[1].val ± 0.0
+    # nanadd 
+    @test nanadd(a, d) == d
+    @test nanadd(c, d) == d
+    @test nanadd(b, d) == (b+d).val ± d.err
 
-    A[3] = NaN ± A[3].err
-    B[3] = 0.0 ± B[3].err
-    B_znan_all[3] = 0.0 ± 0.0
-    B_znan_par[3] = 0.0 ± B[3].err
+    # nansum
+    @test nansum([a, a, d]) == d
+    @test nansum([a, c, d, e]) == nanadd(d, e)
+    @test nansum([b, a, d, c]) == (b+d).val ± d.err
 
-    A[10] = NaN ± NaN
-    deleteat!(B, 10)
-    B_znan_all[10] = 0.0 ± 0.0
-    B_znan_par[10] = 0.0 ± 0.0
+    # nanmean 
+    @test nanmean([d, d]) == (d+d)/2  broken=true
+    @test nanmean([d, e]) == (d+e)/2
+    @test nanmean([c, d]) == d
+    @test nanmean([b, d]) == ((b.val ± 0) + d)/2
 
-
-## --- Summary statistics: simple cases
-    @test nanadd(A[1], A[3]).val == (B[1] + B[3]).val
-    @test nansum(A).val == sum(B).val
-    @test nanmean(A).val == mean(B).val
-    @test nanstd(A).val ≈ std(B).val
-    @test nanvar(A).val ≈ var(B).val
-
-    @test nanadd(A[1], A[3]).err == (B[1] + B[3]).err
-    @test nansum(A).err == sum(B).err
-    @test nanmean(A).err == mean(B).err
-    @test nanstd(A).err ≈ std(B).err
-    @test nanvar(A).err ≈ var(B).err
+    # Alternatively, do we want the answer to be: (b.val+d.val)/2 ± d.err
+    # That ignores the NaN entirely rather than assuming it's zero. It's harder to do...
+    # I'd also have to modify the other functions to keep that data present. BUT it's 
+    # probably more accurate... 
 
 
-## --- NaN replacement
-    testA = copy(A)
-    @test zeronan!(testA) == B_znan_all
+## --- Variance and standard deviation 
+    @test nanvar([a, d, e]) == nanvar([d, e])
+    @test nanvar([d, d]) == 0 ± 0
 
-    testA = copy(A)
-    @test zeronan!(testA, true) == B_znan_all
-
-    testA = copy(A)
-    @test zeronan!(testA, false) == B_znan_par
+    @test nanstd([a, d, e]) == nanstd([d, e])
 
 
-## --- Zero replacement
-    A = [0, 0, 2, 0.0]
-    nanzero!(A)
-    @test isnan(A[1])
-    @test isnan(A[2])
-    @test !isnan(A[3])
-    @test isnan(A[4])
+## --- zeronan!
+    A = [a, b, c, d]
+    zeronan!(A)
+    @test A[1] == 0 ± 0
+    @test A[2] == 0 ± 0
+    @test A[3] == 0 ± 0
+    @test A[4] == d
+
+    A = [a, b, c, d]
+    @test zeronan!(A, allnans=true) == zeronan!(A)
+
+    A = [a, b, c, d]
+    zeronan!(A, allnans=false)
+    @test A[1] == 0 ± 0
+    @test A[2] == b.val ± 0
+    @test A[3] == 0 ± c.err
+    @test A[4] == d
+
+
+## --- zeronan
+    A = [a, b, c, d]
+
+    A₀ = zeronan(A)
+    @test A₀ != A
+    @test A₀[1] == 0 ± 0
+    @test A₀[2] == 0 ± 0
+    @test A₀[3] == 0 ± 0
+    @test A₀[4] == d
+
+    @test zeronan(A) == zeronan(A, allnans=true)
+
+    A₀ = zeronan(A, allnans=false)
+    @test A₀[1] == 0 ± 0
+    @test A₀[2] == b.val ± 0
+    @test A₀[3] == 0 ± c.err
+    @test A₀[4] == d
+
+    B = rand([rand(), NaN], 4)
+    while B == B
+        global B = rand([rand(), NaN], 4)
+    end
+    B₀ = zeronan(B)
+
+    @test B₀ != B
+    @test !any(isnan, B₀)
+
+
+## --- nanunzero!
+    B = rand([rand(), 0, NaN], 5)
+    while (B == B) | !any(==(0), B) | !any(>(0), B)
+        global B = rand([rand(), 0, NaN], 5)
+    end
+
+    nanunzero!(B, 1.0)
+    @test !any(==(0), B)
+    @test !any(isnan, B)
+    @test any(==(1), B)
+
+
+## --- nanzero! 
+    B = rand([rand(), 0], 4)
+    while !any(==(0), B)
+        global B = rand([rand(), 0], 4)
+    end
+
+    nanzero!(B)
+    @test !any(==(0), B)
+    @test any(isnan, B)
+
 
 ## --- End of file

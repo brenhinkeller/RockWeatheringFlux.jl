@@ -3,16 +3,15 @@
     # REE patterns in the bulk EarthChem data
 
     # Load data and base packages
-    if !@isdefined(filepath)
-        include("Definitions.jl")
-    end
+    include("Definitions.jl")
 
     # Get a list of REEs
     REEs = get_REEs()
 
     # Load data
-    ucc = importdataset(ucc_out, '\t', importas=:Tuple)
-    rudnick_gao = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple)
+    @info "Upper crust data: $ucc_out"
+    ucc = importdataset(ucc_out, '\t', importas=:Tuple);
+    rudnick_gao = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple);
 
 
 ## --- Load my data
@@ -90,14 +89,14 @@
     
 ## --- Spider... gram. Spidergram.
     h = spidergram(taylor_mclennan, label="Taylor and McLennan, 1985 / 1995", 
-        markershape=:dtriangle, seriescolor=:olivedrab)
+        markershape=:diamond, seriescolor=:lightgrey)
     spidergram!(h, rudnick_gao, label="Rudnick and Gao, 2014", 
-        markershape=:utriangle, seriescolor=:cadetblue)
+        markershape=:diamond, seriescolor=:grey)
 
     spidergram!(h, ucc_ign, label="This Study (Bulk Igneous)",
-        markershape=:star5, seriescolor=colors.ign)
+        markershape=:utriangle, seriescolor=colors.ign)
     spidergram!(h, ucc_sed, label="This Study (Bulk Sedimentary)",
-        markershape=:+, seriescolor=colors.sed)
+        markershape=:dtriangle, seriescolor=colors.sed)
 
     spidergram!(h, ucc, label="This Study (Bulk Earth)",
         markershape=:circle, seriescolor=:black)
@@ -108,27 +107,27 @@
 
 ## --- Spidergram comparing bulk EarthChem REEs and Rudnick and Gao estimation
     h = spidergram(rudnick_gao, label="Rudnick and Gao, 2014", 
-        markershape=:diamond, seriescolor=:black)
+        markershape=:diamond, seriescolor=:grey)
 
-    spidergram!(h, bulk_sed, label="Bulk Sedimentary EarthChem", 
+    spidergram!(h, bulk_sed, label="Bulk Sedimentary", 
         markershape=:utriangle, seriescolor=colors.sed)
-    spidergram!(h, bulk_ign, label="Bulk Igneous EarthChem",
+    spidergram!(h, bulk_ign, label="Bulk Igneous",
         markershape=:utriangle, seriescolor=colors.ign)
 
-    spidergram!(h, bulk_granite, label="Bulk Granite EarthChem",
+    spidergram!(h, bulk_granite, label="Bulk Granite",
         markershape=:utriangle, seriescolor=colors.granite)
-    spidergram!(h, bulk_basalt, label="Bulk Basalt EarthChem",
+    spidergram!(h, bulk_basalt, label="Bulk Basalt",
         markershape=:utriangle, seriescolor=colors.basalt)
 
-    spidergram!(h, bulk_earth, label="Bulk EarthChem",
-        markershape=:utriangle, seriescolor=:brown)
+    # spidergram!(h, bulk_earth, label="Bulk EarthChem",
+    #     markershape=:utriangle, seriescolor=:brown)
 
-    spidergram!(h, ucc_ign, label="This Study (Bulk Igneous)",
-        markershape=:circle, seriescolor=colors.ign)
-    spidergram!(h, ucc_sed, label="This Study (Bulk Sedimentary)",
-        markershape=:circle, seriescolor=colors.sed)
-    spidergram!(h, ucc, label="This Study (Bulk Earth)",
-        markershape=:circle, seriescolor=:brown)
+    # spidergram!(h, ucc_ign, label="This Study (Bulk Igneous)",
+    #     markershape=:circle, seriescolor=colors.ign)
+    # spidergram!(h, ucc_sed, label="This Study (Bulk Sedimentary)",
+    #     markershape=:circle, seriescolor=colors.sed)
+    # spidergram!(h, ucc, label="This Study (Bulk Earth)",
+    #     markershape=:circle, seriescolor=:brown)
 
 
 ## --- End of file 

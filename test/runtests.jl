@@ -5,16 +5,18 @@
 
 
 ## --- Run tests    
-    # Need unit tests for:
-        # Analysis 
-        # Definitions 
-        # Macrostrat 
-        # Slope
-    # To do: remove the functions I'm not using anymore. Organize debugging functions 
-    # into a better-named debugging file (this is currently Analysis.jl)
-    @testset "GTS" begin include("testGTS.jl") end
-    @testset "NaN Measurements" begin include("testNaNMeasurements.jl") end
+    # To do: remove the functions I'm not using anymore. 
+    # Organize debugging functions into a better-named debugging file 
+    # (this is currently Analysis.jl)
+
+    # @testset "Analysis                   "
+    # @testset "Definitions                "
+    @testset "GTS                        " begin include("testGTS.jl") end
+    # @testset "Macrostrat                 "
+    @testset "NaN Measurements           " begin include("testNaNMeasurements.jl") end
     @testset "Screen Geochemical Outliers" begin include("testScreenOutliers.jl") end
-    @testset "Other Utiliities" begin include("testUtilities.jl") end
+    # @testset "Slope                      "
+    @testset "Other Utiliities           " begin include("testUtilities.jl") end
+
 
 ## --- End of file

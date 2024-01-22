@@ -134,7 +134,7 @@
 
         # Volcanic breccia isn't matched since the name "breccia" is sedimentary: it must 
         # be specifically set as volcanic
-        t = vec((bulkrockname .== "breccia") .& (bulkrocktype .== "volcanic"));
+        t = vec((Rock_Name .== "breccia") .& (Type .== "volcanic"));
         cats.volc[t] .= true
 
         # Allow all unmatched samples to match against all rock types
@@ -489,6 +489,104 @@
     #     return cats
     # end
 
+    """
+    ```julia
+    include_minor!(cats, [minorsed, minorvolc, minorplut, minorign])
+    ```
+
+    Include all minor rock classes in their major type. E.g., `cats.sed` is true when 
+    `cats.shale` is true.
+
+    Optionally specify `minorsed`, `minorvolc`, `minorplut`, and `minorign` for a slight
+    speed-up. See `get_rock_class` for minor rock class lists.
+
+    See also: `exclude_minor!`
+
+    """
+    function include_minor!(cats)
+        minorsed, minorvolc, minorplut, minorign = get_rock_class()[2:5];
+
+        for type in minorsed
+            cats.sed .|= cats[type]
+        end
+        for type in minorvolc
+            cats.volc .|= cats[type]
+        end
+        for type in minorplut
+            cats.plut .|= cats[type]
+        end
+        for type in minorign
+            cats.ign .|= cats[type]
+        end
+        return cats
+    end
+
+    function include_minor!(cats, minorsed, minorvolc, minorplut, minorign)
+        for type in minorsed
+            cats.sed .|= cats[type]
+        end
+        for type in minorvolc
+            cats.volc .|= cats[type]
+        end
+        for type in minorplut
+            cats.plut .|= cats[type]
+        end
+        for type in minorign
+            cats.ign .|= cats[type]
+        end
+        return cats
+    end
+    export include_minor!
+
+    """
+    ```julia
+    exclude_minor!(cats, [minorsed, minorvolc, minorplut, minorign])
+    ```
+
+    Exclude all minor rock classes in their major type. E.g., `cats.sed` is false when 
+    `cats.shale` is true.
+
+    Optionally specify `minorsed`, `minorvolc`, `minorplut`, and `minorign` for a slight
+    speed-up. See `get_rock_class` for minor rock class lists.
+
+    See also: `include_minor!`
+
+    """
+    function exclude_minor!(cats)
+        minorsed, minorvolc, minorplut, minorign = get_rock_class()[2:5];
+
+        for type in minorsed
+            cats.sed .&= .!cats[type]
+        end
+        for type in minorvolc
+            cats.volc .&= .!cats[type]
+        end
+        for type in minorplut
+            cats.plut .&= .!cats[type]
+        end
+        for type in minorign
+            cats.ign .&= .!cats[type]
+        end
+        return cats
+    end
+
+    function exclude_minor!(cats, minorsed, minorvolc, minorplut, minorign)
+        for type in minorsed
+            cats.sed .&= .!cats[type]
+        end
+        for type in minorvolc
+            cats.volc .&= .!cats[type]
+        end
+        for type in minorplut
+            cats.plut .&= .!cats[type]
+        end
+        for type in minorign
+            cats.ign .&= .!cats[type]
+        end
+        return cats
+    end
+    export exclude_minor!
+
 
 ## --- Find all EarthChem samples matching a Macrostrat sample
 
@@ -578,64 +676,66 @@
     end
     export get_type
 
-    """
-    ```julia
-    class_up(typelist, name::String; 
-        [all_types:Bool=false]
-    )
-    ```
 
-    Get the rock type which describes the rock name `name`. The rock name must be an
-    _exact_ match with the names in `typelist`. 
+    # """
+    # ```julia
+    # class_up(typelist, name::String; 
+    #     [all_types:Bool=false]
+    # )
+    # ```
+
+    # Get the rock type which describes the rock name `name`. The rock name must be an
+    # _exact_ match with the names in `typelist`. 
     
-    Optionally specify `all_types` as `true` to return all types which match with `name`: 
-    some names may be mapped to more than one rock type.
+    # Optionally specify `all_types` as `true` to return all types which match with `name`: 
+    # some names may be mapped to more than one rock type.
 
-    For `typelist` generated with `get_rock_class`, setting `inclusive=false` will not 
-    change the behavior of `alltypes=false`, as long as major types are listed after minor
-    types (because `class_up` will return the type for the first match it finds). If
-    `inclusive=true` and `alltypes=true`, the major type will always be returned.
+    # For `typelist` generated with `get_rock_class`, setting `inclusive=false` will not 
+    # change the behavior of `alltypes=false`, as long as major types are listed after minor
+    # types (because `class_up` will return the type for the first match it finds). If
+    # `inclusive=true` and `alltypes=true`, the major type will always be returned.
 
-    See also: `get_rock_class` to return `typelist`.
+    # See also: `get_rock_class` to return `typelist`.
 
-    # Examples
-    ```julia-repl
-    julia> class_up(typelist, "dacit")
-    :volc
+    # # Examples
+    # ```julia-repl
+    # julia> class_up(typelist, "dacit")
+    # :volc
 
-    julia> class_up(typelist, "evaporite")
-    :evaporite
+    # julia> class_up(typelist, "evaporite")
+    # :evaporite
 
-    julia> class_up(typelist, "pyroxenite")
-    :plut
+    # julia> class_up(typelist, "pyroxenite")
+    # :plut
 
-    julia> class_up(typelist, "pyroxenite", all_types=true)
-    (:plut, :met)
-    ```
-    """
-    function class_up(typelist, name::String; all_types::Bool=false)
-        if all_types
-            rocktypes = keys(typelist)
-            keymatches = falses(length(rocktypes))
+    # julia> class_up(typelist, "pyroxenite", all_types=true)
+    # (:plut, :met)
+    # ```
+    # """
+    # function class_up(typelist, name::String; all_types::Bool=false)
+    #     if all_types
+    #         rocktypes = keys(typelist)
+    #         keymatches = falses(length(rocktypes))
 
-            for k in eachindex(rocktypes)
-                for i in eachindex(typelist[rocktypes[k]])
-                    keymatches[k] |= (name == typelist[rocktypes[k]][i])
-                end
-            end
+    #         for k in eachindex(rocktypes)
+    #             for i in eachindex(typelist[rocktypes[k]])
+    #                 keymatches[k] |= (name == typelist[rocktypes[k]][i])
+    #             end
+    #         end
 
-            return ifelse(count(keymatches)==0, nothing, rocktypes[keymatches])
-        else
-            @inbounds for k in keys(typelist)
-                for i in typelist[k]
-                    name == i && return k
-                end
-            end
-        end
+    #         return ifelse(count(keymatches)==0, nothing, rocktypes[keymatches])
+    #     else
+    #         @inbounds for k in keys(typelist)
+    #             for i in typelist[k]
+    #                 name == i && return k
+    #             end
+    #         end
+    #     end
 
-        @warn "No upwards class found for $name"
-        return nothing
-    end
+    #     @warn "No upwards class found for $name"
+    #     return nothing
+    # end
+
 
     """
     ```julia
@@ -644,6 +744,9 @@
 
     Get the major rock type that describes the minor type `name`.
 
+    _**Important:**_ If `minorign` contains only `(:volc, :plut, :carbonatite)`, `class_up`
+    cannot recognize minor types within those subtypes.
+
     # Examples
     ```julia-repl
     julia> class_up(:volc, minorsed, minorign)
@@ -651,6 +754,8 @@
 
     julia> class_up(:ign, minorsed, minorign)
     :ign
+
+    julia> class_up(:dacite, minorsed, (minorign..., minorvolc..., minorplut...))
     ```
     """
     function class_up(name::Symbol, minorsed, minorign)

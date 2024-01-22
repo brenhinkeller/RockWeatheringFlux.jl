@@ -13,7 +13,7 @@
     # Start timer
     start = now()
     @info """ Start: $(Dates.Date(start)) $(Dates.format(start, "HH:MM"))
-    Input: $macrostrat_io
+    Input: $macrostrat_io | $geochem_fid
     Output: $matchedbulk_io
     """
 

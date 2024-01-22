@@ -101,12 +101,12 @@
     # Terminal printout
     majorcomp = round.([UCC.bulk[i] for i in eachindex(majors)], digits=1)
 
-    @info """Bulk crustal composition:
+    @info """Bulk crustal composition ($geochem_fid | $macrostrat_io):
     $(join(majors, " \t "))
     $(join(majorcomp, " \t "))
 
-    Total (majors): $(round(nansum(UCC.bulk[1:length(majors)]), sigdigits=3))%
-    Total (major + trace): $(round(nansum(UCC.bulk), sigdigits=3))%
+    Total (majors): $(round(nansum(UCC.bulk[1:length(majors)]), sigdigits=4))%
+    Total (major + trace): $(round(nansum(UCC.bulk), sigdigits=4))%
     """
 
 

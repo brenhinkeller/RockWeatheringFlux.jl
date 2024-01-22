@@ -1,35 +1,37 @@
 ## --- File names
 
-    geochem_fid = "output/bulk.h5"
-    # geochem_fid = "output/gard.h5"
+    # geochem_fid = "output/bulk.h5"
+    geochem_fid = "output/gard.h5"
     export geochem_fid
+
+    stem = split(geochem_fid, ['/', '.'])[2]
 
     # 500 Macrostrat samples
         # macrostrat_io = "output/N_500/toy_responses.h5"
-        # matchedbulk_io = "output/N_500/toy_bulkidx.tsv"
+        # matchedbulk_io = "output/N_500/toy_bulkidx_" * stem * ".tsv"
 
-        # eroded_out = "output/N_500/toy_erodedmaterial.h5"
-        # ucc_out = "results/toy_exposedcrust.tsv"
-        # erodedabs_out = "results/toy_erodedmaterial_abs.csv"
-        # erodedrel_out = "results/toy_erodedmaterial_rel.csv"
+        # eroded_out = "output/N_500/toy_erodedmaterial_" * stem * ".h5"
+        # ucc_out = "results/toy_exposedcrust_" * stem * ".tsv"
+        # erodedabs_out = "results/toy_erodedmaterial_abs_" * stem * ".tsv"
+        # erodedrel_out = "results/toy_erodedmaterial_rel_" * stem * ".tsv"
 
     # 250_000 Macrostrat samples
         macrostrat_io = "output/N_250K/250K_responses.h5"
-        matchedbulk_io = "output/N_250K/250K_bulkidx.tsv"
+        matchedbulk_io = "output/N_250K/250K_bulkidx_" * stem * ".tsv"
 
-        eroded_out = "output/N_250K/250K_erodedmaterial.h5"
-        ucc_out = "results/250K_exposedcrust.tsv"
-        erodedabs_out = "results/250K_erodedmaterial_abs.tsv"
-        erodedrel_out = "results/250K_erodedmaterial_rel.tsv"
+        eroded_out = "output/N_250K/250K_erodedmaterial_" * stem * ".h5"
+        ucc_out = "results/250K_exposedcrust_" * stem * ".tsv"
+        erodedabs_out = "results/250K_erodedmaterial_abs_" * stem * ".tsv"
+        erodedrel_out = "results/250K_erodedmaterial_rel_" * stem * ".tsv"
 
     # 1_000_000 Macrostrat samples
         # macrostrat_io = "output/N_1M/1M_responses.h5"
-        # matchedbulk_io = "output/N_1M/1M_bulkidx.tsv"
+        # matchedbulk_io = "output/N_1M/1M_bulkidx_" * stem * ".tsv"
 
-        # eroded_out = "output/N_1M/1M_erodedmaterial.h5"
-        # ucc_out = "results/1M_exposedcrust.tsv"
-        # erodedabs_out = "results/1M_erodedmaterial_abs.csv"
-        # erodedrel_out = "results/1M_erodedmaterial_rel.csv"
+        # eroded_out = "output/N_1M/1M_erodedmaterial_" * stem * ".h5"
+        # ucc_out = "results/1M_exposedcrust_" * stem * ".tsv"
+        # erodedabs_out = "results/1M_erodedmaterial_abs_" * stem * ".tsv"
+        # erodedrel_out = "results/1M_erodedmaterial_rel_" * stem * ".tsv"
 
     export macrostrat_io, matchedbulk_io
     export ucc_out

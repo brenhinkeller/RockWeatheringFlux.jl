@@ -287,6 +287,11 @@
     overlap = @. !isnan(out.FeOT) && !isnan(expected_FeO_T);
 
     # TO DO: I assume I want to do something with the overlap array??
+    # uhhhhhh numbers??
+    [out.FeOT[overlap] expected_FeO_T[overlap]]
+
+    overlap .&= .!isnan.(Fe2O3_T_as_FeO)
+    [out.FeOT[overlap] expected_FeO_T[overlap] Fe2O3_T_as_FeO[overlap] FeO[overlap]]    
 
 
 ## --- Get volatiles and carbonates as temporary non-Tuple arrays

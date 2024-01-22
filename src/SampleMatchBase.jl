@@ -195,7 +195,7 @@
     matches = zeros(Int64, length(macro_cats.sed))
 
     # @info "Starting sample matching $(Dates.format(now(), "HH:MM"))"
-    p = Progress(length(matches)÷10+1, desc="Matching samples...", enabled=show_progress)
+    p = Progress(length(matches)÷10, desc="Matching samples...", enabled=show_progress)
     @time for i in eachindex(matches)
         ltype = littletypes[i] 
 
@@ -234,6 +234,6 @@
 
         i%10==0 && next!(p)
     end
-    next!(p)
+
 
 ## --- End of File

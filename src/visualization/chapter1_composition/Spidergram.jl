@@ -10,11 +10,13 @@
     # Get a list of REEs
     REEs = get_REEs()
 
+    # Load data
+    ucc = importdataset(ucc_out, '\t', importas=:Tuple)
+    rudnick_gao = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple)
+
 
 ## --- Load my data
-    # Load data and convert to dictionaries
-    ucc = importdataset(ucc_out, '\t', importas=:Tuple)
-
+    # Convert data to dictionaries
     ucc_ign = Dict(zip(ucc.element, ucc.ign))
     ucc_sed = Dict(zip(ucc.element, ucc.sed))
     ucc = Dict(zip(ucc.element, ucc.bulk))
@@ -57,8 +59,7 @@
 
 
 ## --- Load Rudnick and Gao, 2014; Taylor and McLennan, 1985
-    # Load data and convert to dictionaries
-    rudnick_gao = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple)
+    # Convert data to dictionaries
     units = Dict(zip(rudnick_gao.Element, rudnick_gao.Units))
 
     taylor_mclennan = Dict(zip(rudnick_gao.Element, rudnick_gao.Taylor_and_McLennan_1985))

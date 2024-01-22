@@ -7,6 +7,13 @@
     # Definitions
     filepath = "results/figures/chapter1_composition"
 
+    @info """
+    File IO:
+    Macrostrat:  $macrostrat_io
+    Geochemical: $geochem_fid
+    Saving to:   $filepath/
+    """
+
     
 ## --- Matched EarthChem and Macrostrat / Burwell
     # Indices of matched samples
@@ -15,7 +22,7 @@
     t = @. matches != 0
 
     # EarthChem
-    fid = h5open("output/bulk.h5", "r")
+    fid = h5open(geochem_fid, "r")
     header = read(fid["bulk"]["header"])
     data = read(fid["bulk"]["data"])
     mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][matches[t]] 
@@ -55,7 +62,7 @@
 
 
 ## --- Unmatched Earthchem
-    fid = h5open("output/bulk.h5", "r")
+    fid = h5open(geochem_fid, "r")
     header = read(fid["bulk"]["header"])
     data = read(fid["bulk"]["data"])
     bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])

@@ -151,9 +151,9 @@
     CaCO3_to_CaO = (40.078+15.999)/(40.078+15.999*3+12.01)
     CaCO3_to_CO2 = (15.999*2+12.01)/(40.078+15.999*3+12.01)
 
-    CaO_to_CO2 = (15.999*2+12.01)/(40.078+15.999)
-    CaO_to_H2O = 2*(2*1.00784+15.999)/(40.078+15.999)
-    CaO_to_SO3 = (32.065+3*15.999)/(40.078+15.999)
+    CaO_to_CO2 = (15.999*2+12.01)/(40.078+15.999)               # Assumes CaCO3
+    CaO_to_H2O = 2*(2*1.00784+15.999)/(40.078+15.999)           # Gypsum
+    CaO_to_SO3 = (32.065+3*15.999)/(40.078+15.999)              # Gypsum
 
 
 ## --- Calculate reported volatiles as the larger of [CO₂ + H₂O] OR LOI
@@ -240,8 +240,8 @@
 
 
 ## --- Correct for assumed unmeasured volatile loss in sedimentary rocks
-    # If the sample is a sedimentary rock with a total analyzed wt.% below 84%, assume 
-    # the "missing" data is volatiles that were not included in the analysis
+    # If the sample is a sedimentary rock with a total analyzed wt.% below 100%, assume 
+    # the "missing" data are volatiles that were not included in the analysis
     # additional = zeros(length(bulkweight))
     for i in eachindex(bulkweight)
         volatiles_assumed[i] = ifelse(bulk_cats.sed[i] && bulkweight[i] < 100, 

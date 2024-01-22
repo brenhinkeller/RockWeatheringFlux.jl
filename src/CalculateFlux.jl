@@ -15,7 +15,7 @@
     # macro_cats = match_rocktype(bulktype[t])
 
     # Load bulk, but just the samples matched to the Macrostrat data
-    fid = h5open("output/bulk.h5", "r")
+    fid = h5open(geochem_fid, "r")
     header = read(fid["bulk"]["header"])
     data = read(fid["bulk"]["data"])
     bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])

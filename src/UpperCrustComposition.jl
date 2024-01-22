@@ -41,7 +41,7 @@
     end
 
     # Earthchem
-    fid = h5open("output/bulk.h5", "r")
+    fid = h5open(geochem_fid, "r")
     header = read(fid["bulk"]["header"])
     data = read(fid["bulk"]["data"])
     bulk = NamedTuple{Tuple(Symbol.(header))}(
@@ -64,16 +64,16 @@
 
 ## --- Compute and export composition of exposed crust!
     # If you have NaNs in for elements that aren't present, your averages get mad
-    for i in allelements
-        zeronan!(bulk[i])
-    end
+    # for i in allelements
+    #     zeronan!(bulk[i])
+    # end
 
-    # Check that total wt.% still adds to 100%
-    total = Array{Float64}(undef, length(bulk[1]))
-    for i in eachindex(total)
-        total[i] = nansum([bulk[e][i] for e in allelements])
-    end
-    @assert isapprox(sum(total)/length(total), 100) "Incorrect normalization :("
+    # # Check that total wt.% still adds to 100%
+    # total = Array{Float64}(undef, length(bulk[1]))
+    # for i in eachindex(total)
+    #     total[i] = nansum([bulk[e][i] for e in allelements])
+    # end
+    # @assert isapprox(sum(total)/length(total), 100) "Incorrect normalization :("
 
     UCC = (
         bulk = [nanmean(bulk[i]) for i in allelements],

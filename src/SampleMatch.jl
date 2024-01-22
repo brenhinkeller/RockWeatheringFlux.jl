@@ -8,7 +8,7 @@
 
     # File name IO
     filemacrostrat = macrostrat_io
-    filebulk = "output/bulk.h5"
+    filebulk = geochem_fid
 
     # Start timer
     start = now()

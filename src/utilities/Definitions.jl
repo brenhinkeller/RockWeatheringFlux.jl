@@ -1,5 +1,9 @@
 ## --- File names
 
+    geochem_fid = "output/bulk.h5"
+    # geochem_fid = "output/gard.h5"
+    export geochem_fid
+
     # 500 Macrostrat samples
         # macrostrat_io = "output/N_500/toy_responses.h5"
         # matchedbulk_io = "output/N_500/toy_bulkidx.tsv"
@@ -127,7 +131,7 @@
         Yb, Zn, Zr
 
     Major elements are in part defined based on Faye and Ødegård 1975 
-    (https://www.ngu.no/filearchive/NGUPublikasjoner/NGUnr_322_Bulletin_35_Faye_35_53.pdf).
+    (https://www.ngu.no/filearchive/NGUPublikasjoner/NGUnr\\_322\\_Bulletin\\_35\\_Faye\\_35\\_53.pdf).
 
     See also: `major_elements`
 

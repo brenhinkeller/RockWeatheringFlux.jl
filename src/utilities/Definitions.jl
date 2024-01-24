@@ -135,6 +135,9 @@
     Major elements are in part defined based on Faye and Ødegård 1975 
     (https://www.ngu.no/filearchive/NGUPublikasjoner/NGUnr\\_322\\_Bulletin\\_35\\_Faye\\_35\\_53.pdf).
 
+    Note that Cr₂O₃, MnO, NiO, and P₂O₅ are minor elements calculated as wt.% element 
+    oxide.
+
     See also: `major_elements`
 
     """
@@ -150,6 +153,7 @@
     end
     export get_elements
 
+
     """
     ```julia
     get_REEs()
@@ -161,31 +165,6 @@
         :Yb, :Lu,
     ]
     export get_REEs
-
-    # This will be deprecated after I update StatGeochem
-    """
-    ```julia
-    get_chondrite_norm
-    ```
-    Chondrite values from Taylor and McLennan (1985).
-    """
-    get_chondrite_norm() = return (
-        La = 0.367,
-        Ce = 0.957,
-        Pr = 0.137,
-        Nd = 0.711,
-        Sm = 0.231,
-        Eu = 0.087,
-        Gd = 0.306,
-        Tb = 0.058,
-        Dy = 0.381,
-        Ho = 0.085,
-        Er = 0.249,
-        Tm = 0.036,
-        Yb = 0.248,
-        Lu = 0.038,
-    )
-    export get_chondrite_norm
 
     
 ## --- Igneous rock classifications by silica content

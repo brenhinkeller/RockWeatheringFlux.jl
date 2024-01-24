@@ -19,6 +19,7 @@
     close(fid)
 
     include_minor!(macro_cats)
+    macro_cats = delete_cover(macro_cats)
 
     # Earthchem (geochemical data)
     fid = h5open(geochem_fid, "r")
@@ -39,28 +40,22 @@
         zeronan!(bulk[i])
     end
 
-    UCC = (
-        bulk = [nanmean(bulk[i]) for i in allelements],
-        sed = [nanmean(bulk[i][macro_cats.sed]) for i in allelements],
-        met = [nanmean(bulk[i][macro_cats.met]) for i in allelements],
-        ign = [nanmean(bulk[i][macro_cats.ign]) for i in allelements],
-        volc = [nanmean(bulk[i][macro_cats.volc]) for i in allelements],
-        plut = [nanmean(bulk[i][macro_cats.plut]) for i in allelements],
-        granite = [nanmean(bulk[i][macro_cats.granite]) for i in allelements],
-        basalt = [nanmean(bulk[i][macro_cats.basalt]) for i in allelements],
-    )
+    # Save to a file 
+    rows = string.(allelements)
+    cols = hcat("element", string.(reshape(collect(keys(macro_cats)), 1, :)), "bulk")
+    results = Array{Float64}(undef, (length(allelements), length(macro_cats)+1))
+    for i in eachindex(keys(macro_cats))
+        results[:,i] .= [nanmean(bulk[j][macro_cats[i]]) for j in allelements]
+    end
+
+    bulkearth = [nanmean(bulk[i]) for i in allelements]
+    results[:,end] .= bulkearth
 
     # Save to file
-    rows = string.(allelements)
-    cols = hcat("element", string.(reshape(collect(keys(UCC)), (1, length(keys(UCC))))))
-    results = Array{Float64}(undef, (length(allelements), length(UCC)))
-    for i in eachindex(keys(UCC))
-        results[:,i] = UCC[i]
-    end
     writedlm("$ucc_out", vcat(cols, hcat(rows, results)))
 
     # Terminal printout
-    majorcomp = round.([UCC.bulk[i] for i in eachindex(majors)], digits=1)
+    majorcomp = round.([bulkearth[i] for i in eachindex(majors)], digits=1)
 
     @info """Bulk crustal composition ($geochem_fid | $macrostrat_io):
     $(join(majors, " \t "))

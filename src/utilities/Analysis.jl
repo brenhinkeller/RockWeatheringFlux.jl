@@ -1,5 +1,55 @@
 # Functions for data analysis and meta-analysis
 
+## --- Visualize rock class tuples
+    """
+    ```julia
+    terminal_cats(cats1, cats2; [catkeys, name1, name2])
+    ```
+
+    Print the number of `true` values in each key of `cat1` and `cat2`. Optionally specify
+    specific keys to print as `catkeys`. 
+    """
+    function terminal_cats(cats1::NamedTuple, cats2::NamedTuple; 
+            catkeys::AbstractArray{Symbol} = collect(keys(cats1)), 
+            name1::String="cats1", name2::String="cats2"
+        )
+        @assert keys(cats1) == keys(cats2)
+        # catkeys = collect(keys(cats1))
+        allkeys = collect(keys(cats1))
+
+        # Get pad lengths
+        keymax = length(string(allkeys[sortperm(string.(allkeys), by = length)[end]]))
+        max1 = max(length(name1), 6)
+        max2 = max(length(name2), 6)
+
+        # Terminal printout
+        println("$(rpad("Rock Class", keymax)) \t $(lpad(name1, max1)) $(lpad(name2, max1)) \t Maximum")
+        for k in catkeys
+            c1 = count(cats1[k])
+            c2 = count(cats2[k])
+
+            larger = ifelse(c1>c2, rpad(name1, max1), rpad(name2, max1))
+            diff = max(c1, c2) - min(c1, c2)
+
+            println("$(rpad(k, keymax)) \t $(lpad(c1, max1)) $(lpad(c2, max1)) \t $larger (+$diff)")
+        end
+    end
+
+    # I need this code to work, but if I don't have a kwarg in the previous method, this
+    # overwrites it and I don't understand why :(
+    # function terminal_cats(cats1::NamedTuple, cats2::NamedTuple; catkeys::AbstractArray{Symbol})
+    #     allkeys = collect(keys(cats1))
+    #     strmax = length(string(allkeys[sortperm(string.(allkeys), by = length)[end]]))
+
+    #     for k in catkeys
+    #         c1 = count(cats1[k])
+    #         c2 = count(cats2[k])
+    #         println("$(rpad(k, strmax)) \t $(lpad(c1, 6)) $(lpad(c2, 6))")
+    #     end
+    # end
+    export terminal_cats
+
+
 ## --- Modal bin / sample functions
 
     """

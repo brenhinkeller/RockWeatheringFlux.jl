@@ -3,9 +3,6 @@
     using RockWeatheringFlux
     using DelimitedFiles, HDF5
 
-    # Get igneous rock silica definitions
-    ignsilica = get_ignsilica()
-
 
 ## --- Load data for the matched EarthChem samples
     # Indices of matched EarthChem samples from SampleMatch.jl
@@ -13,67 +10,34 @@
     bulkidx = Int.(vec(fid[:,1]))
     t = @. bulkidx != 0
     
-    # Macrostrat
+    # Macrostrat (for rock types)
     fid = h5open("$macrostrat_io", "r")
-    macrostrat = (
-        rocklat = read(fid["vars"]["rocklat"])[t],
-        rocklon = read(fid["vars"]["rocklon"])[t],
-        age = read(fid["vars"]["age"])[t],
-    )
     header = read(fid["type"]["macro_cats_head"])
     data = read(fid["type"]["macro_cats"])
     data = @. data > 0
     macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
     close(fid)
 
-    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
-    for type in minorsed
-        macro_cats.sed .|= macro_cats[type]
-    end
-    for type in minorvolc
-        macro_cats.volc .|= macro_cats[type]
-    end
-    for type in minorplut
-        macro_cats.plut .|= macro_cats[type]
-    end
-    for type in minorign
-        macro_cats.ign .|= macro_cats[type]
-    end
+    include_minor!(macro_cats)
 
-    # Earthchem
+    # Earthchem (geochemical data)
     fid = h5open(geochem_fid, "r")
     header = read(fid["bulk"]["header"])
     data = read(fid["bulk"]["data"])
-    bulk = NamedTuple{Tuple(Symbol.(header))}(
-        [data[:,i][bulkidx[t]] for i in eachindex(header)])
+    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
     close(fid)
 
     # Elements of interest
     majors, minors = get_elements()
     allelements = [majors; minors]
 
-    # Define BitVectors for igneous rocks by silica content
-    ign_cats = (
-        fel = (@. macro_cats.ign & (ignsilica.fel[1] < bulk.SiO2 <= ignsilica.fel[2])),
-        int = (@. macro_cats.ign & (ignsilica.int[1] < bulk.SiO2 <= ignsilica.int[2])),
-        maf = (@. macro_cats.ign & (ignsilica.maf[1] < bulk.SiO2 <= ignsilica.maf[2])),
-        ultramaf = (@. macro_cats.ign & (ignsilica.maf[1] > bulk.SiO2)),
-        ultrafel = (@. macro_cats.ign & (ignsilica.fel[2] < bulk.SiO2)),
-    )
-
 
 ## --- Compute and export composition of exposed crust!
-    # If you have NaNs in for elements that aren't present, your averages get mad
-    # for i in allelements
-    #     zeronan!(bulk[i])
-    # end
-
-    # # Check that total wt.% still adds to 100%
-    # total = Array{Float64}(undef, length(bulk[1]))
-    # for i in eachindex(total)
-    #     total[i] = nansum([bulk[e][i] for e in allelements])
-    # end
-    # @assert isapprox(sum(total)/length(total), 100) "Incorrect normalization :("
+    # Some elements just aren't measured, but a good whole rock geochemistry should
+    # measure the major elements. If it's a NaN, it's probably just not there fr fr
+    for i in majors
+        zeronan!(bulk[i])
+    end
 
     UCC = (
         bulk = [nanmean(bulk[i]) for i in allelements],
@@ -82,11 +46,8 @@
         ign = [nanmean(bulk[i][macro_cats.ign]) for i in allelements],
         volc = [nanmean(bulk[i][macro_cats.volc]) for i in allelements],
         plut = [nanmean(bulk[i][macro_cats.plut]) for i in allelements],
-        fel = [nanmean(bulk[i][ign_cats.fel]) for i in allelements],
-        int = [nanmean(bulk[i][ign_cats.int]) for i in allelements],
-        maf = [nanmean(bulk[i][ign_cats.maf]) for i in allelements],
-        ultramaf = [nanmean(bulk[i][ign_cats.ultramaf]) for i in allelements],
-        ultrafel = [nanmean(bulk[i][ign_cats.ultrafel]) for i in allelements],
+        granite = [nanmean(bulk[i][macro_cats.granite]) for i in allelements],
+        basalt = [nanmean(bulk[i][macro_cats.basalt]) for i in allelements],
     )
 
     # Save to file

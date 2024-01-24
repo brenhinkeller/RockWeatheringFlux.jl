@@ -3,9 +3,7 @@
     # content. After Figure 6.9 from Keller, 2016 (10.31237/osf.io/q7yra)
 
     # Load data and base packages
-    if !@isdefined(filepath)
-        include("Definitions.jl")
-    end
+    include("Definitions.jl")
 
     # Preallocate / Local definitions
     nsims = Int(1e7)                         # 10 M simulations
@@ -44,6 +42,7 @@
         # Count and normalize distribution of silica
         c, n = bincounts(simbulk[:,1][t], xmin, xmax, xbins)
         n = (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
+        # n = float(n) ./ nansum(float(n) .* step(c))
 
         # Put the output in the output array
         out_bulk[i,:] .= n
@@ -76,6 +75,7 @@
         # Count and normalize distribution of silica
         c, n = bincounts(sim_mbulk[:,1][t], xmin, xmax, xbins)
         n = (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
+        # n = float(n) ./ nansum(float(n) .* step(c))
 
         # Put the output in the output array
         out_mbulk[i,:] .= n
@@ -97,7 +97,7 @@
         # colorbar_title="Relative Sample Density",
         colorbar=false,
         color=c_gradient,
-        title="A. Resampled EarthChem Samples\n"
+        title="A. Resampled Geochemical Samples\n"
     )
 
     # Matched samples
@@ -138,5 +138,73 @@
     display(h)
     savefig("$filepath/silica_heatmap.pdf")
 
-    
+
+## --- Alternatively, do a series of curves every 100 million years
+    # I'm particularly interested in the matched samples, and if there's points where
+    # the Daly Gap isn't present
+    using KernelDensity
+
+    # Set up a cute little color pallette 
+    p = Plots.palette(:glasgow, 50)[1:38]
+
+    # Figure out how many rows to grab to get the bin size we want 
+    target = collect(ymin:100:ymax)     # Age edges
+    target[end] = 3800                  # Make sure we include all samples to 3800
+    pᵢ = 1:round(Int, length(p)/length(target)):38
+
+    # Preallocate for subplots 
+    fig = Array{Plots.Plot{Plots.GRBackend}}(undef, 2)
+    fig_types = (:volc, :plut, :ign)
+    fig_names = ("A. Matched Data (Temporal Resample)", "B. Whole Dataset (Spatiotemporal Resample)")
+    sim = [sim_mbulk, simbulk]
+
+    for f in eachindex(fig)
+        h = Plots.plot(
+            xlims=(40,80),
+            yticks=false,
+            grid=false,
+            xlabel="SiO₂ [wt.%]", 
+            title=fig_names[f],
+            size=(600,400),
+            framestyle=:box
+        )
+
+        # Use the raw simulation data for KDE reasons
+        for i in 1:(length(target)-1)
+            # Get the samples in these age bins
+            t = @. (target[i] <= sim[f][:,2] < target[i+1]) & !isnan(sim[f][:,1])
+
+            # Estimate KDE and plot
+            u = kde(sim[f][:,1][t])
+            plot!(h, u.x, u.density, label="", color=p[pᵢ[i]])
+        end
+        
+        fig[f] = h
+    end
+
+    # Get subplots together
+    ylabel!(fig[1], "Relative Abundance")
+    a = Plots.plot(fig..., layout=(1, 2), size=(1200,500))
+
+    # We love legends. Very hack-y colorbar
+    b = Plots.plot(1:38, ones(38), label="",
+        seriestype=:bar, barwidths=1.1,
+        color=p, 
+        linealpha=0,
+        xlims=(0,38), xticks=([0.5, 19, 37], string.(0:1900:3800)),
+        xlabel="Age [Ma]", 
+        yticks=false, yaxis=false, 
+        tick_direction=:none, bordercolor=:white,
+        size=(600, 80),
+    )
+
+    # Assemble everything
+    l = @layout [a{0.95h} 
+                b{0.05h}]
+    h = Plots.plot(a, b, layout=l, size=(1200,600), 
+        left_margin=(40,:px), bottom_margin=(15,:px)
+    )
+    display(h)
+
+
 ## --- End of file 

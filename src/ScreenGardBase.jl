@@ -127,7 +127,7 @@
     end
     
     # Remove invalid / malformed UTF characters that are in here for god knows what reason
-    # Also, replace doesn't work so I had to make an extra special function :) <3
+    # Also, replace() doesn't work so I had to make an extra special function :) <3
     for i in eachindex(gard_sample.rock_name)
         gard_sample.rock_name[i] = replace_malformed_char(gard_sample.rock_name[i])
         gard_sample.sample_description[i] = replace_malformed_char(gard_sample.sample_description[i])
@@ -139,7 +139,7 @@
         gard_sample.rock_name, gard_sample.sample_description, gard_sample.qap_name, 
         Int.(gard_sample.rgroup_id), 
         rockgroup_id = Int.(gard_rgroup.rgroup_id), rockgroup_name = vec(rockgroup_name)
-    )
+    );
 
     # Just check what we have 
     # not_matched = RockWeatheringFlux.find_unmatched(gard_cats)
@@ -155,16 +155,13 @@
     trace_id = Int.(gard_sample.trace_id)
 
     # Get non-volatile elements
+    # We're not going to take data for Ge, Pa, Pm, Rh, Ru and that's ok <3
     majors, minors = get_elements();
     allelements = [majors; minors]
     deleteat!(allelements, findall(x->x==:Volatiles,allelements))    
 
     # Preallocate
     out = NamedTuple{Tuple(allelements)}(Array{Float64}(undef, npoints) for _ in allelements);
-
-    # # I want a list of all the elements I'm not copying over
-    # allkeys = vcat(collect(keys(gard_major)), collect(keys(gard_trace)))
-    # allkeys = NamedTuple{Tuple(allkeys)}([false] for _ in allkeys)
 
     # For each element, lowercase it, find it, and assign to the new Tuple
     p = Progress(length(allelements), desc="Creating geochemial data array", enabled=show_progress)
@@ -174,134 +171,35 @@
             for i in eachindex(major_id)
                 out[e][i] = gard_major[Symbol(lowercase(string(e)))][major_id[i]]
             end
-            # allkeys[Symbol(lowercase(string(e)))][1] = true
 
         elseif haskey(gard_trace, Symbol(lowercase(string(e) * "_ppm")))
         # Trace elements should be converted to wt.%
             for i in eachindex(trace_id)
                 out[e][i] = gard_trace[Symbol(lowercase(string(e) * "_ppm"))][trace_id[i]] / 10000
             end
-            # allkeys[Symbol(lowercase(string(e) * "_ppm"))][1] = true
 
         elseif e == :FeOT
-        # Manually copy FeOT
+        # Manually copy FeOT, convert all species to FeOT
             for i in eachindex(major_id)
-                out.FeOT[i] = gard_major.feo_tot[major_id[i]]
+                FeO = gard_major.feo[major_id[i]]
+                FeO_T = gard_major.feo_tot[major_id[i]]
+                Fe2O3 = gard_major.fe2o3[major_id[i]]
+                Fe2O3_T = gard_major.fe2o3_tot[major_id[i]]
+
+                out.FeOT[i] = feoconversion(FeO, Fe2O3, FeO_T, Fe2O3_T)
             end
-            # allkeys.feo_tot[1] = true
         else
             @warn "No key found for $e"
         end
         next!(p)
     end
 
-    # # Print the list of everything that wasn't copied
-    # uncopied = ""
-    # for k in keys(allkeys)
-    #     if allkeys[k][1] == false
-    #         uncopied *= " $k,"
-    #     end
-    # end
-    # println(uncopied)
-    # major_id, fe2o3, fe2o3_tot, feo, sro, h2o_plus, h2o_minus, h2o_tot, co2, so3, bao, 
-    # caco3, mgco3, loi, trace_id, br_ppm, h_ppm, n_ppm, p_ppm, al_ppm, ca_ppm, cr_ppm, 
-    # fe_ppm, ge_ppm, k_ppm, mg_ppm, mn_ppm, na_ppm, ni_ppm, pa_ppm, pm_ppm, rh_ppm, ru_ppm, 
-    # si_ppm, ti_ppm,
-    
-    # Of these, the non-volatiles I maybe want to think about are:
-    # Ge, Pa, Pm, Rh, Ru
-
-
-## --- Check that element / element oxide pairs record the same data
-    # Preallocate temporary comparison arrays 
-    oxide = Array{Float64}(undef, npoints)
-    elem = Array{Float64}(undef, npoints)
-
-    # Check that oxides convert to their elements. Conversion is [1] to [2]
-    pairs = [(:SiO2, :si_ppm, (28.085 + 15.999*2)/28.085), 
-        (:Al2O3, :al_ppm, (26.98*2 + 15.999*3)/26.98), 
-        (:TiO2, :ti_ppm, (47.867 + 15.999*2)/47.867), 
-        (:MgO, :mg_ppm, (24.305 + 15.999)/24.305), 
-        (:CaO, :ca_ppm, (40.078 + 15.999)/40.078), 
-        (:Na2O, :na_ppm, (23.000*2 + 15.999)/23.000), 
-        (:K2O, :k_ppm, (39.098*2 + 15.999)/39.098), 
-        (:Cr2O3, :cr_ppm, (51.996*2 + 15.999*3)/51.996), 
-        (:MnO, :mn_ppm, (54.938 + 15.999)/54.938), 
-        (:NiO, :ni_ppm, (58.693 + 15.999)/58.693), 
-        (:P2O5, :p_ppm, (30.974*2 + 15.999*5)/30.974),
-        (:Ba, :bao, 137.327/(137.327 + 15.999)),
-        (:Sr, :sro, 87.62/(87.62 + 15.999))
-    ];
-    
-    for p in pairs
-        # Get data into the comparison arrays, in the same units
-        oxide .= out[p[1]]
-        if p[1] == :Ba || p[1] == :Sr
-            for i in eachindex(elem)
-                elem[i] = gard_major[p[2]][major_id[i]] / 10000 * p[3]
-            end
-        else
-            for i in eachindex(elem)
-                elem[i] = gard_trace[p[2]][trace_id[i]] / 10000 * p[3]
-            end
-        end
-
-        # Check that overlapping element data is not within 1% of the oxide
-        overlap = @. !isnan(oxide) && !isnan(elem);
-        overlap_value = falses(length(overlap));
-        for i in eachindex(oxide)
-            if overlap[i] && (oxide[i]-(oxide[i]*0.01) < elem[i] < oxide[i]+(oxide[i]*0.01))
-                overlap_value[i] = true
-            end
-        end
-
-        # Terminal output
-        double_vals = count(overlap)
-        duplicates = count(overlap_value)
-        pct = round(duplicates/double_vals*100, digits=2)
-        # println("Element | Duplicate | Total Overlapping (% Duplicate)")
-        println("$(rpad(p[1], 6)) $(rpad(duplicates, 8)) of $(rpad(double_vals, 6)) ($pct%)")
-
-        # Add the element-as-element-oxide values to the element oxide, unless the values
-        # are negative, which is stupid
-    end
-    
-    # Treat iron species separately. Make sure Fe₂O₃ + FeO = FeO_T = Fe₂O₃_T
-    Fe2O3_to_FeO = (55.845 + 15.999)/(55.845*2 + 15.999*3)
-
-    Fe2O3_as_FeO = similar(out.FeOT)
-    Fe2O3_T_as_FeO = similar(out.FeOT)
-    FeO = similar(out.FeOT)
-    expected_FeO_T = similar(out.FeOT)
-
-    for i in eachindex(out.FeOT)
-        # Get the data out of the major file
-        Fe2O3_as_FeO[i] = gard_major.fe2o3[major_id[i]] * Fe2O3_to_FeO
-        Fe2O3_T_as_FeO[i] = gard_major.fe2o3_tot[major_id[i]] * Fe2O3_to_FeO
-        FeO[i] = gard_major.feo[major_id[i]]
-
-        # Calculate expected FeO_T from FeO and Fe₂O₃
-        expected_FeO_T[i] = nanadd(Fe2O3_as_FeO[i], FeO[i])
-    end
-
-    overlap = @. !isnan(out.FeOT) && !isnan(expected_FeO_T);
-
-    # TO DO: I assume I want to do something with the overlap array??
-    # uhhhhhh numbers??
-    [out.FeOT[overlap] expected_FeO_T[overlap]]
-
-    overlap .&= .!isnan.(Fe2O3_T_as_FeO)
-    [out.FeOT[overlap] expected_FeO_T[overlap] Fe2O3_T_as_FeO[overlap] FeO[overlap]]    
-
 
 ## --- Get volatiles and carbonates as temporary non-Tuple arrays
     # Preallocate
     H2O = similar(out.SiO2)
-    CO2 = similar(out.SiO2)
-    SO3 = similar(out.SiO2)
-    LOI = similar(out.SiO2)
-    CaCO3 = similar(out.SiO2)
-    MgCO3 = similar(out.SiO2)
+    CO2, SO3, LOI = similar(H2O), similar(H2O), similar(H2O)
+    CaCO3, MgCO3 = similar(H2O), similar(H2O)
 
     for i in eachindex(H2O)
         H2O[i] = gard_major.h2o_tot[major_id[i]]
@@ -314,16 +212,15 @@
 
 
 ## --- Screen outliers (e.g. remove negative data and physically impossible data)
-    # TO DO: where do these lower bounds come from?
     # Screen volatile outliers
-    LOI[(0.005 .>= LOI) .| (LOI .>= 22)] .= NaN    # TO DO: this feels very low
-    H2O[(0.005 .>= H2O) .| (H2O .>= 30)] .= NaN    
-    CO2[(0.005 .>= CO2) .| (CO2 .>= 53)] .= NaN    # Max is pure MgCO₃
-    SO3[(0.005 .>= SO3) .| (SO3 .>= 60)] .= NaN    # Max is pure CaSO₄ (32.065 + 15.999*3) / (40.078 + 32.065 + 15.999*4)
+    LOI[.!(0 .< LOI .< 50)] .= NaN    # Max is arbitrary?
+    H2O[.!(0 .< H2O .< 30)] .= NaN    # Max is arbitrary?
+    CO2[.!(0 .< CO2 .< 53)] .= NaN    # Max is pure MgCO₃
+    SO3[.!(0 .< SO3 .< 60)] .= NaN    # Max is pure CaSO₄
 
     # Screen carbonate outliers 
-    CaCO3[(0 .>= CaCO3) .| (CaCO3 .>= 100)] .= NaN
-    MgCO3[(0 .>= MgCO3) .| (MgCO3 .>= 100)] .= NaN
+    CaCO3[.!(0 .< CaCO3 .< 100)] .= NaN
+    MgCO3[.!(0 .< MgCO3 .< 100)] .= NaN
 
     # annnnd... everything else
     screen_outliers!(out)
@@ -379,6 +276,119 @@
     @turbo for i in eachindex(volatiles)
         volatiles[i] = ifelse(LOI[i] > volatiles[i], LOI[i], volatiles[i])
     end
+
+
+## --- Check that element / element oxide pairs record the same data
+    # C and CO2: if within 1%, assume it's the same data and delete C value
+    C_as_CO2 = out.C .* (molarmass["C"] + molarmass["O"]*2)/molarmass["C"];
+    for i in eachindex(CO2)
+        # Delete C value if it's within 1% of CO2 value
+        if (CO2[i]-(CO2[i]*0.01) < C_as_CO2[i] < CO2[i]+(CO2[i]*0.01))
+            out.C[i] = NaN
+        end
+    end
+
+    # S and SO3, same thing 
+    S_as_SO3 = out.S .* (molarmass["S"] + molarmass["O"]*3)/molarmass["S"];
+    for i in eachindex(SO3)
+        # Delete S value if it's within 1% of SO3 value
+        if (SO3[i]-(SO3[i]*0.01) < S_as_SO3[i] < SO3[i]+(SO3[i]*0.01))
+            out.S[i] = NaN
+        end
+    end
+
+    # Convert BaO and SrO [wt.%] to Ba and Sr 
+    Ba = gard_major.bao[major_id] .* (molarmass["Ba"]/(molarmass["Ba"] + molarmass["O"]));
+    Sr = gard_major.sro[major_id] .* (molarmass["Sr"]/(molarmass["Sr"] + molarmass["O"]));
+    for i in eachindex(out.Ba)
+        # Add Ba from BaO to trace Ba, as long as values aren't within 1% of each other
+        if !(out.Ba[i]-(out.Ba[i]*0.01) < Ba[i] < out.Ba[i]+(out.Ba[i]*0.01))
+            out.Ba[i] = nanadd(Ba[i], out.Ba[i])
+        end
+
+        # Same deal with Sr and SrO 
+        if !(out.Sr[i]-(out.Sr[i]*0.01) < Sr[i] < out.Sr[i]+(out.Sr[i]*0.01))
+            out.Sr[i] = nanadd(Sr[i], out.Sr[i])
+        end
+    end
+
+    # Actually, don't because we lose samples this way.
+    # # Convert major elements to major element oxides
+    # oxides = (:SiO2, :Al2O3, :TiO2, :MgO, :CaO, :Na2O, :K2O, :Cr2O3, :MnO, :NiO, :P2O5);
+    # sourcekey = (:si_ppm, :al_ppm, :ti_ppm, :mg_ppm, :ca_ppm, :na_ppm, :k_ppm, :cr_ppm, 
+    #     :mn_ppm, :ni_ppm, :p_ppm);
+    # conversionfactor = (
+    #     (molarmass["Si"]   + molarmass["O"]*2)/molarmass["Si"],
+    #     (molarmass["Al"]*2 + molarmass["O"]*3)/molarmass["Al"],
+    #     (molarmass["Ti"]   + molarmass["O"]*2)/molarmass["Ti"],
+    #     (molarmass["Mg"]   + molarmass["O"]  )/molarmass["Mg"],
+    #     (molarmass["Ca"]   + molarmass["O"]  )/molarmass["Ca"],
+    #     (molarmass["Na"]*2 + molarmass["O"]  )/molarmass["Na"],
+    #     (molarmass["K"] *2 + molarmass["O"]  )/molarmass["K"],
+    #     (molarmass["Cr"]*2 + molarmass["O"]*3)/molarmass["Cr"],
+    #     (molarmass["Mn"]   + molarmass["O"]  )/molarmass["Mn"],
+    #     (molarmass["Ni"]   + molarmass["O"]  )/molarmass["Ni"],
+    #     (molarmass["P"]*2  + molarmass["O"]*5)/molarmass["P"],
+    # );
+    # for i in eachindex(oxides)
+    #     # Add computed oxide to existing oxide, unless they're within 1% of each other
+    #     computed = gard_trace[sourcekey[i]][trace_id] ./ 10000 .* conversionfactor[i]
+    #     lower = out[oxides[i]] .- (out[oxides[i]] .* 0.01)
+    #     upper = out[oxides[i]] .+ (out[oxides[i]] .* 0.01)
+
+    #     overlap = trues(npoints);
+    #     for j in eachindex(computed)
+    #         if !(lower[j] < computed[j] < upper[j])
+    #             out[oxides[i]][j] = nanadd(out[oxides[i]][j], computed[j])
+    #             overlap[j] = false
+    #         end
+    #     end
+
+    #     total = count(.!isnan.(out[oxides[i]]) .& .!isnan.(computed));
+    #     pct = round(count(overlap)/total*100, digits=2)
+    #     println("$(rpad(oxides[i], 6)) $(rpad(count(overlap), 8)) of $(rpad(total, 6)) ($pct%)")
+    # end
+
+
+## --- [commented out] Look at C / CO2
+    # C_as_CO2 = out.C .* (molarmass["C"] + molarmass["O"]*2)/molarmass["C"];
+    # overlap = falses(npoints)
+    # for i in eachindex(CO2)
+    #     overlap[i] = (CO2[i]-(CO2[i]*0.01) < C_as_CO2[i] < CO2[i]+(CO2[i]*0.01))
+    # end
+
+    # # Run total analyzed wt.% code first!
+    # # If we subtract the overlapping samples, more samples are in the acceptable wt.% range
+    # count(overlap)                                          # 66
+    # count(overlap .& (bulkweight .> 104))                   # 3
+    # count((bulkweight[overlap] .- CO2[overlap]) .> 104)     # 0
+    # count((bulkweight[overlap] .- CO2[overlap]) .< 84)      # 1
+    # count(bulkweight[overlap] .< 84)                        # 0
+
+    # # Look at the values we're replacing 
+    # [C_as_CO2[overlap] CO2[overlap]]
+
+
+## --- [commented out] Look at oxide / element.
+    # # Run oxide / sourcekey / conversion factor code first!
+    # for i in eachindex(oxides)
+    #     # Add computed oxide to existing oxide, unless they're within 1% of each other
+    #     computed = gard_trace[sourcekey[i]][trace_id] ./ 10000 .* conversionfactor[i]
+    #     lower = out[oxides[i]] .- (out[oxides[i]] .* 0.01)
+    #     upper = out[oxides[i]] .+ (out[oxides[i]] .* 0.01)
+
+    #     overlap = falses(npoints);
+    #     for j in eachindex(computed)
+    #         if (lower[j] < computed[j] < upper[j])
+    #             overlap[j] = true
+    #         end
+    #     end
+        
+    #     # Total number of samples with values in the oxide and element
+    #     total = count(.!isnan.(out[oxides[i]]) .& .!isnan.(computed));
+    #     pct = round(count(overlap)/total*100, digits=2)
+    #     println("$(rpad(oxides[i], 6)) $(rpad(count(overlap), 8)) of $(rpad(total, 6)) ($pct%)")
+    # end
 
 
 ## --- Compute total wt.% analyzed for all samples

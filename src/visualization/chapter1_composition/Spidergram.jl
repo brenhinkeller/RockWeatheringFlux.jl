@@ -1,6 +1,6 @@
 ## --- Set up 
-    # REE patterns in my data compared to Rudnick and Gao, 2014 (10.1016/B978-0-08-095975-7.00301-6)
-    # REE patterns in the bulk EarthChem data
+    # Spider... gram. Spidergram.
+    # Check out the REE patterns on this guy
 
     # Load data and base packages
     include("Definitions.jl")
@@ -14,47 +14,25 @@
     rudnick_gao = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple);
 
 
-## --- Load my data
-    # Convert data to dictionaries
-    ucc_ign = Dict(zip(ucc.element, ucc.ign))
-    ucc_sed = Dict(zip(ucc.element, ucc.sed))
-    ucc = Dict(zip(ucc.element, ucc.bulk))
+## --- Load my data, normalized to 100% anhydrous
+    # Elements (anhydrous)
+    i = findfirst(x->x=="Volatiles", ucc.element)
+    elemkeys = Tuple(Symbol.(ucc.element[1:end .!= i]))
 
-    # Normalize to 100% anhydrous
-    for d in (ucc, ucc_ign, ucc_sed)
-        delete!(d, "Volatiles")
-    end
-    ucc = Dict(zip(keys(ucc), normalize!(collect(values(ucc)))))
-    ucc_ign = Dict(zip(keys(ucc_ign), normalize!(collect(values(ucc_ign)))))
-    ucc_sed = Dict(zip(keys(ucc_sed), normalize!(collect(values(ucc_sed)))))
-
-    # Convert normalized REE values to ppm for spidergram
-    for d in (ucc, ucc_ign, ucc_sed)
-        for k in REEs
-            haskey(d, string(k)) && (d[string(k)] *= 10_000)
-        end
-    end
+    # Rock types, including bulk (all samples). Get all units as ppm
+    class = merge(macro_cats, (bulk=trues(length(macro_cats[1])),))
+    ucc = NamedTuple{keys(class)}(
+        [NamedTuple{elemkeys}(normalize!(ucc[k][1:end .!= i]).*10_000) for k in keys(class)]
+    );
 
 
 ## --- Load undifferentiated EarthChem data
-    # Load data into dictionaries and convert to ppm
-    absent = findfirst(x->x==:Pm, REEs)
-    spider_REEs = REEs[1:end .!= absent]
-    bulk_earth = Dict(zip(spider_REEs, 
-        [nanmean(bulk[k]) for k in spider_REEs] .*= 10_000)
-    )
-    bulk_sed = Dict(zip(spider_REEs, 
-        [nanmean(bulk[k][bulk_cats.sed]) for k in spider_REEs] .*= 10_000)
-    )
-    bulk_ign = Dict(zip(spider_REEs, 
-        [nanmean(bulk[k][bulk_cats.ign]) for k in spider_REEs] .*= 10_000)
-    )
-    bulk_granite = Dict(zip(spider_REEs, 
-        [nanmean(bulk[k][bulk_cats.granite]) for k in spider_REEs] .*= 10_000)
-    )
-    bulk_basalt = Dict(zip(spider_REEs, 
-        [nanmean(bulk[k][bulk_cats.basalt]) for k in spider_REEs] .*= 10_000)
-    )
+    # Also convert units to ppm
+    spider_REEs = REEs[1:end .!= findfirst(x->x==:Pm, REEs)]
+    class = merge(bulk_cats, (bulk=trues(length(bulk_cats[1])),))
+    bulk_REE = NamedTuple{keys(class)}(
+        [NamedTuple{Tuple(spider_REEs)}([nanmean(bulk[k][f]).*10_000 for k in spider_REEs]) for f in class]
+    );
 
 
 ## --- Load Rudnick and Gao, 2014; Taylor and McLennan, 1985
@@ -89,16 +67,20 @@
     
 ## --- Spider... gram. Spidergram.
     h = spidergram(taylor_mclennan, label="Taylor and McLennan, 1985 / 1995", 
-        markershape=:diamond, seriescolor=:lightgrey)
+        markershape=:diamond, seriescolor=:lightgrey, legend=:bottomleft)
     spidergram!(h, rudnick_gao, label="Rudnick and Gao, 2014", 
         markershape=:diamond, seriescolor=:grey)
 
-    spidergram!(h, ucc_ign, label="This Study (Bulk Igneous)",
+    spidergram!(h, ucc.ign, label="This Study (Igneous)",
         markershape=:utriangle, seriescolor=colors.ign)
-    spidergram!(h, ucc_sed, label="This Study (Bulk Sedimentary)",
+    spidergram!(h, ucc.granite, label="This Study (Granite)",
+        markershape=:utriangle, seriescolor=colors.granite)
+    spidergram!(h, ucc.sed, label="This Study (Sedimentary)",
         markershape=:dtriangle, seriescolor=colors.sed)
+    spidergram!(h, ucc.shale, label="This Study (Shales)",
+        markershape=:dtriangle, seriescolor=colors.shale)
 
-    spidergram!(h, ucc, label="This Study (Bulk Earth)",
+    spidergram!(h, ucc.bulk, label="This Study (Bulk Earth)",
         markershape=:circle, seriescolor=:black)
 
     display(h)
@@ -109,25 +91,80 @@
     h = spidergram(rudnick_gao, label="Rudnick and Gao, 2014", 
         markershape=:diamond, seriescolor=:grey)
 
-    spidergram!(h, bulk_sed, label="Bulk Sedimentary", 
+    spidergram!(h, bulk_REE.sed, label="All Sedimentary", 
         markershape=:utriangle, seriescolor=colors.sed)
-    spidergram!(h, bulk_ign, label="Bulk Igneous",
+    spidergram!(h, bulk_REE.shale, label="All Shales", 
+        markershape=:utriangle, seriescolor=colors.shale)
+    spidergram!(h, bulk_REE.ign, label="All Igneous",
         markershape=:utriangle, seriescolor=colors.ign)
 
-    spidergram!(h, bulk_granite, label="Bulk Granite",
+    spidergram!(h, bulk_REE.granite, label="All Granites",
         markershape=:utriangle, seriescolor=colors.granite)
-    spidergram!(h, bulk_basalt, label="Bulk Basalt",
+    spidergram!(h, bulk_REE.basalt, label="All Basalts",
         markershape=:utriangle, seriescolor=colors.basalt)
 
-    # spidergram!(h, bulk_earth, label="Bulk EarthChem",
-    #     markershape=:utriangle, seriescolor=:brown)
 
-    # spidergram!(h, ucc_ign, label="This Study (Bulk Igneous)",
-    #     markershape=:circle, seriescolor=colors.ign)
-    # spidergram!(h, ucc_sed, label="This Study (Bulk Sedimentary)",
-    #     markershape=:circle, seriescolor=colors.sed)
-    # spidergram!(h, ucc, label="This Study (Bulk Earth)",
-    #     markershape=:circle, seriescolor=:brown)
+## --- Break down igneous rocks a little more
+    minorsed, minorvolc, minorplut, minorign = get_rock_class()[2:5];
+
+    # Volcanic
+    p = Plots.palette(:managua, length(minorvolc))
+    h1 = spidergram(bulk_REE.volc, label="Volcanic", markershape=:utriangle,
+        seriescolor=colors.volc, legend=:outerright, size=(800, 400),
+        title="Volcanic (All Geochemical Samples)")
+    h2 = spidergram(ucc.volc, label="Volcanic", markershape=:utriangle,
+        seriescolor=colors.volc, legend=:outerright, size=(800, 400),
+        title="Volcanic (Matched Geochemical Samples)")
+    for i in eachindex(minorvolc)
+        spidergram!(h1, bulk_REE[minorvolc[i]], label="$(minorvolc[i])", markershape=:utriangle, color=p[i])
+        spidergram!(h2, ucc[minorvolc[i]], label="$(minorvolc[i])", markershape=:utriangle, color=p[i])
+    end
+    spidergram!(h1, rudnick_gao, label="Rudnick and Gao, 2014", 
+        markershape=:diamond, seriescolor=:black)
+    spidergram!(h2, rudnick_gao, label="Rudnick and Gao, 2014", 
+        markershape=:diamond, seriescolor=:black)
+    display(h1)
+    display(h2)
+
+
+    # Plutonic
+    p = Plots.palette(:managua, length(minorplut))
+    h1 = spidergram(bulk_REE.plut, label="Plutonic", markershape=:utriangle,
+        seriescolor=colors.plut, legend=:outerright, size=(800, 400),
+        title="Plutonic (All Geochemical Samples)")
+    h2 = spidergram(ucc.plut, label="Plutonic", markershape=:utriangle,
+        seriescolor=colors.plut, legend=:outerright, size=(800, 400),
+        title="Plutonic (Matched Geochemical Samples)")
+    for i in eachindex(minorplut)
+        spidergram!(h1, bulk_REE[minorplut[i]], label="$(minorplut[i])", markershape=:utriangle, color=p[i])
+        spidergram!(h2, ucc[minorplut[i]], label="$(minorplut[i])", markershape=:utriangle, color=p[i])
+    end
+    spidergram!(h1, rudnick_gao, label="Rudnick and Gao, 2014", 
+        markershape=:diamond, seriescolor=:black)
+    spidergram!(h2, rudnick_gao, label="Rudnick and Gao, 2014", 
+        markershape=:diamond, seriescolor=:black)
+    display(h1)
+    display(h2)
+
+
+    # Bulk igneous
+    p = Plots.palette(:managua, length(minorign))
+    h1 = spidergram(bulk_REE.ign, label="Igneous", markershape=:utriangle,
+        seriescolor=colors.ign, legend=:outerright, size=(800, 400),
+        title="Igneous (All Geochemical Samples)")
+    h2 = spidergram(ucc.ign, label="Igneous", markershape=:utriangle,
+        seriescolor=colors.ign, legend=:outerright, size=(800, 400),
+        title="Igneous (Matched Geochemical Samples)")
+    for i in eachindex(minorign)
+        spidergram!(h1, bulk_REE[minorign[i]], label="$(minorign[i])", markershape=:utriangle, color=p[i])
+        spidergram!(h2, ucc[minorign[i]], label="$(minorign[i])", markershape=:utriangle, color=p[i])
+    end
+    spidergram!(h1, rudnick_gao, label="Rudnick and Gao, 2014", 
+        markershape=:diamond, seriescolor=:black)
+    spidergram!(h2, rudnick_gao, label="Rudnick and Gao, 2014", 
+        markershape=:diamond, seriescolor=:black)
+    display(h1)
+    display(h2)
 
 
 ## --- End of file 

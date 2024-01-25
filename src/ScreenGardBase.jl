@@ -474,9 +474,9 @@
     out.Longitude[(-180 .> out.Longitude) .| (out.Longitude .> 180)] .= NaN
 
 
-## --- Restrict metadata 
+ ## --- Get or restrict metadata
     # References
-    references = Array{String}(undef, length(out.SiO2))
+    references = Array{String}(undef, length(gard_sample.ref_id))
     for i in eachindex(references)
         j = Int(gard_sample.ref_id[i])
         year = isnan(gard_ref.year[j]) ? "" : string(Int(gard_ref.year[j]))
@@ -509,8 +509,11 @@
         writebulk[:,i] = out[allkeys[i]]
     end
 
-    # References 
-    write(text, "references", references)
+    # References and rock descriptions
+    write(text, "Reference", references[t])
+    write(text, "Rock_Name", gard_sample.rock_name[t])
+    write(text, "Sample_Description", gard_sample.sample_description[t])
+    write(text, "QAP_Name", gard_sample.qap_name[t])
 
     # Rock class
     a = Array{Int64}(undef, length(gard_kittens[1]), length(gard_kittens))

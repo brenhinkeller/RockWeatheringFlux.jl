@@ -6,9 +6,7 @@
     using KernelDensity, MAT 
 
     # Load data and base packages
-    if !@isdefined(filepath)
-        include("Definitions.jl")
-    end
+    include("Definitions.jl")
 
     # Filter NaNs from my samples 
     here = @. !isnan(mbulk.SiO2);
@@ -231,4 +229,53 @@
     savefig(h, "$filepath/silica_all.pdf")
 
     
+
+## --- More in depth look at igneous rocks 
+    minorsed, minorvolc, minorplut, minorign = get_rock_class()[2:5];
+    mplut = (:plut, minorplut...)   # 10 (3x4)
+    mvolc = (:volc, minorvolc...)   # 8  (3x3)
+    exclude_minor!(macro_cats)
+
+    division = (mplut, mvolc)
+    for d in division
+        fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(d))
+        fig_names = string.(d)
+        for i in eachindex(fig)
+            h = plot(
+                framestyle=:box, 
+                grid = false,
+                fontfamily=:Helvetica, 
+                xlims=(40,80),
+                xticks=(40:10:80, string.(40:10:80)),
+                yticks=false
+            )
+
+            # Raw data
+            c, n = bincounts(mbulk.SiO2[macro_cats[d[i]]], 40, 80, 80)
+            n = float(n) ./ nansum(float(n) .* step(c))
+            Plots.plot!(c, n, 
+                seriestype=:bar, barwidths=0.5,
+                color=colors[d[i]], linecolor=:match, alpha=0.25, label=""
+            )
+
+            # Kernel density estimate 
+            u = kde(mbulk.SiO2[macro_cats[d[i]] .& here])
+            Plots.plot!(u.x, u.density, 
+                seriestype=:path, linewidth=4,
+                color=colors[d[i]], linecolor=colors[d[i]], label=""
+            )
+
+            # Final formatting
+            Plots.ylims!(0, round(maximum([n; u.density]), digits=2)+0.01)
+            npoints = count(macro_cats[d[i]])
+            Plots.annotate!(((0.03, 0.97), (fig_names[i] * "\nn = $npoints", 18, :left, :top)))
+            fig[i] = h
+        end
+        ncols = ceil(Int, length(d)/3)
+        h = Plots.plot(fig..., layout = (3,ncols), size=(600*ncols, 400*3))
+        display(h)
+    end
+
+    
+
 ## --- End of file

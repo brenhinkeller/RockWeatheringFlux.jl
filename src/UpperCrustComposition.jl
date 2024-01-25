@@ -61,8 +61,8 @@
     $(join(majors, " \t "))
     $(join(majorcomp, " \t "))
 
-    Total (majors): $(round(nansum(UCC.bulk[1:length(majors)]), sigdigits=4))%
-    Total (major + trace): $(round(nansum(UCC.bulk), sigdigits=4))%
+    Total (majors): $(round(nansum(bulkearth[1:length(majors)]), sigdigits=4))%
+    Total (major + trace): $(round(nansum(bulkearth), sigdigits=4))%
     """
 
 

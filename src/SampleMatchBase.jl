@@ -129,45 +129,21 @@
     end
 
     # Pass three: reassign major types to a minor subtype
-    # Our bigtypes array should have ONLY :sed, :volc, :plut, :carbonatite, and :none
     for i in eachindex(littletypes)
         if littletypes[i] == :sed
-            # Sedimentary rocks
             littletypes[i] = minorsed[weighted_rand(ptype.sed)]
-            bigtypes[i] = :sed
-
-        elseif littletypes[i] == :ign 
-            # Undifferentiated igneous need a sub-class and a major class
-            bigtypes[i] = minorign[weighted_rand(ptype.ign)]
-            if bigtypes[i] == :volc
-                littletypes[i] = minorvolc[weighted_rand(ptype.volc)]
-
-            elseif bigtypes[i] == :plut 
-                littletypes[i] = minorplut[weighted_rand(ptype.plut)]
-
-            elseif bigtypes[i] == :carbonatite
-                littletypes[i] = :carbonatite
-
-            end
-        
-        elseif littletypes[i] == :volc
-            # Volcanic rocks
+        elseif littletypes[i] == :volc 
             littletypes[i] = minorvolc[weighted_rand(ptype.volc)]
-            bigtypes[i] = :volc
-
-        elseif littletypes[i] == :plut
-            # Plutonic rocks
+        elseif littletypes[i] == :plut 
             littletypes[i] = minorplut[weighted_rand(ptype.plut)]
-            bigtypes[i] = :plut
-
-        elseif littletypes[i] != :none
-            # If already a minor class, just find the big class
-            bigtypes[i] = class_up(littletypes[i], minorsed, minorvolc, minorplut, minorign)
-
-        else
-            # If no types, keep that
-            bigtypes[i] = :none
-        
+        elseif littletypes[i] == :ign 
+            # Pick a sub-class (volcanic / plutonic / carbonatite) and re-assign volc / plut
+            littletypes[i] = minorign[weighted_rand(ptype.ign)]
+            if littletypes[i] == :volc
+                littletypes[i] = minorsed[weighted_rand(ptype.sed)]
+            elseif littletypes[i] == :plut 
+                littletypes[i] = minorsed[weighted_rand(ptype.sed)]
+            end
         end
     end
 

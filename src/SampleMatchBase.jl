@@ -77,12 +77,7 @@
 
 ## --- Calculate relative abundance of each type in the lithological map
     # To calculate total volcanic / plutonic abundance, must include subtypes
-    for type in minorvolc
-        macro_cats.volc .|= macro_cats[type]
-    end
-    for type in minorplut
-        macro_cats.plut .|= macro_cats[type]
-    end
+    include_minor!(macro_cats)
 
     # Absolute abundance of each rock type (count)
     ptype = (
@@ -108,22 +103,8 @@
 
 ## --- If samples are matched to a rock subtype and a rock major type, don't!
     # This is mostly important for figuring out what minor type to assign each sample
-    for type in minorsed
-        macro_cats.sed .&= .!macro_cats[type]
-        bulk_cats.sed .&= .!bulk_cats[type]
-    end
-    for type in minorvolc
-        macro_cats.volc .&= .!macro_cats[type]
-        bulk_cats.volc .&= .!bulk_cats[type]
-    end
-    for type in minorplut
-        macro_cats.plut .&= .!macro_cats[type]
-        bulk_cats.plut .&= .!bulk_cats[type]
-    end
-    for type in minorign
-        macro_cats.ign .&= .!macro_cats[type]
-        bulk_cats.ign .&= .!bulk_cats[type]
-    end
+    exclude_minor!(macro_cats)
+    exclude_minor!(bulk_cats)
 
 
 ## --- Match each Macrostrat sample to a single informative rock name and type
@@ -148,12 +129,15 @@
     end
 
     # Pass three: reassign major types to a minor subtype
+    # Our bigtypes array should have ONLY :sed, :volc, :plut, :carbonatite, and :none
     for i in eachindex(littletypes)
         if littletypes[i] == :sed
+            # Sedimentary rocks
             littletypes[i] = minorsed[weighted_rand(ptype.sed)]
             bigtypes[i] = :sed
 
         elseif littletypes[i] == :ign 
+            # Undifferentiated igneous need a sub-class and a major class
             bigtypes[i] = minorign[weighted_rand(ptype.ign)]
             if bigtypes[i] == :volc
                 littletypes[i] = minorvolc[weighted_rand(ptype.volc)]
@@ -165,11 +149,23 @@
                 littletypes[i] = :carbonatite
 
             end
+        
+        elseif littletypes[i] == :volc
+            # Volcanic rocks
+            littletypes[i] = minorvolc[weighted_rand(ptype.volc)]
+            bigtypes[i] = :volc
+
+        elseif littletypes[i] == :plut
+            # Plutonic rocks
+            littletypes[i] = minorplut[weighted_rand(ptype.plut)]
+            bigtypes[i] = :plut
 
         elseif littletypes[i] != :none
+            # If already a minor class, just find the big class
             bigtypes[i] = class_up(littletypes[i], minorsed, minorvolc, minorplut, minorign)
 
         else
+            # If no types, keep that
             bigtypes[i] = :none
         
         end

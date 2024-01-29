@@ -1,7 +1,7 @@
 ## --- File names
 
-    # geochem_fid = "output/bulk.h5"
-    geochem_fid = "output/gard.h5"
+    geochem_fid = "output/bulk.h5"
+    # geochem_fid = "output/gard.h5"
     export geochem_fid
 
     stem = split(geochem_fid, ['/', '.'])[2]

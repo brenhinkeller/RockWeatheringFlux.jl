@@ -1,118 +1,118 @@
 # New NaNStatistics methods for Measurements with NaN values
 # Ignore any NaN ± NaN and NaN ± err values. Convert val ± NaN to val ± 0
 
-## --- Summary Statistics
-    """
-    ```julia
-    nanadd(A ± B, C ± D)
-    ```
+# ## --- Summary Statistics
+#     """
+#     ```julia
+#     nanadd(A ± B, C ± D)
+#     ```
 
-    As `nanadd`, but if `A` or `C` is `NaN`, ignore the value. Convert any `NaN` errors to zeros.
+#     As `nanadd`, but if `A` or `C` is `NaN`, ignore the value. Convert any `NaN` errors to zeros.
 
-    # Examples
-    ```julia-repl
-    julia> nanadd(NaN ± NaN, 3 ± 4)
-    3 ± 4
+#     # Examples
+#     ```julia-repl
+#     julia> nanadd(NaN ± NaN, 3 ± 4)
+#     3 ± 4
 
-    julia> nanadd(2 ± 4, NaN ± 1)
-    2 ± 4
+#     julia> nanadd(2 ± 4, NaN ± 1)
+#     2 ± 4
 
-    julia> nanadd(4 ± 1, 2 ± NaN)
-    6 ± 1
+#     julia> nanadd(4 ± 1, 2 ± NaN)
+#     6 ± 1
 
-    julia> nanadd(6 ± NaN, 2 ± NaN)
-    8.0 ± 0.0
+#     julia> nanadd(6 ± NaN, 2 ± NaN)
+#     8.0 ± 0.0
 
-    julia> nanadd(NaN±NaN, NaN±NaN)
-    0.0 ± 0.0
-    ```
+#     julia> nanadd(NaN±NaN, NaN±NaN)
+#     0.0 ± 0.0
+#     ```
 
-    """
-    function NaNStatistics.nanadd(a::Measurement, b::Measurement)
-        a = a.val*(a.val==a.val) ± ifelse(a.val==a.val, a.err*(a.err==a.err), 0)
-        b = b.val*(b.val==b.val) ± ifelse(b.val==b.val, b.err*(b.err==b.err), 0)
+#     """
+#     function NaNStatistics.nanadd(a::Measurement, b::Measurement)
+#         a = a.val*(a.val==a.val) ± ifelse(a.val==a.val, a.err*(a.err==a.err), 0)
+#         b = b.val*(b.val==b.val) ± ifelse(b.val==b.val, b.err*(b.err==b.err), 0)
 
-        return a + b
-    end
-    export nanadd
+#         return a + b
+#     end
+#     export nanadd
 
 
-    """
-    ```julia
-    nansum(A)
-    ```
+#     """
+#     ```julia
+#     nansum(A)
+#     ```
 
-    Calculate the sum of a collection of measurements `A`. Ignore all `NaN` values and convert
-    all `NaN` errors to zero.
+#     Calculate the sum of a collection of measurements `A`. Ignore all `NaN` values and convert
+#     all `NaN` errors to zero.
 
-    """
-    function NaNStatistics.nansum(A::AbstractArray{Measurement{Float64}})
-        Tₒ = Base.promote_op(+, eltype(A[1].val), Int)
-        Σ = ∅ = zero(Tₒ)
+#     """
+#     function NaNStatistics.nansum(A::AbstractArray{Measurement{Float64}})
+#         Tₒ = Base.promote_op(+, eltype(A[1].val), Int)
+#         Σ = ∅ = zero(Tₒ)
         
-        @inbounds for i ∈ eachindex(A)
-            Avalᵢ = A[i].val
-            Aerrᵢ = A[i].err*(A[i].err==A[i].err)
+#         @inbounds for i ∈ eachindex(A)
+#             Avalᵢ = A[i].val
+#             Aerrᵢ = A[i].err*(A[i].err==A[i].err)
             
-            Σ += ifelse(Avalᵢ==Avalᵢ, (Avalᵢ ± ifelse(Aerrᵢ==Aerrᵢ, Aerrᵢ, ∅)), ∅)
-        end
+#             Σ += ifelse(Avalᵢ==Avalᵢ, (Avalᵢ ± ifelse(Aerrᵢ==Aerrᵢ, Aerrᵢ, ∅)), ∅)
+#         end
 
-        return Σ
-    end
-    export nansum
+#         return Σ
+#     end
+#     export nansum
 
 
-    """
-    ```julia
-    nanmean(A)
-    ```
+#     """
+#     ```julia
+#     nanmean(A)
+#     ```
 
-    Calculate the mean of a collection of measurements `A`. Ignore all `NaN` values and convert
-    all `NaN` errors to zero.
+#     Calculate the mean of a collection of measurements `A`. Ignore all `NaN` values and convert
+#     all `NaN` errors to zero.
 
-    """
-    function NaNStatistics.nanmean(A::AbstractArray{Measurement{Float64}})
-        Tₒ = Base.promote_op(/, eltype(A[1].val), Int)
-        n = 0
-        Σ =  ∅ = zero(Tₒ)
+#     """
+#     function NaNStatistics.nanmean(A::AbstractArray{Measurement{Float64}})
+#         Tₒ = Base.promote_op(/, eltype(A[1].val), Int)
+#         n = 0
+#         Σ =  ∅ = zero(Tₒ)
         
-        @inbounds for i ∈ eachindex(A)
-            Avalᵢ = A[i].val
-            Aerrᵢ = A[i].err*(A[i].err==A[i].err)
+#         @inbounds for i ∈ eachindex(A)
+#             Avalᵢ = A[i].val
+#             Aerrᵢ = A[i].err*(A[i].err==A[i].err)
 
-            Σ += ifelse(Avalᵢ==Avalᵢ, Avalᵢ ± Aerrᵢ, ∅)
-            n += (Avalᵢ==Avalᵢ)
-        end
-        return (Σ/n)
-    end
-    export nanmean
-
-
-## --- Variance and standard deviation
-    NaNStatistics.nanstd(A::AbstractArray{Measurement{Float64}}; 
-        mean=nothing, corrected::Bool=true) = 
-        NaNStatistics.sqrt!(_nanvar(mean, corrected, A))
-
-    NaNStatistics.nanvar(A::AbstractArray{Measurement{Float64}}; 
-        mean=nothing, corrected::Bool=true) = _nanvar(mean, corrected, A)
-
-    _nanvar(::Nothing, corrected, A) = _nanvar(nanmean(A), corrected, A)
-
-    function _nanvar(μ::Measurement{Float64}, corrected::Bool, A::Vector{Measurement{Float64}})
-        n = 0
-        σ² = ∅ = zero(typeof(μ))
-        @inbounds for i ∈ eachindex(A)
-            δ = nanadd(A[i], - μ)
-            notnan = A[i].val==A[i].val
-            n += notnan
-            σ² += ifelse(notnan, δ * δ, ∅)
-        end
-        return σ² / max(n-corrected, 0)
-    end
-    export nanvar, nanstd
+#             Σ += ifelse(Avalᵢ==Avalᵢ, Avalᵢ ± Aerrᵢ, ∅)
+#             n += (Avalᵢ==Avalᵢ)
+#         end
+#         return (Σ/n)
+#     end
+#     export nanmean
 
 
-## --- NaNs in arrays 
+# ## --- Variance and standard deviation
+#     NaNStatistics.nanstd(A::AbstractArray{Measurement{Float64}}; 
+#         mean=nothing, corrected::Bool=true) = 
+#         NaNStatistics.sqrt!(_nanvar(mean, corrected, A))
+
+#     NaNStatistics.nanvar(A::AbstractArray{Measurement{Float64}}; 
+#         mean=nothing, corrected::Bool=true) = _nanvar(mean, corrected, A)
+
+#     _nanvar(::Nothing, corrected, A) = _nanvar(nanmean(A), corrected, A)
+
+#     function _nanvar(μ::Measurement{Float64}, corrected::Bool, A::Vector{Measurement{Float64}})
+#         n = 0
+#         σ² = ∅ = zero(typeof(μ))
+#         @inbounds for i ∈ eachindex(A)
+#             δ = nanadd(A[i], - μ)
+#             notnan = A[i].val==A[i].val
+#             n += notnan
+#             σ² += ifelse(notnan, δ * δ, ∅)
+#         end
+#         return σ² / max(n-corrected, 0)
+#     end
+#     export nanvar, nanstd
+
+
+# ## --- NaNs in arrays 
     """
     ```julia
     zeronan!(A, [allnans])

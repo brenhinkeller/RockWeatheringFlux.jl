@@ -132,18 +132,18 @@
     for i in eachindex(littletypes)
         if littletypes[i] == :sed
             littletypes[i] = minorsed[weighted_rand(ptype.sed)]
-        elseif littletypes[i] == :volc 
-            littletypes[i] = minorvolc[weighted_rand(ptype.volc)]
-        elseif littletypes[i] == :plut 
-            littletypes[i] = minorplut[weighted_rand(ptype.plut)]
+        # elseif littletypes[i] == :volc 
+        #     littletypes[i] = minorvolc[weighted_rand(ptype.volc)]
+        # elseif littletypes[i] == :plut 
+        #     littletypes[i] = minorplut[weighted_rand(ptype.plut)]
         elseif littletypes[i] == :ign 
             # Pick a sub-class (volcanic / plutonic / carbonatite) and re-assign volc / plut
             littletypes[i] = minorign[weighted_rand(ptype.ign)]
-            if littletypes[i] == :volc
-                littletypes[i] = minorsed[weighted_rand(ptype.sed)]
-            elseif littletypes[i] == :plut 
-                littletypes[i] = minorsed[weighted_rand(ptype.sed)]
-            end
+            # if littletypes[i] == :volc
+            #     littletypes[i] = minorsed[weighted_rand(ptype.sed)]
+            # elseif littletypes[i] == :plut 
+            #     littletypes[i] = minorsed[weighted_rand(ptype.sed)]
+            # end
         end
     end
 

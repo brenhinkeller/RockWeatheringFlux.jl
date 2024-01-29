@@ -562,6 +562,26 @@
     end
 
 
+## --- Remove some samples for being ontologically bad 
+    # Preallocate a BitVector for the screened samples 
+    s = trues(npoints)
+
+    # Remove stream sediment 
+    s .&= .!(gard_sample.material .== "stream sediment")
+
+    # Get a list of authors so we can remove some of them    
+    [author[i] = gard_ref.author[Int(gard_sample.ref_id[i])] for i in eachindex(author)]
+
+    # These are reported incorrectly (Brenhin / Blair checked the pub)
+    s .&= .!(author .== "kylander-clark, andrew r c; coleman, drew s; glazner, allen f; bartley, john m, 2005");
+
+    # These are for zirons, not whole-rock samples
+    s .&= .!(author .== "lanphere, marvin a; baadsgaard, h, 2001");
+
+    # These are all typos (U>100 ppm) - from Brenhin / Blair
+    s .&= .!(author .== "Donskaya, T. V.; Gladkochub, D. P. & Mazukabzov, A. M.");
+
+
 ## --- Correct for assumed unmeasured volatile loss
     # Preallocate
     volatiles_assumed = Array{Float64}(undef, npoints)
@@ -580,6 +600,7 @@
     # Restrict data to between 84 and 104 wt.%
     t = @. 84 <= bulkweight <= 104; tᵢ = count(t)           # Without assumed volatiles
     t = @. 84 <= bulkweight .+ volatiles_assumed <= 104;    # With assumed volatiles
+    t .&= s                                                 # Nothing ontologically bad
     
     @turbo volatiles .+= volatiles_assumed
     isgypsum = vec(gard_sample.rock_name .== "gypsum");

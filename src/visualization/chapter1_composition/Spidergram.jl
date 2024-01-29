@@ -67,7 +67,8 @@
     
 ## --- Spider... gram. Spidergram.
     h = spidergram(taylor_mclennan, label="Taylor and McLennan, 1985 / 1995", 
-        markershape=:diamond, seriescolor=:lightgrey, legend=:bottomleft)
+        markershape=:diamond, seriescolor=:lightgrey, legend=:bottomleft,
+        title="Matched Samples [$geochem_fid]")
     spidergram!(h, rudnick_gao, label="Rudnick and Gao, 2014", 
         markershape=:diamond, seriescolor=:grey)
 
@@ -87,9 +88,10 @@
     savefig("$filepath/spidergram.pdf")
 
 
-## --- Spidergram comparing bulk EarthChem REEs and Rudnick and Gao estimation
+## --- Spidergram comparing bulk geochemical REEs and Rudnick and Gao estimation
     h = spidergram(rudnick_gao, label="Rudnick and Gao, 2014", 
-        markershape=:diamond, seriescolor=:grey)
+        markershape=:diamond, seriescolor=:grey, 
+        title="Bulk [$geochem_fid] Geochemical Dataset")
 
     spidergram!(h, bulk_REE.sed, label="All Sedimentary", 
         markershape=:utriangle, seriescolor=colors.sed)
@@ -102,6 +104,8 @@
         markershape=:utriangle, seriescolor=colors.granite)
     spidergram!(h, bulk_REE.basalt, label="All Basalts",
         markershape=:utriangle, seriescolor=colors.basalt)
+    
+    display(h)
 
 
 ## --- Break down igneous rocks a little more
@@ -111,10 +115,10 @@
     p = Plots.palette(:managua, length(minorvolc))
     h1 = spidergram(bulk_REE.volc, label="Volcanic", markershape=:utriangle,
         seriescolor=colors.volc, legend=:outerright, size=(800, 400),
-        title="Volcanic (All Geochemical Samples)")
+        title="Volcanic (All Geochemical Samples) [$geochem_fid]")
     h2 = spidergram(ucc.volc, label="Volcanic", markershape=:utriangle,
         seriescolor=colors.volc, legend=:outerright, size=(800, 400),
-        title="Volcanic (Matched Geochemical Samples)")
+        title="Volcanic (Matched Geochemical Samples) [$geochem_fid]")
     for i in eachindex(minorvolc)
         spidergram!(h1, bulk_REE[minorvolc[i]], label="$(minorvolc[i])", markershape=:utriangle, color=p[i])
         spidergram!(h2, ucc[minorvolc[i]], label="$(minorvolc[i])", markershape=:utriangle, color=p[i])
@@ -129,42 +133,42 @@
 
     # Plutonic
     p = Plots.palette(:managua, length(minorplut))
-    h1 = spidergram(bulk_REE.plut, label="Plutonic", markershape=:utriangle,
+    h3 = spidergram(bulk_REE.plut, label="Plutonic", markershape=:utriangle,
         seriescolor=colors.plut, legend=:outerright, size=(800, 400),
-        title="Plutonic (All Geochemical Samples)")
-    h2 = spidergram(ucc.plut, label="Plutonic", markershape=:utriangle,
+        title="Plutonic (All Geochemical Samples) [$geochem_fid]")
+    h4 = spidergram(ucc.plut, label="Plutonic", markershape=:utriangle,
         seriescolor=colors.plut, legend=:outerright, size=(800, 400),
-        title="Plutonic (Matched Geochemical Samples)")
+        title="Plutonic (Matched Geochemical Samples) [$geochem_fid]")
     for i in eachindex(minorplut)
-        spidergram!(h1, bulk_REE[minorplut[i]], label="$(minorplut[i])", markershape=:utriangle, color=p[i])
-        spidergram!(h2, ucc[minorplut[i]], label="$(minorplut[i])", markershape=:utriangle, color=p[i])
+        spidergram!(h3, bulk_REE[minorplut[i]], label="$(minorplut[i])", markershape=:utriangle, color=p[i])
+        spidergram!(h4, ucc[minorplut[i]], label="$(minorplut[i])", markershape=:utriangle, color=p[i])
     end
-    spidergram!(h1, rudnick_gao, label="Rudnick and Gao, 2014", 
+    spidergram!(h3, rudnick_gao, label="Rudnick and Gao, 2014", 
         markershape=:diamond, seriescolor=:black)
-    spidergram!(h2, rudnick_gao, label="Rudnick and Gao, 2014", 
+    spidergram!(h4, rudnick_gao, label="Rudnick and Gao, 2014", 
         markershape=:diamond, seriescolor=:black)
-    display(h1)
-    display(h2)
+    display(h3)
+    display(h4)
 
 
     # Bulk igneous
     p = Plots.palette(:managua, length(minorign))
-    h1 = spidergram(bulk_REE.ign, label="Igneous", markershape=:utriangle,
+    h5 = spidergram(bulk_REE.ign, label="Igneous", markershape=:utriangle,
         seriescolor=colors.ign, legend=:outerright, size=(800, 400),
-        title="Igneous (All Geochemical Samples)")
-    h2 = spidergram(ucc.ign, label="Igneous", markershape=:utriangle,
+        title="Igneous (All Geochemical Samples) [$geochem_fid]")
+    h6 = spidergram(ucc.ign, label="Igneous", markershape=:utriangle,
         seriescolor=colors.ign, legend=:outerright, size=(800, 400),
-        title="Igneous (Matched Geochemical Samples)")
+        title="Igneous (Matched Geochemical Samples) [$geochem_fid]")
     for i in eachindex(minorign)
-        spidergram!(h1, bulk_REE[minorign[i]], label="$(minorign[i])", markershape=:utriangle, color=p[i])
-        spidergram!(h2, ucc[minorign[i]], label="$(minorign[i])", markershape=:utriangle, color=p[i])
+        spidergram!(h5, bulk_REE[minorign[i]], label="$(minorign[i])", markershape=:utriangle, color=p[i])
+        spidergram!(h6, ucc[minorign[i]], label="$(minorign[i])", markershape=:utriangle, color=p[i])
     end
-    spidergram!(h1, rudnick_gao, label="Rudnick and Gao, 2014", 
+    spidergram!(h5, rudnick_gao, label="Rudnick and Gao, 2014", 
         markershape=:diamond, seriescolor=:black)
-    spidergram!(h2, rudnick_gao, label="Rudnick and Gao, 2014", 
+    spidergram!(h6, rudnick_gao, label="Rudnick and Gao, 2014", 
         markershape=:diamond, seriescolor=:black)
-    display(h1)
-    display(h2)
+    display(h5)
+    display(h6)
 
 
 ## --- End of file 

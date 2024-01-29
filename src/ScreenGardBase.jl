@@ -101,6 +101,10 @@
     gard_age.age[(0 .> gard_age.age) .| (gard_age.age .> 4000)] .= NaN
 
 
+## --- Then, fix all the weird and / or misspelled ages (TO DO)
+
+
+
 ## --- Map ages to samples using the ageID
     # Preallocate
     age = Array{Float64}(undef, length(gard_sample.age_id), 1)
@@ -211,19 +215,166 @@
     end
 
 
+## --- Do you want to make 77 histograms? (Visualize outliers)
+    # If not, this is not the code cell for you. Better luck next time!
+    # using Plots, StatsBase
+    
+    # # Different rock classes need visualized separately.
+    # temp_cats = deepcopy(gard_cats);
+    # include_minor!(temp_cats);
+
+    # # Major element oxides
+    # for m in (:SiO2, :Al2O3, :FeOT, :TiO2, :MgO, :CaO, :Na2O, :K2O)
+    #     t = @. 0 < out[m] <= 100;
+    #     p = percentile(out[m][t], 99)
+    #     psed = percentile(out[m][t .& temp_cats.sed], 99)
+    #     pign = percentile(out[m][t .& temp_cats.ign], 99)
+    #     pmet = percentile(out[m][t .& temp_cats.met], 99)
+
+    #     xmax = min(100, round(Int, max(percentile(out[m][t], 99.99),
+    #         percentile(out[m][t .& temp_cats.sed], 99.99),
+    #         percentile(out[m][t .& temp_cats.ign], 99.99),
+    #         percentile(out[m][t .& temp_cats.met], 99.99),))
+    #     )
+
+    #     h = Plots.histogram(
+    #         title="$m; 99th bulk = $(round(p, digits=2)) wt.%",
+    #         framestyle=:box,
+    #         xlims=(-0.1, xmax),
+    #         yticks=false, # I don't care about the actual counts
+    #         legend=:topright
+    #     )
+
+    #     # Igneous rocks 
+    #     c, n = bincounts(out[m][temp_cats.ign], 0, xmax, xmax*2)
+    #     n = float(n) ./ nansum(float(n) .* step(c))
+    #     Plots.plot!(c, n, seriestype=:bar, color=colors.ign, alpha=0.5, linecolor=:match, label="")
+    #     vline!(h, [pign], label="$(round(pign, digits=2))", color=colors.ign, linewidth=2)
+
+    #     # Metamorphic rocks
+    #     c, n = bincounts(out[m][temp_cats.met], 0, xmax, xmax*2)
+    #     n = float(n) ./ nansum(float(n) .* step(c))
+    #     Plots.plot!(c, n, seriestype=:bar, color=colors.met, alpha=0.5, linecolor=:match, label="")
+    #     vline!([pmet], label="$(round(pmet, digits=2))", color=colors.met, linewidth=2)
+
+    #     # Sedimentary rocks
+    #     c, n = bincounts(out[m][temp_cats.sed], 0, xmax, xmax*2)
+    #     n = float(n) ./ nansum(float(n) .* step(c))
+    #     Plots.plot!(c, n, seriestype=:bar, color=colors.sed, alpha=0.5, linecolor=:match, label="")
+    #     vline!([psed], label="$(round(psed, digits=2))", color=colors.sed, linewidth=2)
+
+    #     vline!([p], color=:black, label="$(round(p, digits=2))", linewidth=1)
+    #     display(h)
+    # end
+
+    # # Double check sedimentary iron... it's chert time
+    # minorsed = get_rock_class()[2];
+    # h = Plots.histogram(
+    #     framestyle=:box,
+    #     xlims=(-0.1, 100),
+    #     yticks=false, # I don't care about the actual counts
+    #     legend=:topright
+    # )
+    # for k in minorsed
+    #     c, n = bincounts(out.FeOT[temp_cats[k]], 0, 100, 200)
+    #     n = float(n) ./ nansum(float(n) .* step(c))
+    #     Plots.plot!(h, c, n, colors=colors[k], seriestype=:bar, alpha=0.5, linecolor=:match, label="$k")
+    # end
+    # display(h)
+
+    # # Minor elements and element oxides
+    # for m in minors
+    #     # Create a ppm dataset because functions only like integers
+    #     # Convert all the printouts and ticks back to wt.% though
+    #     m_ppm = out[m] .* 10_000;
+
+    #     # Now proceed as normal
+    #     t = @. 0 < m_ppm <= 100*10_000;
+    #     p = percentile(m_ppm[t], 99)
+    #     psed = percentile(m_ppm[t .& temp_cats.sed], 99)
+    #     pign = percentile(m_ppm[t .& temp_cats.ign], 99)
+    #     pmet = percentile(m_ppm[t .& temp_cats.met], 99)
+
+    #     xmax = min(20*10_000, round(Int, max(percentile(m_ppm[t], 99),
+    #         percentile(m_ppm[t .& temp_cats.sed], 99),
+    #         percentile(m_ppm[t .& temp_cats.ign], 99),
+    #         percentile(m_ppm[t .& temp_cats.met], 99),)*1.1)
+    #     )
+
+    #     h = Plots.histogram(
+    #         title="$m; 99th bulk = $(round(p/10_000, sigdigits=2)) wt.%",
+    #         framestyle=:box,
+    #         xlims=(-0.0001, xmax),
+    #         xticks=(0:xmax÷5:xmax, string.(round.((0:xmax÷5:xmax) ./ 10_000, digits=4))),
+    #         yticks=false, # I don't care about the actual counts
+    #         legend=:topright,
+    #     )
+
+    #     # Igneous rocks 
+    #     c, n = bincounts(m_ppm[temp_cats.ign], 0, xmax, 100)
+    #     length(c) != 100 && (c = cntr(range(start=0, stop=xmax, length=101)))  # Sometimes roundoff error is bad
+    #     n₁ = float(n) ./ nansum(float(n) .* step(c))
+ 
+    #     # Metamorphic rocks
+    #     c, n = bincounts(m_ppm[temp_cats.met], 0, xmax, 100)
+    #     n₂ = float(n) ./ nansum(float(n) .* step(c))
+    #     length(c) != 100 && (c = cntr(range(start=0, stop=xmax, length=101)))
+        
+    #     # Sedimentary rocks
+    #     c, n = bincounts(m_ppm[temp_cats.sed], 0, xmax, 100)
+    #     n₃ = float(n) ./ nansum(float(n) .* step(c))
+    #     length(c) != 100 && (c = cntr(range(start=0, stop=xmax, length=101)))
+
+    #     # # Kill the first bin if most data is really small
+    #     # if maximum(n₁) == n₁[1] || maximum(n₂) == n₂[1] || maximum(n₃) == n₃[1]
+    #     #     n₁[1] = n₂[1] = n₃[1] = 0.0
+    #     # end
+
+    #     # Plot things
+    #     Plots.plot!(c, n₁, seriestype=:bar, color=colors.ign, alpha=0.5, linecolor=:match, label="")
+    #     vline!(h, [pign], label="$(round(pign/10_000, sigdigits=2))", color=colors.ign, linewidth=2)
+
+    #     Plots.plot!(c, n₂, seriestype=:bar, color=colors.met, alpha=0.5, linecolor=:match, label="")
+    #     vline!([pmet], label="$(round(pmet/10_000, sigdigits=2))", color=colors.met, linewidth=2)
+
+    #     Plots.plot!(c, n₃, seriestype=:bar, color=colors.sed, alpha=0.5, linecolor=:match, label="")
+    #     vline!([psed], label="$(round(psed/10_000, sigdigits=2))", color=colors.sed, linewidth=2)
+
+    #     vline!([p], color=:black, label="$(round(p/10_000, sigdigits=2))", linewidth=1)
+
+    #     display(h)
+    #     # println("$m=(0,$(round(p, sigdigits=3))),")
+    # end
+
+    # # Volatiles and carbonates 
+    # temp = (H2O=H2O, CO2=CO2, SO3=SO3, LOI=LOI, CaCO3=CaCO3, MgCO3=MgCO3);
+    # for m in keys(temp)
+    #     t = @. 0 < temp[m] <= 100;
+    #     p = percentile(temp[m][t], 99)
+    #     h = Plots.histogram(temp[m][t], 
+    #         title="$m; 99th pct = $(round(p, digits=2)) wt.%",
+    #         framestyle=:box, label="", linecolor=:match,
+    #         xlims=(-1, min(100, maximum(temp[m][t]) + maximum(temp[m][t])*0.01)),
+    #         yticks=false, # I don't care about the actual counts
+    #     )
+    #     vline!([p], label="")
+    #     display(h)
+    # end
+
+
 ## --- Screen outliers (e.g. remove negative data and physically impossible data)
     # Screen volatile outliers
-    LOI[.!(0 .< LOI .< 50)] .= NaN    # Max is arbitrary?
-    H2O[.!(0 .< H2O .< 30)] .= NaN    # Max is arbitrary?
-    CO2[.!(0 .< CO2 .< 53)] .= NaN    # Max is pure MgCO₃
-    SO3[.!(0 .< SO3 .< 60)] .= NaN    # Max is pure CaSO₄
+    LOI[.!(0 .< LOI .< 50)] .= NaN    # Nothing normal is above 50 (looked at histogram)
+    H2O[.!(0 .< H2O .< 50)] .= NaN    # 99th percentile is 71 but I don't trust like that
+    CO2[.!(0 .< CO2 .< 53)] .= NaN    # Max is pure MgCO₃; 99th percentile is 44 
+    SO3[.!(0 .< SO3 .< 60)] .= NaN    # Max is pure CaSO₄; 99th percentile is 63
 
     # Screen carbonate outliers 
     CaCO3[.!(0 .< CaCO3 .< 100)] .= NaN
-    MgCO3[.!(0 .< MgCO3 .< 100)] .= NaN
+    MgCO3[.!(0 .< MgCO3 .< 100)] .= NaN     # 99th percentile is 41%
 
     # annnnd... everything else
-    screen_outliers!(out)
+    screen_outliers!(out, gard_cats)
 
 
 ## --- Calculate volatiles
@@ -312,7 +463,8 @@
         end
     end
 
-    # Actually, don't because we lose samples this way.
+    # Actually, don't do this, because we lose samples this way.
+    # This might be because some of the data wasn't actually ppm? It's not super clear
     # # Convert major elements to major element oxides
     # oxides = (:SiO2, :Al2O3, :TiO2, :MgO, :CaO, :Na2O, :K2O, :Cr2O3, :MnO, :NiO, :P2O5);
     # sourcekey = (:si_ppm, :al_ppm, :ti_ppm, :mg_ppm, :ca_ppm, :na_ppm, :k_ppm, :cr_ppm, 
@@ -425,7 +577,7 @@
         volatiles_assumed[i] = ifelse(gard_cats.sed[i] & (bulkweight[i] < 100), (100 - bulkweight[i]), 0.0)
     end
 
-    # Restrict data
+    # Restrict data to between 84 and 104 wt.%
     t = @. 84 <= bulkweight <= 104; tᵢ = count(t)           # Without assumed volatiles
     t = @. 84 <= bulkweight .+ volatiles_assumed <= 104;    # With assumed volatiles
     

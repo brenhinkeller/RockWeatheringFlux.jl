@@ -3,7 +3,7 @@
     # content. After Figure 6.9 from Keller, 2016 (10.31237/osf.io/q7yra)
 
     # Load data and base packages
-    include("Definitions.jl")
+    include("Definitions.jl");
 
     # Preallocate / Local definitions
     nsims = Int(1e7)                         # 10 M simulations
@@ -20,7 +20,7 @@
     notsed = bulk_cats.ign .| bulk_cats.met
     t = @. !isnan(bulk.Latitude) & !isnan(bulk.Longitude) & !isnan(bulk.Age) & notsed
 
-    s = vec(isnan.(bulk.Age))
+    # s = vec(isnan.(bulk.Age))
     ageuncert = bulk.Age .* age_min_error
     for i in eachindex(ageuncert)
         calc_uncert = (bulk.Age_Max[i] .- bulk.Age_Min[i])/2
@@ -50,19 +50,24 @@
 
 
 ## --- Matched samples
-    notsed = macro_cats.ign .| macro_cats.met
-    t = @. !isnan(macrostrat.rocklat) & !isnan(macrostrat.rocklon) & !isnan(macrostrat.age) & notsed
-
-    s = vec(isnan.(macrostrat.age))
-    ageuncert = macrostrat.age .* age_min_error
+    notsed = macro_cats.ign .| macro_cats.met;
+    t = @. !isnan(macrostrat.rocklat) & !isnan(macrostrat.rocklon) & notsed;
+    t .&= (.!isnan.(mbulk.Age) .| .!isnan.(macrostrat.age));
+    
+    # We want to use the geochemical sample age, unless we don't have it, in which case 
+    # use the map (Macrostrat) age
+    age = copy(mbulk.Age)
+    age[isnan.(age)] .= macrostrat.age[isnan.(age)]
+    ageuncert = age .* age_min_error
     for i in eachindex(ageuncert)
-        calc_uncert = (macrostrat.agemax[i] .- macrostrat.agemin[i])/2
-        ageuncert[i] = ifelse(calc_uncert > ageuncert[i], calc_uncert, ageuncert[i])
+        calcuncert = abs(nanadd(mbulk.Age_Max[i], -mbulk.Age_Min[i])/2)
+        ageuncert[i] = nanmax(calcuncert, ageuncert[i])
+
     end
 
-    k = invweight_age(macrostrat.age[t])     # Already spatially corrected
+    k = invweight_age(age[t])                      # Already spatially corrected
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    data = [mbulk.SiO2[t] macrostrat.age[t]]
+    data = [mbulk.SiO2[t] age[t]]
     uncertainty = [fill(SiO2_error, count(t)) ageuncert[t]]
     sim_mbulk = bsresample(data, uncertainty, nsims, p)
 
@@ -97,7 +102,7 @@
         # colorbar_title="Relative Sample Density",
         colorbar=false,
         color=c_gradient,
-        title="A. Resampled Geochemical Samples\n"
+        title="A. Resampled $geochem_fid Samples\n"
     )
 
     # Matched samples

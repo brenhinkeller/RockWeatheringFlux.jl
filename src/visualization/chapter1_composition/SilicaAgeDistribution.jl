@@ -17,10 +17,8 @@
 
 
 ## --- EarthChem 
-    notsed = bulk_cats.ign .| bulk_cats.met
-    t = @. !isnan(bulk.Latitude) & !isnan(bulk.Longitude) & !isnan(bulk.Age) & notsed
+    t = @. !isnan(bulk.Latitude) & !isnan(bulk.Longitude) & !isnan(bulk.Age) & bulk_cats.ign
 
-    # s = vec(isnan.(bulk.Age))
     ageuncert = bulk.Age .* age_min_error
     for i in eachindex(ageuncert)
         calc_uncert = (bulk.Age_Max[i] .- bulk.Age_Min[i])/2
@@ -50,8 +48,7 @@
 
 
 ## --- Matched samples
-    notsed = macro_cats.ign .| macro_cats.met;
-    t = @. !isnan(macrostrat.rocklat) & !isnan(macrostrat.rocklon) & notsed;
+    t = @. !isnan(macrostrat.rocklat) & !isnan(macrostrat.rocklon) & macro_cats.ign;
     t .&= (.!isnan.(mbulk.Age) .| .!isnan.(macrostrat.age));
     
     # We want to use the geochemical sample age, unless we don't have it, in which case 

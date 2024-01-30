@@ -160,7 +160,7 @@ function screen_outliers!(bulk::NamedTuple, cats::NamedTuple; warn::Bool=false)
     bulk.Mo[bulk.Mo ./ bulk.SiO2.^4 .> 10^-4.2] .= NaN
     bulk.Cs[bulk.Cs ./ bulk.SiO2.^2 .> 0.03] .= NaN
 
-    # Iron
+    # Iron and titanium
     bulk.FeOT[(cats.ign .| cats.met) .& (bulk.FeOT .* bulk.SiO2 .> 1200)] .= NaN
     bulk.TiO2[(cats.ign .| cats.met) .& (bulk.TiO2 .* bulk.SiO2 .> 300)] .= NaN
     bulk.FeOT[cats.chert .& .!(0 .< bulk.FeOT .< 90)] .= NaN  # 99th for cherts (BIFs) is 89%

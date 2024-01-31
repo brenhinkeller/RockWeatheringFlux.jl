@@ -515,7 +515,7 @@
         for type in minorplut
             cats.plut .|= cats[type]
         end
-        for type in minorign
+        for type in (minorign..., minorvolc..., minorplut...)
             cats.ign .|= cats[type]
         end
         return cats
@@ -531,7 +531,7 @@
         for type in minorplut
             cats.plut .|= cats[type]
         end
-        for type in minorign
+        for type in (minorign..., minorvolc..., minorplut...)
             cats.ign .|= cats[type]
         end
         return cats
@@ -544,7 +544,7 @@
     ```
 
     Exclude all minor rock classes in their major type. E.g., `cats.sed` is false when 
-    `cats.shale` is true.
+    `cats.shale` is true. 
 
     Optionally specify `minorsed`, `minorvolc`, `minorplut`, and `minorign` for a slight
     speed-up. See `get_rock_class` for minor rock class lists.
@@ -564,7 +564,7 @@
         for type in minorplut
             cats.plut .&= .!cats[type]
         end
-        for type in minorign
+        for type in (minorign..., minorvolc..., minorplut...)   # ALL igneous subclasses
             cats.ign .&= .!cats[type]
         end
         return cats
@@ -580,7 +580,7 @@
         for type in minorplut
             cats.plut .&= .!cats[type]
         end
-        for type in minorign
+        for type in (minorign..., minorvolc..., minorplut...)
             cats.ign .&= .!cats[type]
         end
         return cats

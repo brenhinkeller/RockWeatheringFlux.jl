@@ -112,7 +112,6 @@
     # that can be optimized, which will make this faster... by two orders of magnitude
 
     # Preallocate
-    bigtypes = Array{Symbol}(undef, length(macrostrat.age), 1)      # Sed, volc, ign, etc.
     littletypes = Array{Symbol}(undef, length(macrostrat.age), 1)   # Shale, chert, etc.
 
     # Pass one: randomly pick a type for each sample
@@ -132,18 +131,25 @@
     for i in eachindex(littletypes)
         if littletypes[i] == :sed
             littletypes[i] = minorsed[weighted_rand(ptype.sed)]
+
         elseif littletypes[i] == :volc 
             littletypes[i] = minorvolc[weighted_rand(ptype.volc)]
+
         elseif littletypes[i] == :plut 
             littletypes[i] = minorplut[weighted_rand(ptype.plut)]
+
         elseif littletypes[i] == :ign 
             # Pick a sub-class (volcanic / plutonic / carbonatite) and re-assign volc / plut
             littletypes[i] = minorign[weighted_rand(ptype.ign)]
+
             if littletypes[i] == :volc
-                littletypes[i] = minorsed[weighted_rand(ptype.sed)]
+                littletypes[i] = minorvolc[weighted_rand(ptype.volc)]
+
             elseif littletypes[i] == :plut 
-                littletypes[i] = minorsed[weighted_rand(ptype.sed)]
+                littletypes[i] = minorplut[weighted_rand(ptype.plut)]
+                
             end
+
         end
     end
 
@@ -160,6 +166,10 @@
     geochem_lookup = NamedTuple{Tuple(keys(macro_cats))}([major_elements(bulk, bulk_cats[i])
         for i in eachindex(keys(macro_cats))]
     );
+
+    # # Re-include minor types (this only matters if we don't reassign volc / plut)
+    # include_minor!(bulk_cats)
+    # include_minor!(macro_cats)
 
 
 ## --- Find matching EarthChem sample for each Macrostrat sample

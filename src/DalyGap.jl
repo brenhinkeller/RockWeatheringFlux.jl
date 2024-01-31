@@ -8,14 +8,9 @@
 
     # Preallocate / Local definitions
     nsims = Int(1e7)                         # 10 M simulations
-    SiO2_error = 5.0                         # Large SiO₂ error to smooth data
-    age_min_error = 0.15                     # Minimum 15% age error
+    # SiO2_error = 5.0                         # Large SiO₂ error to smooth data
+    # age_min_error = 0.15                     # Minimum 15% age error
 
-    xmin, xmax, xbins = 40, 80, 240          # Silica
-    xedges = xmin:(xmax-xmin)/xbins:xmax
-    ymin, ymax, ybins = 0, 3800, 380         # Age
-    yedges = ymin:(ymax-ymin)/ybins:ymax
-    
     # Echo info 
     @info """ Files:
     Geochemical data: $geochem_fid
@@ -72,6 +67,11 @@
 
 ## --- 2D histograms of age and silica, but divided by volcanic / plutonic classes
     # Preallocate 
+    xmin, xmax, xbins = 40, 80, 240          # Silica
+    xedges = xmin:(xmax-xmin)/xbins:xmax
+    ymin, ymax, ybins = 0, 3800, 380         # Age
+    yedges = ymin:(ymax-ymin)/ybins:ymax
+    
     fig = Array{Plots.Plot{Plots.GRBackend}}(undef, 3)
     class = (:plut, :volc, :ign)
 
@@ -84,16 +84,18 @@
 
         # EarthChem 
         t = @. !isnan(bulk.Latitude) & !isnan(bulk.Longitude) & !isnan(bulk.Age) & bulk_cats[class[i]]
-        ageuncert = bulk.Age .* age_min_error
+
+        ageuncert = nanadd.(bulk.Age_Max, .- bulk.Age_Min) ./ 2;
+        ageuncert[isnan.(bulk.Age) .| (ageuncert .== 0)] .= NaN;
         for j in eachindex(ageuncert)
-            calc_uncert = (bulk.Age_Max[j] .- bulk.Age_Min[j])/2
-            ageuncert[j] = nanmax(calc_uncert, ageuncert[j])
+            # Default 5% age uncertainty if bounds do not exist (or error is 0)
+            ageuncert[j] = ifelse(isnan(ageuncert[j]), bulk.Age[j]*0.05 , ageuncert[j])
         end
 
         k = invweight(bulk.Latitude[t], bulk.Longitude[t], bulk.Age[t])
         p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
         data = [bulk.SiO2[t] bulk.Age[t]]
-        uncertainty = [fill(SiO2_error, count(t)) ageuncert[t]]
+        uncertainty = [fill(1.0, count(t)) ageuncert[t]]
         simbulk = bsresample(data, uncertainty, nsims, p)
 
         for j = 1:ybins
@@ -103,23 +105,22 @@
             out_bulk[j,:] .= n                                            # Put in output array
         end
 
-        # Matched samples 
+        # Matched samples
         t = @. !isnan(macrostrat.rocklat) & !isnan(macrostrat.rocklon) & macro_cats[class[i]];
-        t .&= (.!isnan.(mbulk.Age) .| .!isnan.(macrostrat.age));
+        # t .&= (.!isnan.(mbulk.Age) .| .!isnan.(macrostrat.age));
 
-        age = copy(mbulk.Age)
-        age[isnan.(age)] .= macrostrat.age[isnan.(age)]
-        ageuncert = age .* age_min_error
-        for i in eachindex(ageuncert)
-            calcuncert = abs(nanadd(mbulk.Age_Max[i], -mbulk.Age_Min[i])/2)
-            ageuncert[i] = nanmax(calcuncert, ageuncert[i])
-
+        age = macrostrat.age
+        ageuncert = nanadd.(macrostrat.agemax, .- macrostrat.agemin) ./ 2;
+        ageuncert[isnan.(macrostrat.age) .| (ageuncert .== 0)] .= NaN;
+        for j in eachindex(ageuncert)
+            # Default 5% age uncertainty if bounds do not exist (or error is 0)
+            ageuncert[j] = ifelse(isnan(ageuncert[j]), macrostrat.age[j]*0.05 , ageuncert[j])
         end
 
         k = invweight_age(age[t])
         p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
         data = [mbulk.SiO2[t] age[t]]
-        uncertainty = [fill(SiO2_error, count(t)) ageuncert[t]]
+        uncertainty = [fill(1.0, count(t)) ageuncert[t]]
         sim_mbulk = bsresample(data, uncertainty, nsims, p)
 
         for j = 1:ybins
@@ -180,7 +181,7 @@
     end
 
 
-## --- Construct a predicted histogram over 100 Ma year bins
+## --- Construct a predicted histogram with 100 Ma year bins
     # We can get a completely spatially representative dataset of the rock types exposed
     # at Earth's surface from the lithologic map, although the dataset is subject to 
     # preservation bias. Temporally resample to correct for this.
@@ -307,6 +308,41 @@
         )
         display(h)
     end
+
+
+## --- Visualize component distributions of volc predicted histogram 
+    # Basically, instead of a composite histogram, I want to plot all the distributions of 
+    # igneous rock types, weighted by their surficial abundance, on top of each other 
+    using KernelDensity
+
+    prop = float.([count(macro_cats[k]) for k in minorvolc])
+    prop ./= nansum(prop)
+    here = @. !isnan(mbulk.SiO2);
+
+    # Assemble plots
+    h = plot(
+        framestyle=:box, 
+        grid = false,
+        fontfamily=:Helvetica, 
+        xlims=(40,80),
+        xticks=(40:10:80, string.(40:10:80)),
+        yticks=false, 
+        xlabel="SiO2 [wt.%]", ylabel="Relative Abundance",
+        legend=:outerright,
+        size=(800, 500), 
+        left_margin=(20,:px)
+    );
+    for i in eachindex(minorplut)
+        u = kde(mbulk.SiO2[macro_cats[minorvolc[i]] .& here])
+        u.density .*= prop[i]
+        Plots.plot!(u.x, u.density, 
+            seriestype=:path, linewidth=4,
+            color=colors[minorvolc[i]], linecolor=colors[minorvolc[i]], 
+            label="$(minorvolc[i])"
+        )
+    end
+    display(h)
+    # Problem: there's an intermediate spike in basalts.
 
 
 ## --- End of File 

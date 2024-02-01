@@ -3,13 +3,13 @@
 
     # Packages 
     using RockWeatheringFlux
-    using HDF5, DelimitedFiles
+    using HDF5, DelimitedFiles, KernelDensity
     using Plots
 
     # Preallocate / Local definitions
     nsims = Int(1e7)                         # 10 M simulations
-    # SiO2_error = 5.0                         # Large SiO₂ error to smooth data
-    # age_min_error = 0.15                     # Minimum 15% age error
+    SiO2_error = 1.0                         # SiO₂ error
+    age_error = 0.5                          # Default 5% age error
 
     # Echo info 
     @info """ Files:
@@ -29,6 +29,11 @@
     data = read(fid["bulk"]["data"])
     mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][matches[t]] 
         for i in eachindex(header)])
+    mbulktext = (
+        qap_name = read(fid["bulktext"]["QAP_Name"]),
+        rock_name = read(fid["bulktext"]["Rock_Name"]),
+        sample_descrip = read(fid["bulktext"]["Sample_Description"]),
+    )
     close(fid)
 
     # Macrostrat
@@ -39,6 +44,9 @@
         age = read(fid["vars"]["age"])[t],
         agemax = read(fid["vars"]["agemax"])[t],
         agemin = read(fid["vars"]["agemin"])[t],
+        rocktype = read(fid["vars"]["rocktype"])[t],
+        rockname = read(fid["vars"]["rockname"])[t],
+        rockdescrip = read(fid["vars"]["rockdescrip"])[t],
     )
     header = read(fid["type"]["macro_cats_head"])
     data = read(fid["type"]["macro_cats"])
@@ -88,14 +96,14 @@
         ageuncert = nanadd.(bulk.Age_Max, .- bulk.Age_Min) ./ 2;
         ageuncert[isnan.(bulk.Age) .| (ageuncert .== 0)] .= NaN;
         for j in eachindex(ageuncert)
-            # Default 5% age uncertainty if bounds do not exist (or error is 0)
-            ageuncert[j] = ifelse(isnan(ageuncert[j]), bulk.Age[j]*0.05 , ageuncert[j])
+            # Default age uncertainty if bounds do not exist (or error is 0)
+            ageuncert[j] = ifelse(isnan(ageuncert[j]), bulk.Age[j]*age_error, ageuncert[j])
         end
 
         k = invweight(bulk.Latitude[t], bulk.Longitude[t], bulk.Age[t])
         p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
         data = [bulk.SiO2[t] bulk.Age[t]]
-        uncertainty = [fill(1.0, count(t)) ageuncert[t]]
+        uncertainty = [fill(SiO2_error, count(t)) ageuncert[t]]
         simbulk = bsresample(data, uncertainty, nsims, p)
 
         for j = 1:ybins
@@ -109,18 +117,17 @@
         t = @. !isnan(macrostrat.rocklat) & !isnan(macrostrat.rocklon) & macro_cats[class[i]];
         # t .&= (.!isnan.(mbulk.Age) .| .!isnan.(macrostrat.age));
 
-        age = macrostrat.age
         ageuncert = nanadd.(macrostrat.agemax, .- macrostrat.agemin) ./ 2;
         ageuncert[isnan.(macrostrat.age) .| (ageuncert .== 0)] .= NaN;
         for j in eachindex(ageuncert)
-            # Default 5% age uncertainty if bounds do not exist (or error is 0)
-            ageuncert[j] = ifelse(isnan(ageuncert[j]), macrostrat.age[j]*0.05 , ageuncert[j])
+            # Default age uncertainty if bounds do not exist (or error is 0)
+            ageuncert[j] = ifelse(isnan(ageuncert[j]), macrostrat.age[j]*age_error, ageuncert[j])
         end
 
         k = invweight_age(age[t])
         p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-        data = [mbulk.SiO2[t] age[t]]
-        uncertainty = [fill(1.0, count(t)) ageuncert[t]]
+        data = [mbulk.SiO2[t] macrostrat.age[t]]
+        uncertainty = [fill(SiO2_error, count(t)) ageuncert[t]]
         sim_mbulk = bsresample(data, uncertainty, nsims, p)
 
         for j = 1:ybins
@@ -181,7 +188,7 @@
     end
 
 
-## --- Construct a predicted histogram with 100 Ma year bins
+## --- Predicted age / silica distribution with 100 Ma year bins
     # We can get a completely spatially representative dataset of the rock types exposed
     # at Earth's surface from the lithologic map, although the dataset is subject to 
     # preservation bias. Temporally resample to correct for this.
@@ -196,7 +203,7 @@
     ageuncert[isnan.(macrostrat.age) .| (ageuncert .== 0)] .= NaN;
     for i in eachindex(ageuncert)
         # Default 5% age uncertainty if bounds do not exist (or error is 0)
-        ageuncert[i] = ifelse(isnan(ageuncert[i]), macrostrat.age[i]*0.05 , ageuncert[i])
+        ageuncert[i] = ifelse(isnan(ageuncert[i]), macrostrat.age[i]*age_error, ageuncert[i])
     end
 
     k = invweight_age(macrostrat.age)
@@ -238,13 +245,13 @@
     ageuncert[isnan.(bulk.Age) .| (ageuncert .== 0)] .= NaN;
     for i in eachindex(ageuncert)
         # Default 5% age uncertainty if bounds do not exist (or error is 0)
-        ageuncert[i] = ifelse(isnan(ageuncert[i]), bulk.Age[i]*0.05 , ageuncert[i])
+        ageuncert[i] = ifelse(isnan(ageuncert[i]), bulk.Age[i]*age_error, ageuncert[i])
     end
 
     k = invweight(bulk.Latitude, bulk.Longitude, bulk.Age)
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
     data = [bulk.SiO2 bulk.Age a]
-    uncertainty = [fill(1.0, length(bulk.SiO2)) ageuncert zeros(size(a))]     # 1 wt.% SiO₂ error
+    uncertainty = [fill(SiO2_error, length(bulk.SiO2)) ageuncert zeros(size(a))]
     simout = bsresample(data, uncertainty, nsims, p)
 
     sim_silica = simout[:,1]
@@ -312,12 +319,13 @@
 
 ## --- Visualize component distributions of volc predicted histogram 
     # Basically, instead of a composite histogram, I want to plot all the distributions of 
-    # igneous rock types, weighted by their surficial abundance, on top of each other 
-    using KernelDensity
-
+    # igneous rock types, weighted by their surficial abundance, on top of each other  
+    minorvolc, minorplut, minorign = get_rock_class()[3:5];
     prop = float.([count(macro_cats[k]) for k in minorvolc])
     prop ./= nansum(prop)
-    here = @. !isnan(mbulk.SiO2);
+    here = @. !isnan(mbulk.SiO2) .& (macrostrat.age .> 1500);
+    macro_cats.basalt .&= .!(macro_cats.rhyolite .| macro_cats.granite .| macro_cats.siliciclast);
+    macro_cats.rhyolite .&= .!(macro_cats.shale .| macro_cats.andesite);
 
     # Assemble plots
     h = plot(
@@ -332,7 +340,7 @@
         size=(800, 500), 
         left_margin=(20,:px)
     );
-    for i in eachindex(minorplut)
+    for i in eachindex(minorvolc)
         u = kde(mbulk.SiO2[macro_cats[minorvolc[i]] .& here])
         u.density .*= prop[i]
         Plots.plot!(u.x, u.density, 
@@ -342,7 +350,118 @@
         )
     end
     display(h)
-    # Problem: there's an intermediate spike in basalts.
+    
+    # # Do the same thing for the bulk geochemical dataset 
+    # here = @. !isnan(bulk.SiO2) .& (bulk.Age .> 1500);
+    # h = plot(
+    #     framestyle=:box, 
+    #     grid = false,
+    #     fontfamily=:Helvetica, 
+    #     xlims=(40,80),
+    #     xticks=(40:10:80, string.(40:10:80)),
+    #     yticks=false, 
+    #     xlabel="SiO2 [wt.%]", ylabel="Relative Abundance",
+    #     legend=:outerright,
+    #     size=(800, 500), 
+    #     left_margin=(20,:px)
+    # );
+    # for i in eachindex(minorvolc)
+    #     u = kde(bulk.SiO2[bulk_cats[minorvolc[i]] .& here])
+    #     u.density .*= prop[i]
+    #     Plots.plot!(u.x, u.density, 
+    #         seriestype=:path, linewidth=4,
+    #         color=colors[minorvolc[i]], linecolor=colors[minorvolc[i]], 
+    #         label="$(minorvolc[i])"
+    #     )
+    # end
+    # display(h)
+
+
+## --- Contamination of basalts and rhyolites 
+    here = @. !isnan(mbulk.SiO2) .& (macrostrat.age .> 1500);
+
+    # We know that if we use the assigned types from the sample matching file (one type
+    # per sample, no major classes), our distributions look like we expect them to.
+    fid = readdlm(matchedbulk_io);
+    match_class = string.(vec(fid[:,2]))[Int.(vec(fid[:,1])) .!= 0];
+    match_cats = match_rocktype(match_class);
+
+    h = plot(
+        framestyle=:box, 
+        grid = false,
+        fontfamily=:Helvetica, 
+        xlims=(40,80),
+        xticks=(40:10:80, string.(40:10:80)),
+        yticks=false, 
+        xlabel="SiO2 [wt.%]", ylabel="Relative Abundance",
+        legend=:outerright,
+        size=(800, 500), 
+        left_margin=(20,:px)
+    );
+    for i in eachindex(minorvolc)
+        u = kde(mbulk.SiO2[match_cats[minorvolc[i]] .& here])
+        u.density .*= prop[i]
+        Plots.plot!(u.x, u.density, 
+            seriestype=:path, linewidth=4,
+            color=colors[minorvolc[i]], linecolor=colors[minorvolc[i]], 
+            label="$(minorvolc[i])"
+        )
+    end
+    display(h)
+
+    # # Get the BitVectors to where they would have been before type assignment 
+    # exclude_minor!(macro_cats)
+
+    # # Make metamorphic rocks only those without a protolith 
+    # undiff_met = copy(macro_cats.met)
+    # for type in keys(macro_cats)
+    #     type==:met && continue
+    #     macro_cats.met .&= .!macro_cats[type]
+    # end 
+
+    # Problematic basalts
+    b = (mbulk.SiO2 .> 60) .& (macrostrat.age .> 1500) .& macro_cats.basalt .& .!match_cats.basalt;
+    count(b)        # 359
+    unique(macrostrat.rocktype[b])
+    unique([match_class[b] macrostrat.rocktype[b]], dims=1)
+
+    # Problematic rhyolites
+    r = (mbulk.SiO2 .< 68) .& (macrostrat.age .> 1500) .& macro_cats.rhyolite .& .!match_cats.rhyolite;
+    count(r)        # 466
+    unique([match_class[r] macrostrat.rocktype[r]], dims=1)
+
+    # Hypothesis: this is from the matched rock types that are matched with basalt but 
+    # were assigned to a different rock type during sample matching 
+
+    # Plot matched sample classes that make up basalts, weighted by their presence in the 
+    # match_type dataset
+    c = countmap(match_class[b]);
+    c = Dict([k => c[k]/sum(values(c)) for k in keys(c)])
+
+    h = plot(
+        framestyle=:box, 
+        grid = false,
+        fontfamily=:Helvetica, 
+        xlims=(40,80),
+        xticks=(40:10:80, string.(40:10:80)),
+        yticks=false, 
+        xlabel="SiO2 [wt.%]", ylabel="Relative Abundance",
+        legend=:outerright,
+        size=(800, 500), 
+        left_margin=(20,:px)
+    );
+    for k in Symbol.(keys(c))
+        s = match_cats[k] .& macro_cats.rhyolite .& here
+        count(s)==0 && continue
+        u = kde(mbulk.SiO2[s])
+        u.density .*= c[string(k)]
+        Plots.plot!(u.x, u.density, 
+            seriestype=:path, linewidth=4,
+            color=colors[k], linecolor=colors[k], 
+            label="$k"
+        )
+    end
+    display(h)
 
 
 ## --- End of File 

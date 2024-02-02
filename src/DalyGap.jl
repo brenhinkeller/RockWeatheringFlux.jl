@@ -9,7 +9,7 @@
     # Preallocate / Local definitions
     nsims = Int(1e7)                         # 10 M simulations
     SiO2_error = 1.0                         # SiO₂ error
-    age_error = 0.05                         # Default 5% age error
+    age_error = 0.05                         # Default age error
 
     # Echo info 
     @info """ Files:
@@ -21,7 +21,11 @@
     # Indices of matched samples
     fid = readdlm(matchedbulk_io)
     matches = Int.(vec(fid[:,1]))
-    t = @. matches != 0
+    t = @. matches != 0;
+
+    # Assigned rock class during sample matching 
+    match_class = string.(vec(fid[:,2]))[t];
+    match_cats = match_rocktype(match_class);
 
     # Geochemical Data
     fid = h5open(geochem_fid, "r")
@@ -29,11 +33,6 @@
     data = read(fid["bulk"]["data"])
     mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][matches[t]] 
         for i in eachindex(header)])
-    mbulktext = (
-        qap_name = read(fid["bulktext"]["QAP_Name"]),
-        rock_name = read(fid["bulktext"]["Rock_Name"]),
-        sample_descrip = read(fid["bulktext"]["Sample_Description"]),
-    )
     close(fid)
 
     # Macrostrat
@@ -67,19 +66,14 @@
     close(fid)
 
     # Major classes include minors, delete cover
-    include_minor!(macro_cats)
-    include_minor!(bulk_cats)
-    macro_cats = delete_cover(macro_cats)
-    bulk_cats = delete_cover(bulk_cats)
+    include_minor!(macro_cats);
+    include_minor!(bulk_cats);
+    macro_cats = delete_cover(macro_cats);
+    bulk_cats = delete_cover(bulk_cats);
     
 
 ## --- Resample bulk geochemical igneous / volcanic / plutonic 
     # Preallocate 
-    xmin, xmax, xbins = 40, 80, 380          # Silica
-    xedges = xmin:(xmax-xmin)/xbins:xmax
-    ymin, ymax, ybins = 0, 3800, 380         # Age
-    yedges = ymin:(ymax-ymin)/ybins:ymax
-
     simbulk = NamedTuple{(:ign, :plut, :volc)}(Array{Float64}(undef, nsims, 2) for _ in 1:3)
 
     # Compute age uncertainties
@@ -121,12 +115,9 @@
 
 ## --- Resample matched dataset igneous / volcanic / plutonic 
     # Preallocate 
-    xmin, xmax, xbins = 40, 80, 380          # Silica
-    xedges = xmin:(xmax-xmin)/xbins:xmax
-    ymin, ymax, ybins = 0, 3800, 380         # Age
-    yedges = ymin:(ymax-ymin)/ybins:ymax
-
-    sim_mbulk = NamedTuple{(:ign, :plut, :volc)}(Array{Float64}(undef, nsims, 2) for _ in 1:3)
+    sim_mbulk = NamedTuple{(:ign, :plut, :volc, :basalt, :rhyolite)}(
+        Array{Float64}(undef, nsims, 2) for _ in 1:5
+    )
 
     # Compute age uncertainties
     ageuncert = nanadd.(macrostrat.agemax, - macrostrat.agemin) ./ 2;
@@ -138,8 +129,8 @@
     
     # Restrict to only samples with data (all samples have lat / lon) and reset any 
     # weirdness with types
-    t = @. !isnan(macrostrat.age)
-    include_minor!(macro_cats)
+    t = @. !isnan(macrostrat.age);
+    # include_minor!(macro_cats);
 
     # Matched igneous
     s = t .& macro_cats.ign
@@ -149,7 +140,7 @@
     uncertainty = [fill(SiO2_error, count(s)) ageuncert[s]]
     sim_mbulk.ign .= bsresample(data, uncertainty, nsims, p)
 
-    # Matched plutonic
+    # Matched volcanic
     s = t .& macro_cats.volc
     k = invweight_age(macrostrat.age[s])
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
@@ -157,13 +148,29 @@
     uncertainty = [fill(SiO2_error, count(s)) ageuncert[s]]
     sim_mbulk.volc .= bsresample(data, uncertainty, nsims, p)
 
-    # Matched volcanic 
+    # Matched plutonic 
     s = t .& macro_cats.plut
     k = invweight_age(macrostrat.age[s])
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
     data = [mbulk.SiO2[s] macrostrat.age[s]]
     uncertainty = [fill(SiO2_error, count(s)) ageuncert[s]]
     sim_mbulk.plut .= bsresample(data, uncertainty, nsims, p)
+
+    # Matched basalt
+    s = t .& macro_cats.basalt
+    k = invweight_age(macrostrat.age[s])
+    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+    data = [mbulk.SiO2[s] macrostrat.age[s]]
+    uncertainty = [fill(SiO2_error, count(s)) ageuncert[s]]
+    sim_mbulk.basalt .= bsresample(data, uncertainty, nsims, p)
+
+    # Matched basalt
+    s = t .& macro_cats.rhyolite
+    k = invweight_age(macrostrat.age[s])
+    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+    data = [mbulk.SiO2[s] macrostrat.age[s]]
+    uncertainty = [fill(SiO2_error, count(s)) ageuncert[s]]
+    sim_mbulk.rhyolite .= bsresample(data, uncertainty, nsims, p)
 
 
 ## --- Resample observed rock types, correcting for preservation bias
@@ -270,11 +277,10 @@
     sim_chem_age = simout[:,2]
     sim_chem_age[.!(0 .< sim_chem_age .< 4000)] .= NaN
     cats = simout[:,3:end] .> 0
-    chem_cats = NamedTuple{keys(macro_cats)}([cats[:,i] for i in eachindex(keys(macro_cats))])
+    chem_cats = NamedTuple{keys(bulk_cats)}([cats[:,i] for i in eachindex(keys(bulk_cats))])
 
 
 ## --- 2D histograms of age and silica, but divided by volcanic / plutonic classes
-    # Preallocate 
     # Preallocate 
     xmin, xmax, xbins = 40, 80, 380          # Silica
     xedges = xmin:(xmax-xmin)/xbins:xmax
@@ -321,7 +327,7 @@
             )
             Plots.heatmap!(h1, out_bulk, 
                 colorbar=false,
-                color=c_gradient,
+                color=:nipy_spectral,
                 title="A. Resampled $geochem_fid Samples\n"
             )
 
@@ -335,7 +341,7 @@
             )
             Plots.heatmap!(h2, out_mbulk, 
                 colorbar=false,
-                color=c_gradient,
+                color=:nipy_spectral,
                 title="B. Resampled Matched $(class[i]) Samples\n"
             )
 
@@ -491,10 +497,6 @@
 
     # We know that if we use the assigned types from the sample matching file (one type
     # per sample, no major classes), our distributions look like we expect them to.
-    fid = readdlm(matchedbulk_io);
-    match_class = string.(vec(fid[:,2]))[Int.(vec(fid[:,1])) .!= 0];
-    match_cats = match_rocktype(match_class);
-
     h = plot(
         framestyle=:box, 
         grid = false,
@@ -600,47 +602,6 @@
     p_plut = Array{Float64}(undef, ybins)
     p_met = Array{Float64}(undef, ybins)
 
-    # What if we look at the relative proportions of undifferentiated classes over time?
-    # We can track the relative abundance of things that are reassigned...
-    # include_minor!(macro_cats)
-    exclude_minor!(macro_cats)
-
-    # Because we're trying to figure out what's happening during sample matching, remove 
-    # protoliths from metamorphic rocks so the class is only undifferentiated metamorphics
-    for type in keys(macro_cats)
-        type==:met && continue
-        macro_cats.met .&= .!macro_cats[type]
-        bulk_cats.met .&= .!bulk_cats[type]
-    end
-
-    # Resample for rock type, without correcting for preservation bias (although it doesn't 
-    # really make a noticable difference in the pattern)
-    a = Array{Int64}(undef, length(macro_cats[1]), length(macro_cats))
-    for i in eachindex(keys(macro_cats))
-        for j in eachindex(macro_cats[i])
-            a[j,i] = ifelse(macro_cats[i][j], 1, 0)
-        end
-    end
-    
-    ageuncert = nanadd.(macrostrat.agemax, .- macrostrat.agemin) ./ 2;
-    ageuncert[isnan.(macrostrat.age) .| (ageuncert .== 0)] .= NaN;
-    for i in eachindex(ageuncert)
-        # Default 5% age uncertainty if bounds do not exist (or error is 0)
-        ageuncert[i] = ifelse(isnan(ageuncert[i]), macrostrat.age[i]*age_error, ageuncert[i])
-    end
-
-    # k = invweight_age(macrostrat.age)
-    # p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    p = ones(length(ageuncert))
-    data = [a macrostrat.age]
-    uncertainty = [zeros(size(a)) ageuncert]
-    simout = bsresample(data, uncertainty, nsims, p)
-
-    cats = simout[:,1:end-1] .> 0
-    lith_cats = NamedTuple{keys(macro_cats)}([cats[:,i] for i in eachindex(keys(macro_cats))])
-    sim_lith_age = simout[:,end]
-    sim_lith_age[.!(0 .< sim_lith_age .< 4000)] .= NaN
-
     # Count the proportion of major classes that are undifferentiated
     lith_cats_incl = deepcopy(lith_cats) 
     include_minor!(lith_cats_incl) 
@@ -659,7 +620,6 @@
         grid = false,
         fontfamily=:Helvetica, 
         xlims=(0,3800),
-        # yticks=false, 
         legend=:outerright,
         size=(800, 500), 
         left_margin=(20,:px)
@@ -671,10 +631,132 @@
     vline!([1500], label="1500 Ma.")
 
 
-## --- Another closer look at volcanic samples 
-    # Let's look at basalts and rhyolites, since those are most volcanic rocks 
-    # Proportion of basalts / rhyolites over time?
+## --- Proportion of volcanic rocks made of basalt / rhyolite over time, 100 Myr. bins
+    ymin, ymax, ybins = 0, 3800, 38
+    yedges = ymin:(ymax-ymin)/ybins:ymax
 
+    p_basalt = Array{Float64}(undef, ybins)
+    p_rhyolite = Array{Float64}(undef, ybins)
+
+    include_minor!(lith_cats)
+    for i = 1:ybins
+        t = @. yedges[i] <= sim_lith_age < yedges[i+1]
+        p_basalt[i] = count(lith_cats.basalt .& t) / count(lith_cats.volc .& t)
+        p_rhyolite[i] = count(lith_cats.rhyolite .& t) / count(lith_cats.volc .& t)
+    end
+
+    h = Plots.plot(
+        framestyle=:box, 
+        grid = false,
+        fontfamily=:Helvetica, 
+        xlims=(0,3800),
+        legend=:topright,
+        left_margin=(20,:px),
+        xlabel="Age [Ma.]", ylabel="Relative Proportion"
+    );
+    Plots.plot!(h, cntr(yedges), p_basalt, markershape=:circle, color=colors.basalt,
+        label="basalt"
+    )
+    Plots.plot!(h, cntr(yedges), p_rhyolite, markershape=:circle, color=colors.rhyolite, 
+        label="rhyolite"
+    )
+    display(h)
+
+
+## --- 2D histogram of basaltic silica over time
+    xmin, xmax, xbins = 40, 80, 240           # Silica bins
+    xedges = xmin:(xmax-xmin)/xbins:xmax
+    ymin, ymax, ybins = 0, 3800, 380          # Age bins
+    yedges = ymin:(ymax-ymin)/ybins:ymax
+
+    # Bulk geochemical data
+    out = zeros(ybins, xbins)
+    for j in 1:ybins
+        t = @. yedges[j] <= sim_chem_age < yedges[j+1];
+        c, n = bincounts(sim_silica[chem_cats.basalt .& t], xmin, xmax, xbins)
+        out[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
+    end
+
+    h = Plots.plot(
+        ylims=(0,ybins),
+        yticks=(0:ybins/7.6:ybins, string.(0:500:3800)),
+        xticks=(0:xbins/4:xbins, string.(40:10:80)),
+        yflip=true,
+        xlabel="SiO₂ [wt.%]", 
+        ylabel="Age [Ma]",
+        size=(600,500),
+    );
+    Plots.heatmap!(h, out, color=c_gradient)
+    display(h)
+
+    # Matched samples
+    out = zeros(ybins, xbins)
+    for j in 1:ybins
+        t = @. yedges[j] <= sim_mbulk.basalt[:,2] < yedges[j+1];
+        c, n = bincounts(sim_mbulk.basalt[:,1][t], xmin, xmax, xbins)
+        out[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
+    end
+
+    h = Plots.plot(
+        ylims=(0,ybins),
+        yticks=(0:ybins/7.6:ybins, string.(0:500:3800)),
+        xticks=(0:xbins/4:xbins, string.(40:10:80)),
+        yflip=true,
+        xlabel="SiO₂ [wt.%]", 
+        ylabel="Age [Ma]",
+        size=(600,500),
+    );
+    Plots.heatmap!(h, out, color=c_gradient,)
+    display(h)
+
+
+## --- Same as above, with rhyolites
+    xmin, xmax, xbins = 40, 80, 240           # Silica bins
+    xedges = xmin:(xmax-xmin)/xbins:xmax
+    ymin, ymax, ybins = 0, 3800, 380          # Age bins
+    yedges = ymin:(ymax-ymin)/ybins:ymax
+
+    # Bulk geochemical data
+    out = zeros(ybins, xbins)
+    for j in 1:ybins
+        t = @. yedges[j] <= sim_chem_age < yedges[j+1];
+        c, n = bincounts(sim_silica[chem_cats.rhyolite .& t], xmin, xmax, xbins)
+        out[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
+    end
+
+    h = Plots.plot(
+        ylims=(0,ybins),
+        yticks=(0:ybins/7.6:ybins, string.(0:500:3800)),
+        xticks=(0:xbins/4:xbins, string.(40:10:80)),
+        yflip=true,
+        xlabel="SiO₂ [wt.%]", 
+        ylabel="Age [Ma]",
+        size=(600,500),
+    );
+    Plots.heatmap!(h, out, color=c_gradient)
+    display(h)
+
+    # Matched samples
+    out = zeros(ybins, xbins)
+    for j in 1:ybins
+        t = @. yedges[j] <= sim_mbulk.rhyolite[:,2] < yedges[j+1];
+        c, n = bincounts(sim_mbulk.rhyolite[:,1][t], xmin, xmax, xbins)
+        out[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
+    end
+
+    h = Plots.plot(
+        ylims=(0,ybins),
+        yticks=(0:ybins/7.6:ybins, string.(0:500:3800)),
+        xticks=(0:xbins/4:xbins, string.(40:10:80)),
+        yflip=true,
+        xlabel="SiO₂ [wt.%]", 
+        ylabel="Age [Ma]",
+        size=(600,500),
+    );
+    Plots.heatmap!(h, out, 
+        color=:nipy_spectral,
+    )
+    display(h)
 
 
 ## --- End of File 

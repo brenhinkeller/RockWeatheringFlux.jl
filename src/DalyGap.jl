@@ -115,9 +115,8 @@
 
 ## --- Resample matched dataset igneous / volcanic / plutonic 
     # Preallocate 
-    sim_mbulk = NamedTuple{(:ign, :plut, :volc, :basalt, :rhyolite)}(
-        Array{Float64}(undef, nsims, 2) for _ in 1:5
-    )
+    target = (:ign, :plut, :volc, :basalt, :rhyolite)
+    sim_mbulk = NamedTuple{target}(Array{Float64}(undef, nsims, 2) for _ in target)
 
     # Compute age uncertainties
     ageuncert = nanadd.(macrostrat.agemax, - macrostrat.agemin) ./ 2;
@@ -130,47 +129,16 @@
     # Restrict to only samples with data (all samples have lat / lon) and reset any 
     # weirdness with types
     t = @. !isnan(macrostrat.age);
-    # include_minor!(macro_cats);
+    include_minor!(macro_cats);
 
-    # Matched igneous
-    s = t .& macro_cats.ign
-    k = invweight_age(macrostrat.age[s])
-    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    data = [mbulk.SiO2[s] macrostrat.age[s]]
-    uncertainty = [fill(SiO2_error, count(s)) ageuncert[s]]
-    sim_mbulk.ign .= bsresample(data, uncertainty, nsims, p)
-
-    # Matched volcanic
-    s = t .& macro_cats.volc
-    k = invweight_age(macrostrat.age[s])
-    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    data = [mbulk.SiO2[s] macrostrat.age[s]]
-    uncertainty = [fill(SiO2_error, count(s)) ageuncert[s]]
-    sim_mbulk.volc .= bsresample(data, uncertainty, nsims, p)
-
-    # Matched plutonic 
-    s = t .& macro_cats.plut
-    k = invweight_age(macrostrat.age[s])
-    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    data = [mbulk.SiO2[s] macrostrat.age[s]]
-    uncertainty = [fill(SiO2_error, count(s)) ageuncert[s]]
-    sim_mbulk.plut .= bsresample(data, uncertainty, nsims, p)
-
-    # Matched basalt
-    s = t .& macro_cats.basalt
-    k = invweight_age(macrostrat.age[s])
-    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    data = [mbulk.SiO2[s] macrostrat.age[s]]
-    uncertainty = [fill(SiO2_error, count(s)) ageuncert[s]]
-    sim_mbulk.basalt .= bsresample(data, uncertainty, nsims, p)
-
-    # Matched basalt
-    s = t .& macro_cats.rhyolite
-    k = invweight_age(macrostrat.age[s])
-    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    data = [mbulk.SiO2[s] macrostrat.age[s]]
-    uncertainty = [fill(SiO2_error, count(s)) ageuncert[s]]
-    sim_mbulk.rhyolite .= bsresample(data, uncertainty, nsims, p)
+    for key in target 
+        s = t .& macro_cats[key]
+        k = invweight_age(macrostrat.age[s])
+        p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+        data = [mbulk.SiO2[s] macrostrat.age[s]]
+        uncertainty = [fill(SiO2_error, count(s)) ageuncert[s]]
+        sim_mbulk[key] .= bsresample(data, uncertainty, nsims, p)
+    end
 
 
 ## --- Resample observed rock types, correcting for preservation bias
@@ -572,6 +540,34 @@
             label="$k"
         )
     end
+    display(h)
+
+
+## --- Contamination of basalts and rhyolites in 2D histogram form 
+    # Without resampling because I want things fast 
+    xmin, xmax, xbins = 40, 80, 240           # Silica bins
+    xedges = xmin:(xmax-xmin)/xbins:xmax
+    ymin, ymax, ybins = 0, 3800, 380          # Age bins
+    yedges = ymin:(ymax-ymin)/ybins:ymax
+
+    # Bulk geochemical data
+    out = zeros(ybins, xbins)
+    for j in 1:ybins
+        t = @. yedges[j] <= macrostrat.age < yedges[j+1];
+        c, n = bincounts(sim_silica[chem_cats.basalt .& t], xmin, xmax, xbins)
+        out[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
+    end
+
+    h = Plots.plot(
+        ylims=(0,ybins),
+        yticks=(0:ybins/7.6:ybins, string.(0:500:3800)),
+        xticks=(0:xbins/4:xbins, string.(40:10:80)),
+        yflip=true,
+        xlabel="SiO₂ [wt.%]", 
+        ylabel="Age [Ma]",
+        size=(600,500),
+    );
+    Plots.heatmap!(h, out, color=c_gradient)
     display(h)
 
 

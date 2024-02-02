@@ -1,4 +1,4 @@
-# Wrapper for SampleMatchBase.jl, whihc matches Macrostrat samples to the most likely 
+# Wrapper for SampleMatchBase.jl, which matches Macrostrat samples to the most likely 
 # EarthChem sample
 
 ## --- Code

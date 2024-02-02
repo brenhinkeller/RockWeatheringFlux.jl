@@ -59,9 +59,9 @@
         ageuncert[i] = ifelse(isnan(ageuncert[i]), macrostrat.age[i]*age_error, ageuncert[i])
     end
 
-    k = invweight_age(age[t])                      # Already spatially corrected
+    k = invweight_age(macrostrat.age[t])                      # Already spatially corrected
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    data = [mbulk.SiO2[t] age[t]]
+    data = [mbulk.SiO2[t] macrostrat.age[t]]
     uncertainty = [fill(SiO2_error, count(t)) ageuncert[t]]
     sim_mbulk = bsresample(data, uncertainty, nsims, p)
 
@@ -84,7 +84,7 @@
 ## --- Build plot 
     # EarthChem
     h1 = Plots.plot(
-        ylims=(0,380),
+        ylims=(0,ybins),
         yticks=(0:50:380, string.(0:500:3800)),
         yflip=true,
         xlabel="SiO₂ [wt.%]", 
@@ -101,7 +101,7 @@
 
     # Matched samples
     h2 = Plots.plot(
-        ylims=(0,380),
+        ylims=(0,ybins),
         # yticks=(0:50:380, string.(0:500:3800)),
         yticks=false,
         yflip=true,

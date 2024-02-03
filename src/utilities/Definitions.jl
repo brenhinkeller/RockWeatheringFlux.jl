@@ -41,7 +41,8 @@
 ## --- Color names for visualization
 
     # Gradients
-    c_gradient = :jet1
+    # c_gradient = :jet1
+    c_gradient = :nipy_spectral
     export c_gradient
 
     # Resampled

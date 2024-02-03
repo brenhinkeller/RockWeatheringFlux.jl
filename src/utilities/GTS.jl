@@ -46,7 +46,7 @@
     function assign_GTS_age(target::String, names_GTS::NamedTuple, bounds_GTS::NamedTuple)
         div = get_GTS_division(target, names_GTS)
         if div === nothing
-            @warn("Could not identify $target as a GTS name.")
+            # @warn("Could not identify $target as a GTS name.")
             return (NaN ± NaN, NaN ± NaN)
         end
 

@@ -67,12 +67,13 @@
 
     # Major classes include minors, delete cover
     include_minor!(macro_cats);
+    include_minor!(match_cats);
     include_minor!(bulk_cats);
     macro_cats = delete_cover(macro_cats);
     bulk_cats = delete_cover(bulk_cats);
     
 
-## --- Resample bulk geochemical igneous / volcanic / plutonic 
+## --- Resample (spatiotemporal) bulk geochemical igneous / volcanic / plutonic 
     # Preallocate 
     simbulk = NamedTuple{(:ign, :plut, :volc)}(Array{Float64}(undef, nsims, 2) for _ in 1:3)
 
@@ -113,7 +114,7 @@
     simbulk.volc .= bsresample(data, uncertainty, nsims, p)
 
 
-## --- Resample matched dataset igneous / volcanic / plutonic 
+## --- Resample (temporal) matched dataset igneous / volcanic / plutonic 
     # Preallocate 
     target = (:ign, :plut, :volc, :basalt, :rhyolite)
     sim_mbulk = NamedTuple{target}(Array{Float64}(undef, nsims, 2) for _ in target)
@@ -131,6 +132,9 @@
     t = @. !isnan(macrostrat.age);
     include_minor!(macro_cats);
 
+    # # Optionally exclude anything that was matched with a sed during the matching process
+    # macro_cats.volc .&= .!(match_cats.sed)
+
     for key in target 
         s = t .& macro_cats[key]
         k = invweight_age(macrostrat.age[s])
@@ -141,7 +145,34 @@
     end
 
 
-## --- Resample observed rock types, correcting for preservation bias
+## --- Resample (temporal) matched dataset using ASSIGNED types 
+    # Preallocate 
+    target = (:ign, :plut, :volc, :basalt, :rhyolite)
+    sim_mbulk_match = NamedTuple{target}(Array{Float64}(undef, nsims, 2) for _ in target)
+
+    # Compute age uncertainties
+    ageuncert = nanadd.(macrostrat.agemax, - macrostrat.agemin) ./ 2;
+    ageuncert[isnan.(macrostrat.age) .| (ageuncert .== 0)] .= NaN;
+    for i in eachindex(ageuncert)
+        # Default 5% age uncertainty if bounds do not exist (or error is 0)
+        ageuncert[i] = ifelse(isnan(ageuncert[i]), macrostrat.age[i]*age_error, ageuncert[i])
+    end
+    
+    # Restrict to only samples with data (all samples have lat / lon) and reset any 
+    # weirdness with types
+    t = @. !isnan(macrostrat.age);
+    include_minor!(match_cats);
+
+    for key in target 
+        s = t .& match_cats[key]
+        k = invweight_age(macrostrat.age[s])
+        p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+        data = [mbulk.SiO2[s] macrostrat.age[s]]
+        uncertainty = [fill(SiO2_error, count(s)) ageuncert[s]]
+        sim_mbulk_match[key] .= bsresample(data, uncertainty, nsims, p)
+    end
+
+## --- Resample (temporal) observed rock types, correcting for preservation bias
     # We can get a completely spatially representative dataset of the rock types exposed
     # at Earth's surface from the lithologic map, although the dataset is subject to 
     # preservation bias.
@@ -177,7 +208,7 @@
     sim_lith_age[.!(0 .< sim_lith_age .< 4000)] .= NaN
 
 
-## --- Resample observed rock types, WITHOUT correcting for preservation bias
+## --- Resample (no weights) observed rock types, WITHOUT correcting for preservation bias
     # If we're just interested in what's on the surface **right now** we don't want to 
     # correct for preservation bias
 
@@ -210,7 +241,7 @@
     sim_lith_age_unweighted[.!(0 .< sim_lith_age_unweighted .< 4000)] .= NaN
 
 
-## --- Resample silica and age distributions in the bulk geochemical datset 
+## --- Resample (spatiotemporal) silica and age distributions in bulk geochemical dataset 
     # We can get the distributions of silica in different rock types from the geochemical
     # dataset. This is subject to sampling bias as well as preservation bias. 
     # Spatiotemporally resample the dataset to remove sampling and preservation bias. 
@@ -263,8 +294,8 @@
     for i in eachindex(fig)
         # Preallocate
         target = bulk_cats[class[i]]
-        out_bulk = zeros(ybins, xbins)
-        out_mbulk = zeros(ybins, xbins)
+        out_bulk = zeros(ybins, xbins);
+        out_mbulk = zeros(ybins, xbins);
 
         # Bulk geochemcial data
         for j = 1:ybins
@@ -543,34 +574,6 @@
     display(h)
 
 
-## --- Contamination of basalts and rhyolites in 2D histogram form 
-    # Without resampling because I want things fast 
-    xmin, xmax, xbins = 40, 80, 240           # Silica bins
-    xedges = xmin:(xmax-xmin)/xbins:xmax
-    ymin, ymax, ybins = 0, 3800, 380          # Age bins
-    yedges = ymin:(ymax-ymin)/ybins:ymax
-
-    # Bulk geochemical data
-    out = zeros(ybins, xbins)
-    for j in 1:ybins
-        t = @. yedges[j] <= macrostrat.age < yedges[j+1];
-        c, n = bincounts(sim_silica[chem_cats.basalt .& t], xmin, xmax, xbins)
-        out[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
-    end
-
-    h = Plots.plot(
-        ylims=(0,ybins),
-        yticks=(0:ybins/7.6:ybins, string.(0:500:3800)),
-        xticks=(0:xbins/4:xbins, string.(40:10:80)),
-        yflip=true,
-        xlabel="SiO₂ [wt.%]", 
-        ylabel="Age [Ma]",
-        size=(600,500),
-    );
-    Plots.heatmap!(h, out, color=c_gradient)
-    display(h)
-
-
 ## --- Options to mitigate contamination and why I dislike them 
     # 1) only use the assigned rock classes 
         # IDK bad vibes. I feel like if everything works right we shouldn't need to use 
@@ -666,7 +669,7 @@
     yedges = ymin:(ymax-ymin)/ybins:ymax
 
     # Bulk geochemical data
-    out = zeros(ybins, xbins)
+    out = zeros(ybins, xbins);
     for j in 1:ybins
         t = @. yedges[j] <= sim_chem_age < yedges[j+1];
         c, n = bincounts(sim_silica[chem_cats.basalt .& t], xmin, xmax, xbins)
@@ -686,10 +689,16 @@
     display(h)
 
     # Matched samples
-    out = zeros(ybins, xbins)
+    out = zeros(ybins, xbins);
     for j in 1:ybins
-        t = @. yedges[j] <= sim_mbulk.basalt[:,2] < yedges[j+1];
-        c, n = bincounts(sim_mbulk.basalt[:,1][t], xmin, xmax, xbins)
+        # Use types assigned during sample matching
+        t = @. yedges[j] <= sim_mbulk_match.basalt[:,2] < yedges[j+1];
+        c, n = bincounts(sim_mbulk_match.basalt[:,1][t], xmin, xmax, xbins)
+
+        # Use types ID-ed from the lithologic map
+        # t = @. yedges[j] <= sim_mbulk.basalt[:,2] < yedges[j+1];
+        # c, n = bincounts(sim_mbulk.basalt[:,1][t], xmin, xmax, xbins)
+
         out[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
     end
 

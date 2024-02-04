@@ -14,6 +14,7 @@ output/
 /*.tsv
 /*.pdf
 /*.png
+nohup.out
 
 # Ignore large files
 *.jld

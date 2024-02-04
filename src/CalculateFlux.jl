@@ -101,26 +101,32 @@
 
     # Total / bulk denundation at each point in kg/yr
     path = fid["bulk_denundation"]
-    bulk_denundation = read(path["values"]) .± read(path["errors"])
+    # bulk_denundation = read(path["values"]) .± read(path["errors"])
+    bulk_denundation = read(path["values"])
 
     # Global flux of each element at each point in kg/yr
     path = fid["element_flux"]
     vals = read(path["values"])
     errs = read(path["errors"])
     header = Tuple(Symbol.(read(path["header"])))
-    elementflux = NamedTuple{header}([vals[:,i] .± errs[:,i] for i in eachindex(header)])
+    # elementflux = NamedTuple{header}([vals[:,i] .± errs[:,i] for i in eachindex(header)])
+    elementflux = NamedTuple{header}([vals[:,i] for i in eachindex(header)])
 
     close(fid)
 
+    # If I actually try to propagate uncertainty, it takes over 2 hours (which is not the 
+    # run time, but the time where I gave up and killed the program).
+    # Uncertainty comes from: standard deviation of slope at each point, erosion uncertainty
+    # that's then propagated foward. We assume that wt.% of each element is exact.
+    # For now, just don't... propagate. lol.
+
 
 ## --- Calculate absolute and relative flux
-    @info """ This takes SO LONG. Starting at $(Dates.format(now(), "HH:MM")) """
-
     # Conversion for kg to Gt. Data file is in units of kg/yr
     const kg_gt = 1e12
 
-    # Global denundation in Gt/yr
-    global_denun = nansum(bulk_denundation ./ kg_gt) # 12:27
+    # Global denundation in Gt/yr.
+    global_denun = nansum(bulk_denundation ./ kg_gt)
 
     # Total global flux for each element in Gt/yr
     totalelementflux = NamedTuple{keys(elementflux)}([nansum(i) / kg_gt for i in elementflux])
@@ -129,12 +135,19 @@
     global_elem = nansum(totalelementflux)
 
     # Print to terminal
-    @info """
-    Total global denundation: $global_denun Gt/yr
-    Sum of all element fluxes: $global_elem Gt/yr
+    @info """ Results:
+    Total global denundation: $(round(global_denun, sigdigits=3)) Gt/yr
+    Sum of all element fluxes: $(round(global_elem, sigdigits=3)) Gt/yr
     """
-    if global_elem.val > global_denun.val
-        diff = global_elem.val - global_denun.val
+    # if global_elem.val > global_denun.val
+    #     diff = global_elem.val - global_denun.val
+    #     @warn """
+    #     Mass of total eroded material from all elements is greater than bulk eroded mass. 
+    #     Difference: $diff
+    #     """
+    # end
+    if global_elem > global_denun
+        diff = global_elem - global_denun
         @warn """
         Mass of total eroded material from all elements is greater than bulk eroded mass. 
         Difference: $diff
@@ -159,7 +172,8 @@
 
     for i in eachindex(keys(match_cats))
         for j in eachindex(keys(elementflux))
-            result[j,i] = nansum(unmeasurementify(elementflux[j])[1][match_cats[i]])
+            # result[j,i] = nansum(unmeasurementify(elementflux[j])[1][match_cats[i]])
+            result[j,i] = nansum(elementflux[j][match_cats[i]])
         end
     end
 
@@ -167,8 +181,9 @@
     result = result ./ kg_gt
 
     # Add global total denudation by element to the last row (units already converted)
-    global_element = unmeasurementify(totalelementflux)[1]
-    result[:,end] = global_element
+    # global_element = unmeasurementify(totalelementflux)[1]
+    global_element = values(totalelementflux)
+    result[:,end] .= global_element
 
     # Save to file
     rows = string.(collect(keys(elementflux)))
@@ -182,7 +197,8 @@
     majors, minors = get_elements()
     nmajors = length(majors)
     majorcomp = round.(result[1:nmajors, end], digits=1)
-    majorcomp_rel = round.(result[1:nmajors, end]./global_denun.val*100, digits=1)
+    # majorcomp_rel = round.(result[1:nmajors, end]./global_denun.val*100, digits=1)
+    majorcomp_rel = round.(result[1:nmajors, end]./global_denun*100, digits=1)
 
     @info """Composition of bulk eroded material:
     Absolute (gt/yr)

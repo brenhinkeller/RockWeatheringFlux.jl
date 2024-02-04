@@ -5,23 +5,15 @@
 
 
 ## --- Load data for the matched EarthChem samples
-    # Indices of matched EarthChem samples from SampleMatch.jl
+    # Indices and classes of matched samples
     fid = readdlm("$matchedbulk_io")
     bulkidx = Int.(vec(fid[:,1]))
     t = @. bulkidx != 0
-    
-    # Macrostrat (for rock types)
-    fid = h5open("$macrostrat_io", "r")
-    header = read(fid["type"]["macro_cats_head"])
-    data = read(fid["type"]["macro_cats"])
-    data = @. data > 0
-    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
-    close(fid)
 
-    include_minor!(macro_cats)
-    macro_cats = delete_cover(macro_cats)
+    match_cats = match_rocktype(string.(vec(fid[:,2]))[t]);
+    include_minor!(match_cats)
 
-    # Earthchem (geochemical data)
+    # Matched geochemical data
     fid = h5open(geochem_fid, "r")
     header = read(fid["bulk"]["header"])
     data = read(fid["bulk"]["data"])
@@ -42,10 +34,10 @@
 
     # Save to a file 
     rows = string.(allelements)
-    cols = hcat("element", string.(reshape(collect(keys(macro_cats)), 1, :)), "bulk")
-    results = Array{Float64}(undef, (length(allelements), length(macro_cats)+1))
-    for i in eachindex(keys(macro_cats))
-        results[:,i] .= [nanmean(bulk[j][macro_cats[i]]) for j in allelements]
+    cols = hcat("element", string.(reshape(collect(keys(match_cats)), 1, :)), "bulk")
+    results = Array{Float64}(undef, (length(allelements), length(match_cats)+1))
+    for i in eachindex(keys(match_cats))
+        results[:,i] .= [nanmean(bulk[j][match_cats[i]]) for j in allelements]
     end
 
     bulkearth = [nanmean(bulk[i]) for i in allelements]

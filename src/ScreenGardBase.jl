@@ -142,7 +142,8 @@
     gard_cats = match_rocktype(
         gard_sample.rock_name, gard_sample.sample_description, gard_sample.qap_name, 
         Int.(gard_sample.rgroup_id), 
-        rockgroup_id = Int.(gard_rgroup.rgroup_id), rockgroup_name = vec(rockgroup_name)
+        rockgroup_id = Int.(gard_rgroup.rgroup_id), rockgroup_name = vec(rockgroup_name),
+        showprogress=show_progress
     );
 
     # Just check what we have 
@@ -570,12 +571,12 @@
     s .&= .!(gard_sample.material .== "stream sediment")
 
     # Get a list of authors so we can remove some of them    
-    [author[i] = gard_ref.author[Int(gard_sample.ref_id[i])] for i in eachindex(author)]
+    author = [gard_ref.author[Int(gard_sample.ref_id[i])] for i in eachindex(gard_sample.ref_id)]
 
     # These are reported incorrectly (Brenhin / Blair checked the pub)
     s .&= .!(author .== "kylander-clark, andrew r c; coleman, drew s; glazner, allen f; bartley, john m, 2005");
 
-    # These are for zirons, not whole-rock samples
+    # These are for zirons, not whole-rock samples - from Brenhin / Blair
     s .&= .!(author .== "lanphere, marvin a; baadsgaard, h, 2001");
 
     # These are all typos (U>100 ppm) - from Brenhin / Blair
@@ -610,9 +611,10 @@
     );
 
     # Print to terminal
+    up = count(t) - tᵢ
     @info """Saving $(count(t)) samples ($(round(count(t)/length(t)*100, digits=2))%)
     Assuming volatiles increased count from $tᵢ to $(count(t))
-    Total increase = $(count(t) - tᵢ)
+    Total increase = $up
     """
 
 

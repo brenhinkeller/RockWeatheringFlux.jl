@@ -23,6 +23,7 @@
 
     match_cats = match_rocktype(string.(vec(fid[:,2]))[t]);
     include_minor!(match_cats)
+    match_cats = delete_cover(match_cats)
 
     # Geochemical Data
     fid = h5open(geochem_fid, "r")

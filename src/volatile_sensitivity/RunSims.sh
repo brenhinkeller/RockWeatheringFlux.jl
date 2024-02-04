@@ -1,6 +1,6 @@
 #! /usr/bin/bash
 
-# Takes roughly two and a half hours to run
+# Takes roughly 2.5 hours to run for EarthChem, and 7-ish for Gard
 # nohup bash src/volatile_sensitivity/RunSims.sh &
 
 # Fail if any command fails 
@@ -12,10 +12,13 @@ set -e
 
 ## Initialize variables
     # File names (remember to change screening file in Simulation.jl too!!)
-    simout='src/volatile_sensitivity/simout_gard.h5'             # Simulation output file for results
-    simout1='src/volatile_sensitivity/simout_prop_gard.h5'       # Proportional volatiles output
-    simout2='src/volatile_sensitivity/simout_prop2_gard.h5'      # Proportional volatiles output version 2
-    stem='src/volatile_sensitivity/simbulk_'                # Temporary simulation data file
+    # simout='src/volatile_sensitivity/simout.h5'             # Simulation output file for results
+    # simout1='src/volatile_sensitivity/simout_prop.h5'       # Proportional volatiles output
+    # simout2='src/volatile_sensitivity/simout_prop2.h5'      # Proportional volatiles output version 2
+    simout='src/volatile_sensitivity/simout_gard.h5'
+    simout1='src/volatile_sensitivity/simout_prop_gard.h5'
+    simout2='src/volatile_sensitivity/simout_prop2_gard.h5'
+    stem='src/volatile_sensitivity/simbulk_'                  # Temporary simulation data file    
 
     # Project location
     proj='../RockWeatheringFlux.jl/Project.toml'

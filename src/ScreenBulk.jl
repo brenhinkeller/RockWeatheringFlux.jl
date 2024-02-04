@@ -22,6 +22,8 @@
     """
 
     # Calculate a reasonable assumption for wt.% volatiles
+    # Differentiating dolomite from evaporites doesn't actually matter: see sensitivity
+    # testing results
     dol = (12.01+2*16)/((24.869+40.08)/2+12.01+16*3)*100          # Dolomite
     gyp = (32.07+16*3+2*(18))/(40.08+32.07+16*4+2*(18))*100       # Gypsum
     bas = (32.07+16*3+0.5*(18))/(40.08+32.07+16*4+0.5*(18))*100   # Bassanite (2CaSO₄⋅H₂O)

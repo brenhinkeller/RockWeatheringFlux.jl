@@ -27,8 +27,9 @@ set -e
     # [output/N_*/*_bulkidx_[gard/bulk].tsv]
     julia --project="Project.toml" src/SampleMatch.jl       
 
-    # Absolute (Gt) composition [results/*_erodedmaterial_abs_[gard/bulk].tsv]
-    # Relative (%) composition  [results/*_erodedmaterial_rel_[gard/bulk].tsv]
+    # Absolute (Gt) composition [results/*_eroded_absolute_[gard/bulk].tsv]
+    # Fractional contribution by class  [results/*_eroded_fraction_[gard/bulk].tsv]
+    # Composition (wt.%) [results/*_eroded_composition_[gard/bulk].tsv]
     julia --project="Project.toml" src/CalculateFlux.jl
 
     # [results/*_exposedcrust_[gard/bulk].tsv]

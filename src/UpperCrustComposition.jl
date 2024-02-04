@@ -12,6 +12,7 @@
 
     match_cats = match_rocktype(string.(vec(fid[:,2]))[t]);
     include_minor!(match_cats)
+    match_cats = delete_cover(match_cats)
 
     # Matched geochemical data
     fid = h5open(geochem_fid, "r")
@@ -32,20 +33,24 @@
         zeronan!(mbulk[i])
     end
 
+    # We don't want metamorphics, but we do want all samples 
+    target = deleteat!(collect(keys(match_cats)), findall(x->x==:met, collect(keys(match_cats))))
+    class = merge(
+        NamedTuple{Tuple(target)}(match_cats[k] for k in target), 
+        (bulk=trues(length(match_cats[1])),)
+    )
+
     # Save to a file 
+    result = Array{Float64}(undef, (length(allelements), length(class)))
     rows = string.(allelements)
-    cols = hcat("element", string.(reshape(collect(keys(match_cats)), 1, :)), "bulk")
-    results = Array{Float64}(undef, (length(allelements), length(match_cats)+1))
+    cols = hcat("", reshape(string.(collect(keys(class))), 1, :))
+    
     for i in eachindex(keys(match_cats))
-        results[:,i] .= [nanmean(mbulk[j][match_cats[i]]) for j in allelements]
+        result[:,i] .= [nanmean(mbulk[j][match_cats[i]]) for j in allelements]
     end
+    writedlm("$ucc_out", vcat(cols, hcat(rows, result)))
 
-    bulkearth = [nanmean(mbulk[i]) for i in allelements]
-    bulkerr = [nanstd(mbulk[i])/(count(!isnan, mbulk[i])) for i in allelements]
-    results[:,end] .= bulkearth
-
-    # Save to file
-    writedlm("$ucc_out", vcat(cols, hcat(rows, results)))
+    # bulkerr = [nanstd(mbulk[i])/(count(!isnan, mbulk[i])) for i in allelements]
 
     # Terminal printout
     majorcomp = round.([bulkearth[i] for i in eachindex(majors)], digits=1)

@@ -12,8 +12,8 @@
 
         # eroded_out = "output/N_500/toy_erodedmaterial_" * stem * ".h5"
         # ucc_out = "results/toy_exposedcrust_" * stem * ".tsv"
-        # erodedabs_out = "results/toy_erodedmaterial_abs_" * stem * ".tsv"
-        # erodedrel_out = "results/toy_erodedmaterial_rel_" * stem * ".tsv"
+        # erodedabs_out = "results/toy_eroded_absolute_" * stem * ".tsv"
+        # erodedrel_out = "results/toy_eroded_fraction_" * stem * ".tsv"
 
     # 250_000 Macrostrat samples
         macrostrat_io = "output/N_250K/250K_responses.h5"
@@ -21,8 +21,9 @@
 
         eroded_out = "output/N_250K/250K_erodedmaterial_" * stem * ".h5"
         ucc_out = "results/250K_exposedcrust_" * stem * ".tsv"
-        erodedabs_out = "results/250K_erodedmaterial_abs_" * stem * ".tsv"
-        erodedrel_out = "results/250K_erodedmaterial_rel_" * stem * ".tsv"
+        erodedabs_out = "results/250K_eroded_absolute_" * stem * ".tsv"
+        erodedrel_out = "results/250K_eroded_fraction_" * stem * ".tsv"
+        erodedcomp_out = "results/250K_eroded_composition_" * stem * ".tsv"
 
     # 1_000_000 Macrostrat samples
         # macrostrat_io = "output/N_1M/1M_responses.h5"
@@ -30,12 +31,12 @@
 
         # eroded_out = "output/N_1M/1M_erodedmaterial_" * stem * ".h5"
         # ucc_out = "results/1M_exposedcrust_" * stem * ".tsv"
-        # erodedabs_out = "results/1M_erodedmaterial_abs_" * stem * ".tsv"
-        # erodedrel_out = "results/1M_erodedmaterial_rel_" * stem * ".tsv"
+        # erodedabs_out = "results/1M_eroded_absolute_" * stem * ".tsv"
+        # erodedrel_out = "results/1M_eroded_fraction_" * stem * ".tsv"
 
     export macrostrat_io, matchedbulk_io
     export ucc_out
-    export eroded_out, erodedabs_out, erodedrel_out
+    export eroded_out, erodedabs_out, erodedrel_out, erodedcomp_out
 
 
 ## --- Color names for visualization

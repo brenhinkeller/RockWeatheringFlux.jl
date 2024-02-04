@@ -11,8 +11,15 @@
     t = @. matches != 0
 
     # Rock class of each sample
+    # We use the rock classes assigned during lithological / geochemical sample matching, 
+    # because this represents the geochemical composition of rocks of that class (e.g., if 
+    # something is matched to basalt and rhyolite, and was assigned basalt for the purposes
+    # of sample matching, we don't want to contaminate our rhyolite data with that point).
+    # Our sample density is high enough that by the law of large numbers, we should get
+    # back to the same result. 
     match_cats = match_rocktype(string.(vec(fid[:,2]))[t]);
     include_minor!(match_cats)
+    match_cats = delete_cover(match_cats)
 
     # Geochemical data for each sample
     fid = h5open(geochem_fid, "r")
@@ -156,49 +163,53 @@
 
 
 ## --- Export crustal composition results
+    # Get major elements for terminal printouts
+    majors = get_elements()[1]
+    nmajors = length(majors)
+
+    # We don't want metamorphics, but we do want all samples 
+    target = deleteat!(collect(keys(match_cats)), findall(x->x==:met, collect(keys(match_cats))))
+    class = merge(
+        NamedTuple{Tuple(target)}(match_cats[k] for k in target), 
+        (bulk=trues(length(match_cats[1])),)
+    )
+
     # Preallocate (element row, rock type column)
-    result = Array{Float64}(undef, length(elementflux), length(match_cats) + 1)
+    result = Array{Float64}(undef, length(elementflux), length(class))
+    rows = string.(collect(keys(elementflux)))
+    cols = hcat("", reshape(string.(collect(keys(class))), 1, :))
 
     # Calculate the absolute contribution of each rock type to the denudation of each
     # element. This is the sum of the individual contributions of each point mapped to that
     # rock type.
-
-    # We use the rock classes assigned during lithological / geochemical sample matching, 
-    # because this represents the geochemical composition of rocks of that class (e.g., if 
-    # something is matched to basalt and rhyolite, and was assigned basalt for the purposes
-    # of sample matching, we don't want to contaminate our rhyolite data with that point).
-    # Our sample density is high enough that by the law of large numbers, we should get
-    # back to the same result. 
-
-    for i in eachindex(keys(match_cats))
+    for i in eachindex(keys(class))
         for j in eachindex(keys(elementflux))
-            # result[j,i] = nansum(unmeasurementify(elementflux[j])[1][match_cats[i]])
-            result[j,i] = nansum(elementflux[j][match_cats[i]])
+            # result[j,i] = nansum(unmeasurementify(elementflux[j])[1][class[i]])
+            result[j,i] = nansum(elementflux[j][class[i]])
         end
     end
 
-    # Convert units from kg/yr to gt/yr
-    result = result ./ kg_gt
+    # Convert units from kg/yr to gt/yr. We now have absolute amount of material eroded by 
+    # lithologic class each year. We can also calculate the fractional contribution of 
+    # each class to the erosion of each element by dividing by the total amount of that 
+    # element which erodes each year
+    result ./= kg_gt
+    majorcomp = round.(result[1:nmajors, end], digits=1)                    # For printout
 
-    # Add global total denudation by element to the last row (units already converted)
-    # global_element = unmeasurementify(totalelementflux)[1]
-    global_element = values(totalelementflux)
-    result[:,end] .= global_element
+    writedlm(erodedabs_out, vcat(cols, hcat(rows, result)))                 # Absolute
+    writedlm(erodedrel_out, vcat(cols, hcat(rows, result./result[:,end])))  # Fractional
 
-    # Save to file
-    rows = string.(collect(keys(elementflux)))
-    cols = string.(collect(keys(match_cats)))
-    cols = hcat("", reshape(cols, 1, length(cols)), "total")
-
-    writedlm(erodedabs_out, vcat(cols, hcat(rows, result)))                    # Absolute
-    writedlm(erodedrel_out, vcat(cols, hcat(rows, result./global_element)))    # Relative / fraction
+    # Compute the composition of eroded material [wt.%] for each lithologic class as the
+    # fraction of that element out of the total erosion for that class
+    for i in eachindex(keys(class))
+        result[:,i] ./= nansum(result[:,i])
+    end
+    writedlm(erodedcomp_out, vcat(cols, hcat(rows, result.*100)))
 
     # Terminal printout
-    majors, minors = get_elements()
-    nmajors = length(majors)
-    majorcomp = round.(result[1:nmajors, end], digits=1)
+
     # majorcomp_rel = round.(result[1:nmajors, end]./global_denun.val*100, digits=1)
-    majorcomp_rel = round.(result[1:nmajors, end]./global_denun*100, digits=1)
+    majorcomp_rel = round.(result[1:nmajors, end].*100, digits=1)
 
     @info """Composition of bulk eroded material:
     Absolute (gt/yr)

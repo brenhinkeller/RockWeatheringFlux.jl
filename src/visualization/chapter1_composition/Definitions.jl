@@ -16,10 +16,13 @@
 
     
 ## --- Matched Geochemical Data and Macrostrat / Burwell
-    # Indices of matched samples
+    # Indices and rock classes of matched samples
     fid = readdlm(matchedbulk_io)
     matches = Int.(vec(fid[:,1]))
     t = @. matches != 0
+
+    match_cats = match_rocktype(string.(vec(fid[:,2]))[t]);
+    include_minor!(match_cats)
 
     # Geochemical Data
     fid = h5open(geochem_fid, "r")
@@ -41,12 +44,12 @@
     header = read(fid["type"]["macro_cats_head"])
     data = read(fid["type"]["macro_cats"])
     data = @. data > 0
-    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
+    # macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
     close(fid)
 
     # Major classes include minors, delete cover
-    include_minor!(macro_cats)
-    macro_cats = delete_cover(macro_cats)
+    # include_minor!(macro_cats)
+    # macro_cats = delete_cover(macro_cats)
 
 
 ## --- Unmatched Geochemical Data

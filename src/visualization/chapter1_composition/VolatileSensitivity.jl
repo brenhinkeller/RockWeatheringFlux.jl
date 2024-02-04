@@ -2,14 +2,15 @@
     # Visualize simulated crust compositions as a function of assumed volatiles
 
     # Load data and base packages
-    if !@isdefined(filepath)
-        include("Definitions.jl")
-    end
+    include("Definitions.jl")
 
     # Define simulation filepaths
-    sim1 = "src/volatile_sensitivity/simout.h5"
-    sim2 = "src/volatile_sensitivity/simout_prop.h5"
-    sim3 = "src/volatile_sensitivity/simout_prop2.h5"
+    # sim1 = "src/volatile_sensitivity/simout.h5"
+    # sim2 = "src/volatile_sensitivity/simout_prop.h5"
+    # sim3 = "src/volatile_sensitivity/simout_prop2.h5"
+    sim1 = "src/volatile_sensitivity/simout_gard.h5"
+    sim2 = "src/volatile_sensitivity/simout_prop_gard.h5"
+    sim3 = "src/volatile_sensitivity/simout_prop2_gard.h5"
 
 
 ## --- Load simulation with equal assumed volatiles and current experimental conditions
@@ -88,35 +89,43 @@
         grid = false,
         fontfamily=:Helvetica,
         ylabel="Average Crustal Silica [wt.%]",
-        xlabel="Maximum Assumed Sedimentary Volatiles [wt.%]",
+        xlabel="Assumed Sedimentary Volatiles [wt.%]",
         xlims=(10,100),
-        legend=:bottomleft,
+        ylims=(55,70),
+        legend=:topright,
         fg_color_legend=:white,
-    )
+    );
 
     # Plot other estimates for comparison
-    Plots.hline!([66.62], label="Rudnick and Gao, 2014", 
-        linewidth=3, linestyle=:dash, color=colors.siliciclast
+    Plots.hline!([66.62], label="", 
+        linewidth=2, linestyle=:dot, color=:grey)
+    Plots.annotate!([(97, 65.62, text("Rudnick and Gao, 2014", 9, :right, :bottom, :grey))])
+    Plots.hline!([59.5], label="", 
+        linewidth=2, linestyle=:dot, color=:grey)
+    Plots.annotate!([(97, 60.5, text("Pease et al., 2023 [EarthChem prior]", 9, :right, :top, :grey))])
+
+    # Plot dolomite volatiles
+    dolcolor = RGB(107/255, 195/255, 255/255);
+    Plots.vline!([47], label="", linewidth=2, linestyle=:dash,
+        color=dolcolor
     )
-    Plots.hline!([59.5], label="Pease et al., 2023 [EarthChem prior]", 
-        linewidth=3, linestyle=:dash, color=colors.plut
-    )
+    Plots.annotate!([(44, 64, text("Dolomite", 9, :right, :top, dolcolor, rotation=90))])
 
     # # Equal volatiles
     # Plots.plot!(sim[1:end .!= c], silica[1:end .!= c], ribbon=stdev[1:end .!= c], 
     #     markershape=:circle,
-    #     msc=:auto,
+    #     color=colors.sed, msc=:auto,
     #     fillalpha=0.15,
-    #     label="Carbonate = Evaporite = Gypsum",
+    #     label="Sedimentary = Evaporite = Gypsum",
     #     # label=""
     # )
 
     # # Proportional volatiles (carbonate / evaporite)
     # Plots.plot!(sim_prop, silica_prop, ribbon=stdev_prop, 
     #     markershape=:circle,
-    #     msc=:auto,
+    #     color=colors.carb, msc=:auto,
     #     fillalpha=0.15,
-    #     label="Carbonate ≠ Evaporite = Gypsum"
+    #     label="Sedimentary ≠ Evaporite = Gypsum"
     # )
 
     # Proportional volatiles (carbonate / evaporite / gypsum)
@@ -124,7 +133,7 @@
         markershape=:circle,
         color=colors.evap, msc=:auto,
         fillalpha=0.15,
-        # label="Carbonate ≠ Evaporite ≠ Gypsum"
+        # label="Sedimentary ≠ Evaporite ≠ Gypsum"
         label="Simulations"
     )
 

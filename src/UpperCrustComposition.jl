@@ -17,7 +17,7 @@
     fid = h5open(geochem_fid, "r")
     header = read(fid["bulk"]["header"])
     data = read(fid["bulk"]["data"])
-    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
+    mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
     close(fid)
 
     # Elements of interest
@@ -29,7 +29,7 @@
     # Some elements just aren't measured, but a good whole rock geochemistry should
     # measure the major elements. If it's a NaN, it's probably just not there fr fr
     for i in majors
-        zeronan!(bulk[i])
+        zeronan!(mbulk[i])
     end
 
     # Save to a file 
@@ -37,10 +37,11 @@
     cols = hcat("element", string.(reshape(collect(keys(match_cats)), 1, :)), "bulk")
     results = Array{Float64}(undef, (length(allelements), length(match_cats)+1))
     for i in eachindex(keys(match_cats))
-        results[:,i] .= [nanmean(bulk[j][match_cats[i]]) for j in allelements]
+        results[:,i] .= [nanmean(mbulk[j][match_cats[i]]) for j in allelements]
     end
 
-    bulkearth = [nanmean(bulk[i]) for i in allelements]
+    bulkearth = [nanmean(mbulk[i]) for i in allelements]
+    bulkerr = [nanstd(mbulk[i])/(count(!isnan, mbulk[i])) for i in allelements]
     results[:,end] .= bulkearth
 
     # Save to file

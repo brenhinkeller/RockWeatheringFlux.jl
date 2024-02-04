@@ -1,105 +1,42 @@
 ## --- Setup
     # Packages
     using RockWeatheringFlux
-    using DelimitedFiles, HDF5
+    using DelimitedFiles, HDF5, Dates
 
 
-## --- Load EarthChem data
-    # Indices of matched EarthChem samples from SampleMatch.jl
-    fid = readdlm("$matchedbulk_io")
-    bulkidx = Int.(vec(fid[:,1]))
-    t = @. bulkidx != 0
+## --- Load data
+    # Indices of matched samples from SampleMatch.jl
+    fid = readdlm(matchedbulk_io)
+    matches = Int.(vec(fid[:,1]))
+    t = @. matches != 0
 
-    # # Matched types, majors inclusive of minors
-    # bulktype = string.(vec(fid[:,2]))
-    # macro_cats = match_rocktype(bulktype[t])
+    # Rock class of each sample
+    match_cats = match_rocktype(string.(vec(fid[:,2]))[t]);
+    include_minor!(match_cats)
 
-    # Load bulk, but just the samples matched to the Macrostrat data
+    # Geochemical data for each sample
     fid = h5open(geochem_fid, "r")
     header = read(fid["bulk"]["header"])
     data = read(fid["bulk"]["data"])
-    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
+    mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
     close(fid)
 
-    
-## --- Load pre-generated Macrostrat data, but only if there's an associated EarthChem sample
-    @info "Loading Macrostrat data"
-
-    # Load and match
+    # Lithology of each sample
     fid = h5open("$macrostrat_io", "r")
     macrostrat = (
         rocklat = read(fid["vars"]["rocklat"])[t],
         rocklon = read(fid["vars"]["rocklon"])[t],
         age = read(fid["vars"]["age"])[t],
     )
-    # header = read(fid["type"]["macro_cats_head"])
-    # data = read(fid["type"]["macro_cats"])
-    # data = @. data > 0
-    # macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
     close(fid)
 
-    
-## --- Matched rock types
-    # From the matched samples
-    fid = readdlm("$matchedbulk_io")
-    bulktype = string.(vec(fid[:,2]))
-    out_cats = match_rocktype(bulktype[t])
-
-    # From Macrostrat
-    fid = h5open("$macrostrat_io", "r")
-    header = read(fid["type"]["macro_cats_head"])
-    data = read(fid["type"]["macro_cats"])
-    data = @. data > 0
-    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
-    close(fid)
-
-    # Major types include minor types
-    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
-    for type in minorsed
-        out_cats.sed .|= out_cats[type]
-        macro_cats.sed .|= macro_cats[type]
-    end
-    for type in minorvolc
-        out_cats.volc .|= out_cats[type]
-        macro_cats.volc .|= macro_cats[type]
-    end
-    for type in minorplut
-        out_cats.plut .|= out_cats[type]
-        macro_cats.plut .|= macro_cats[type]
-    end
-    for type in minorign
-        out_cats.ign .|= out_cats[type]
-        macro_cats.ign .|= macro_cats[type]
-    end
-
-    # # Figure out how many data points weren't matched
-    # known_rocks = macro_cats.sed .| macro_cats.ign .| macro_cats.met
-    # total_known = count(known_rocks)
-
-    # matched = known_rocks .| macro_cats.cover
-    # not_matched = .!matched
-    # multi_matched = ((macro_cats.sed .& macro_cats.ign) .| (macro_cats.sed .& macro_cats.met) 
-    #     .| (macro_cats.ign .& macro_cats.met)
-    # )
-
-    # # Print to terminal
-    # @info """
-    # Macrostrat parsing complete!
-    # not matched = $(count(not_matched))
-    # """
-
-    # Delete cover
-    macro_cats = delete_cover(macro_cats)
-    out_cats = delete_cover(out_cats)
-    
 
 ## --- Calculate erosion rate at each coordinate point of interest	
     # Load the slope variable from the SRTM15+ maxslope file
     srtm15_slope = h5read("output/srtm15plus_maxslope.h5", "vars/slope")
     srtm15_sf = h5read("output/srtm15plus_maxslope.h5", "vars/scalefactor")
 
-    # Get slope at each coordinate point with a known EarthChem sample
-    # Modify this function to return an error as well
+    # Get slope at each coordinate point
     rockslope = movingwindow(srtm15_slope, macrostrat.rocklat, macrostrat.rocklon, 
         srtm15_sf, n=5
     )
@@ -147,7 +84,7 @@
     for i in eachindex(allelements)
         # Since each Macrostrat point has a corresponding EarthChem sample, use that 
         # sample to calculate flux of each element at each point
-        elementflux = [sampleflux[j] * bulk[allelements[i]][j] * 1e-2 for j = 1:npoints]
+        elementflux = [sampleflux[j] * mbulk[allelements[i]][j] * 1e-2 for j = 1:npoints]
 
         # Save to file
         elementflux_val, elementflux_err = unmeasurementify(elementflux)
@@ -159,7 +96,7 @@
 
 
 ## --- Open the file
-    # Redundant, but means we can skip straight to analyzing things if we want
+    # Redundant, but means we can skip straight to this cell and start analyzing things
     fid = h5open("$eroded_out", "r")
 
     # Total / bulk denundation at each point in kg/yr
@@ -177,12 +114,14 @@
 
 
 ## --- Calculate absolute and relative flux
+    @info """ This takes SO LONG. Starting at $(Dates.format(now(), "HH:MM")) """
+
     # Conversion for kg to Gt. Data file is in units of kg/yr
     const kg_gt = 1e12
 
     # Global denundation in Gt/yr
-    global_denun = nansum(bulk_denundation) / kg_gt
-    
+    global_denun = nansum(bulk_denundation ./ kg_gt) # 12:27
+
     # Total global flux for each element in Gt/yr
     totalelementflux = NamedTuple{keys(elementflux)}([nansum(i) / kg_gt for i in elementflux])
 
@@ -205,19 +144,22 @@
 
 ## --- Export crustal composition results
     # Preallocate (element row, rock type column)
-    result = Array{Float64}(undef, length(elementflux), length(out_cats) + 1)
+    result = Array{Float64}(undef, length(elementflux), length(match_cats) + 1)
 
     # Calculate the absolute contribution of each rock type to the denudation of each
     # element. This is the sum of the individual contributions of each point mapped to that
     # rock type.
 
-    # We use the randomly assigned, single-matched rock types, since the code is easier to
-    # write. By the law of large numbers, this should be equivalent to using multi-matched
-    # samples.
+    # We use the rock classes assigned during lithological / geochemical sample matching, 
+    # because this represents the geochemical composition of rocks of that class (e.g., if 
+    # something is matched to basalt and rhyolite, and was assigned basalt for the purposes
+    # of sample matching, we don't want to contaminate our rhyolite data with that point).
+    # Our sample density is high enough that by the law of large numbers, we should get
+    # back to the same result. 
 
-    for i in eachindex(keys(out_cats))
+    for i in eachindex(keys(match_cats))
         for j in eachindex(keys(elementflux))
-            result[j,i] = nansum(unmeasurementify(elementflux[j])[1][out_cats[i]])
+            result[j,i] = nansum(unmeasurementify(elementflux[j])[1][match_cats[i]])
         end
     end
 
@@ -230,7 +172,7 @@
 
     # Save to file
     rows = string.(collect(keys(elementflux)))
-    cols = string.(collect(keys(out_cats)))
+    cols = string.(collect(keys(match_cats)))
     cols = hcat("", reshape(cols, 1, length(cols)), "total")
 
     writedlm(erodedabs_out, vcat(cols, hcat(rows, result)))                    # Absolute

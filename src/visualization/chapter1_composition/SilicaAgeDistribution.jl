@@ -141,6 +141,7 @@
     labels = ("Igneous", "Volcanic", "Plutonic")
     subfig = (("A", "B"), ("C", "D"), ("E", "F"))
 
+    p = Progress(6*ybins, desc="Makin' plots:");
     for i in eachindex(fig)
         # Geochemical data
         out_bulk = zeros(ybins, xbins)
@@ -148,6 +149,7 @@
             t = @. yedges[j] <= simbulk[subclass[i]][:,2] < yedges[j+1]
             c, n = bincounts(simbulk[subclass[i]][:,1][t], xmin, xmax, xbins) 
             out_bulk[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
+            next!(p)
         end
 
         # Matched data
@@ -156,6 +158,7 @@
             t = @. yedges[j] <= sim_mbulk[subclass[i]][:,2] < yedges[j+1]
             c, n = bincounts(sim_mbulk[subclass[i]][:,1][t], xmin, xmax, xbins)
             out_mbulk[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
+            next!(p)
         end
 
         # Bulk geochemical
@@ -184,7 +187,7 @@
         Plots.heatmap!(h2, out_mbulk, 
             colorbar=false,
             color=c_gradient,
-            title="$(subfig[i][2]). Matched Samples\n"
+            title="$(subfig[i][2]). Matched $(labels[i]) Samples\n"
         )
 
         # Assemble all plots with a common color bar
@@ -196,7 +199,7 @@
             fontfamily=:Helvetica,
             xticks=(0:xbins/4:xbins, string.(40:10:80)),
             # xticks=(0:60:240, string.(40:10:80)),
-            xticks=false,
+            # xticks=false,
             left_margin=(25,:px), bottom_margin=(15,:px),
             titleloc=:left, titlefont = font(12),
         )
@@ -205,12 +208,14 @@
             lims=(-1,0)
         )
 
-        fig[i] = Plots.plot(a, b, layout=l)
-        savefig("$filepath/silica_heatmap_$(subclass[i]).pdf")
+        h = Plots.plot(a, b, layout=l)
+        fig[i] = h
+        savefig(h, "$filepath/silica_heatmap_$(subclass[i]).pdf")
     end
 
     # Assemble The Big Plot™
-    h = Plots.plot(fig..., layout=(3, 1), size=(1000,1200))
+    # Actually, probably do this in illustrator because this keeps moving stuff around
+    h = Plots.plot(fig..., layout=(3, 1), size=(1000,1300))
 
     display(h)
     savefig("$filepath/silica_heatmap_subclasses.pdf")

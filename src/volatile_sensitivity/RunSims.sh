@@ -11,10 +11,10 @@ set -e
 
 
 ## Initialize variables
-    # File names 
-    simout='src/volatile_sensitivity/simout.h5'             # Simulation output file for results
-    simout1='src/volatile_sensitivity/simout_prop.h5'       # Proportional volatiles output
-    simout2='src/volatile_sensitivity/simout_prop2.h5'      # Proportional volatiles output version 2
+    # File names (remember to change screening file in Simulation.jl too!!)
+    simout='src/volatile_sensitivity/simout_gard.h5'             # Simulation output file for results
+    simout1='src/volatile_sensitivity/simout_prop_gard.h5'       # Proportional volatiles output
+    simout2='src/volatile_sensitivity/simout_prop2_gard.h5'      # Proportional volatiles output version 2
     stem='src/volatile_sensitivity/simbulk_'                # Temporary simulation data file
 
     # Project location
@@ -73,9 +73,5 @@ set -e
 ## Stop timer
     printf "\nEnding simulations $(date +'%D %T')\n"
 
-# TO DO:
-# We also test the sensitivity of the estimtate to normalization. Setting a maximum
-# allowed wt.% assumed volatiles of 16% means that we only assume volatiles if the 
-# sample would already be allowed through the filter. In this case, the effect is that
-# the reported composition is not normalized to 100%. We compare this to a simulation
-# where we do not add any assumed volatiles.
+
+## --- End of file

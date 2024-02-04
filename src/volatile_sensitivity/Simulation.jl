@@ -26,8 +26,9 @@
     # Open simulation output file
     fid_out = h5open(simout, "r+")
 
-    # Run ScreenBulkBase restrictions
-    include("../ScreenBulkBase.jl")
+    # Run screening restrictions
+    # include("../ScreenBulkBase.jl")
+    include("../ScreenGardBase.jl")
 
     # Save BitVector and sample increase to simout file
     a = zeros(Int64, length(t))

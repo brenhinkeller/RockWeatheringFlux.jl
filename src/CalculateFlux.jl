@@ -222,4 +222,46 @@
     """
 
     
+## --- Calculate the source of eroded material 
+    fid = readdlm("$matchedbulk_io")
+    bulkidx = Int.(vec(fid[:,1]))
+    t = @. bulkidx != 0
+
+    # Actually use the mapped areas too
+    fid = h5open("$macrostrat_io", "r")
+    header = read(fid["type"]["macro_cats_head"])
+    data = read(fid["type"]["macro_cats"])
+    data = @. data > 0
+    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
+    close(fid)
+
+    include_minor!(macro_cats)
+    macro_cats = delete_cover(macro_cats)
+
+    # Area, normalizing to 100%
+    area = normalize!([
+        count(macro_cats.sed)/length(macro_cats.sed),
+        count(macro_cats.ign)/length(macro_cats.sed),
+        count(macro_cats.met)/length(macro_cats.sed),
+    ])
+    VP = [count(macro_cats.volc)/length(macro_cats.volc),   # Normalize to % ign
+        count(macro_cats.plut)/length(macro_cats.plut)]
+    VP .= VP ./ sum(VP) * area[2]
+    area = [area; VP]
+
+    ersn = [normalize!([
+        nansum(bulk_denundation[macro_cats.sed]./kg_gt)/global_denun,
+        nansum(bulk_denundation[macro_cats.ign]./kg_gt)/global_denun,
+        nansum(bulk_denundation[macro_cats.met]./kg_gt)/global_denun,]);
+    ]
+    VP = [
+        nansum(bulk_denundation[macro_cats.volc]./kg_gt)/global_denun,
+        nansum(bulk_denundation[macro_cats.plut]./kg_gt)/global_denun
+    ]
+    VP .= VP ./ sum(VP) * ersn[2]
+    ersn = [ersn; VP]
+
+    [round.(area, sigdigits=3) round.(ersn, sigdigits=3) round.(ersn./area, sigdigits=3)]
+
+
 ## --- End of File

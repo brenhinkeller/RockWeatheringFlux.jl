@@ -45,22 +45,20 @@
     rows = string.(allelements)
     cols = hcat("", reshape(string.(collect(keys(class))), 1, :))
     
-    for i in eachindex(keys(match_cats))
-        result[:,i] .= [nanmean(mbulk[j][match_cats[i]]) for j in allelements]
+    for i in eachindex(keys(class))
+        result[:,i] .= [nanmean(mbulk[j][class[i]]) for j in allelements]
     end
     writedlm("$ucc_out", vcat(cols, hcat(rows, result)))
 
-    # bulkerr = [nanstd(mbulk[i])/(count(!isnan, mbulk[i])) for i in allelements]
-
     # Terminal printout
-    majorcomp = round.([bulkearth[i] for i in eachindex(majors)], digits=1)
+    majorcomp = round.([result[:,end][i] for i in eachindex(majors)], digits=1)
 
     @info """Bulk crustal composition ($geochem_fid | $macrostrat_io):
     $(join(majors, " \t "))
     $(join(majorcomp, " \t "))
 
-    Total (majors): $(round(nansum(bulkearth[1:length(majors)]), sigdigits=4))%
-    Total (major + trace): $(round(nansum(bulkearth), sigdigits=4))%
+    Total (majors): $(round(nansum(result[:,end][1:length(majors)]), sigdigits=4))%
+    Total (major + trace): $(round(nansum(result[:,end]), sigdigits=4))%
     """
 
 

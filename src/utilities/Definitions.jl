@@ -370,6 +370,12 @@
     metamorphic rock classes and subclasses. Does *not* return minor subclasses: see 
     `get_rock_class`.
 
+    To match the format of `get_rock_class`, this function will return BitVectors for all
+    defined minor classes, even if there are no rock names which match to metamorphic 
+    rocks. Classes which will always be empty are:
+      * `evaporite, phosphorite, coal, dacite, alkaline volcanic, volcaniclastics, 
+        pyroxenite, diorite, trondhjemite, granodiorite, alk_plut, carbonatite, cover`
+
     """
     function get_metamorphic_class()
         # Sedimentary

@@ -1,42 +1,45 @@
+## --- Dataset switches 
+
+    # Geochemical 
+    # dataset = "bulk"
+    dataset = "gard"
+
+    # Lithologic
+    # N = "500"
+    N = "250K"
+    # N = "1M"
+    
+
 ## --- File names
 
-    # geochem_fid = "output/bulk.h5"
-    geochem_fid = "output/gard.h5"
-    export geochem_fid
+    # Geochemical data 
+    geochem_fid = "output/" * dataset * ".h5"
 
-    stem = split(geochem_fid, ['/', '.'])[2]
+    # Lithologic data
+    macrostrat_io = "output/N_" * N * "/" * N * "_responses.h5"
+    
+    # Intermediate files 
+    matchedbulk_io = "output/N_" * N * "/" * N * "_bulkidx_" * dataset * ".tsv"
+    eroded_out = "output/N_250K/250K_erodedmaterial_" * dataset * ".h5"
 
-    # 500 Macrostrat samples
-        # macrostrat_io = "output/N_500/toy_responses.h5"
-        # matchedbulk_io = "output/N_500/toy_bulkidx_" * stem * ".tsv"
+    # Bulk continental crust
+    ucc_out = "results/" * N * "_exposedcrust_" * dataset * ".tsv"
+    # TO DO: error output
 
-        # eroded_out = "output/N_500/toy_erodedmaterial_" * stem * ".h5"
-        # ucc_out = "results/toy_exposedcrust_" * stem * ".tsv"
-        # erodedabs_out = "results/toy_eroded_absolute_" * stem * ".tsv"
-        # erodedrel_out = "results/toy_eroded_fraction_" * stem * ".tsv"
+    # Eroded material 
+    erodedabs_out = "results/" * N * "_eroded_absolute_" * dataset * ".tsv"
+    erodedrel_out = "results/" * N * "_eroded_fraction_" * dataset * ".tsv"
+    erodedcomp_out = "results/" * N * "_eroded_composition_" * dataset * ".tsv"
 
-    # 250_000 Macrostrat samples
-        macrostrat_io = "output/N_250K/250K_responses.h5"
-        matchedbulk_io = "output/N_250K/250K_bulkidx_" * stem * ".tsv"
+    erodedabs_out_err = "results/" * N * "_eroded_absolute_err_" * dataset * ".tsv"
+    erodedrel_out_err = "results/" * N * "_eroded_fraction_err_" * dataset * ".tsv"
+    erodedcomp_out_err = "results/" * N * "_eroded_composition_err_" * dataset * ".tsv"
 
-        eroded_out = "output/N_250K/250K_erodedmaterial_" * stem * ".h5"
-        ucc_out = "results/250K_exposedcrust_" * stem * ".tsv"
-        erodedabs_out = "results/250K_eroded_absolute_" * stem * ".tsv"
-        erodedrel_out = "results/250K_eroded_fraction_" * stem * ".tsv"
-        erodedcomp_out = "results/250K_eroded_composition_" * stem * ".tsv"
-
-    # 1_000_000 Macrostrat samples
-        # macrostrat_io = "output/N_1M/1M_responses.h5"
-        # matchedbulk_io = "output/N_1M/1M_bulkidx_" * stem * ".tsv"
-
-        # eroded_out = "output/N_1M/1M_erodedmaterial_" * stem * ".h5"
-        # ucc_out = "results/1M_exposedcrust_" * stem * ".tsv"
-        # erodedabs_out = "results/1M_eroded_absolute_" * stem * ".tsv"
-        # erodedrel_out = "results/1M_eroded_fraction_" * stem * ".tsv"
-
-    export macrostrat_io, matchedbulk_io
+    export geochem_fid, macrostrat_io
+    export matchedbulk_io, eroded_out
     export ucc_out
-    export eroded_out, erodedabs_out, erodedrel_out, erodedcomp_out
+    export erodedabs_out, erodedrel_out, erodedcomp_out
+    export erodedabs_out_err, erodedrel_out_err, erodedcomp_out_err
 
 
 ## --- Color names for visualization

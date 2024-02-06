@@ -132,9 +132,9 @@
     global_denun_err = sqrt(nansum((bulk_denudation_err ./ kg_gt).^2))
 
     # Total global flux for each element in Gt/yr
-    totalelementflux_val = NamedTuple{keys(elementflux)}([nansum(i) / kg_gt for i in elementflux_val])
-    totalelementflux_err = NamedTuple{keys(elementflux)}([sqrt(nansum((i ./ kg_gt).^2)) 
-        for i in elementflux_val]
+    totalelementflux_val = NamedTuple{keys(elementflux_val)}([nansum(i) / kg_gt for i in elementflux_val])
+    totalelementflux_err = NamedTuple{keys(elementflux_err)}([sqrt(nansum((i ./ kg_gt).^2)) 
+        for i in elementflux_err]
     )
 
     # Sum of all element fluxes in Gt/yr
@@ -170,6 +170,7 @@
 
     # Preallocate (element row, rock type column)
     result = Array{Float64}(undef, length(elementflux_val)+1, length(class))
+    result_err = similar(result)
     rows = vcat(string.(collect(keys(elementflux_val))), "Total")
     cols = hcat("", reshape(string.(collect(keys(class))), 1, :))
 
@@ -178,38 +179,52 @@
     for i in eachindex(keys(class))
         for j in eachindex(keys(elementflux_val))
             result[j,i] = nansum(elementflux_val[j][class[i]])
+            result_err[j,i] = sqrt(nansum((elementflux_err[j][class[i]]).^2))
         end
     end
-    result[end,:] .= vec(nansum(result[1:end-1,:], dims=1))  # Total contribution of class
+    result[end,:] .= vec(nansum(result[1:end-1,:], dims=1))
+    result_err[end,:] .= vec(sqrt.(nansum((result_err[1:end-1,:]).^2, dims=1)))
 
     # Convert units from kg/yr to gt/yr.
     # We now have absolute amount of material eroded by lithologic class each year. 
     result ./= kg_gt
-    majorcomp = round.(result[1:nmajors, end], digits=1)     # For printout
+    result_err ./= kg_gt
     writedlm(erodedabs_out, vcat(cols, hcat(rows, result)))
+    writedlm(erodedabs_out_err, vcat(cols, hcat(rows, result_err)))
+
+    # Get absolute values for printout
+    majorcomp = round.(result[1:nmajors, end], digits=1)
+    majorcomp_err = round.(result_err[1:nmajors, end], digits=1)
 
     # Also calculate the fraction of total erosion each class contributes. Divide the
-    # absolute contribution by the total amount of each element that erodes each year
+    # absolute contribution by the total amount of each element that erodes each year.
+    # Note that major classes will be the sum of their constituent minor classes.
     writedlm(erodedrel_out, vcat(cols, hcat(rows, result./result[:,end])))
+    writedlm(erodedrel_out_err, vcat(cols, hcat(rows, result_err./result_err[:,end])))
 
     # Compute the composition of eroded material [wt.%] for each lithologic class as the
     # fraction of that element out of the total erosion for that class.
     for i in eachindex(keys(class))
         result[:,i] ./= result[end,i]
+        result_err[:,i] .= sqrt.((result_err[:,i] ./ result[:,i]).^2)
     end
     writedlm(erodedcomp_out, vcat(cols, hcat(rows, result.*100)))
+    writedlm(erodedcomp_out_err, vcat(cols, hcat(rows, result_err.*100)))
 
     # Terminal printout
     majorcomp_rel = round.(result[1:nmajors, end].*100, digits=1)
+    majorcomp_rel_err = round.(result_err[1:nmajors, end].*100, digits=1)
 
     @info """Composition of bulk eroded material:
-    Absolute (Gt/yr)
-    $(join(keys(elementflux_val)[1:nmajors], " \t "))
-    $(join(majorcomp, " \t "))
+    Absolute [Gt/yr]
+      $(join(keys(elementflux_val)[1:nmajors], " \t "))
+      $(join(majorcomp, " \t "))
+    ± $(join(majorcomp_err, " \t "))
 
-    Relative (%)
-    $(join(keys(elementflux_val)[1:nmajors], " \t "))
-    $(join(majorcomp_rel, " \t "))
+    Composition [wt.%]
+      $(join(keys(elementflux_val)[1:nmajors], " \t "))
+      $(join(majorcomp_rel, " \t "))
+    ± $(join(majorcomp_rel_err, " \t "))
     """
 
     

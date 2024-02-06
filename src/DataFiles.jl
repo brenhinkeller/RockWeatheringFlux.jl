@@ -18,6 +18,7 @@
         rockdescrip = read(oldfid["vars"]["rockdescrip"]),
     )
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
+    metamorph_cats = find_metamorphics(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
 
 
 ## --- Put data in new file
@@ -28,13 +29,23 @@
 
     # Rock types and rock names
     bulktypes = create_group(newfid, "type")
+
     a = Array{Int64}(undef, length(macro_cats[1]), length(macro_cats))
     for i in eachindex(keys(macro_cats))
         for j in eachindex(macro_cats[i])
             a[j,i] = ifelse(macro_cats[i][j], 1, 0)
         end
     end
+
+    b = similar(a)
+    for i in eachindex(keys(metamorph_cats))
+        for j in eachindex(metamorph_cats[i])
+            b[j,i] = ifelse(metamorph_cats[i][j], 1, 0)
+        end
+    end
+
     bulktypes["macro_cats"] = a
+    bulktypes["metamorphic_cats"] = b
     bulktypes["macro_cats_head"] = string.(collect(keys(macro_cats))) 
 
     close(newfid)

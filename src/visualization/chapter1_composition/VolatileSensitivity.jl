@@ -89,7 +89,7 @@
         grid = false,
         fontfamily=:Helvetica,
         ylabel="Average Crustal Silica [wt.%]",
-        xlabel="Assumed Sedimentary Volatiles [wt.%]",
+        xlabel="Maximum Permitted Sedimentary Volatiles [wt.%]",
         xlims=(10,100),
         ylims=(55,70),
         legend=:topright,

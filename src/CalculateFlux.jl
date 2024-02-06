@@ -25,7 +25,7 @@
     fid = h5open(geochem_fid, "r")
     header = read(fid["bulk"]["header"])
     data = read(fid["bulk"]["data"])
-    mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
+    mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][matches[t]] for i in eachindex(header)])
     close(fid)
 
     # Lithology of each sample
@@ -43,12 +43,13 @@
     srtm15_slope = h5read("output/srtm15plus_maxslope.h5", "vars/slope")
     srtm15_sf = h5read("output/srtm15plus_maxslope.h5", "vars/scalefactor")
 
-    # Get slope at each coordinate point
+    # Get slope at each coordinate point (do not propagate variance in slope)
     rockslope = movingwindow(srtm15_slope, macrostrat.rocklat, macrostrat.rocklon, 
         srtm15_sf, n=5
     )
+    rockslope = Measurements.value.(rockslope)
 
-    # Calculate all erosion rates (mm/kyr)
+    # Calculate all erosion rates (mm/kyr) (propagate uncertainty)
     rock_ersn = emmkyr.(rockslope)
 
 
@@ -71,9 +72,9 @@
 
     # Save to file
     sampleflux_val, sampleflux_err = unmeasurementify(sampleflux)
-    bulk_denundation = create_group(fid, "bulk_denundation")
-    write(bulk_denundation, "values", sampleflux_val)
-    write(bulk_denundation, "errors", sampleflux_err)
+    bulk_denudation = create_group(fid, "bulk_denudation")
+    write(bulk_denudation, "values", sampleflux_val)
+    write(bulk_denudation, "errors", sampleflux_err)
 
 
 ## --- Calculate flux of each element at each point
@@ -107,54 +108,47 @@
     fid = h5open("$eroded_out", "r")
 
     # Total / bulk denundation at each point in kg/yr
-    path = fid["bulk_denundation"]
-    # bulk_denundation = read(path["values"]) .± read(path["errors"])
-    bulk_denundation = read(path["values"])
+    path = fid["bulk_denudation"]
+    bulk_denudation_val = read(path["values"])
+    bulk_denudation_err = read(path["errors"])
 
     # Global flux of each element at each point in kg/yr
     path = fid["element_flux"]
     vals = read(path["values"])
     errs = read(path["errors"])
     header = Tuple(Symbol.(read(path["header"])))
-    # elementflux = NamedTuple{header}([vals[:,i] .± errs[:,i] for i in eachindex(header)])
-    elementflux = NamedTuple{header}([vals[:,i] for i in eachindex(header)])
+    elementflux_val = NamedTuple{header}([vals[:,i] for i in eachindex(header)])
+    elementflux_err = NamedTuple{header}([errs[:,i] for i in eachindex(header)])
 
     close(fid)
 
-    # If I actually try to propagate uncertainty, it takes over 2 hours (which is not the 
-    # run time, but the time where I gave up and killed the program).
-    # Uncertainty comes from: standard deviation of slope at each point, erosion uncertainty
-    # that's then propagated foward. We assume that wt.% of each element is exact.
-    # For now, just don't... propagate. lol.
-
 
 ## --- Calculate absolute and relative flux
-    # Conversion for kg to Gt. Data file is in units of kg/yr
+    # Conversion for kg to Gt. Data file will be in units of kg/yr
     const kg_gt = 1e12
 
     # Global denundation in Gt/yr.
-    global_denun = nansum(bulk_denundation ./ kg_gt)
+    global_denun_val = nansum(bulk_denudation_val ./ kg_gt)
+    global_denun_err = sqrt(nansum((bulk_denudation_err ./ kg_gt).^2))
 
     # Total global flux for each element in Gt/yr
-    totalelementflux = NamedTuple{keys(elementflux)}([nansum(i) / kg_gt for i in elementflux])
+    totalelementflux_val = NamedTuple{keys(elementflux)}([nansum(i) / kg_gt for i in elementflux_val])
+    totalelementflux_err = NamedTuple{keys(elementflux)}([sqrt(nansum((i ./ kg_gt).^2)) 
+        for i in elementflux_val]
+    )
 
     # Sum of all element fluxes in Gt/yr
-    global_elem = nansum(totalelementflux)
+    global_elem_val = nansum(values(totalelementflux_val))
+    global_elem_err = sqrt(nansum(values(totalelementflux_err).^2))
 
     # Print to terminal
     @info """ Results:
-    Total global denundation: $(round(global_denun, sigdigits=3)) Gt/yr
-    Sum of all element fluxes: $(round(global_elem, sigdigits=3)) Gt/yr
+    Total global denundation: $(round(global_denun_val, sigdigits=3)) ± $(round(global_denun_err, sigdigits=3)) Gt/yr
+    Sum of all element fluxes: $(round(global_elem_val, sigdigits=3)) ± $(round(global_elem_err, sigdigits=3)) Gt/yr
     """
-    # if global_elem.val > global_denun.val
-    #     diff = global_elem.val - global_denun.val
-    #     @warn """
-    #     Mass of total eroded material from all elements is greater than bulk eroded mass. 
-    #     Difference: $diff
-    #     """
-    # end
-    if global_elem > global_denun
-        diff = global_elem - global_denun
+
+    if global_elem_val > global_denun_val
+        diff = global_elem_val - global_denun_val
         @warn """
         Mass of total eroded material from all elements is greater than bulk eroded mass. 
         Difference: $diff
@@ -175,93 +169,48 @@
     )
 
     # Preallocate (element row, rock type column)
-    result = Array{Float64}(undef, length(elementflux), length(class))
-    rows = string.(collect(keys(elementflux)))
+    result = Array{Float64}(undef, length(elementflux_val)+1, length(class))
+    rows = vcat(string.(collect(keys(elementflux_val))), "Total")
     cols = hcat("", reshape(string.(collect(keys(class))), 1, :))
 
-    # Calculate the absolute contribution of each rock type to the denudation of each
-    # element. This is the sum of the individual contributions of each point mapped to that
-    # rock type.
+    # Calculate the absolute contribution of each rock class to the denudation of each
+    # element. This is the sum of the individual contributions of each spatial point
     for i in eachindex(keys(class))
-        for j in eachindex(keys(elementflux))
-            # result[j,i] = nansum(unmeasurementify(elementflux[j])[1][class[i]])
-            result[j,i] = nansum(elementflux[j][class[i]])
+        for j in eachindex(keys(elementflux_val))
+            result[j,i] = nansum(elementflux_val[j][class[i]])
         end
     end
+    result[end,:] .= vec(nansum(result[1:end-1,:], dims=1))  # Total contribution of class
 
-    # Convert units from kg/yr to gt/yr. We now have absolute amount of material eroded by 
-    # lithologic class each year. We can also calculate the fractional contribution of 
-    # each class to the erosion of each element by dividing by the total amount of that 
-    # element which erodes each year
+    # Convert units from kg/yr to gt/yr.
+    # We now have absolute amount of material eroded by lithologic class each year. 
     result ./= kg_gt
-    majorcomp = round.(result[1:nmajors, end], digits=1)                    # For printout
+    majorcomp = round.(result[1:nmajors, end], digits=1)     # For printout
+    writedlm(erodedabs_out, vcat(cols, hcat(rows, result)))
 
-    writedlm(erodedabs_out, vcat(cols, hcat(rows, result)))                 # Absolute
-    writedlm(erodedrel_out, vcat(cols, hcat(rows, result./result[:,end])))  # Fractional
+    # Also calculate the fraction of total erosion each class contributes. Divide the
+    # absolute contribution by the total amount of each element that erodes each year
+    writedlm(erodedrel_out, vcat(cols, hcat(rows, result./result[:,end])))
 
     # Compute the composition of eroded material [wt.%] for each lithologic class as the
-    # fraction of that element out of the total erosion for that class
+    # fraction of that element out of the total erosion for that class.
     for i in eachindex(keys(class))
-        result[:,i] ./= nansum(result[:,i])
+        result[:,i] ./= result[end,i]
     end
     writedlm(erodedcomp_out, vcat(cols, hcat(rows, result.*100)))
 
     # Terminal printout
-
-    # majorcomp_rel = round.(result[1:nmajors, end]./global_denun.val*100, digits=1)
     majorcomp_rel = round.(result[1:nmajors, end].*100, digits=1)
 
     @info """Composition of bulk eroded material:
-    Absolute (gt/yr)
-    $(join(keys(elementflux)[1:nmajors], " \t "))
+    Absolute (Gt/yr)
+    $(join(keys(elementflux_val)[1:nmajors], " \t "))
     $(join(majorcomp, " \t "))
 
     Relative (%)
-    $(join(keys(elementflux)[1:nmajors], " \t "))
+    $(join(keys(elementflux_val)[1:nmajors], " \t "))
     $(join(majorcomp_rel, " \t "))
     """
 
     
-## --- Calculate the source of eroded material 
-    fid = readdlm("$matchedbulk_io")
-    bulkidx = Int.(vec(fid[:,1]))
-    t = @. bulkidx != 0
-
-    # Actually use the mapped areas too
-    fid = h5open("$macrostrat_io", "r")
-    header = read(fid["type"]["macro_cats_head"])
-    data = read(fid["type"]["macro_cats"])
-    data = @. data > 0
-    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
-    close(fid)
-
-    include_minor!(macro_cats)
-    macro_cats = delete_cover(macro_cats)
-
-    # Area, normalizing to 100%
-    area = normalize!([
-        count(macro_cats.sed)/length(macro_cats.sed),
-        count(macro_cats.ign)/length(macro_cats.sed),
-        count(macro_cats.met)/length(macro_cats.sed),
-    ])
-    VP = [count(macro_cats.volc)/length(macro_cats.volc),   # Normalize to % ign
-        count(macro_cats.plut)/length(macro_cats.plut)]
-    VP .= VP ./ sum(VP) * area[2]
-    area = [area; VP]
-
-    ersn = [normalize!([
-        nansum(bulk_denundation[macro_cats.sed]./kg_gt)/global_denun,
-        nansum(bulk_denundation[macro_cats.ign]./kg_gt)/global_denun,
-        nansum(bulk_denundation[macro_cats.met]./kg_gt)/global_denun,]);
-    ]
-    VP = [
-        nansum(bulk_denundation[macro_cats.volc]./kg_gt)/global_denun,
-        nansum(bulk_denundation[macro_cats.plut]./kg_gt)/global_denun
-    ]
-    VP .= VP ./ sum(VP) * ersn[2]
-    ersn = [ersn; VP]
-
-    [round.(area, sigdigits=3) round.(ersn, sigdigits=3) round.(ersn./area, sigdigits=3)]
-
-
 ## --- End of File

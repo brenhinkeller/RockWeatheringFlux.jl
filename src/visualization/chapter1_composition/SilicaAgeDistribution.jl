@@ -8,7 +8,8 @@
     # Preallocate / Local definitions
     nsims = Int(1e7)                         # 10 M simulations
     SiO2_error = 1.0                         # Assumed SiO₂ error
-    age_error = 0.05                         # Minimum age error
+    age_error = 0.05                         # Minimum age error (%)
+    age_error_abs = 50                       # Minimum age error (Ma)
 
     xmin, xmax, xbins = 40, 80, 240          # Silica
     xedges = xmin:(xmax-xmin)/xbins:xmax
@@ -26,7 +27,7 @@
     # Compute age uncertainties 
     ageuncert = nanadd.(bulk.Age_Max, .- bulk.Age_Min) ./ 2;
     for i in eachindex(ageuncert)
-        ageuncert[i] = max(bulk.Age[i]*age_error, ageuncert[i])
+        ageuncert[i] = max(bulk.Age[i]*age_error, ageuncert[i], age_error_abs)
     end
 
     # Restrict to samples with data and resample 
@@ -52,7 +53,7 @@
     sampleage[t] .= macrostrat.age[t]
     ageuncert[t] .= nanadd.(macrostrat.agemax[t], .- macrostrat.agemin[t]) ./ 2;
     for i in eachindex(ageuncert)
-        ageuncert[i] = max(sampleage[i]*age_error, ageuncert[i])
+        ageuncert[i] = max(sampleage[i]*age_error, ageuncert[i], age_error_abs)
     end
 
     # Restrict to only samples with data and resample 

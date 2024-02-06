@@ -23,7 +23,7 @@
 
 ## --- Put data in new file
     # Create a new file and put the old file in it
-    fid, fex = split("$macrostrat_io", ".")
+    fid = split(macrostrat_io, ".")[1]
     newfid = h5open(fid * "_2.h5" , "w")
     copy_object(oldfid, "vars", newfid, "vars")    # The stuff that isn't changed
 
@@ -87,4 +87,10 @@
     # close(newfid)
 
 
+## --- Rename the files so I don't have to 
+    fid = split("$macrostrat_io", ".")[1]
+    run(`mv $fid.h5 $(fid)_old.h5`)
+    run(`mv $(fid)_2.h5 $fid.h5`)
+
+    
 ## --- End of File

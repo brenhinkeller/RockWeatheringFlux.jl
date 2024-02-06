@@ -8,20 +8,20 @@ set -e
 ## --- Generate data files. Optionally skip this step and use existing data files
     # Get lithologic map data for N points on the continental crust
     # Takes ~4 days for the 1M sample request. Use [output/N_*/*_responses.h5]
-    julia --project="Project.toml" /src/ParseMacrostrat.jl
+    julia --project="Project.toml" src/ParseMacrostrat.jl
 
     # Dataset used is controlled by a switch in src/utilities/Definitions.jl
-    julia --project="Project.toml" /src/ScreenBulk.jl   # [output/bulk.h5]
-    julia --project="Project.toml" /src/ScreenGard.jl   # [output/gard.h5]
+    julia --project="Project.toml" src/ScreenBulk.jl   # [output/bulk.h5]
+    julia --project="Project.toml" src/ScreenGard.jl   # [output/gard.h5]
 
     # Compute slope at each point on Earth. 
     # Takes a couple hours. Use [output/srtm15plus_maxslope.h5]
-    julia --project="Project.toml" /src/SRTMSlope.jl
+    julia --project="Project.toml" src/SRTMSlope.jl
 
 
 ## --- Construct slope / erosion model
     # This is hardcoded in src/utilities/Slope.jl
-    julia --project="Project.toml" /src/ModelSlope.jl
+    julia --project="Project.toml" src/ModelSlope.jl
 
 ## --- Match lithology and geochemistry, estimate composition of crust and eroded material
     # [output/N_*/*_bulkidx_[gard/bulk].tsv]

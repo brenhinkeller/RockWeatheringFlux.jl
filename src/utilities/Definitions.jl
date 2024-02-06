@@ -305,7 +305,7 @@
         ign = ("igneous", "metaign", "orthogneiss", "ortho", "meta-ign", "zeolite", "xenolith")
 
         # Undefined metamorphic
-        met = ("crystalline", "migma", "alter", "hydrothermal", "basement", "leptite"
+        met = ("crystalline", "migma", "alter", "hydrothermal", "basement", "leptite",
             "high grade metamorphic", "meta", "granulit", "granofels", "schist", "schsit", 
             "gneiss", "hornfels", "garnet", "spessartite", "melanite", "buchite", "epidot", 
             "fenite", "albitite", "chloritite", "phlogopitite", "sericitite", "tactite", 
@@ -363,18 +363,15 @@
 
     """
     ```julia
-    get_metamorphic_class([major::Bool])
+    get_metamorphic_class()
     ```
 
     As `get_rock_class`, but defines metasedimentary, metaigneous, and undifferentiated 
-    metamorphic rock classes and subclasses. Return a list of the minor classes which
-    map to each major class. 
-
-    Define `major=true` to return only sedimentary, igneous, and metamorphic types. Rather
-    than a list of subtypes, this will return an empty set of values.
+    metamorphic rock classes and subclasses. Does *not* return minor subclasses: see 
+    `get_rock_class`.
 
     """
-    function get_metamorphic_class(; major::Bool=false)
+    function get_metamorphic_class()
         # Sedimentary
         siliciclast = ("quartzite", "quarzite",)
         shale = ("pelit",  "slate", "phyllite", "metapellite", "micaschist", "mica schist")
@@ -413,7 +410,7 @@
         ign = ("metaign", "orthogneiss", "ortho", "meta-ign", "zeolite",)
 
         # Undefined metamorphic
-        met = ("crystalline", "migma", "alter", "hydrothermal", "basement", "leptite"
+        met = ("crystalline", "migma", "alter", "hydrothermal", "basement", "leptite",
             "high grade metamorphic", "meta", "granulit", "granofels", "schist", "schsit", 
             "gneiss", "hornfels", "garnet", "spessartite", "melanite", "buchite", "epidot", 
             "fenite", "albitite", "chloritite", "phlogopitite", "sericitite", "tactite", 
@@ -422,46 +419,30 @@
         # Cover
         cover = ()
 
-        # Define major and minor rock types
-        minorsed = (:siliciclast, :shale, :carb, :evap, :chert, :phosphorite, :coal,)
-        minorvolc = (:komatiite, :basalt, :andesite, :dacite, :rhyolite, :alk_volc, 
-            :volcaniclast,)
-        minorplut = (:peridotite, :pyroxenite, :gabbro, :diorite, :trondhjemite, :tonalite, 
-            :granodiorite, :granite, :alk_plut,)
-        minorign = (:volc, :plut, :carbonatite)
+        return (
+            # Sedimentary
+            siliciclast=siliciclast, shale=shale, carb=carb, evap=evap, chert=chert, 
+            phosphorite=phosphorite, coal=coal, sed=sed,
 
-        if major
-            typelist = (sed=(minorsed, sed...,), ign=(minorign, ign...,), met=met, cover=cover)
-            minors = ()
-        else
-            typelist = (
-                # Sedimentary
-                siliciclast=siliciclast, shale=shale, carb=carb, evap=evap, chert=chert, 
-                phosphorite=phosphorite, coal=coal, sed=sed,
+            # Volcanic
+            komatiite=komatiite, basalt=basalt, andesite=andesite, dacite=dacite, 
+            rhyolite=rhyolite, alk_volc=alk_volc, volcaniclast=volcaniclast, volc=volc, 
+            
+            # Plutonic
+            peridotite=peridotite, pyroxenite=pyroxenite, gabbro=gabbro, diorite=diorite, 
+            trondhjemite=trondhjemite, tonalite=tonalite, granodiorite=granodiorite, 
+            granite=granite, alk_plut=alk_plut, plut=plut, 
 
-                # Volcanic
-                komatiite=komatiite, basalt=basalt, andesite=andesite, dacite=dacite, 
-                rhyolite=rhyolite, alk_volc=alk_volc, volcaniclast=volcaniclast, volc=volc, 
-                
-                # Plutonic
-                peridotite=peridotite, pyroxenite=pyroxenite, gabbro=gabbro, diorite=diorite, 
-                trondhjemite=trondhjemite, tonalite=tonalite, granodiorite=granodiorite, 
-                granite=granite, alk_plut=alk_plut, plut=plut, 
+            # Igneous
+            carbonatite=carbonatite,
+            ign=ign,
 
-                # Igneous
-                carbonatite=carbonatite,
-                ign=ign,
+            # Metamorphic
+            met=met,
 
-                # Metamorphic
-                met=met,
-
-                # Cover
-                cover=cover,
-            )
-            minors = (minorsed, minorvolc, minorplut, minorign)
-        end
-
-        return typelist, minors...
+            # Cover
+            cover=cover,
+        )
     end
     export get_metamorphic_class
     

@@ -31,13 +31,13 @@
     end
 
     # Restrict to samples with data and resample 
-    t = @. !isnan(bulk.Latitude) & !isnan(bulk.Longitude) & !isnan(bulk.Age) & bulk_cats.ign
+    t = @. !isnan(bulk.Latitude) & !isnan(bulk.Longitude) & !isnan(bulk.Age);
     for key in target 
         s = t .& bulk_cats[key]
-        k = invweight(bulk.Latitude[t], bulk.Longitude[t], bulk.Age[t])
+        k = invweight(bulk.Latitude[s], bulk.Longitude[s], bulk.Age[s])
         p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-        data = [bulk.SiO2[t] bulk.Age[t]]
-        uncertainty = [fill(SiO2_error, count(t)) ageuncert[t]]
+        data = [bulk.SiO2[s] bulk.Age[s]]
+        uncertainty = [fill(SiO2_error, count(s)) ageuncert[s]]
         simbulk[key] .= bsresample(data, uncertainty, nsims, p)
     end
 
@@ -215,11 +215,9 @@
     end
 
     # Assemble The Big Plot™
-    # Actually, probably do this in illustrator because this keeps moving stuff around
+    # But just for looks. Do this in illustrator because this keeps moving stuff around
     h = Plots.plot(fig..., layout=(3, 1), size=(1000,1300))
-
     display(h)
-    savefig("$filepath/silica_heatmap_subclasses.pdf")
 
 
 ## --- End of file 

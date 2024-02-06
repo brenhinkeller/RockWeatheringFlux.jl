@@ -178,12 +178,12 @@
     get_rock_class([major::Bool])
     ```
 
-    Define sedimentary, igneous, and metamorphic rock types and subtypes. Metamorphic rocks
-    are grouped with their protoliths when possible. Return a list of the minor types which
-    map to each major type. 
+    Define sedimentary, igneous, and metamorphic rock classes and subclasses. Metamorphic rocks
+    are grouped with their protoliths when possible. Return a list of the minor classes which
+    map to each major class. 
 
     Define `major=true` to return only sedimentary, igneous, and metamorphic types. Rather
-    than a list of subtypes, this will return an empty set of values.
+    than a list of subclasses, this will return an empty set of values.
 
     ### Possible subtypes
      *  Sedimentary: siliciclastic, shale, carbonate, evaporite, chert, phosphorite, coal,
@@ -252,7 +252,7 @@
         dacite = ("dacit", "santorinite", "ignimbrite",)
         rhyolite = ("rhyolit", "felsite", "liparite", "felsic", "silicic", "pumice", 
             "obsidian", "dellenite", "rhyodacite", "ignimbrite", "lenticulite", 
-            "halleflinta", "leptite", "rhyoite")
+            "halleflinta", "rhyoite")
         alk_volc = ("polzenite", "hauynite", "arsoite", "benmoreite", "camptonite", 
             "ciminite", "damkjernite", "damtjernite", "dankjernite", "domite", "fortunite", 
             "gauteite","kenyte", "keratophyre", "kersantite", "kivite", "lampro", "madupite",
@@ -280,7 +280,7 @@
             "rodingite", "corganite", "corgaspinite",)
         diorite = ("diorit", "iorite", "jotunite", "marscoite", "sanukite",)
         trondhjemite =  ("trondhjemite", "trond",)
-        tonalite = ("tonalit", "adamellite", "enderbite", "enderbite",)
+        tonalite = ("tonalit", "adamellite", "enderbite",)
         granodiorite = ("granodiorite",)
         granite = ("granit", "microgranite", "adamellite", "aplite", "charnockite", 
             "granophyre", "rapakivi", "monzonit", "monzonize", "mangerite", "greisen", 
@@ -305,7 +305,7 @@
         ign = ("igneous", "metaign", "orthogneiss", "ortho", "meta-ign", "zeolite", "xenolith")
 
         # Undefined metamorphic
-        met = ("crystalline", "migma", "alter", "hydrothermal", "basement", 
+        met = ("crystalline", "migma", "alter", "hydrothermal", "basement", "leptite"
             "high grade metamorphic", "meta", "granulit", "granofels", "schist", "schsit", 
             "gneiss", "hornfels", "garnet", "spessartite", "melanite", "buchite", "epidot", 
             "fenite", "albitite", "chloritite", "phlogopitite", "sericitite", "tactite", 
@@ -361,6 +361,109 @@
     end
     export get_rock_class
 
+    """
+    ```julia
+    get_metamorphic_class([major::Bool])
+    ```
+
+    As `get_rock_class`, but defines metasedimentary, metaigneous, and undifferentiated 
+    metamorphic rock classes and subclasses. Return a list of the minor classes which
+    map to each major class. 
+
+    Define `major=true` to return only sedimentary, igneous, and metamorphic types. Rather
+    than a list of subtypes, this will return an empty set of values.
+
+    """
+    function get_metamorphic_class(; major::Bool=false)
+        # Sedimentary
+        siliciclast = ("quartzite", "quarzite",)
+        shale = ("pelit",  "slate", "phyllite", "metapellite", "micaschist", "mica schist")
+        carb = ("marble", "calc silicate", "calcsilicate", "skarn")
+        evap = ()
+        chert = ("porcellanite")
+        phosphorite = ()
+        coal = ()
+        sed = ("meta-sed", "metased", "paragneiss", "para", "melange")
+
+        # Volcanic
+        komatiite = ("ultramafitite")
+        basalt = ("palagonite","greenstone", "spilite", "greenschist", "blueschist", 
+            "basite", "metabasite", "melaphyre",)
+        andesite = ("propylite",)
+        dacite = ()
+        rhyolite = ("halleflinta")
+        alk_volc = ()
+        volcaniclast = ()
+        volc = ()
+            
+        # Plutonic
+        peridotite = ("serpentin", "soapstone", "talc", "alkremite")
+        pyroxenite = ()
+        gabbro = ("eclogite", "amphibolit", "leucophyre", "rodingite")
+        diorite = ()
+        trondhjemite =  ()
+        tonalite = ("enderbite",)
+        granodiorite = ()
+        granite = ("greisen", "charnockite", "unakite")
+        alk_plut = ()
+        plut = ()
+            
+        # Undefined igneous
+        carbonatite = ()
+        ign = ("metaign", "orthogneiss", "ortho", "meta-ign", "zeolite",)
+
+        # Undefined metamorphic
+        met = ("crystalline", "migma", "alter", "hydrothermal", "basement", "leptite"
+            "high grade metamorphic", "meta", "granulit", "granofels", "schist", "schsit", 
+            "gneiss", "hornfels", "garnet", "spessartite", "melanite", "buchite", "epidot", 
+            "fenite", "albitite", "chloritite", "phlogopitite", "sericitite", "tactite", 
+            "tourmalinite", "vogesite", "gossan", "palagonite", "sanidinite", "mylonite")
+
+        # Cover
+        cover = ()
+
+        # Define major and minor rock types
+        minorsed = (:siliciclast, :shale, :carb, :evap, :chert, :phosphorite, :coal,)
+        minorvolc = (:komatiite, :basalt, :andesite, :dacite, :rhyolite, :alk_volc, 
+            :volcaniclast,)
+        minorplut = (:peridotite, :pyroxenite, :gabbro, :diorite, :trondhjemite, :tonalite, 
+            :granodiorite, :granite, :alk_plut,)
+        minorign = (:volc, :plut, :carbonatite)
+
+        if major
+            typelist = (sed=(minorsed, sed...,), ign=(minorign, ign...,), met=met, cover=cover)
+            minors = ()
+        else
+            typelist = (
+                # Sedimentary
+                siliciclast=siliciclast, shale=shale, carb=carb, evap=evap, chert=chert, 
+                phosphorite=phosphorite, coal=coal, sed=sed,
+
+                # Volcanic
+                komatiite=komatiite, basalt=basalt, andesite=andesite, dacite=dacite, 
+                rhyolite=rhyolite, alk_volc=alk_volc, volcaniclast=volcaniclast, volc=volc, 
+                
+                # Plutonic
+                peridotite=peridotite, pyroxenite=pyroxenite, gabbro=gabbro, diorite=diorite, 
+                trondhjemite=trondhjemite, tonalite=tonalite, granodiorite=granodiorite, 
+                granite=granite, alk_plut=alk_plut, plut=plut, 
+
+                # Igneous
+                carbonatite=carbonatite,
+                ign=ign,
+
+                # Metamorphic
+                met=met,
+
+                # Cover
+                cover=cover,
+            )
+            minors = (minorsed, minorvolc, minorplut, minorign)
+        end
+
+        return typelist, minors...
+    end
+    export get_metamorphic_class
     
     """
     ```julia

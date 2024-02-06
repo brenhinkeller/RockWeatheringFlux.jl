@@ -283,7 +283,8 @@
         Volatiles=volatiles, 
         Volatiles_Reported=volatiles_reported, 
         Volatiles_Calc=volatiles_calc, 
-        Volatiles_Assumed=volatiles_assumed
+        Volatiles_Assumed=volatiles_assumed,
+        Sample_ID = collect(1:length(bulk.SiO2))
     ))
     bulk = NamedTuple{Tuple(allkeys)}([newbulk[i][t] for i in allkeys])
 

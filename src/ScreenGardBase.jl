@@ -138,8 +138,15 @@
         gard_sample.qap_name[i] = replace_malformed_char(gard_sample.qap_name[i])
     end
 
-    # Match samples
+    # Match samples and tag metamorphic samples
     gard_cats = match_rocktype(
+        gard_sample.rock_name, gard_sample.sample_description, gard_sample.qap_name, 
+        Int.(gard_sample.rgroup_id), 
+        rockgroup_id = Int.(gard_rgroup.rgroup_id), rockgroup_name = vec(rockgroup_name),
+        showprogress=show_progress
+    );
+
+    metamorph_cats = match_rocktype(
         gard_sample.rock_name, gard_sample.sample_description, gard_sample.qap_name, 
         Int.(gard_sample.rgroup_id), 
         rockgroup_id = Int.(gard_rgroup.rgroup_id), rockgroup_name = vec(rockgroup_name),
@@ -627,7 +634,8 @@
             Loc_Prec = gard_sample.loc_prec,
             Age = age,
             Age_Max = age_max,
-            Age_Min = age_min
+            Age_Min = age_min,
+            Sample_ID = collect(1:npoints)
         )
     )
     out = NamedTuple{keys(out)}([out[i][t] for i in keys(out)])
@@ -668,6 +676,7 @@
             @warn "After filtering, type \"$k\" has $(count(gard_kittens[k])) samples."
         end
     end
+    metamorph_kittens = NamedTuple{keys(metamorph_cats)}(metamorph_cats[k][t] for k in keys(metamorph_cats))
 
      
 ## --- Save all data to file
@@ -697,7 +706,16 @@
             a[j,i] = ifelse(gard_kittens[i][j], 1, 0)
         end
     end
+
+    b = similar(a)
+    for i in eachindex(keys(metamorph_kittens))
+        for j in eachindex(metamorph_kittens[i])
+            b[j,i] = ifelse(metamorph_kittens[i][j], 1, 0)
+        end
+    end
+
     class["bulk_cats"] = a
+    class["metamorphic_cats"] = b
     class["bulk_cats_head"] = string.(collect(keys(gard_kittens)))
     
     close(fid)

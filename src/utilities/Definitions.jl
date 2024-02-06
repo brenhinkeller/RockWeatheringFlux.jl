@@ -171,23 +171,6 @@
     ]
     export get_REEs
 
-    
-## --- Igneous rock classifications by silica content
-
-    """
-    ```
-    get_ignsilica()
-    ```
-
-    Define felsic, intermediate, and mafic rocks by wt.% silica, using values from Keller 
-    and Schoene, 2012 (DOI: 10.1038/nature11024):
-      * Felsic: 62-74%
-      * Intermediate: 51-62%
-      * Mafic: 43-51%
-    """
-    get_ignsilica() = return (fel = (62, 74), int = (51, 62), maf = (43, 51))
-    export get_ignsilica
-
 
 ## --- Rock type classifications
     """
@@ -420,64 +403,6 @@
         return typelist, NamedTuple{keys(typelist)}([falses(npoints) for _ in 1:length(typelist)]) 
     end
     export get_cats
-
-    """
-    ```julia
-    rm_false_positives!(cats)
-    ```
-
-    Remove false matches from `cats`, where a false match is when a rock name used to
-    identify samples is present in another rock name. For example, all grano*diorite* 
-    samples will match with *diorite*.
-
-    Currently removes:
-     *  Diorite from grano*diorite*.
-     *  Lignite from ma*lignite*.
-    """
-    function rm_false_positives!(cats)
-        cats.diorite .&= cats.granodiorite  # Diorite / granodiorite
-        cats.coal .&= .!cats.alk_volc       # Lignite / malignite 
-
-        return cats
-    end
-    export rm_false_positives!
-
-
-## --- Define minor types
-
-    """
-    ```julia
-    get_minor_types()
-    ```
-
-    Return types nested under the sed, ign, and met "major" types.
-
-    **Important: this function will break if major types are listed before minor types in
-    the `get_cats` function, and if sedimentary types are not listed first!**
-
-    ### Minor Types:
-      * Sed: siliciclast, shale, carb, chert, evaporite, coal, phosphorite, volcaniclast
-      * Ign: volc, plut
-      * Met: metased, metaign
-    
-    # Example
-    ```julia
-    minorsed, minorign, minormet = get_minor_types()
-    ```
-    """
-    function get_minor_types()
-        @warn "get_minor_types has been deprecated. Use get_rock_class instead."
-
-        types = get_cats(false, 1)[2]
-        allkeys = collect(keys(types))
-
-        sed = findfirst(==(:sed), allkeys)
-        ign = findfirst(==(:ign), allkeys)
-        met = findfirst(==(:met), allkeys)
-
-        return Tuple(allkeys[1:sed-1]), Tuple(allkeys[sed+1:ign-1]), Tuple(allkeys[ign+1:met-1])
-    end
-    export get_minor_types
 
 
 ## --- End of file

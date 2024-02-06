@@ -409,12 +409,141 @@
 
 ## --- Find metamorphic rocks 
     """
+    ```julia
+    find_metamorphics(rocktype, rockname, rockdescrip; 
+        [major], 
+        [showprogress]
+    )
+    ```
+
+    As `match_rocktype`, but searches Macrostrat rock names for metamorphic rocks. 
+    Matches are set to the protoliths of metamorphic rocks (e.g., a `true` value for 
+    `:shale` refers to a metamorphosed shale), or to `:met` for undifferentiated 
+    metamorphic rocks.
+
+    """
+    function find_metamorphics(rocktype::T, rockname::T, rockdescrip::T; major::Bool=false,
+        showprogress::Bool=true) where T <: AbstractArray{<:String}
+        
+        # Get rock type classifications and initialized BitVector
+        typelist = get_metamorphic_class()
+        cats = NamedTuple{keys(typelist)}([falses(length(rocktype)) for _ in 1:length(typelist)]) 
+        set = keys(typelist)[collect(.!isempty.(values(typelist)))]
+
+        p = Progress(length(set)*4, desc="Finding metamorphic Macrostrat samples...", enabled=showprogress)
+
+        # Check major lithology 
+        for s in set
+            for i in eachindex(typelist[s])
+                cats[s] .|= (match.(r"major.*?{(.*?)}", rocktype) .|> 
+                    x -> isa(x, RegexMatch) ? containsi.(x[1], typelist[s][i]) : false)
+            end
+            next!(p)
+        end
+
+        # Check the rest of rocktype
+        not_matched = find_unmatched(cats)
+        for s in set
+            for i in typelist[s]
+                cats[s][not_matched] .|= containsi.(rocktype[not_matched], i)
+            end
+            next!(p)
+        end
+
+        # Then rockname
+        not_matched = find_unmatched(cats)
+        for s in set
+            for i in typelist[s]
+                cats[s][not_matched] .|= containsi.(rockname[not_matched], i)
+            end
+            next!(p)
+        end
+
+        # Then rockdescrip
+        not_matched = find_unmatched(cats)
+        for s in set
+            for i in typelist[s]
+                cats[s][not_matched] .|= containsi.(rockdescrip[not_matched], i)
+            end
+            next!(p)
+        end
+
+        return rm_false_positives!(cats)
+    end
+
+
+    """
+    ```julia
+    find_metamorphics(rock_name, sample_description, qap_name, rgroup_id;
+        rockgroup_id, rockgroup_name,
+        [showprogress]
+    )
+    ```
+
+    As `match_rocktype`, but searches Gard et al., 2019 (10.5194/essd-11-1553-2019) for 
+    metamorphic rocks.
+
     """
     function find_metamorphics(rock_name::T, sample_description::T, qap_name::T, rgroup_id::AbstractArray{Int};
         rockgroup_id::AbstractArray{Int}, rockgroup_name::T,
         showprogress::Bool=true
     ) where T <: AbstractArray{String}
 
+        # Get rock type classifications and initialized BitVector
+        typelist = get_metamorphic_class()
+        cats = NamedTuple{keys(typelist)}([falses(length(rock_name)) for _ in 1:length(typelist)]) 
+        set = keys(typelist)[collect(.!isempty.(values(typelist)))]
+
+        p = Progress(length(set)*3,
+            desc="Finding metamorphic rocks in Gard, et al...", enabled=showprogress
+        )
+
+        # Check rock name designated by original authors 
+        for s in set
+            for i in typelist[s]
+                cats[s] .|= containsi.(rock_name, i)
+            end
+            next!(p)
+        end
+
+        # Check sample description inherited from previous databases
+        not_matched = find_unmatched(cats)
+        for s in set
+            for i in typelist[s]
+                cats[s][not_matched] .|= containsi.(sample_description[not_matched], i)
+            end
+            next!(p)
+        end
+
+        # Check QAP name
+        not_matched = find_unmatched(cats)
+        for s in set
+            for i in typelist[s]
+                cats[s][not_matched] .|= containsi.(qap_name[not_matched], i)
+            end
+            next!(p)
+        end
+
+        # Assign unmatched rocks by rock ID
+        not_matched = find_unmatched(cats)
+
+        id_cats = get_cats(false, length(rockgroup_id))[2]
+        for s in set
+            for i in typelist[s]
+                id_cats[s] .|= containsi.(rockgroup_name, i)
+            end
+        end
+        
+        for i in eachindex(rgroup_id)
+            if not_matched[i]
+                for s in set
+                    cats[s][i] |= id_cats[s][rgroup_id[i]]
+                end
+            end
+        end
+        
+        # Remove false positives and return
+        return rm_false_positives!(cats)
     end
     export find_metamorphics
 

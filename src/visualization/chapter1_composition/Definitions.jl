@@ -6,6 +6,7 @@
 
     # Definitions
     filepath = "results/figures/chapter1_composition"
+    filepath_png = "results/figures/chapter1_composition/pngs"
 
     @info """
     File IO:

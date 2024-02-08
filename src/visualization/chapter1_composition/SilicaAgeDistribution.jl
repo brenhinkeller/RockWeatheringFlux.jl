@@ -133,6 +133,7 @@
 
     display(h)
     savefig("$filepath/silica_heatmap.pdf")
+    savefig("$filepath_png/silica_heatmap.png")
 
 
 ## --- Build plot (subdivide igneous into volcanic and plutonic classes)
@@ -212,6 +213,7 @@
         h = Plots.plot(a, b, layout=l)
         fig[i] = h
         savefig(h, "$filepath/silica_heatmap_$(subclass[i]).pdf")
+        savefig(h, "$filepath_png/silica_heatmap_$(subclass[i]).png")
     end
 
     # Assemble The Big Plot™

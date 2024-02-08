@@ -144,6 +144,7 @@
     )
     display(h)
     savefig(h, "$filepath/silica_ign.pdf")
+    savefig(h, "$filepath_png/silica_ign.png")
 
 
 ## --- All 

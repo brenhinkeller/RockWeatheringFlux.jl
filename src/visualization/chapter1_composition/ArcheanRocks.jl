@@ -95,7 +95,7 @@
 
     ylims!(0, round(maximum([n₁; n₂]), digits=2)+0.01,)
     display(h)
-    savefig("$filepath/archeansilica_resampled.pdf")
+    savefig("$filepath/archeansilica.pdf")
 
     
 ## --- End of file

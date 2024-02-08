@@ -6,9 +6,7 @@
     using Isoplot: yorkfit
 
     # Load data and base packages
-    if !@isdefined(filepath)
-        include("Definitions.jl")
-    end
+    include("Definitions.jl")
 
 
 ## --- Slope vs. Erosion rate
@@ -80,6 +78,7 @@
 
     display(h)
     savefig("$filepath/erosionslope.pdf")
+    savefig("$filepath_png/erosionslope.png")
     
 
 ## --- End of File 

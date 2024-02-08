@@ -15,6 +15,11 @@
     Saving to:   $filepath/
     """
 
+    # Plot settings 
+    titlefontsize = 20
+    labelfontsize = 18
+    tickfontsize = 16
+    
     
 ## --- Matched Geochemical Data and Macrostrat / Burwell
     # Indices and rock classes of matched samples
@@ -43,11 +48,18 @@
         agemax = read(fid["vars"]["agemax"])[t],
         agemin = read(fid["vars"]["agemin"])[t],
     )
-    header = read(fid["type"]["macro_cats_head"])
-    data = read(fid["type"]["macro_cats"])
+    header = Tuple(Symbol.(read(fid["type"]["macro_cats_head"])))
+    data = read(fid["type"]["metamorphic_cats"])
     data = @. data > 0
+    metamorphic_cats = NamedTuple{header}([data[:,i][t] for i in eachindex(header)])
+    # data = read(fid["type"]["macro_cats"])
+    # data = @. data > 0
     # macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
     close(fid)
+
+    # Metamorphic samples
+    include_minor!(metamorphic_cats)
+    match_cats.met .|= (metamorphic_cats.sed .| metamorphic_cats.ign)
 
     # Major classes include minors, delete cover
     # include_minor!(macro_cats)

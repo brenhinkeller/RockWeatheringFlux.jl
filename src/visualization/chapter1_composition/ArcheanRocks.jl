@@ -62,7 +62,8 @@
 
 
 ## --- Build plot
-    h = Plots.plot(
+    # Bulk geochemical data 
+    h1 = Plots.plot(
         framestyle=:box,
         fontfamily=:Helvetica,
         grid=false,
@@ -74,26 +75,42 @@
         fg_color_legend=:white, 
         left_margin=(15,:px)
     )
-
-    # Matched data
-    c, n = bincounts(sim_mbulk[:,1], 40, 80, 80)
-    n₂ = float(n) ./ nansum(float(n) .* step(c))
-    Plots.plot!(h, c, n₂, 
-        seriestype=:path, linewidth=2,
-        color=colors.plut, linecolor=:match,
-        label="Matched Samples"
-    )
-
-    # Bulk geochemical data
     c, n = bincounts(simbulk[:,1], 40, 80, 80)
     n₁ = float(n) ./ nansum(float(n) .* step(c))
-    Plots.plot!(h, c, n₁, 
-        seriestype=:path, linewidth=2, linestyle=:dot,
+    Plots.plot!(h1, c, n₁, 
+        seriestype=:bar, # linewidth=2, linestyle=:dot,
         color=colors.komatiite,
-        label="Bulk Geochemical Data"
+        title="A. Bulk Geochemical Data\n", label="",
+        ylims=(0, round(maximum(n₁), digits=2)+0.01,)
     )
 
-    ylims!(0, round(maximum([n₁; n₂]), digits=2)+0.01,)
+    # Matched data
+    h2 = Plots.plot(
+        framestyle=:box,
+        fontfamily=:Helvetica,
+        grid=false,
+        xlabel="SiO2 [wt.%]", 
+        # ylabel="Relative Abundance",
+        yticks=false,
+        xlims=(40,80),
+        legend=:topleft, 
+        fg_color_legend=:white, 
+        left_margin=(15,:px)
+    )
+    c, n = bincounts(sim_mbulk[:,1], 40, 80, 80)
+    n₂ = float(n) ./ nansum(float(n) .* step(c))
+    Plots.plot!(h2, c, n₂, 
+        seriestype=:bar, # linewidth=2,
+        color=colors.plut, linecolor=:match,
+        title="B. Matched Samples\n", label="",
+        ylims=(0, round(maximum(n₂), digits=2)+0.01,)
+    )
+
+    # Both plots together
+    h = Plots.plot(h1, h2, layout=(1,2), size=(1200,450), 
+        bottom_margin=(40,:px), left_margin=(50,:px), right_margin=(10,:px),
+        labelfontsize=labelfontsize, titlefont=titlefontsize, tickfontsize=tickfontsize
+    )
     display(h)
     savefig("$filepath/archeansilica.pdf")
 

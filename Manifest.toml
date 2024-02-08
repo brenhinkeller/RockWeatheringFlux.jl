@@ -2,7 +2,7 @@
 
 julia_version = "1.10.0"
 manifest_format = "2.0"
-project_hash = "04e52c92ebe8e2010eb0de759987a69adc338bbd"
+project_hash = "e7e6f2f072fe3c1456d62ed1db135dd9c2909c66"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -803,6 +803,12 @@ deps = ["isoband_jll"]
 git-tree-sha1 = "f9b6d97355599074dc867318950adaa6f9946137"
 uuid = "f1662d9f-8043-43de-a69a-05efc1cc6ff4"
 version = "0.1.1"
+
+[[deps.Isoplot]]
+deps = ["Distributions", "LinearAlgebra", "LoopVectorization", "Measurements", "Plots", "VectorizedStatistics"]
+git-tree-sha1 = "6abdf45a1c341568d226a6c1c9651072b11d47f9"
+uuid = "5adc30d5-9ddf-423c-bb15-ece697bec3ab"
+version = "0.3.1"
 
 [[deps.IterTools]]
 git-tree-sha1 = "42d5f897009e7ff2cf88db414a389e5ed1bdd023"

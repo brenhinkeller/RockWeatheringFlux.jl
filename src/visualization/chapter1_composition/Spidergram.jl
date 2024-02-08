@@ -20,7 +20,11 @@
     elemkeys = Tuple(Symbol.(ucc.element[1:end .!= i]))
 
     # Rock types, including bulk (all samples). Get all units as ppm
-    class = merge(match_cats, (bulk=trues(length(match_cats[1])),))
+    target = deleteat!(collect(keys(match_cats)), findall(x->x==:met, collect(keys(match_cats))))
+    class = merge(
+        NamedTuple{Tuple(target)}(match_cats[k] for k in target), 
+        (bulk=trues(length(match_cats[1])),)
+    )
     ucc = NamedTuple{keys(class)}(
         [NamedTuple{elemkeys}(normalize!(ucc[k][1:end .!= i]).*10_000) for k in keys(class)]
     );
@@ -66,26 +70,31 @@
 
     
 ## --- Spider... gram. Spidergram.
-    h = spidergram(taylor_mclennan, label="Taylor and McLennan, 1985 / 1995", 
-        markershape=:diamond, seriescolor=:lightgrey, legend=:topright,
+    # Use a different color palette so colors are visible 
+    p = Plots.palette(:vikO, 7)
+
+    h = spidergram(rudnick_gao, label="Rudnick and Gao, 2014", 
+        markershape=:diamond, seriescolor=:grey, msc=:auto, size=(700,400),
+        legend=:topright, legendfont=15, markersize=6
     )
-    spidergram!(h, rudnick_gao, label="Rudnick and Gao, 2014", 
-        markershape=:diamond, seriescolor=:grey)
 
     spidergram!(h, ucc.ign, label="This Study (Igneous)",
-        markershape=:utriangle, seriescolor=colors.ign)
-    # spidergram!(h, ucc.granite, label="This Study (Granite)",
-    #     markershape=:utriangle, seriescolor=colors.granite)
+        markershape=:utriangle, seriescolor=p[2], msc=:auto, markersize=6)
+    spidergram!(h, ucc.granite, label="This Study (Granite)",
+        markershape=:utriangle, seriescolor=p[3], msc=:auto, markersize=6)
+        spidergram!(h, ucc.basalt, label="This Study (Basalt)",
+        markershape=:utriangle, seriescolor=p[5], msc=:auto, markersize=6)
     spidergram!(h, ucc.sed, label="This Study (Sedimentary)",
-        markershape=:dtriangle, seriescolor=colors.sed)
-    # spidergram!(h, ucc.shale, label="This Study (Shales)",
-    #     markershape=:dtriangle, seriescolor=colors.shale)
+        markershape=:circle, seriescolor=p[6], msc=:auto, markersize=6)
 
     spidergram!(h, ucc.bulk, label="This Study (Bulk Earth)",
-        markershape=:circle, seriescolor=:black)
+        markershape=:circle, seriescolor=p[7], msc=:auto, markersize=6, 
+        ylims=(5,200)
+    )
 
     display(h)
     savefig("$filepath/spidergram.pdf")
+    savefig("$filepath_png/spidergram.png")
 
 
 ## --- Spidergram comparing bulk geochemical REEs and Rudnick and Gao estimation

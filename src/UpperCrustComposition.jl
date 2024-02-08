@@ -30,7 +30,7 @@
 ## --- Figure out how many geochemical samples explain 90% of the matches 
     c = countmap(mbulk.Sample_ID)
     npoints = count(>(percentile(values(c), 90)), values(c))
-    # npoints = count(>(percentile(values(c), 95)), values(c))
+    # npoints = count(<(percentile(values(c), 95)), values(c))
 
 
 ## --- Compute and export composition of exposed crust!
@@ -49,24 +49,29 @@
 
     # Save to a file 
     result = Array{Float64}(undef, (length(allelements), length(class)))
+    result_err = similar(result)
     rows = string.(allelements)
     cols = hcat("element", reshape(string.(collect(keys(class))), 1, :))
     
     for i in eachindex(keys(class))
         result[:,i] .= [nanmean(mbulk[j][class[i]]) for j in allelements]
+        result_err[:,i] .= [nanstd(mbulk[j][class[i]])./npoints for j in allelements]
     end
     writedlm("$ucc_out", vcat(cols, hcat(rows, result)))
+    writedlm("$ucc_out_err", vcat(cols, hcat(rows, result_err)))
 
     # Terminal printout
     majorcomp = round.([result[:,end][i] for i in eachindex(majors)], digits=1)
+    majorcomp_err = round.([result_err[:,end][i] for i in eachindex(majors)], sigdigits=1)
 
     @info """Bulk crustal composition ($geochem_fid | $macrostrat_io):
-    $(join(majors, " \t "))
-    $(join(majorcomp, " \t "))
+      $(join(rpad.(majors, 8), " "))
+      $(join(rpad.(majorcomp, 8), " "))
+    ± $(join(rpad.(majorcomp_err, 8), " "))
 
     Total (majors): $(round(nansum(result[:,end][1:length(majors)]), sigdigits=4))%
     Total (major + trace): $(round(nansum(result[:,end]), sigdigits=4))%
     """
-
+    
 
 ## --- End of file

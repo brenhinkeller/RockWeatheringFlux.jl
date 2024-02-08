@@ -24,7 +24,7 @@
 
     # Bulk continental crust
     ucc_out = "results/" * N * "_exposedcrust_" * dataset * ".tsv"
-    # TO DO: error output
+    ucc_out_err = "results/" * N * "_exposedcrust_err_" * dataset * ".tsv"
 
     # Eroded material 
     erodedabs_out = "results/" * N * "_eroded_absolute_" * dataset * ".tsv"
@@ -37,7 +37,7 @@
 
     export geochem_fid, macrostrat_io
     export matchedbulk_io, eroded_out
-    export ucc_out
+    export ucc_out, ucc_out_err
     export erodedabs_out, erodedrel_out, erodedcomp_out
     export erodedabs_out_err, erodedrel_out_err, erodedcomp_out_err
 

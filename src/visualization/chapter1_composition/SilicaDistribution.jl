@@ -149,14 +149,14 @@
 
 ## --- All 
     # Preallocate 
-    fig_types = deleteat!(collect(keys(match_cats)), findall(x->x==:met, collect(keys(match_cats))))
+    fig_types = collect(keys(match_cats))
     fig_names =  ("A. Siliciclastic", "B. Shale", "C. Carbonate", "D. Evaporite", 
         "E. Chert", "F. Phosphorite", "G. Coal", "H. Sedimentary", "I. Komatiite", 
         "J. Basalt", "K. Andesite", "L. Dacite", "M. Rhyolite", "N. Alkaline Volcanic", 
         "O. Volcaniclastic", "P. Volcanic", "Q. Peridotite", "R. Pyroxenite", "S. Gabbro", 
         "T. Diorite", "U. Trondhjemite", "V. Tonalite", "W. Granodiorite", "X. Granite", 
         "Y. Alkaline Plutonic", "Z. Plutonic", "AA. Carbonatite", "AB. Igneous", 
-        # "AC. Unspecified Metamorphic"
+        "AC. All Metamorphic"
     )
     fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(fig_names) + 1)
 
@@ -222,7 +222,7 @@
     Plots.plot!(h, [0],[0], color=:white, linecolor=:match, label=" ")
     Plots.plot!(h, [0],[0], color=colors.evap, linewidth=5, 
         label=" Kernel Density Estimate")
-    fig[29] = h
+    fig[30] = h
 
     # Assemble plots
     # Size: 500px for each row, 600 px for each column

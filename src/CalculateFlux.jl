@@ -21,6 +21,7 @@
     include_minor!(match_cats)
     match_cats = delete_cover(match_cats)
 
+
     # Geochemical data for each sample
     fid = h5open(geochem_fid, "r")
     header = read(fid["bulk"]["header"])
@@ -28,14 +29,22 @@
     mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][matches[t]] for i in eachindex(header)])
     close(fid)
 
-    # Lithology of each sample
+    # Location of each sample
     fid = h5open("$macrostrat_io", "r")
     macrostrat = (
         rocklat = read(fid["vars"]["rocklat"])[t],
         rocklon = read(fid["vars"]["rocklon"])[t],
         age = read(fid["vars"]["age"])[t],
     )
+    header = Tuple(Symbol.(read(fid["type"]["macro_cats_head"])))
+    data = read(fid["type"]["metamorphic_cats"])
+    data = @. data > 0
+    metamorphic_cats = NamedTuple{header}([data[:,i][t] for i in eachindex(header)])
     close(fid)
+
+    # Metamorphic samples
+    include_minor!(metamorphic_cats)
+    match_cats.met .|= (metamorphic_cats.sed .| metamorphic_cats.ign)
 
 
 ## --- Calculate erosion rate at each coordinate point of interest	
@@ -43,7 +52,9 @@
     srtm15_slope = h5read("output/srtm15plus_maxslope.h5", "vars/slope")
     srtm15_sf = h5read("output/srtm15plus_maxslope.h5", "vars/scalefactor")
 
-    # Get slope at each coordinate point (do not propagate variance in slope)
+    # Get slope at each coordinate point
+    # Function returns the standard deviation of slope in each window, which we don't
+    # actually care about propagating
     rockslope = movingwindow(srtm15_slope, macrostrat.rocklat, macrostrat.rocklon, 
         srtm15_sf, n=5
     )
@@ -60,8 +71,8 @@
         # Greenland: 2,166,086
         # Area in this study = Total - (Antarctica + Greenland) = 133_367_840
     # Declare constants
-    const npoints = length(macrostrat.rocklat)                  # Number of points
-    const crustal_density = 2750                                # kg/m³
+    const npoints = length(macrostrat.rocklat)                # Number of points
+    const crustal_density = 2750                              # kg/m³
     const unit_sample_area = (133367840 * 1000000) / npoints  # Area of continents / npoints (m²)
 
     # Create file to save data
@@ -161,12 +172,8 @@
     majors = get_elements()[1]
     nmajors = length(majors)
 
-    # We don't want metamorphics, but we do want all samples 
-    target = deleteat!(collect(keys(match_cats)), findall(x->x==:met, collect(keys(match_cats))))
-    class = merge(
-        NamedTuple{Tuple(target)}(match_cats[k] for k in target), 
-        (bulk=trues(length(match_cats[1])),)
-    )
+    # We want an option to filter for all samples 
+    class = merge(match_cats, (bulk=trues(length(match_cats[1])),))
 
     # Preallocate (element row, rock type column)
     result = Array{Float64}(undef, length(elementflux_val)+1, length(class))

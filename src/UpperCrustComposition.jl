@@ -15,6 +15,17 @@
     include_minor!(match_cats)
     match_cats = delete_cover(match_cats)
 
+    # Metamorphic samples
+    fid = h5open("$macrostrat_io", "r")
+    header = Tuple(Symbol.(read(fid["type"]["macro_cats_head"])))
+    data = read(fid["type"]["metamorphic_cats"])
+    data = @. data > 0
+    metamorphic_cats = NamedTuple{header}([data[:,i][t] for i in eachindex(header)])
+    close(fid)
+
+    include_minor!(metamorphic_cats)
+    match_cats.met .|= (metamorphic_cats.sed .| metamorphic_cats.ign)
+
     # Matched geochemical data
     fid = h5open(geochem_fid, "r")
     header = read(fid["bulk"]["header"])
@@ -40,12 +51,8 @@
         zeronan!(mbulk[i])
     end
 
-    # We don't want metamorphics, but we do want all samples 
-    target = deleteat!(collect(keys(match_cats)), findall(x->x==:met, collect(keys(match_cats))))
-    class = merge(
-        NamedTuple{Tuple(target)}(match_cats[k] for k in target), 
-        (bulk=trues(length(match_cats[1])),)
-    )
+    # We want an option to filter for all samples 
+    class = merge(match_cats, (bulk=trues(length(match_cats[1])),))
 
     # Save to a file 
     result = Array{Float64}(undef, (length(allelements), length(class)))
@@ -72,6 +79,6 @@
     Total (majors): $(round(nansum(result[:,end][1:length(majors)]), sigdigits=4))%
     Total (major + trace): $(round(nansum(result[:,end]), sigdigits=4))%
     """
-    
+
 
 ## --- End of file

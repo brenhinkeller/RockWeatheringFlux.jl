@@ -113,45 +113,28 @@
 
     # Axis labels
     ylabel!(fig[1], "Relative Abundance")
-    xlabel!(fig[2], "SiO2 [wt.%]")
+    # xlabel!(fig[2], "SiO2 [wt.%]")
 
     # Shared legend
-    fig_leg = Array{Plots.Plot{Plots.GRBackend}}(undef, 3)
-    fig_leg[1] = Plots.plot(
-        fg_color_legend=:white, legendfontsize = legendfontsize, legend=:inside,
-        framestyle=:none, xticks=false, yticks=false
-    )
-    fig_leg[2] = deepcopy(fig_leg[1])
-    fig_leg[3] = deepcopy(fig_leg[1])
-
-    Plots.plot!(fig_leg[1], [0],[0], color=colors.volc, linecolor=:match, seriestype=:bar, 
+    Plots.plot!(fig[1], [0],[0], color=:white, linecolor=:match, label=" ")
+    Plots.plot!(fig[1], [0],[0], color=colors.volc, linecolor=:match, seriestype=:bar, 
         alpha=0.25, label=" ",)
-    Plots.plot!(fig_leg[1], [0],[0], color=colors.plut, linecolor=:match, seriestype=:bar, 
+    Plots.plot!(fig[1], [0],[0], color=colors.plut, linecolor=:match, seriestype=:bar, 
         alpha=0.25, label=" This study")
-    Plots.plot!(fig_leg[1], [0],[0], color=colors.ign, linecolor=:match, seriestype=:bar, 
+    Plots.plot!(fig[1], [0],[0], color=colors.ign, linecolor=:match, seriestype=:bar, 
         alpha=0.25, label=" ")
 
-    # Plots.plot!(fig_leg[1], [0],[0], color=:white, linecolor=:match, label=" ")
-    Plots.plot!(fig_leg[2], [0],[0], color=colors.volc, linewidth=5, label=" ",)
-    Plots.plot!(fig_leg[2], [0],[0], color=colors.plut, linewidth=5, 
-        label=" Kernel Density Estimate")
-    Plots.plot!(fig_leg[2], [0],[0], color=colors.ign, linewidth=5, label=" ")
-
-    # Plots.plot!(fig_leg[1], [0],[0], color=:white, linecolor=:match, label=" ")
-    Plots.plot!(fig_leg[3], [0], [0], linewidth=2, color=:black, linestyle=:dot,
+    Plots.plot!(fig[1], [0],[0], color=:white, linecolor=:match, label=" ")
+    Plots.plot!(fig[1], [0], [0], linewidth=2, color=:black, linestyle=:dot,
         label=" Keller et al., 2015")
 
     # Assemble plots
-    l = @layout [a{0.8h}; b{0.2h}]
-
-    a = Plots.plot(fig..., layout=(1, 3), size=(1800, 500), 
-        left_margin=(75,:px), right_margin=(25,:px), bottom_margin=(45,:px),
+    h = Plots.plot(fig..., layout=(1, 3), size=(2000, 500), 
+        left_margin=(75,:px), right_margin=(25,:px), bottom_margin=(55,:px),
         labelfontsize=labelfontsize, titlefont=titlefontsize, tickfontsize=tickfontsize,
-        legend=false,
+        legendfontsize=legendfontsize, fg_color_legend=:white, legend=:topright,
+        xlabel="SiO2 [wt.%]"
     )
-    b = Plots.plot(fig_leg..., layout=(1,3), size=(1800, 200))
-    h = Plots.plot(a, b, layout=l, size=(1800,700))
-    # h = Plots.plot(a, b, layout=(2,1), size=(1800,700))
     display(h)
     savefig(h, "$filepath/silica_ign.pdf")
     # savefig(h, "$filepath_png/silica_ign.png")

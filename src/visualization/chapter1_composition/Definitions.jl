@@ -19,6 +19,7 @@
     titlefontsize = 20
     labelfontsize = 18
     tickfontsize = 16
+    legendfontsize = 18
     
     
 ## --- Matched Geochemical Data and Macrostrat / Burwell

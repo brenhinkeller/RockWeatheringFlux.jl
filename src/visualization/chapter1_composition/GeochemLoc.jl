@@ -35,9 +35,24 @@
     gard_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
     close(fid)
 
+    fid = h5open("$macrostrat_io", "r")
+    macrostrat = (
+        rocklat = read(fid["vars"]["rocklat"])[t],
+        rocklon = read(fid["vars"]["rocklon"])[t],
+        age = read(fid["vars"]["age"])[t],
+        agemax = read(fid["vars"]["agemax"])[t],
+        agemin = read(fid["vars"]["agemin"])[t],
+    )
+    header = read(fid["type"]["macro_cats_head"])
+    data = read(fid["type"]["macro_cats"])
+    data = @. data > 0
+    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
+    close(fid)
+
     # Major classes include minors
     include_minor!(bulk_cats)
     include_minor!(gard_cats)
+    include_minor!(macro_cats)
 
 
 ## --- Main plot: global distribution and age of all geochemical samples
@@ -104,6 +119,138 @@
         markersize = 4,
     )
     display(f)
+
+
+## --- Lithology distributions
+    # Metamorphic rocks are only metamorphic if we cannot infer a protolith
+    for type in keys(macro_cats)
+        type==:met && continue
+        macro_cats.met .&= .!macro_cats[type]
+    end
+
+    f = Figure(resolution=(1500,800), fontsize=24,)
+    ax = GeoAxis(f[1,1]; dest = "+proj=wintri", coastlines=true)
+    h = CairoMakie.scatter!(ax, 
+        macrostrat.rocklon[macro_cats.sed], macrostrat.rocklat[macro_cats.sed],
+        color=colors.sed, label="Sedimentary",
+        markersize = 2,
+    )
+    h = CairoMakie.scatter!(ax, 
+        macrostrat.rocklon[macro_cats.ign], macrostrat.rocklat[macro_cats.ign],
+        color=colors.ign, label="Igneous",
+        markersize = 2,
+    )
+    h = CairoMakie.scatter!(ax,
+        macrostrat.rocklon[macro_cats.met], macrostrat.rocklat[macro_cats.met],
+        color=colors.met, 
+        markersize = 2, label="Metamorphic"
+    )
+
+    # Legend
+    elem1 = MarkerElement(color=colors.sed, marker=:circle, markersize=35,
+        points = Point2f[(0.5, 0.5)]
+    )
+    elem2 = MarkerElement(color=colors.ign, marker=:circle, markersize=35,
+        points = Point2f[(0.5, 0.5)]
+    )
+    elem3 = MarkerElement(color=colors.met, marker=:circle, markersize=35,
+        points = Point2f[(0.5, 0.5)]
+    )
+    Legend(f[1, 2], 
+        [elem1, elem2, elem3], 
+        ["Sedimentary", "Igneous", "Metamorphic"],
+        patchsize = (35, 35), rowgap = 10, framevisible=false
+    )
+    display(f)
+    save("$filepath_png/global_lithology.png", f)
+
+
+## --- Lithology distributions in the bulk geochemical dataset 
+    ## --- Lithology distributions
+    # Metamorphic rocks are only metamorphic if we cannot infer a protolith
+    for type in keys(gard_cats)
+        type==:met && continue
+        gard_cats.met .&= .!gard_cats[type]
+    end
+
+    f = Figure(resolution=(1500,800), fontsize=24,)
+    ax = GeoAxis(f[1,1]; dest = "+proj=wintri", coastlines=true)
+    h = CairoMakie.scatter!(ax, 
+        gard.Longitude[gard_cats.ign], gard.Latitude[gard_cats.ign],
+        color=colors.ign, label="Igneous",
+        markersize = 2,
+    )
+    h = CairoMakie.scatter!(ax,
+        gard.Longitude[gard_cats.met], gard.Latitude[gard_cats.met],
+        color=colors.met, 
+        markersize = 2, label="Metamorphic"
+    )
+    h = CairoMakie.scatter!(ax, 
+        gard.Longitude[gard_cats.sed], gard.Latitude[gard_cats.sed],
+        color=colors.sed, label="Sedimentary",
+        markersize = 2,
+    )
+
+    # Legend
+    elem1 = MarkerElement(color=colors.sed, marker=:circle, markersize=35,
+        points = Point2f[(0.5, 0.5)]
+    )
+    elem2 = MarkerElement(color=colors.ign, marker=:circle, markersize=35,
+        points = Point2f[(0.5, 0.5)]
+    )
+    elem3 = MarkerElement(color=colors.met, marker=:circle, markersize=35,
+        points = Point2f[(0.5, 0.5)]
+    )
+    Legend(f[1, 2], 
+        [elem1, elem2, elem3], 
+        ["Sedimentary", "Igneous", "Metamorphic"],
+        patchsize = (35, 35), rowgap = 10, framevisible=false
+    )
+    display(f)
+    save("$filepath_png/global_lithology_gard.png", f)
+
+
+## --- Crustal silica?
+    f = Figure(resolution=(1500,800), fontsize=24,)
+    ax = GeoAxis(f[1,1]; dest = "+proj=wintri", coastlines=true)
+    h = CairoMakie.scatter!(ax, 
+        macrostrat.rocklon, macrostrat.rocklat,
+        color=mbulk.SiO2, colormap=:bluesreds, 
+        markersize = 5, alpha=0.75
+    )
+    Colorbar(f[1,2], h, label = "SiO₂ [wt.%]", height = Relative(0.75))
+    display(f)
+    save("$filepath_png/global_silica.png", f)
+
+
+## --- Erosion?
+    # Load the slope variable from the SRTM15+ maxslope file
+    srtm15_slope = h5read("output/srtm15plus_maxslope.h5", "vars/slope")
+    srtm15_sf = h5read("output/srtm15plus_maxslope.h5", "vars/scalefactor")
+
+    # Get slope at each coordinate point (do not propagate variance in slope)
+    rockslope = movingwindow(srtm15_slope, macrostrat.rocklat, macrostrat.rocklon, 
+        srtm15_sf, n=5
+    )
+    rockslope = Measurements.value.(rockslope)
+
+    # Calculate all erosion rates (mm/kyr) (propagate uncertainty)
+    rock_ersn = emmkyr.(rockslope)
+    rock_ersn = Measurements.value.(rock_ersn)
+
+## --- Make figure...
+    t = rock_ersn .< percentile(rock_ersn, 95);
+
+    f = Figure(resolution=(1500,800), fontsize=24,)
+    ax = GeoAxis(f[1,1]; dest = "+proj=wintri", coastlines=true)
+    h = CairoMakie.scatter!(ax, 
+        macrostrat.rocklon[t], macrostrat.rocklat[t],
+        color=rock_ersn[t], colormap=c_gradient, 
+        markersize = 5, alpha=0.75
+    )
+    Colorbar(f[1,2], h, label = "Erosion rate [m/Myr]", height = Relative(0.75))
+    display(f)
+    save("$filepath_png/global_slope.png", f)
 
 
 ## --- End of file 

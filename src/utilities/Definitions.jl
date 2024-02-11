@@ -385,18 +385,18 @@
         shale = ("pelit",  "slate", "phyllite", "metapellite", "micaschist", "mica schist")
         carb = ("marble", "calc silicate", "calcsilicate", "skarn")
         evap = ()
-        chert = ("porcellanite")
+        chert = ("porcellanite",)
         phosphorite = ()
         coal = ()
         sed = ("meta-sed", "metased", "paragneiss", "para", "melange")
 
         # Volcanic
-        komatiite = ("ultramafitite")
+        komatiite = ("ultramafitite",)
         basalt = ("palagonite","greenstone", "spilite", "greenschist", "blueschist", 
             "basite", "metabasite", "melaphyre",)
         andesite = ("propylite",)
         dacite = ()
-        rhyolite = ("halleflinta")
+        rhyolite = ("halleflinta",)
         alk_volc = ()
         volcaniclast = ()
         volc = ()

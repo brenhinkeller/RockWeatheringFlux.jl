@@ -17,6 +17,7 @@
 
     # Lithologic data
     macrostrat_io = "output/N_" * N * "/" * N * "_responses.h5"
+    surficial_abundance_out = "results/" * N * "_surficial_abundance.tsv"
     
     # Intermediate files 
     matchedbulk_io = "output/N_" * N * "/" * N * "_bulkidx_" * dataset * ".tsv"
@@ -26,7 +27,7 @@
     ucc_out = "results/" * N * "_exposedcrust_" * dataset * ".tsv"
     ucc_out_err = "results/" * N * "_exposedcrust_err_" * dataset * ".tsv"
 
-    # Eroded material 
+    # Eroded material: absolute, fractional contribution, composition
     erodedabs_out = "results/" * N * "_eroded_absolute_" * dataset * ".tsv"
     erodedrel_out = "results/" * N * "_eroded_fraction_" * dataset * ".tsv"
     erodedcomp_out = "results/" * N * "_eroded_composition_" * dataset * ".tsv"
@@ -36,10 +37,11 @@
     erodedcomp_out_err = "results/" * N * "_eroded_composition_err_" * dataset * ".tsv"
 
     export geochem_fid, macrostrat_io
+    export surficial_abundance_out
     export matchedbulk_io, eroded_out
     export ucc_out, ucc_out_err
     export erodedabs_out, erodedrel_out, erodedcomp_out
-    export erodedabs_out_err, erodedrel_out_err, erodedcomp_out_err
+    export erodedabs_out_err, erodedrel_out_err, erodedcomp_out_err    
 
 
 ## --- Color names for visualization

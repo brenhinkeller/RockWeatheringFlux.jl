@@ -146,7 +146,7 @@
         showprogress=show_progress
     );
 
-    metamorph_cats = match_rocktype(
+    metamorph_cats = find_metamorphics(
         gard_sample.rock_name, gard_sample.sample_description, gard_sample.qap_name, 
         Int.(gard_sample.rgroup_id), 
         rockgroup_id = Int.(gard_rgroup.rgroup_id), rockgroup_name = vec(rockgroup_name),

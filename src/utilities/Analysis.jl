@@ -1,5 +1,22 @@
 # Functions for data analysis and meta-analysis
 
+## --- Format an array as a LaTeX table 
+    """
+    ```julia
+    format_latex(A)
+    ```
+
+    Format `A` as a LaTeX table, to be copy-pasted into a LaTeX document.
+    """
+    function format_latex(A::AbstractArray)
+        row = size(A)[1]
+        for r = 1:row 
+            println(join(A[r,:], " & ") * " \\")
+        end
+    end
+    export format_latex
+    
+
 ## --- Visualize rock class tuples
     """
     ```julia

@@ -11,7 +11,7 @@
     function format_latex(A::AbstractArray)
         row = size(A)[1]
         for r = 1:row 
-            println(join(A[r,:], " & ") * " \\")
+            println(join(A[r,:], " & ") * " \\" * "\\")
         end
     end
     export format_latex

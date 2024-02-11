@@ -86,6 +86,19 @@
     Total (major + trace): $(round(nansum(result[:,end]), sigdigits=4))%
     """
 
+    # A little comparative analysis, as a treat
+    # [reshape(collect(keys(match_cats)), :, 1) collect(1:29)]  # What column do you want
+    plutcomp = round.([result[:,end-4][i] for i in eachindex(majors)], digits=1);
+    shalecomp = round.([result[:,2][i] for i in eachindex(majors)], digits=1);
+    clastcomp = round.([result[:,1][i] for i in eachindex(majors)], digits=1);
+
+    @info """Major element composition by selected lithologic class:
+             $(join(rpad.(majors, 8), " "))
+    Bulk:    $(join(rpad.(majorcomp, 8), " "))
+    Plut:    $(join(rpad.(plutcomp, 8), " "))
+    Shale:   $(join(rpad.(shalecomp, 8), " "))
+    Clastic: $(join(rpad.(clastcomp, 8), " "))
+    """
 
 ## --- Distribution of lithologies exposed at the Earth's surface 
     # We want to figure out the distributions where "undifferentiated" is considered a 

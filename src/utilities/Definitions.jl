@@ -17,6 +17,7 @@
 
     # Lithologic data
     macrostrat_io = "output/N_" * N * "/" * N * "_responses.h5"
+    surficial_abundance_total_out = "results/" * N * "_surficial_abundance_undifferentiated.tsv"
     surficial_abundance_out = "results/" * N * "_surficial_abundance.tsv"
     
     # Intermediate files 
@@ -37,7 +38,7 @@
     erodedcomp_out_err = "results/" * N * "_eroded_composition_err_" * dataset * ".tsv"
 
     export geochem_fid, macrostrat_io
-    export surficial_abundance_out
+    export surficial_abundance_total_out, surficial_abundance_out
     export matchedbulk_io, eroded_out
     export ucc_out, ucc_out_err
     export erodedabs_out, erodedrel_out, erodedcomp_out

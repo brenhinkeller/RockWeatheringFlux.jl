@@ -78,8 +78,8 @@
     c, n = bincounts(simbulk[:,1], 40, 80, 80)
     n₁ = float(n) ./ nansum(float(n) .* step(c))
     Plots.plot!(h1, c, n₁, 
-        seriestype=:bar, # linewidth=2, linestyle=:dot,
-        color=colors.komatiite,
+        seriestype=:bar, barwidths=1,
+        color=colors.komatiite, linecolor=:match,
         title="A. Bulk Geochemical Data\n", label="",
         ylims=(0, round(maximum(n₁), digits=2)+0.01,)
     )
@@ -100,7 +100,7 @@
     c, n = bincounts(sim_mbulk[:,1], 40, 80, 80)
     n₂ = float(n) ./ nansum(float(n) .* step(c))
     Plots.plot!(h2, c, n₂, 
-        seriestype=:bar, # linewidth=2,
+        seriestype=:bar, barwidths=1,
         color=colors.plut, linecolor=:match,
         title="B. Matched Samples\n", label="",
         ylims=(0, round(maximum(n₂), digits=2)+0.01,)

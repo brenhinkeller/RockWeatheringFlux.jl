@@ -1,4 +1,9 @@
 ## --- Setup
+    # Calculate the flux of each element at each point, as well as the composition of 
+    # total produced sediment (bulk and by lithologic class).
+
+    # Optionally run lines 12-54, and skip to line 122 to load already calculated data.
+
     # Packages
     using RockWeatheringFlux
     using DelimitedFiles, HDF5, Dates
@@ -43,8 +48,8 @@
     close(fid)
 
     # Metamorphic samples
-    include_minor!(metamorphic_cats)
-    match_cats.met .|= (metamorphic_cats.sed .| metamorphic_cats.ign)
+    include_minor!(metamorphic_cats);
+    match_cats.met .|= (metamorphic_cats.sed .| metamorphic_cats.ign .| metamorphic_cats.met)
 
 
 ## --- Calculate erosion rate at each coordinate point of interest	
@@ -134,7 +139,7 @@
     close(fid)
 
 
-## --- Calculate absolute and relative flux
+## --- Calculate mass of bulk sediment, and mass of sediment by element
     # Conversion for kg to Gt. Data file will be in units of kg/yr
     const kg_gt = 1e12
 
@@ -167,12 +172,12 @@
     end
 
 
-## --- Export crustal composition results
+## --- Export absolute and relative contribution to eroded material
     # Get major elements for terminal printouts
     majors = get_elements()[1]
     nmajors = length(majors)
 
-    # We want an option to filter for all samples 
+    # We want an option to filter for all samples and undifferentiated metamorphics 
     class = merge(match_cats, (bulk=trues(length(match_cats[1])),))
 
     # Preallocate (element row, rock type column)
@@ -209,6 +214,8 @@
     writedlm(erodedrel_out, vcat(cols, hcat(rows, result./result[:,end])))
     writedlm(erodedrel_out_err, vcat(cols, hcat(rows, result_err./result_err[:,end])))
 
+
+## --- Calculate and export the composition of eroded material
     # Compute the composition of eroded material [wt.%] for each lithologic class as the
     # fraction of that element out of the total erosion for that class.
     for i in eachindex(keys(class))

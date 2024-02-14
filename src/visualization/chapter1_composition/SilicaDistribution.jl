@@ -1,6 +1,7 @@
 ## --- Set up 
     # Silica distributions by rock class. Compare igneous distributions to Keller et al., 
-    # 2015 (10.1038/nature14584)
+    # 2015 (10.1038/nature14584). Compare all distributions to resampled bulk dataset
+    # distributions.
 
     # Unique packages
     using KernelDensity, MAT 
@@ -11,12 +12,12 @@
     # Filter NaNs from my samples 
     here = @. !isnan(mbulk.SiO2);
 
+    # Definitions
+    nsims = Int(1e7)
+    SiO₂_error = 1.0        # Given error in volcanic.mat is 0.01
+
 
 ## --- Load and resample volcanic / plutonic data from Keller et al., 2015
-    # Set up
-    nsims = Int(1e7)
-    SiO₂_error = 1.0
-
     # Volcanic (spatial)
     volcanic = matread("data/volcanicplutonic/volcanic.mat")["volcanic"];
     volcanic = NamedTuple{Tuple(Symbol.(keys(volcanic)))}(values(volcanic));
@@ -54,6 +55,22 @@
     data = [plutonic.SiO2[tₚ]; volcanic.SiO2[tᵥ]]
     uncertainty = fill(SiO₂_error, length(data))
     simigneous = bsresample(data, uncertainty, nsims, p)
+
+
+## --- Resample (spatial) all silica distributions 
+    # Preallocate 
+    simout = NamedTuple{keys(bulk_cats)}(Array{Float64}(undef, nsims) for _ in keys(bulk_cats))
+
+    # Restrict to samples with data and resample 
+    t = @. !isnan(bulk.Latitude) & !isnan(bulk.Longitude);
+    for key in keys(match_cats) 
+        s = t .& bulk_cats[key]
+        k = invweight_location(bulk.Latitude[s], bulk.Longitude[s])
+        p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+        data = bulk.SiO2[s]
+        uncertainty = fill(SiO₂_error, count(s))
+        simout[key] .= bsresample(data, uncertainty, nsims, p)
+    end
 
 
 ## --- Igneous classes
@@ -190,8 +207,18 @@
             label=""
         )
 
+        # Resampled distribution
+        c, n = bincounts(simout[fig_types[i]], 0, 100, 100)
+        n₂ = float(n) ./ nansum(float(n) .* step(c))
+        Plots.plot!(c, n₂, 
+            seriestype=:path, linewidth=2,
+            color=:black, linecolor=:black,
+            linestyle=:dot,
+            label=""
+        )
+
         # Final formatting
-        Plots.ylims!(0, round(maximum([n₁; u.density]), digits=2)+0.01)
+        Plots.ylims!(0, round(maximum([n₁; n₂; u.density]), digits=2)+0.01)
         npoints = count(match_cats[fig_types[i]])
         Plots.annotate!(((0.03, 0.97), (fig_names[i] * "\nn = $npoints", 18, :left, :top)))
         fig[i] = h
@@ -215,6 +242,10 @@
     Plots.plot!(h, [0],[0], color=:white, linecolor=:match, label=" ")
     Plots.plot!(h, [0],[0], color=colors.evap, linewidth=5, 
         label=" Kernel Density Estimate")
+
+    Plots.plot!(h, [0],[0], color=:white, linecolor=:match, label=" ")
+    Plots.plot!(h, [0],[0], color=:black, linestyle=:dot, linewidth=5,
+        label=" Spatially Resampled\n Geochemical Data")
     fig[30] = h
 
     # Assemble plots

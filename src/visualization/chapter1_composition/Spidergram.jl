@@ -7,177 +7,188 @@
 
     # Get a list of REEs
     REEs = get_REEs()
+    spider_REEs = REEs[1:end .!= findfirst(x->x==:Pm, REEs)]       # Pm isn't in datasets
 
     # Load data
     @info "Upper crust data: $ucc_out"
     ucc = importdataset(ucc_out, '\t', importas=:Tuple);
+    ucc_err = importdataset(ucc_out_err, '\t', importas=:Tuple);
     rudnick_gao = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple);
 
+    # Get an option to filter for all samples 
+    class = merge(match_cats, (bulk=trues(length(match_cats[1])),));
 
-## --- Load my data, normalized to 100% anhydrous
-    # Elements (anhydrous)
-    i = findfirst(x->x=="Volatiles", ucc.element)
-    elemkeys = Tuple(Symbol.(ucc.element[1:end .!= i]))
 
-    # Rock types, including bulk (all samples). Get all units as ppm
-    target = deleteat!(collect(keys(match_cats)), findall(x->x==:met, collect(keys(match_cats))))
-    class = merge(
-        NamedTuple{Tuple(target)}(match_cats[k] for k in target), 
-        (bulk=trues(length(match_cats[1])),)
+## --- Load data 
+    # Matched data, converting to ppm
+    elementindex = NamedTuple{Tuple(Symbol.(ucc.element))}(i for i in eachindex(ucc.element))
+    ucc = NamedTuple{keys(class)}([NamedTuple{Tuple(spider_REEs)}(
+        [ucc[f][elementindex[k]].*10_000 for k in spider_REEs]) for f in keys(class)]
+    );
+    ucc_err = NamedTuple{keys(class)}([NamedTuple{Tuple(spider_REEs)}(
+        [ucc_err[f][elementindex[k]].*10_000 for k in spider_REEs]) for f in keys(class)]
+    );
+
+    # Previous estimates, units are already ppm
+    elementindex = NamedTuple{Tuple(Symbol.(rudnick_gao.Element))}(
+        i for i in eachindex(rudnick_gao.Element)
     )
-    ucc = NamedTuple{keys(class)}(
-        [NamedTuple{elemkeys}(normalize!(ucc[k][1:end .!= i]).*10_000) for k in keys(class)]
+    condie = NamedTuple{Tuple(spider_REEs)}(rudnick_gao.Condie_1993[elementindex[k]] 
+        for k in spider_REEs)
+    taylor_mclennan = NamedTuple{Tuple(spider_REEs)}(rudnick_gao.Taylor_and_McLennan_1985[elementindex[k]] 
+        for k in spider_REEs)
+    rudnick_gao = NamedTuple{Tuple(spider_REEs)}(rudnick_gao.This_Study[elementindex[k]] 
+        for k in spider_REEs
     );
 
 
-## --- Load undifferentiated EarthChem data
-    # Also convert units to ppm
-    spider_REEs = REEs[1:end .!= findfirst(x->x==:Pm, REEs)]
-    class = merge(bulk_cats, (bulk=trues(length(bulk_cats[1])),))
-    bulk_REE = NamedTuple{keys(class)}(
-        [NamedTuple{Tuple(spider_REEs)}([nanmean(bulk[k][f]).*10_000 for k in spider_REEs]) for f in class]
-    );
+## --- Resample (temporal) Archean vs. post-Archean shales 
+    # Resample 
+    nsims = Int(1e7)
+    err = 0.01
+    age_error = 0.05
+    simout = Array{Float64}(undef, nsims, length(spider_REEs)+1)
 
-
-## --- Load Rudnick and Gao, 2014; Taylor and McLennan, 1985
-    # Convert data to dictionaries
-    units = Dict(zip(rudnick_gao.Element, rudnick_gao.Units))
-
-    taylor_mclennan = Dict(zip(rudnick_gao.Element, rudnick_gao.Taylor_and_McLennan_1985))
-    rudnick_gao = Dict(zip(rudnick_gao.Element, rudnick_gao.This_Study))
-
-    # Convert units to wt.% and normalize to 100%
-    for d in (rudnick_gao, taylor_mclennan)
-        for k in keys(rudnick_gao)
-            if units[k] == "percent"
-                continue
-            elseif units[k] == "ppm"
-                d[k] = d[k] / 10_000
-            elseif units[k] == "ppb"
-                d[k] = d[k] / 10_000_000
-            end
-        end
-    end
-    rudnick_gao = Dict(zip(keys(rudnick_gao), normalize!(collect(values(rudnick_gao)))))
-    taylor_mclennan = Dict(zip(keys(taylor_mclennan), normalize!(collect(values(taylor_mclennan)))))
-
-    # Convert normalized REE values to ppm for spidergram
-    for d in (rudnick_gao, taylor_mclennan)
-        for k in REEs
-            haskey(d, string(k)) && (d[string(k)] *= 10_000)
-        end
+    t = @. !isnan(mbulk.Age);
+    sampleage = copy(mbulk.Age);
+    ageuncert = nanadd.(mbulk.Age_Max, .- mbulk.Age_Min) ./ 2;
+    sampleage[t] .= macrostrat.age[t]
+    ageuncert[t] .= nanadd.(macrostrat.agemax[t], .- macrostrat.agemin[t]) ./ 2;
+    for i in eachindex(ageuncert)
+        ageuncert[i] = max(sampleage[i]*age_error, ageuncert[i])
     end
 
-    
-## --- Spider... gram. Spidergram.
-    # Use a different color palette so colors are visible 
-    p = Plots.palette(:vikO, 7)
+    t = @. !isnan.(sampleage) .& match_cats.shale;
+    data = Array{Float64}(undef, count(t), length(spider_REEs)+1)
+    uncertainty = similar(data)
 
-    h = spidergram(rudnick_gao, label="Rudnick and Gao, 2014", 
-        markershape=:diamond, seriescolor=:grey, msc=:auto, size=(700,400),
-        legend=:topright, legendfont=15, markersize=6
+    k = invweight_age(sampleage[t])
+    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+    [data[:,i] .= mbulk[spider_REEs[i]][t].*10_000 for i in eachindex(spider_REEs)]
+    data[:,end] .= sampleage[t]
+    uncertainty[:,1:end-1] .= err
+    uncertainty[:,end] .= ageuncert[t]
+
+    simout .= bsresample(data, uncertainty, nsims, p)
+
+    # Create NamedTuples of Archean vs. post-Archean shales 
+    archean = 3800 .>= simout[:,end] .> 2500;
+    proterozoic = 2500 .>= simout[:,end] .> 541;
+    phanerozoic = 541 .>= simout[:,end] .> 0;
+
+    archeanshale = NamedTuple{Tuple(spider_REEs)}(
+        reshape(nanmean(simout[:,1:end-1][archean,:], dims=1), :, 1)
+    )
+    proterozoicshale = NamedTuple{Tuple(spider_REEs)}(
+        reshape(nanmean(simout[:,1:end-1][proterozoic,:], dims=1), :, 1)
+    )
+    phanerozoicshale = NamedTuple{Tuple(spider_REEs)}(
+        reshape(nanmean(simout[:,1:end-1][phanerozoic,:], dims=1), :, 1)
+    )
+    allshale = NamedTuple{Tuple(spider_REEs)}(
+        reshape(nanmean(simout[:,1:end-1], dims=1), :, 1)
     )
 
-    spidergram!(h, ucc.ign, label="This Study (Igneous)",
-        markershape=:utriangle, seriescolor=p[2], msc=:auto, markersize=6)
-    spidergram!(h, ucc.granite, label="This Study (Granite)",
-        markershape=:utriangle, seriescolor=p[3], msc=:auto, markersize=6)
-        spidergram!(h, ucc.basalt, label="This Study (Basalt)",
-        markershape=:utriangle, seriescolor=p[5], msc=:auto, markersize=6)
-    spidergram!(h, ucc.sed, label="This Study (Sedimentary)",
-        markershape=:circle, seriescolor=p[6], msc=:auto, markersize=6)
 
-    spidergram!(h, ucc.bulk, label="This Study (Bulk Earth)",
-        markershape=:circle, seriescolor=p[7], msc=:auto, markersize=6, 
-        ylims=(5,200)
+## --- Organize Condie (1993) sedimentary REE values
+    # These currently have to be plotted manually, working on fixing that in StatGeochem
+    taylormclennan = (
+        La = 0.367,Ce = 0.957,Pr = 0.137,Nd = 0.711,Sm = 0.231,Eu = 0.087,Gd = 0.306,
+        Tb = 0.058,Dy = 0.381,Ho = 0.085,Er = 0.249,Tm = 0.036,Yb = 0.248,Lu = 0.038,
+    )
+    REEindex = NamedTuple{Tuple(REEs)}(i for i in eachindex(REEs))
+
+    # Use Late Archean, Middle Proterozoic, and Meso-Cenozoic
+    condiearcheanshale=(La=30.7,Ce=60.9,Nd=27.7,Sm=4.85,Eu=1.12,Gd=4.55,Tb=0.71,Yb=2.43,Lu=0.39)
+    condiearcheansed = (La=26,Ce=52,Nd=22,Sm=3.9,Eu=1.1,Gd=3.69,Tb=0.58,Yb=1.4,Lu=0.25,)
+    condieproterozoicsed = (La=28,Ce=60,Nd=26,Sm=4.9,Eu=0.93,Gd=4.34,Tb=0.66,Yb=2.2,Lu=0.38,)
+    condiemidphansed = (La=28,Ce=61,Nd=26,Sm=4.9,Eu=0.9,Gd=4.34,Tb=0.66,Yb=2.2,Lu=0.38,)
+
+    x_condie = [REEindex[k] for k in keys(condiearcheanshale)]
+
+    y_archean_shale = [condiearcheanshale[k]/taylormclennan[k] for k in keys(condiearcheanshale)]
+    y_archean_sed = [condiearcheansed[k]/taylormclennan[k] for k in keys(condiearcheansed)]
+    y_proterozoic_sed = [condieproterozoicsed[k]/taylormclennan[k] for k in keys(condieproterozoicsed)]
+    y_midphan_sed = [condiemidphansed[k]/taylormclennan[k] for k in keys(condiemidphansed)]
+
+
+## --- Terminal printout: what's the ratio of my estimate to Rudnick and Gao?
+    me = [ucc.bulk[k] for k in spider_REEs]
+    rg = [rudnick_gao[k] for k in spider_REEs]
+    ratio = round.(me ./ rg, digits=2)
+
+    @info """ REEs are higher are higher than Rudnick and Gao by a factor of:
+    $(join(rpad.(spider_REEs, 8), " "))
+    $(join(rpad.(ratio, 8), " "))
+
+    Average: $(round(nanmean(ratio), digits=2))
+    1σ s.d:  $(round(nanstd(ratio), digits=2))
+    """
+    
+
+## --- Assemble plots
+    p = Plots.palette(:berlin, 8)
+
+    # Bulk Earth
+    h1 = spidergram(rudnick_gao, label="Rudnick and Gao, 2014", 
+        markershape=:diamond, seriescolor=p[2], msc=:auto, markersize=6,
+        legend=:topright, legendfont=10, titlefont=16,
+        size=(700,400), title="A. Bulk Earth", titleloc=:left,
+        left_margin=(15,:px)
+    )
+    spidergram!(h1, condie, label="Condie, 1993",
+        markershape=:diamond, seriescolor=p[4], msc=:auto, markersize=6
     )
 
-    display(h)
-    savefig("$filepath/spidergram.pdf")
-    savefig("$filepath_png/spidergram.png")
-
-
-## --- Spidergram comparing bulk geochemical REEs and Rudnick and Gao estimation
-    # h = spidergram(rudnick_gao, label="Rudnick and Gao, 2014", 
-    #     markershape=:diamond, seriescolor=:grey, 
-    #     title="Bulk [$geochem_fid] Geochemical Dataset")
-
-    # spidergram!(h, bulk_REE.sed, label="All Sedimentary", 
-    #     markershape=:utriangle, seriescolor=colors.sed)
-    # spidergram!(h, bulk_REE.shale, label="All Shales", 
-    #     markershape=:utriangle, seriescolor=colors.shale)
-    # spidergram!(h, bulk_REE.ign, label="All Igneous",
-    #     markershape=:utriangle, seriescolor=colors.ign)
-
-    # spidergram!(h, bulk_REE.granite, label="All Granites",
-    #     markershape=:utriangle, seriescolor=colors.granite)
-    # spidergram!(h, bulk_REE.basalt, label="All Basalts",
-    #     markershape=:utriangle, seriescolor=colors.basalt)
-    
-    # display(h)
-
-
-## --- Break down igneous rocks a little more
-    # minorsed, minorvolc, minorplut, minorign = get_rock_class()[2:5];
-
-    # # Volcanic
-    # p = Plots.palette(:managua, length(minorvolc))
-    # h1 = spidergram(bulk_REE.volc, label="Volcanic", markershape=:utriangle,
-    #     seriescolor=colors.volc, legend=:outerright, size=(800, 400),
-    #     title="Volcanic (All Geochemical Samples) [$geochem_fid]")
-    # h2 = spidergram(ucc.volc, label="Volcanic", markershape=:utriangle,
-    #     seriescolor=colors.volc, legend=:outerright, size=(800, 400),
-    #     title="Volcanic (Matched Geochemical Samples) [$geochem_fid]")
-    # for i in eachindex(minorvolc)
-    #     spidergram!(h1, bulk_REE[minorvolc[i]], label="$(minorvolc[i])", markershape=:utriangle, color=p[i])
-    #     spidergram!(h2, ucc[minorvolc[i]], label="$(minorvolc[i])", markershape=:utriangle, color=p[i])
-    # end
-    # spidergram!(h1, rudnick_gao, label="Rudnick and Gao, 2014", 
-    #     markershape=:diamond, seriescolor=:black)
-    # spidergram!(h2, rudnick_gao, label="Rudnick and Gao, 2014", 
-    #     markershape=:diamond, seriescolor=:black)
+    spidergram!(h1, ucc.sed, label="This Study (Sedimentary)",
+        markershape=:circle, seriescolor=p[6], msc=:auto, markersize=5,
+    )
+    spidergram!(h1, ucc.bulk, label="This Study (Bulk Earth)",
+        markershape=:circle, seriescolor=p[8], msc=:auto, markersize=5)
+    ylims!(4,200)
+    savefig("$filepath/spidergram_bulk.pdf")
     # display(h1)
+
+    # Igneous rocks
+    h2 = spidergram(ucc.bulk, label="Bulk Earth",
+        markershape=:diamond, seriescolor=p[8], msc=:auto, markersize=6,
+        legend=:topright, legendfont=10, titlefont=16,
+        size=(700,400), title="B. Igneous", titleloc=:left,
+        left_margin=(15,:px)
+    )
+    spidergram!(h2, ucc.ign, label="Igneous",
+        markershape=:circle, seriescolor=p[2], msc=:auto, markersize=5)
+    spidergram!(h2, ucc.granite, label="Granite",
+        markershape=:circle, seriescolor=p[4], msc=:auto, markersize=5)
+    spidergram!(h2, ucc.basalt, label="Basalt",
+        markershape=:circle, seriescolor=p[6], msc=:auto, markersize=5)
+    ylims!(4,200)
+    savefig("$filepath/spidergram_igneous.pdf")
     # display(h2)
 
+    # Shales, plotting Condie manually
+    h3 = spidergram(ucc.bulk, label="Bulk Earth (This Study)",
+        markershape=:diamond, seriescolor=p[8], msc=:auto, markersize=6,
+        legend=:topright, legendfont=10, titlefont=16,
+        size=(700,400), title="C. Shales and Greywacke", titleloc=:left,
+        left_margin=(15,:px)
+    )
+    Plots.plot!(h3, x_condie, y_archean_shale, label="Archean Shale (Condie)",
+        markershape=:diamond, seriescolor=p[2], msc=:auto, markersize=6)
+    Plots.plot!(h3, x_condie, y_archean_sed, label="L. Archean Graywacke (Condie)",
+        markershape=:diamond, seriescolor=p[4], msc=:auto, markersize=6)
 
-    # # Plutonic
-    # p = Plots.palette(:managua, length(minorplut))
-    # h3 = spidergram(bulk_REE.plut, label="Plutonic", markershape=:utriangle,
-    #     seriescolor=colors.plut, legend=:outerright, size=(800, 400),
-    #     title="Plutonic (All Geochemical Samples) [$geochem_fid]")
-    # h4 = spidergram(ucc.plut, label="Plutonic", markershape=:utriangle,
-    #     seriescolor=colors.plut, legend=:outerright, size=(800, 400),
-    #     title="Plutonic (Matched Geochemical Samples) [$geochem_fid]")
-    # for i in eachindex(minorplut)
-    #     spidergram!(h3, bulk_REE[minorplut[i]], label="$(minorplut[i])", markershape=:utriangle, color=p[i])
-    #     spidergram!(h4, ucc[minorplut[i]], label="$(minorplut[i])", markershape=:utriangle, color=p[i])
-    # end
-    # spidergram!(h3, rudnick_gao, label="Rudnick and Gao, 2014", 
-    #     markershape=:diamond, seriescolor=:black)
-    # spidergram!(h4, rudnick_gao, label="Rudnick and Gao, 2014", 
-    #     markershape=:diamond, seriescolor=:black)
+    spidergram!(h3, archeanshale, label="Archean Shale (This Study)",
+        markershape=:circle, seriescolor=p[6], msc=:auto, markersize=5)
+    spidergram!(h3, phanerozoicshale, label="Phanerozoic Shale  (This Study)",
+        markershape=:circle, seriescolor=p[1], msc=:auto, markersize=5)
+    ylims!(4,200)
+    savefig("$filepath/spidergram_shale.pdf")
     # display(h3)
-    # display(h4)
 
-
-    # # Bulk igneous
-    # p = Plots.palette(:managua, length(minorign))
-    # h5 = spidergram(bulk_REE.ign, label="Igneous", markershape=:utriangle,
-    #     seriescolor=colors.ign, legend=:outerright, size=(800, 400),
-    #     title="Igneous (All Geochemical Samples) [$geochem_fid]")
-    # h6 = spidergram(ucc.ign, label="Igneous", markershape=:utriangle,
-    #     seriescolor=colors.ign, legend=:outerright, size=(800, 400),
-    #     title="Igneous (Matched Geochemical Samples) [$geochem_fid]")
-    # for i in eachindex(minorign)
-    #     spidergram!(h5, bulk_REE[minorign[i]], label="$(minorign[i])", markershape=:utriangle, color=p[i])
-    #     spidergram!(h6, ucc[minorign[i]], label="$(minorign[i])", markershape=:utriangle, color=p[i])
-    # end
-    # spidergram!(h5, rudnick_gao, label="Rudnick and Gao, 2014", 
-    #     markershape=:diamond, seriescolor=:black)
-    # spidergram!(h6, rudnick_gao, label="Rudnick and Gao, 2014", 
-    #     markershape=:diamond, seriescolor=:black)
-    # display(h5)
-    # display(h6)
+    # Assemble plots, but just for looks because the y axis gets all messed up :(
+    h = Plots.plot(h1, h2, h3, layout=(3, 1), size=(600,1200))
+    display(h)
 
 
 ## --- End of file 

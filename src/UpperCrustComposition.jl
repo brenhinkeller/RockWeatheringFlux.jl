@@ -45,9 +45,9 @@
 
 
 ## --- Figure out how many geochemical samples explain 90% of the matches 
+    # If this is changed, remember to change the values in CalculateFlux.jl!!
     c = countmap(mbulk.Sample_ID)
-    npoints = count(>(percentile(values(c), 90)), values(c))
-    # npoints = count(<(percentile(values(c), 95)), values(c))
+    npoints = count(<(percentile(values(c), 90)), values(c))
 
 
 ## --- Compute and export composition of exposed crust!
@@ -68,14 +68,14 @@
     
     for i in eachindex(keys(class))
         result[:,i] .= [nanmean(mbulk[j][class[i]]) for j in allelements]
-        result_err[:,i] .= [nanstd(mbulk[j][class[i]])./npoints for j in allelements]
+        result_err[:,i] .= [nanstd(mbulk[j][class[i]])./sqrt(npoints) for j in allelements]
     end
     writedlm("$ucc_out", vcat(cols, hcat(rows, result)))
     writedlm("$ucc_out_err", vcat(cols, hcat(rows, result_err)))
 
-    # Terminal printout
+    # Terminal printout ± 2 SEM
     majorcomp = round.([result[:,end][i] for i in eachindex(majors)], digits=1)
-    majorcomp_err = round.([result_err[:,end][i] for i in eachindex(majors)], sigdigits=1)
+    majorcomp_err = round.([result_err[:,end][i]*2 for i in eachindex(majors)], sigdigits=1)
 
     @info """Bulk crustal composition ($geochem_fid | $macrostrat_io):
       $(join(rpad.(majors, 8), " "))
@@ -86,19 +86,38 @@
     Total (major + trace): $(round(nansum(result[:,end]), sigdigits=4))%
     """
 
-    # A little comparative analysis, as a treat
-    # [reshape(collect(keys(match_cats)), :, 1) collect(1:29)]  # What column do you want
-    plutcomp = round.([result[:,end-4][i] for i in eachindex(majors)], digits=1);
-    shalecomp = round.([result[:,2][i] for i in eachindex(majors)], digits=1);
-    clastcomp = round.([result[:,1][i] for i in eachindex(majors)], digits=1);
+## --- Terminal printout to copy paste into the latex table formatting sheet
+    comp = NamedTuple{keys(class)}([(
+        comp = round.([result[:,k][i] for i in eachindex(majors)], sigdigits=3),
+        sem = round.([result_err[:,k][i]*2 for i in eachindex(majors)], sigdigits=1)
+    ) for k in eachindex(keys(class))])
 
-    @info """Major element composition by selected lithologic class:
+
+    @info """Major element composition by selected lithologic class (± 2 s.e):
              $(join(rpad.(majors, 8), " "))
-    Bulk:    $(join(rpad.(majorcomp, 8), " "))
-    Plut:    $(join(rpad.(plutcomp, 8), " "))
-    Shale:   $(join(rpad.(shalecomp, 8), " "))
-    Clastic: $(join(rpad.(clastcomp, 8), " "))
+    Bulk:    $(join(rpad.(comp.bulk.comp, 8), " "))
+           ± $(join(rpad.(comp.bulk.sem, 8), " "))
+
+    Sed:     $(join(rpad.(comp.sed.comp, 8), " "))
+           ± $(join(rpad.(comp.sed.sem, 8), " "))
+
+    Ign:     $(join(rpad.(comp.ign.comp, 8), " "))
+           ± $(join(rpad.(comp.ign.sem, 8), " "))       
+
+    Plut:    $(join(rpad.(comp.plut.comp, 8), " "))
+           ± $(join(rpad.(comp.plut.sem, 8), " "))
+
+    Granite: $(join(rpad.(comp.granite.comp, 8), " "))
+           ± $(join(rpad.(comp.granite.sem, 8), " "))
+
+    Volc:    $(join(rpad.(comp.volc.comp, 8), " "))
+           ± $(join(rpad.(comp.volc.sem, 8), " "))
+
+    Basalt:  $(join(rpad.(comp.basalt.comp, 8), " "))
+           ± $(join(rpad.(comp.basalt.sem, 8), " "))
+    
     """
+
 
 ## --- Distribution of lithologies exposed at the Earth's surface (Option 1)
     # We want to calculate absolute surficial abundances with two outputs: 

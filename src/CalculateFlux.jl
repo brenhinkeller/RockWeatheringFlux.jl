@@ -24,8 +24,7 @@
     # back to the same result. 
     match_cats = match_rocktype(string.(vec(fid[:,2]))[t]);
     include_minor!(match_cats)
-    match_cats = delete_cover(match_cats)
-
+    delete_cover(match_cats)
 
     # Geochemical data for each sample
     fid = h5open(geochem_fid, "r")
@@ -66,7 +65,7 @@
     rockslope = Measurements.value.(rockslope)
 
     # Calculate all erosion rates (mm/kyr) (propagate uncertainty)
-    rock_ersn = emmkyr.(rockslope)
+    rock_ersn = emmkyr.(rockslope);
 
 
 ## --- Calculate denundation at each point
@@ -76,15 +75,16 @@
         # Greenland: 2,166,086
         # Area in this study = Total - (Antarctica + Greenland) = 133_367_840
     # Declare constants
-    const npoints = length(macrostrat.rocklat)                # Number of points
-    const crustal_density = 2750                              # kg/m³
-    const unit_sample_area = (133367840 * 1000000) / npoints  # Area of continents / npoints (m²)
+    const crustal_density = 2750                            # kg/m³
+    npoints = length(macrostrat.rocklat)                    # Number of *matched* points
+    unit_sample_area = (133_367_840 * 1000000) / npoints    # Area of continents / npoints (m²)
 
     # Create file to save data
     fid = h5open("$eroded_out", "w")
 
-    # Denundation at each point (kg/yr)
-    sampleflux = [rock_ersn[i] * unit_sample_area * crustal_density * 1e-6 for i = 1:npoints]
+    # Denundation at each point (kg/yr), for 
+    sampleflux = [rock_ersn[i] * unit_sample_area * crustal_density * 1e-6 for i = 1:npoints];
+    sampleflux[.!ismatched] .= NaN
 
     # Save to file
     sampleflux_val, sampleflux_err = unmeasurementify(sampleflux)
@@ -212,33 +212,39 @@
     # absolute contribution by the total amount of each element that erodes each year.
     # Note that major classes will be the sum of their constituent minor classes.
     writedlm(erodedrel_out, vcat(cols, hcat(rows, result./result[:,end])))
-    writedlm(erodedrel_out_err, vcat(cols, hcat(rows, result_err./result_err[:,end])))
+    writedlm(erodedrel_out_err, vcat(cols, hcat(rows, result_err./result[:,end])))
 
 
 ## --- Calculate and export the composition of eroded material
+    # Figure out how many geochemical samples explain 90% of the matches 
+    # If this is changed, remember to change the values in UpperCrustComposition.jl!!
+    c = countmap(mbulk.Sample_ID)
+    npoints = count(<(percentile(values(c), 90)), values(c))
+
     # Compute the composition of eroded material [wt.%] for each lithologic class as the
     # fraction of that element out of the total erosion for that class.
     for i in eachindex(keys(class))
-        result[:,i] ./= result[end,i]
-        result_err[:,i] .= sqrt.((result_err[:,i] ./ result[:,i]).^2)
+        normconst = result[end,i]
+        result[:,i] ./= normconst
+        result_err[:,i] ./= normconst
     end
     writedlm(erodedcomp_out, vcat(cols, hcat(rows, result.*100)))
     writedlm(erodedcomp_out_err, vcat(cols, hcat(rows, result_err.*100)))
 
     # Terminal printout
-    majorcomp_rel = round.(result[1:nmajors, end].*100, digits=1)
-    majorcomp_rel_err = round.(result_err[1:nmajors, end].*100, digits=1)
+    majorcomp_rel = round.(result[1:nmajors, end].*100, sigdigits=3)
+    majorcomp_rel_err = round.(result_err[1:nmajors, end].*100 ./ sqrt(npoints) .*2, sigdigits=1)
 
     @info """Composition of bulk eroded material:
-    Absolute [Gt/yr]
+    Absolute [Gt/yr] ± 1σ s.d.
       $(join(keys(elementflux_val)[1:nmajors], " \t "))
       $(join(majorcomp, " \t "))
     ± $(join(majorcomp_err, " \t "))
 
-    Composition [wt.%]
+    Composition [wt.%] ± 2 s.e.
       $(join(keys(elementflux_val)[1:nmajors], " \t "))
-      $(join(majorcomp_rel, " \t "))
-    ± $(join(majorcomp_rel_err, " \t "))
+      $(join(rpad.(majorcomp_rel, 8), " "))
+    ± $(join(rpad.(majorcomp_rel_err, 8), " "))
     """
 
     

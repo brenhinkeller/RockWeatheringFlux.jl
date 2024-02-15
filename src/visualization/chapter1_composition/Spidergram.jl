@@ -18,6 +18,9 @@
     # Get an option to filter for all samples 
     class = merge(match_cats, (bulk=trues(length(match_cats[1])),));
 
+    # Until StatGeochem PR goes through 
+    include("../../../src/dev.jl")
+
 
 ## --- Load data 
     # Matched data, converting to ppm
@@ -40,6 +43,12 @@
     rudnick_gao = NamedTuple{Tuple(spider_REEs)}(rudnick_gao.This_Study[elementindex[k]] 
         for k in spider_REEs
     );
+
+    # Condie by lithology and time (Late Archean, Middle Proterozoic, and Meso-Cenozoic)
+    condiearcheanshale=(La=30.7,Ce=60.9,Nd=27.7,Sm=4.85,Eu=1.12,Gd=4.55,Tb=0.71,Yb=2.43,Lu=0.39)
+    condiearcheansed = (La=26,Ce=52,Nd=22,Sm=3.9,Eu=1.1,Gd=3.69,Tb=0.58,Yb=1.4,Lu=0.25,)
+    condieproterozoicsed = (La=28,Ce=60,Nd=26,Sm=4.9,Eu=0.93,Gd=4.34,Tb=0.66,Yb=2.2,Lu=0.38,)
+    condiemidphansed = (La=28,Ce=61,Nd=26,Sm=4.9,Eu=0.9,Gd=4.34,Tb=0.66,Yb=2.2,Lu=0.38,)
 
 
 ## --- Resample (temporal) Archean vs. post-Archean shales 
@@ -90,28 +99,6 @@
     )
 
 
-## --- Organize Condie (1993) sedimentary REE values
-    # These currently have to be plotted manually, working on fixing that in StatGeochem
-    taylormclennan = (
-        La = 0.367,Ce = 0.957,Pr = 0.137,Nd = 0.711,Sm = 0.231,Eu = 0.087,Gd = 0.306,
-        Tb = 0.058,Dy = 0.381,Ho = 0.085,Er = 0.249,Tm = 0.036,Yb = 0.248,Lu = 0.038,
-    )
-    REEindex = NamedTuple{Tuple(REEs)}(i for i in eachindex(REEs))
-
-    # Use Late Archean, Middle Proterozoic, and Meso-Cenozoic
-    condiearcheanshale=(La=30.7,Ce=60.9,Nd=27.7,Sm=4.85,Eu=1.12,Gd=4.55,Tb=0.71,Yb=2.43,Lu=0.39)
-    condiearcheansed = (La=26,Ce=52,Nd=22,Sm=3.9,Eu=1.1,Gd=3.69,Tb=0.58,Yb=1.4,Lu=0.25,)
-    condieproterozoicsed = (La=28,Ce=60,Nd=26,Sm=4.9,Eu=0.93,Gd=4.34,Tb=0.66,Yb=2.2,Lu=0.38,)
-    condiemidphansed = (La=28,Ce=61,Nd=26,Sm=4.9,Eu=0.9,Gd=4.34,Tb=0.66,Yb=2.2,Lu=0.38,)
-
-    x_condie = [REEindex[k] for k in keys(condiearcheanshale)]
-
-    y_archean_shale = [condiearcheanshale[k]/taylormclennan[k] for k in keys(condiearcheanshale)]
-    y_archean_sed = [condiearcheansed[k]/taylormclennan[k] for k in keys(condiearcheansed)]
-    y_proterozoic_sed = [condieproterozoicsed[k]/taylormclennan[k] for k in keys(condieproterozoicsed)]
-    y_midphan_sed = [condiemidphansed[k]/taylormclennan[k] for k in keys(condiemidphansed)]
-
-
 ## --- Terminal printout: what's the ratio of my estimate to Rudnick and Gao?
     me = [ucc.bulk[k] for k in spider_REEs]
     rg = [rudnick_gao[k] for k in spider_REEs]
@@ -127,31 +114,36 @@
     
 
 ## --- Assemble plots
-    p = Plots.palette(:berlin, 8)
+    p = Plots.palette(:managua, 10); temppath = "spidergram_managua.png"
+    # p = Plots.palette(:romaO, 10); temppath = "spidergram_romaO.png"
+    # p = Plots.palette(:turbo, 10); temppath = "spidergram_turbo.png"
 
     # Bulk Earth
-    h1 = spidergram(rudnick_gao, label="Rudnick and Gao, 2014", 
+    h1 = spidergram(rudnick_gao, label="Rudnick and Gao, 2014 (Whole Earth)", 
         markershape=:diamond, seriescolor=p[2], msc=:auto, markersize=6,
         legend=:topright, legendfont=10, titlefont=16,
-        size=(700,400), title="A. Bulk Earth", titleloc=:left,
+        size=(700,400), title="A. Major Lithology Averages", titleloc=:left,
         left_margin=(15,:px)
     )
-    spidergram!(h1, condie, label="Condie, 1993",
+    spidergram!(h1, condie, label="Condie, 1993 (Whole Earth)",
         markershape=:diamond, seriescolor=p[4], msc=:auto, markersize=6
     )
 
     spidergram!(h1, ucc.sed, label="This Study (Sedimentary)",
         markershape=:circle, seriescolor=p[6], msc=:auto, markersize=5,
     )
-    spidergram!(h1, ucc.bulk, label="This Study (Bulk Earth)",
-        markershape=:circle, seriescolor=p[8], msc=:auto, markersize=5)
+    spidergram!(h1, ucc.ign, label="This Study (Igneous)",
+        markershape=:circle, seriescolor=p[8], msc=:auto, markersize=5,
+    )
+    spidergram!(h1, ucc.bulk, label="This Study (Whole Earth)",
+        markershape=:circle, seriescolor=p[10], msc=:auto, markersize=5)
     ylims!(4,200)
     savefig("$filepath/spidergram_bulk.pdf")
     # display(h1)
 
     # Igneous rocks
-    h2 = spidergram(ucc.bulk, label="Bulk Earth",
-        markershape=:diamond, seriescolor=p[8], msc=:auto, markersize=6,
+    h2 = spidergram(ucc.bulk, label="Whole Earth Average",
+        markershape=:circle, seriescolor=p[10], msc=:auto, markersize=5,
         legend=:topright, legendfont=10, titlefont=16,
         size=(700,400), title="B. Igneous", titleloc=:left,
         left_margin=(15,:px)
@@ -161,27 +153,27 @@
     spidergram!(h2, ucc.granite, label="Granite",
         markershape=:circle, seriescolor=p[4], msc=:auto, markersize=5)
     spidergram!(h2, ucc.basalt, label="Basalt",
-        markershape=:circle, seriescolor=p[6], msc=:auto, markersize=5)
+        markershape=:circle, seriescolor=p[8], msc=:auto, markersize=5)
     ylims!(4,200)
     savefig("$filepath/spidergram_igneous.pdf")
     # display(h2)
 
     # Shales, plotting Condie manually
-    h3 = spidergram(ucc.bulk, label="Bulk Earth (This Study)",
-        markershape=:diamond, seriescolor=p[8], msc=:auto, markersize=6,
+    h3 = spidergram(ucc.bulk, label="Whole Earth Average (This Study)",
+        markershape=:circle, seriescolor=p[10], msc=:auto, markersize=5,
         legend=:topright, legendfont=10, titlefont=16,
         size=(700,400), title="C. Shales and Greywacke", titleloc=:left,
         left_margin=(15,:px)
     )
-    Plots.plot!(h3, x_condie, y_archean_shale, label="Archean Shale (Condie)",
-        markershape=:diamond, seriescolor=p[2], msc=:auto, markersize=6)
-    Plots.plot!(h3, x_condie, y_archean_sed, label="L. Archean Graywacke (Condie)",
-        markershape=:diamond, seriescolor=p[4], msc=:auto, markersize=6)
 
+    spidergram!(h3, condiearcheanshale, label="Archean Shale (Condie)",
+        markershape=:diamond, seriescolor=p[2], msc=:auto, markersize=6)
+    spidergram!(h3, condiearcheansed, label="L. Archean Graywacke (Condie)",
+        markershape=:diamond, seriescolor=p[4], msc=:auto, markersize=6)
     spidergram!(h3, archeanshale, label="Archean Shale (This Study)",
         markershape=:circle, seriescolor=p[6], msc=:auto, markersize=5)
     spidergram!(h3, phanerozoicshale, label="Phanerozoic Shale  (This Study)",
-        markershape=:circle, seriescolor=p[1], msc=:auto, markersize=5)
+        markershape=:circle, seriescolor=p[8], msc=:auto, markersize=5)
     ylims!(4,200)
     savefig("$filepath/spidergram_shale.pdf")
     # display(h3)
@@ -189,6 +181,7 @@
     # Assemble plots, but just for looks because the y axis gets all messed up :(
     h = Plots.plot(h1, h2, h3, layout=(3, 1), size=(600,1200))
     display(h)
+    savefig(h, temppath)
 
 
 ## --- End of file 

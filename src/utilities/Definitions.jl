@@ -545,5 +545,22 @@
     end
     export get_lithologic_class
 
+
+## --- Matched sample metadata 
     
+    """
+    ```julia
+    unique_sample(sample_ID, [p])
+    ```
+
+    Get the number of geochemical samples that explain `p`% of the matches. Default is 90%.
+
+    """
+    function unique_sample(sample_ID, p::Int=90)
+        c = countmap(sample_ID)
+        return count(<(percentile(values(c), 90)), values(c))
+    end
+    export unique_sample
+
+
 ## --- End of file

@@ -195,10 +195,8 @@
 
 
 ## --- Calculate and export the composition of eroded material
-    # Figure out how many geochemical samples explain 90% of the matches 
-    # If this is changed, remember to change the values in UpperCrustComposition.jl!!
-    c = countmap(mbulk.Sample_ID)
-    npoints = count(<(percentile(values(c), 90)), values(c))
+    # How many samples explain 90% of the matches?
+    npoints = unique_sample(mbulk.Sample_ID, 90)
 
     # Compute the composition of eroded material [wt.%] for each lithologic class as the
     # fraction of that element out of the total erosion for that class.

@@ -14,7 +14,7 @@ module RockWeatheringFlux
     # General requirements
     using Static 
     using Colors: RGB
-    using StatsBase: percentile
+    using StatsBase: percentile, countmap
     using LogExpFunctions: logsumexp
     
     # Utilities

@@ -45,16 +45,11 @@
     export erodedabs_out_err, erodedrel_out_err, erodedcomp_out_err    
 
 
-## --- Color names for visualization
+## --- Color names
 
     # Gradients
-    # c_gradient = :jet1
     c_gradient = :nipy_spectral
     export c_gradient
-
-    # Resampled
-    c_rs = :grey
-    export c_rs
 
     # Observed samples by rock type
     lithclass = importdataset("data/lithclass_colors.tsv",'\t', importas=:Tuple)
@@ -121,7 +116,7 @@
     export display_colors
 
     
-## --- Major and minor elements
+## --- Lists of elements: major, minor, REEs
 
     """
     ```julia
@@ -175,7 +170,8 @@
     export get_REEs
 
 
-## --- Rock type classifications
+## --- Litholgic class wordbanks
+
     """
     ```julia
     get_rock_class([major::Bool])
@@ -455,22 +451,7 @@
     end
     export get_metamorphic_class
     
-    """
-    ```julia
-    get_rock_names()
-
-    Major and minor rock names from `get_rock_class`, unabbreviated for plot labels.
-    ```
-    """
-    get_rock_names() = return ("Siliciclastic", "Shale", "Carbonate", "Evaporite", 
-        "Chert", "Phosphorite", "Coal", "Sedimentary", "Komatiite", 
-        "Basalt", "Andesite", "Dacite", "Rhyolite", "Alkaline Volcanic", 
-        "Volcaniclastic", "Volcanic", "Peridotite", "Pyroxenite", "Gabbro", 
-        "Diorite", "Trondhjemite", "Tonalite", "Granodiorite", "Granite", 
-        "Alkaline Plutonic", "Plutonic", "Carbonatite", "Igneous", 
-        "Unspecified Metamorphic", "Cover"
-    )
-    export get_rock_names
+## --- Lithologic class accessory functions 
 
     """
     ```julia
@@ -497,5 +478,72 @@
     end
     export get_cats
 
+    """
+    ```julia
+    get_lithologic_class([matchedbulk_io], [macrostrat_io])
+    ```
 
+    Return standardized filters for lithologic class. Optionally specify paths for matched 
+    samples and the Macrostrat responses file.
+
+    # Return Values 
+    * `match_cats`: lithologic class of samples, from the classes assigned during lithologic
+        and geochemical sample matching. The `met` key is true if sample was mapped as a 
+        metamorphic sample in Macrostrat, but no samples are exclusively metamorphic.
+    * `metamorphic_cats`: true if the sample is mapped as metamorphic in Macrostrat.
+    * `class`: as `match_cats`, but with an additional `bulk` key that is true for all samples.
+    * `megaclass`: as `class`, but with additional filters for metasedimentary, metaigneous,
+        and undifferentiated metamorphic samples.
+
+    All filters are inclusive of minor lithologic classes.
+
+    # Example
+    ```julia
+    match_cats, metamorphic_cats, class, megaclass = get_lithologic_class();
+    ```
+
+    """
+    function get_lithologic_class(matchedbulk_io=matchedbulk_io, macrostrat_io=macrostrat_io)
+        # Matched lithologic class
+        fid = readdlm(matchedbulk_io)
+        bulkidx = Int.(vec(fid[:,1]))
+        t = @. bulkidx != 0
+        match_cats = match_rocktype(string.(vec(fid[:,2]))[t]);
+
+        # Metamorphic tag
+        fid = h5open(macrostrat_io, "r")
+        header = Tuple(Symbol.(read(fid["type"]["macro_cats_head"])))
+        data = read(fid["type"]["metamorphic_cats"])
+        data = @. data > 0
+        metamorphic_cats = NamedTuple{header}([data[:,i][t] for i in eachindex(header)])
+        close(fid)
+
+        # Delete cover
+        match_cats = delete_cover(match_cats)
+        metamorphic_cats = delete_cover(metamorphic_cats)
+        
+        # Include minor types 
+        include_minor!(match_cats)
+        include_minor!(metamorphic_cats)
+
+        # Set matched lithologic classes to include all identified metamorphic samples
+        match_cats.met .|= (metamorphic_cats.sed .| metamorphic_cats.ign .| metamorphic_cats.met)
+
+        # Allow indexing into all samples 
+        class = merge(match_cats, (bulk=trues(length(match_cats[1])),))
+
+        # As above, but with more metamorphic options
+        metamorphic_cats.met .&= .!(metamorphic_cats.sed .| metamorphic_cats.ign)
+        megaclass = merge(match_cats, (
+            metased = metamorphic_cats.sed,
+            metaign = metamorphic_cats.ign,
+            met_undiff = metamorphic_cats.met,
+            bulk=trues(length(match_cats[1])),
+        ))
+
+        return match_cats, metamorphic_cats, class, megaclass
+    end
+    export get_lithologic_class
+
+    
 ## --- End of file

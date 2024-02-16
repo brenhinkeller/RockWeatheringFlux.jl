@@ -5,38 +5,20 @@
     using StatsBase
 
 
-## --- Load data for the matched EarthChem samples
-    # Indices and classes of matched samples
+## --- Load data
+    # Matched samples 
     fid = readdlm(matchedbulk_io)
-    bulkidx = Int.(vec(fid[:,1]))
-    t = @. bulkidx != 0
+    gchem_ind = Int.(vec(fid[:,1]))
+    t = @. gchem_ind != 0
 
-    match_cats = match_rocktype(string.(vec(fid[:,2]))[t]);
-    include_minor!(match_cats)
-    match_cats = delete_cover(match_cats)
-
-    # Metamorphic samples
-    fid = h5open("$macrostrat_io", "r")
-    header = Tuple(Symbol.(read(fid["type"]["macro_cats_head"])))
-    data = read(fid["type"]["metamorphic_cats"])
-    data = @. data > 0
-    metamorphic_cats = NamedTuple{header}([data[:,i][t] for i in eachindex(header)])
-    include_minor!(metamorphic_cats)
-    match_cats.met .|= (metamorphic_cats.sed .| metamorphic_cats.ign)
-
-    # Lithology
-    data = read(fid["type"]["macro_cats"])
-    data = @. data > 0
-    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
-    include_minor!(macro_cats)
-    macro_cats = delete_cover(macro_cats)
-    close(fid)
+    # Lithologic class 
+    match_cats, metamorphic_cats, class, megaclass = get_lithologic_class();
 
     # Matched geochemical data
     fid = h5open(geochem_fid, "r")
     header = read(fid["bulk"]["header"])
     data = read(fid["bulk"]["data"])
-    mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][bulkidx[t]] for i in eachindex(header)])
+    mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][gchem_ind[t]] for i in eachindex(header)])
     close(fid)
 
     # Elements of interest
@@ -57,9 +39,6 @@
         zeronan!(mbulk[i])
     end
 
-    # We want an option to filter for all samples 
-    class = merge(match_cats, (bulk=trues(length(match_cats[1])),))
-
     # Save to a file 
     result = Array{Float64}(undef, (length(allelements), length(class)))
     result_err = similar(result)
@@ -73,7 +52,8 @@
     writedlm("$ucc_out", vcat(cols, hcat(rows, result)))
     writedlm("$ucc_out_err", vcat(cols, hcat(rows, result_err)))
 
-    # Terminal printout ± 2 SEM
+    
+## --- Terminal printout ± 2 SEM
     majorcomp = round.([result[:,end][i] for i in eachindex(majors)], digits=1)
     majorcomp_err = round.([result_err[:,end][i]*2 for i in eachindex(majors)], sigdigits=1)
 
@@ -85,6 +65,7 @@
     Total (majors): $(round(nansum(result[:,end][1:length(majors)]), sigdigits=4))%
     Total (major + trace): $(round(nansum(result[:,end]), sigdigits=4))%
     """
+
 
 ## --- Terminal printout to copy paste into the latex table formatting sheet
     comp = NamedTuple{keys(class)}([(
@@ -100,6 +81,9 @@
 
     Sed:     $(join(rpad.(comp.sed.comp, 8), " "))
            ± $(join(rpad.(comp.sed.sem, 8), " "))
+
+    Shale:   $(join(rpad.(comp.shale.comp, 8), " "))
+           ± $(join(rpad.(comp.shale.sem, 8), " "))
 
     Ign:     $(join(rpad.(comp.ign.comp, 8), " "))
            ± $(join(rpad.(comp.ign.sem, 8), " "))       
@@ -119,7 +103,53 @@
     """
 
 
-## --- Distribution of lithologies exposed at the Earth's surface (Option 1)
+## --- Distribution of lithologies exposed at the Earth's surface 
+    # Specifically, I want this to be directly comperable to the measurements of fractional
+    # contribution to total denudation.
+    # 
+    # Total denudation uses the match_cats lithologies, where metamorphic rocks have 
+    # been totally reassigned to their assumed protoliths. Therefore, while we want an 
+    # estimate of the surficial abundance of metamorphic rocks, we want the total 
+    # sedimentary and igneous abundances to add to 100%. Separate metamorphic into 
+    # metasedimentary and metaigneous for funsies.
+
+    # Major classes, where metamorphic is undifferentiated
+    include_minor!(macro_cats);
+    macro_cats.met .&= .!(macro_cats.sed .| macro_cats.ign);
+    majorclass = (:sed, :ign, :met) 
+    dist_major = NamedTuple{majorclass}(
+        normalize!([count(macro_cats[k])/length(macro_cats[k])*100 for k in majorclass])
+    )
+
+    # Minor classes
+    exclude_minor!(macro_cats);
+    dist_minorsed = NamedTuple{minorsed}(normalize!(
+        [count(macro_cats[k])/length(macro_cats[k])*100 for k in minorsed]).*(dist_major.sed/100))
+    dist_minorign = NamedTuple{minorign}(normalize!(
+        [count(macro_cats[k])/length(macro_cats[k])*100 for k in minorign]).*(dist_major.ign/100))
+    dist_minorvolc = NamedTuple{minorvolc}(normalize!(
+        [count(macro_cats[k])/length(macro_cats[k])*100 for k in minorvolc]).*(dist_minorign.volc/100))
+    dist_minorplut = NamedTuple{minorplut}(normalize!(
+        [count(macro_cats[k])/length(macro_cats[k])*100 for k in minorplut]).*(dist_minorign.plut/100))
+
+    # Export to file 
+    sed = [[string.(collect(keys(dist_minorsed))) collect(values(dist_minorsed))];
+    ["total sedimentary" dist_major.sed]]
+    ign = [[string.(collect(keys(dist_minorign))) collect(values(dist_minorign))];
+        ["total igneous" dist_major.ign]]
+    volc = [[string.(collect(keys(dist_minorvolc))) collect(values(dist_minorvolc))];
+        ["total volcanic" dist_minorign.volc]]
+    plut = [[string.(collect(keys(dist_minorplut))) collect(values(dist_minorplut))];
+        ["total plutonic" dist_minorign.plut]]
+    met_total = ["undifferentiated metamorphic" dist_major.met]
+
+    collected_abundance = [sed; ign; volc; plut; met_total];
+    collected_abundance[:,2] = round.(collected_abundance[:,2], sigdigits=3)
+    writedlm(surficial_abundance_out, collected_abundance)
+
+
+## ---
+    # (Option 1)
     # We want to calculate absolute surficial abundances with two outputs: 
     #
     # 1) Include "undifferentiated" as a type. This will allow people to get a sense of 

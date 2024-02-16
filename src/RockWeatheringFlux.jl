@@ -8,6 +8,9 @@ module RockWeatheringFlux
     # Vectorization tools
     using LoopVectorization: @turbo
 
+    # File reading
+    using HDF5, DelimitedFiles
+
     # General requirements
     using Static 
     using Colors: RGB

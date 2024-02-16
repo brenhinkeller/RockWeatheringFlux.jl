@@ -23,21 +23,19 @@
     
     
 ## --- Matched Geochemical Data and Macrostrat / Burwell
-    # Indices and rock classes of matched samples
+    # Matched samples 
     fid = readdlm(matchedbulk_io)
-    matches = Int.(vec(fid[:,1]))
-    t = @. matches != 0
+    gchem_ind = Int.(vec(fid[:,1]))
+    t = @. gchem_ind != 0
 
-    match_cats = match_rocktype(string.(vec(fid[:,2]))[t]);
-    include_minor!(match_cats)
-    match_cats = delete_cover(match_cats)
+    # Lithologic class 
+    match_cats, metamorphic_cats, class, megaclass = get_lithologic_class();
 
-    # Geochemical Data
+    # Matched geochemical data
     fid = h5open(geochem_fid, "r")
     header = read(fid["bulk"]["header"])
     data = read(fid["bulk"]["data"])
-    mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][matches[t]] 
-        for i in eachindex(header)])
+    mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][gchem_ind[t]] for i in eachindex(header)])
     close(fid)
 
     # Macrostrat
@@ -49,22 +47,7 @@
         agemax = read(fid["vars"]["agemax"])[t],
         agemin = read(fid["vars"]["agemin"])[t],
     )
-    header = Tuple(Symbol.(read(fid["type"]["macro_cats_head"])))
-    data = read(fid["type"]["metamorphic_cats"])
-    data = @. data > 0
-    metamorphic_cats = NamedTuple{header}([data[:,i][t] for i in eachindex(header)])
-    # data = read(fid["type"]["macro_cats"])
-    # data = @. data > 0
-    # macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
     close(fid)
-
-    # Metamorphic samples
-    include_minor!(metamorphic_cats)
-    match_cats.met .|= (metamorphic_cats.sed .| metamorphic_cats.ign)
-
-    # Major classes include minors, delete cover
-    # include_minor!(macro_cats)
-    # macro_cats = delete_cover(macro_cats)
 
 
 ## --- Unmatched Geochemical Data

@@ -7,49 +7,31 @@
     # Packages
     using RockWeatheringFlux
     using DelimitedFiles, HDF5, Dates
+    using StatsBase
 
 
 ## --- Load data
-    # Indices of matched samples from SampleMatch.jl
+    # Matched samples 
     fid = readdlm(matchedbulk_io)
-    matches = Int.(vec(fid[:,1]))
-    t = @. matches != 0
+    gchem_ind = Int.(vec(fid[:,1]))
+    t = @. gchem_ind != 0
 
-    # Rock class of each sample
-    # We use the rock classes assigned during lithological / geochemical sample matching, 
-    # because this represents the geochemical composition of rocks of that class (e.g., if 
-    # something is matched to basalt and rhyolite, and was assigned basalt for the purposes
-    # of sample matching, we don't want to contaminate our rhyolite data with that point).
-    # Our sample density is high enough that by the law of large numbers, we should get
-    # back to the same result. 
-    match_cats = match_rocktype(string.(vec(fid[:,2]))[t]);
-    include_minor!(match_cats)
-    delete_cover(match_cats)
+    # Lithologic class 
+    match_cats, metamorphic_cats, class, megaclass = get_lithologic_class();
 
-    # Geochemical data for each sample
+    # Matched geochemical data
     fid = h5open(geochem_fid, "r")
     header = read(fid["bulk"]["header"])
     data = read(fid["bulk"]["data"])
-    mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][matches[t]] for i in eachindex(header)])
+    mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][gchem_ind[t]] for i in eachindex(header)])
     close(fid)
 
-    # Location of each sample
-    fid = h5open("$macrostrat_io", "r")
-    macrostrat = (
-        rocklat = read(fid["vars"]["rocklat"])[t],
-        rocklon = read(fid["vars"]["rocklon"])[t],
-        age = read(fid["vars"]["age"])[t],
-    )
-    header = Tuple(Symbol.(read(fid["type"]["macro_cats_head"])))
-    data = read(fid["type"]["metamorphic_cats"])
-    data = @. data > 0
-    metamorphic_cats = NamedTuple{header}([data[:,i][t] for i in eachindex(header)])
+    # Location
+    fid = h5open(macrostrat_io, "r")
+    rocklat = read(fid["vars"]["rocklat"])[t]
+    rocklon = read(fid["vars"]["rocklon"])[t]
     close(fid)
-
-    # Metamorphic samples
-    include_minor!(metamorphic_cats);
-    match_cats.met .|= (metamorphic_cats.sed .| metamorphic_cats.ign .| metamorphic_cats.met)
-
+    
 
 ## --- Calculate erosion rate at each coordinate point of interest	
     # Load the slope variable from the SRTM15+ maxslope file
@@ -59,9 +41,7 @@
     # Get slope at each coordinate point
     # Function returns the standard deviation of slope in each window, which we don't
     # actually care about propagating
-    rockslope = movingwindow(srtm15_slope, macrostrat.rocklat, macrostrat.rocklon, 
-        srtm15_sf, n=5
-    )
+    rockslope = movingwindow(srtm15_slope, rocklat, rocklon, srtm15_sf, n=5)
     rockslope = Measurements.value.(rockslope)
 
     # Calculate all erosion rates (mm/kyr) (propagate uncertainty)
@@ -76,15 +56,14 @@
         # Area in this study = Total - (Antarctica + Greenland) = 133_367_840
     # Declare constants
     const crustal_density = 2750                            # kg/m³
-    npoints = length(macrostrat.rocklat)                    # Number of *matched* points
+    npoints = length(mbulk.SiO2)                            # Number of *matched* points
     unit_sample_area = (133_367_840 * 1000000) / npoints    # Area of continents / npoints (m²)
 
     # Create file to save data
-    fid = h5open("$eroded_out", "w")
+    fid = h5open(eroded_out, "w")
 
     # Denundation at each point (kg/yr), for 
     sampleflux = [rock_ersn[i] * unit_sample_area * crustal_density * 1e-6 for i = 1:npoints];
-    sampleflux[.!ismatched] .= NaN
 
     # Save to file
     sampleflux_val, sampleflux_err = unmeasurementify(sampleflux)
@@ -158,9 +137,9 @@
     global_elem_err = sqrt(nansum(values(totalelementflux_err).^2))
 
     # Print to terminal
-    @info """ Results:
-    Total global denundation: $(round(global_denun_val, sigdigits=3)) ± $(round(global_denun_err, sigdigits=3)) Gt/yr
-    Sum of all element fluxes: $(round(global_elem_val, sigdigits=3)) ± $(round(global_elem_err, sigdigits=3)) Gt/yr
+    @info """ Results ± 2σ s.d.:
+    Total global denundation: $(round(global_denun_val, sigdigits=3)) ± $(round(global_denun_err, sigdigits=3)*2) Gt/yr
+    Sum of all element fluxes: $(round(global_elem_val, sigdigits=3)) ± $(round(global_elem_err, sigdigits=3)*2) Gt/yr
     """
 
     if global_elem_val > global_denun_val
@@ -184,7 +163,7 @@
     result = Array{Float64}(undef, length(elementflux_val)+1, length(class))
     result_err = similar(result)
     rows = vcat(string.(collect(keys(elementflux_val))), "Total")
-    cols = hcat("", reshape(string.(collect(keys(class))), 1, :))
+    cols = hcat("elem", reshape(string.(collect(keys(class))), 1, :))
 
     # Calculate the absolute contribution of each rock class to the denudation of each
     # element. This is the sum of the individual contributions of each spatial point

@@ -107,10 +107,7 @@
     """
     function display_colors()
         typelist, =  get_rock_class()
-        k = keys(typelist)
-        for i in eachindex(k)
-            t[i] = colors[k[i]]
-        end
+        t = [colors[k] for k in keys(typelist)]
         display(t)
     end
     export display_colors

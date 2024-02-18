@@ -10,9 +10,6 @@
     P2O5_err = 2.0                           # Error set as 10x the error given in 
     alk_err = 1.0                            # volcanic.mat (Keller et al., 2015)   
 
-    # A version of lithologic class with an option to filter for all samples
-    class = merge(match_cats, (bulk=trues(length(match_cats[1])),))
-
 
 ## --- Resampling setup: calculate alkalinity and phosphorus for every sample
     # L + ratio + we can't resample everything and then take a ratio, because that's bad 

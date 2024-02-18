@@ -15,10 +15,7 @@
     ucc_err = importdataset(ucc_out_err, '\t', importas=:Tuple);
     rudnick_gao = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple);
 
-    # Get an option to filter for all samples 
-    class = merge(match_cats, (bulk=trues(length(match_cats[1])),));
-
-    # Until StatGeochem PR goes through 
+    # Until StatGeochem PR gets updated on this machine 
     include("../../../src/dev.jl")
 
 
@@ -116,8 +113,8 @@
 ## --- Assemble plots
     # p = Plots.palette(:managua, 10)
     # p = Plots.palette(:romaO, 10)
-    # p = Plots.palette(:turbo, 10)
-    p = Plots.palette(:darkrainbow, 5)  # ugly :(
+    p = Plots.palette(:berlin, 5)
+    # p = Plots.palette(:darkrainbow, 5)  # ugly :(
 
     # Bulk Earth
     h1 = spidergram(rudnick_gao, label="Rudnick and Gao, 2014 (Whole Earth)", 
@@ -178,9 +175,10 @@
     savefig("$filepath/spidergram_shale.pdf")
     # display(h3)
 
-    # Assemble plots, but just for looks because the y axis gets all messed up :(
+    # Assemble plots, but this is a placeholder because the y axis gets all messed up :(
     h = Plots.plot(h1, h2, h3, layout=(3, 1), size=(600,1200))
     display(h)
+    savefig(h, "$filepath/spidergram.pdf")
 
 
 ## --- End of file 

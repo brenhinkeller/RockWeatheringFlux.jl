@@ -558,7 +558,7 @@
     """
     function unique_sample(sample_ID, p::Int=90)
         c = countmap(sample_ID)
-        return count(<(percentile(values(c), 90)), values(c))
+        return count(<(percentile(values(c), p)), values(c))
     end
     export unique_sample
 

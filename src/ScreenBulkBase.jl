@@ -219,7 +219,9 @@
 
 
 ## --- Compute total wt.% analyzed for all samples
-    # Exclude rocks below the shelf break
+    # Exclude OIBs and rocks below the shelf break
+    isOIB = findOIBs(bulk.Latitude, bulk.Longitude);
+
     # etopo = h5read("data/etopo/etopo1.h5", "vars/elevation")
     # elev = find_etopoelev(etopo, bulk.Latitude, bulk.Longitude)
     # abovesea = elev .> -140;            # Shelf break at 140 m
@@ -230,7 +232,7 @@
 
     p = Progress(length(bulkweight) ÷ 10, desc="Calculating wt.% ...", enabled=show_progress)
     @inbounds for i in eachindex(bulkweight)
-        if abovesea[i]
+        if abovesea[i] & !isOIB[i]
             bulkweight[i] = nansum([bulk[j][i] for j in allelements]) + volatiles[i]
         else
             bulkweight[i] = NaN

@@ -552,7 +552,9 @@
 
 
 ## --- Compute total wt.% analyzed for all samples
-    # Exclude samples below the continental shelf break (-140 m)
+    # Exclude samples OIBs and samples below the continental shelf break (-140 m)
+    isOIB = findOIBs(gard_sample.latitude, gard_sample.longitude);
+
     etopo = h5read("data/etopo/etopo1.h5", "vars/elevation")
     elev = find_etopoelev(etopo, gard_sample.latitude, gard_sample.longitude)
     abovesea = elev .> -140;
@@ -561,7 +563,7 @@
     p = Progress(npoints ÷ 10, desc="Calculating wt.% ...", enabled=show_progress)
     bulkweight = Array{Float64}(undef, npoints)
     @inbounds for i in eachindex(bulkweight)
-        if abovesea[i]
+        if abovesea[i] & !isOIB[i]
             bulkweight[i] = nansum([out[j][i] for j in allelements]) + volatiles[i]
         else
             bulkweight[i] = NaN

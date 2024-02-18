@@ -27,15 +27,16 @@
             # Generate some random latitudes and longitudes with uniform spatial density on the globe
             (randlat, randlon) = randlatlon(length(rocklat))
 
-            # Find points above sea level
+            # Find non-OIB points above sea level
             elev = find_etopoelev(etopo,randlat,randlon)
-            abovesea = elev .> 0
-            newpoints = min(count(abovesea), length(rocklat) - currentpoints)
+            isOIB = findOIBs(randlat, randlon)
+            continental = (elev .> 0) .& .!isOIB
+            newpoints = min(count(continental), length(rocklat) - currentpoints)
 
             # Concatenate together all the points that represent exposed crust
-            rocklat[(currentpoints+1):(currentpoints+newpoints)] = randlat[abovesea][1:newpoints]
-            rocklon[(currentpoints+1):(currentpoints+newpoints)] = randlon[abovesea][1:newpoints]
-            elevations[(currentpoints+1):(currentpoints+newpoints)] = elev[abovesea][1:newpoints]
+            rocklat[(currentpoints+1):(currentpoints+newpoints)] = randlat[continental][1:newpoints]
+            rocklon[(currentpoints+1):(currentpoints+newpoints)] = randlon[continental][1:newpoints]
+            elevations[(currentpoints+1):(currentpoints+newpoints)] = elev[continental][1:newpoints]
 
             currentpoints += newpoints
         end
@@ -43,6 +44,49 @@
         return rocklat, rocklon, elevations
     end
     export gen_continental_points
+
+
+## --- Remove ocean islands
+    """
+    ```julia
+    findOIBs(lats, lons)
+    ```
+
+    Return a BitVector that is `true` for any coordinates corresponding to known ocean 
+    island hot-spots.
+
+    Currently identifies: Azores, Balleny, Bowie, Canary, Cape Verde, Cobb, Discovery, 
+    Easter, Galapagos, Hawaii, Iceland, Jan Mayan, Juan Fernandez, Kerguelen, Loisville,
+    Pitcairn, Reunion, Saint Helena, Sao Tome, and Tristan) & (Gough.
+
+    """
+    function findOIBs(lats::AbstractArray, lons::AbstractArray)
+        OIBs = @. (
+            ((lats > 18) & (lats < 30) & (lons < -154) & (lons > -179.5)) |     # Hawaii
+            ((lats > 36) & (lats < 41) & (lons < -22) & (lons > -29)) |         # Azores
+            ((lats > -69) & (lats < -65) & (lons < 170) & (lons > 160)) |       # Balleny
+            ((lats > 53) & (lats < 57) & (lons < -135) & (lons > -147)) |       # Bowie
+            ((lats > 27) & (lats < 29) & (lons < -15) & (lons > -18.5)) |       # Canary
+            ((lats > 14) & (lats < 18) & (lons < -22) & (lons > -26)) |         # Cape Verde
+            ((lats > 46) & (lats < 50) & (lons < -130) & (lons > -135)) |       # Cobb
+            ((lats > -44) & (lats < -41) & (lons < 3) & (lons > -5)) |          # Discovery
+            ((lats > -30) & (lats < -20) & (lons < -80) & (lons > -110)) |      # Easter
+            ((lats > -3) & (lats < 1) & (lons < -82) & (lons > -92)) |          # Galapagos
+            ((lats > 62) & (lats < 67) & (lons < -13) & (lons > -26)) |         # Iceland
+            ((lats > 68.5) & (lats < 71.5) & (lons < -7) & (lons > -10)) |      # Jan Mayen
+            ((lats > -34.3) & (lats < -33) & (lons < -76) & (lons > -82)) |     # Juan Fernandez
+            ((lats > -63) & (lats < -45) & (lons < 85) & (lons > 63)) |         # Kerguelen
+            ((lats > -50) & (lats < -25) & (lons < -145) & (lons > -175)) |     # Louisville
+            ((lats > -25) & (lats < -20) & (lons < -125) & (lons > -140)) |     # Pitcairn
+            ((lats > -22) & (lats < -3) & (lons < 63) & (lons > 55)) |          # Reunion
+            ((lats > -6) & (lats < -5.5) & (lons < -15.75) & (lons > -16.25)) | # Saint Helena
+            ((lats > 0) & (lats < 4) & (lons < 9) & (lons > 6)) |               # Sao Tome
+            ((lats > -40) & (lats < -38) & (lons < -9) & (lons > -13)) |        # Tristan & Gough
+            ((lats > -35) & (lats < -19) & (lons < 11) & (lons > -5))           # Off the coast of Namibia?
+        )
+        return OIBs
+    end
+    export findOIBs
 
 
 ## --- Ping Macrostrat API
@@ -243,7 +287,7 @@
         rockcomments = replace.(rockcomments, "    " => " ")
 
         # Condense references
-        refstrings = @. authors * " | " * years * " | " * titles * " | " * dois
+        refstrings = @. authors * ") | " * years * ") | " * titles * ") | " * dois
 
         # Return as a tuple
         return (

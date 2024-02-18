@@ -40,21 +40,3 @@
     """
 
 ## --- End of File
-
-# TO DO: 
-    # Re-read in old files, and figure out what to do for parsing / correcting element 
-        # oxide weights. For example, some samples may have different values for CaO and 
-        # CaCO3, but Mg and MgO may represent the same data.
-    
-# Read in raw data files. Useful code:
-
-# # Filter ages younger than 0 or greater than the age of the earth
-# invalid_age = vcat(findall(>(4000), bulk.Age), findall(<(0), bulk.Age))
-# bulk.Age[invalid_age] .= NaN
-
-# # Fill in any missing ages from bounds
-# for i in eachindex(bulk.Age)
-#     if isnan(bulk.Age[i])
-#         bulk.Age[i] = nanmean([bulk.Age_Max[i], bulk.Age_Min[i]])
-#     end
-# end

@@ -7,6 +7,8 @@ Each figure (or "family" of related figures) has its own file. Common packages a
 ## Contents
  * `ArcheanRocks.jl`: Experiments with distributions of rock class and silica in Archean (> 2500 Ma.) samples.
  * `GeochemLoc.jl`: Age and location of samples in the geochemical dataset.
+ * `ModelComparison.jl`: Compare major element composition of continental crust estimates.
+ * `MatchedSimilarity.jl`: Age and location of mapped lithologies vs. matched geochemical samples.
  * `Phosphorous.jl`: Changes in the concentration of phosphorus over geologic time.
  * `SilicaAgeDistribution.jl`: 2D histograms of EarthChem and matched samples as a function of age and silica content, after Fig. 6.9 from Keller (2016).
  * `SilicaDistribution.jl`: Silica distribution by rock class.

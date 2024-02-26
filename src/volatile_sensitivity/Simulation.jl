@@ -52,8 +52,8 @@
         zeronan!(mbulk[k])
     end
     fid_out["sims"]["UCC"]["sim_$(fname)"] = [nanmean(mbulk[i]) for i in allelements]
-    fid_out["sims"]["UCC_sem"]["sim_$(fname)"] = [
-        nanstd(mbulk[i])/sqrt(count(!isnan, bulk.Nd)) for i in allelements
+    fid_out["sims"]["UCC_std"]["sim_$(fname)"] = [
+        nanstd(mbulk[i]) for i in allelements
     ]
 
     # Close simulation output file and delete temporary simulation file

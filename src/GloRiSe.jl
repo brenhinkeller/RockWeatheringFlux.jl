@@ -72,7 +72,7 @@
     for i in eachindex(anhydrous_majors)
         result[:,i] .= out_ME[anhydrous_majors[i]]
     end
-    writedlm("output/GloRiSe_major_screened.tsv", '\t', [rows; result])
+    writedlm("output/GloRiSe_major_screened.tsv", vcat(rows, result))
 
     # Minors 
     result = Array{Float64}(undef, length(out_TE[1]), length(minors))
@@ -80,7 +80,7 @@
     for i in eachindex(minors)
         result[:,i] .= out_TE[minors[i]]
     end
-    writedlm("output/GloRiSe_minor_screened.tsv", '\t', [rows; result])
+    writedlm("output/GloRiSe_minor_screened.tsv", vcat(rows, result))
 
 
 ## --- End of File 

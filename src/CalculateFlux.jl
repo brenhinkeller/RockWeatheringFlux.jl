@@ -1,8 +1,9 @@
 ## --- Setup
     # Calculate the flux of each element at each point, as well as the composition of 
     # total produced sediment (bulk and by lithologic class).
-
-    # Optionally run lines 12-54, and skip to line 122 to load already calculated data.
+    
+    # Also calculate the total surficial abundance of each lithologic class, for comparison
+    # between relative contribution to mass flux of eroded material and surficial abundance.
 
     # Packages
     using RockWeatheringFlux
@@ -151,44 +152,45 @@
     end
 
 
-## --- Export absolute and relative contribution to eroded material
-    # Get major elements for terminal printouts
+## --- Preallocate and set switches for export
+    # [SWITCH] lithologic class filter 
+    classfilter = class
+
+    # Major elements for terminal printouts
     majors = get_elements()[1]
     nmajors = length(majors)
 
-    # We want an option to filter for all samples and undifferentiated metamorphics 
-    class = merge(match_cats, (bulk=trues(length(match_cats[1])),))
-
-    # Preallocate (element row, rock type column)
-    result = Array{Float64}(undef, length(elementflux_val)+1, length(class))
+    # Preallocate results array (element row, rock type column)
+    result = Array{Float64}(undef, length(elementflux_val)+1, length(classfilter))
     result_err = similar(result)
     rows = vcat(string.(collect(keys(elementflux_val))), "Total")
-    cols = hcat("elem", reshape(string.(collect(keys(class))), 1, :))
+    cols = hcat("elem", reshape(string.(collect(keys(classfilter))), 1, :))
 
-    # Calculate the absolute contribution of each rock class to the denudation of each
-    # element. This is the sum of the individual contributions of each spatial point
-    for i in eachindex(keys(class))
+
+## --- Compute and export the mass flux of denuded material, and relative contribution
+    # Absolute contribution of each rock class to the denudation of each element is the 
+    # sum of the individual contributions of each spatial point
+    for i in eachindex(keys(classfilter))
         for j in eachindex(keys(elementflux_val))
-            result[j,i] = nansum(elementflux_val[j][class[i]])
-            result_err[j,i] = sqrt(nansum((elementflux_err[j][class[i]]).^2))
+            result[j,i] = nansum(elementflux_val[j][classfilter[i]])
+            result_err[j,i] = sqrt(nansum((elementflux_err[j][classfilter[i]]).^2))
         end
     end
     result[end,:] .= vec(nansum(result[1:end-1,:], dims=1))
     result_err[end,:] .= vec(sqrt.(nansum((result_err[1:end-1,:]).^2, dims=1)))
 
     # Convert units from kg/yr to gt/yr.
-    # We now have absolute amount of material eroded by lithologic class each year. 
+    # We now have absolute amount of material eroded by lithologic class each year!
     result ./= kg_gt
     result_err ./= kg_gt
     writedlm(erodedabs_out, vcat(cols, hcat(rows, result)))
     writedlm(erodedabs_out_err, vcat(cols, hcat(rows, result_err)))
 
-    # Get absolute values for printout
+    # Save major element values for terminal printout 
     majorcomp = round.(result[1:nmajors, end], digits=1)
-    majorcomp_err = round.(result_err[1:nmajors, end], digits=1)
+    majorcomp_err = round.(result_err[1:nmajors, end]*2, digits=1)
 
-    # Also calculate the fraction of total erosion each class contributes. Divide the
-    # absolute contribution by the total amount of each element that erodes each year.
+    # Relative contribution of each lithologic class to total mass flux
     # Note that major classes will be the sum of their constituent minor classes.
     writedlm(erodedrel_out, vcat(cols, hcat(rows, result./result[:,end])))
     writedlm(erodedrel_out_err, vcat(cols, hcat(rows, result_err./result[:,end])))
@@ -200,7 +202,7 @@
 
     # Compute the composition of eroded material [wt.%] for each lithologic class as the
     # fraction of that element out of the total erosion for that class.
-    for i in eachindex(keys(class))
+    for i in eachindex(keys(classfilter))
         normconst = result[end,i]
         result[:,i] ./= normconst
         result_err[:,i] ./= normconst
@@ -208,21 +210,52 @@
     writedlm(erodedcomp_out, vcat(cols, hcat(rows, result.*100)))
     writedlm(erodedcomp_out_err, vcat(cols, hcat(rows, result_err.*100)))
 
-    # Terminal printout
+    # Save major element values for terminal printout
     majorcomp_rel = round.(result[1:nmajors, end].*100, sigdigits=3)
     majorcomp_rel_err = round.(result_err[1:nmajors, end].*100 ./ sqrt(npoints) .*2, sigdigits=1)
 
-    @info """Composition of bulk eroded material:
-    Absolute [Gt/yr] ± 1σ s.d.
-      $(join(keys(elementflux_val)[1:nmajors], " \t "))
-      $(join(majorcomp, " \t "))
-    ± $(join(majorcomp_err, " \t "))
 
-    Composition [wt.%] ± 2 s.e.
-      $(join(keys(elementflux_val)[1:nmajors], " \t "))
+## --- Terminal printout 
+    @info """ Annual mass flux of denuded material:
+    Total mass flux [Gt/yr] ± 2σ s.d.
+      $(join(rpad.(majors, 8), " "))
+      $(join(rpad.(majorcomp, 8), " "))
+    ± $(join(rpad.(majorcomp_err, 8), " "))
+    
+    Composition [wt.%] of bulk eroded material ± 2 s.e.:
+      $(join(rpad.(majors, 8), " "))
       $(join(rpad.(majorcomp_rel, 8), " "))
     ± $(join(rpad.(majorcomp_rel_err, 8), " "))
     """
 
-    
+
+## --- Compute and export surficial abundance by lithologic class 
+    # Because we reassigned all metamorphic rocks to sedimentary or igneous, the total
+    # surficial abundance of sed + ign = 100%. Because we're using the matched types, 
+    # this actually happens automatically 😍
+    # 
+    # That means metamorphic abundnace of X is just X% of rocks are metasedimentary or 
+    # metaigneous
+    dist = NamedTuple{keys(classfilter)}(
+        count(classfilter[k])/length(classfilter[k])*100 for k in keys(classfilter)
+    )
+    writedlm(surficial_abundance_out, vcat(["lithology" "surficial abundance"], 
+        hcat(collect(string.(keys(dist))), collect(values(dist))))
+    )
+
+    # Terminal printout, formatted to be copy-pasted into the LaTeX formatting sheet 
+    @info "Surficial abundance and contribution to erosion by lithologic class:"
+    contrib = readdlm(erodedrel_out)[end, 2:end].*100;
+    k = keys(classfilter);
+    for i in eachindex(contrib)
+        println("$(k[i]) $(round(dist[k[i]], sigdigits=3)) $(round(contrib[i], sigdigits=3))")
+    end
+
+
+## --- Surficial abundance calculated for a reference table 
+    # This should include undifferentiated sedimentary rocks as part of the normalization 
+    # to 100% (e.g. sed + ign + met_undiff = 100).
+    # Include metasedimentary and metaigneous in metamorphic category
+
+
 ## --- End of File

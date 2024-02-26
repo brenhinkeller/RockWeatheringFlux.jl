@@ -14,6 +14,7 @@
     ucc = importdataset(ucc_out, '\t', importas=:Tuple);
     ucc_err = importdataset(ucc_out_err, '\t', importas=:Tuple);
     rudnick_gao = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple);
+    GloRiSe = importdataset("data/GloRiSe/SedimentDatabase_TE.csv", ',', importas=:Tuple);
 
     # Until StatGeochem PR gets updated on this machine 
     include("../../../src/dev.jl")
@@ -41,11 +42,28 @@
         for k in spider_REEs
     );
 
+    # Gao et al., 1998 carbonate free estimate 
+    gao = (La=31.0,Ce=58.7,Nd=26.1,Sm=4.45,Eu=1.08,Tb=0.69,Yb=1.91,Lu=0.30)
+
     # Condie by lithology and time (Late Archean, Middle Proterozoic, and Meso-Cenozoic)
     condiearcheanshale=(La=30.7,Ce=60.9,Nd=27.7,Sm=4.85,Eu=1.12,Gd=4.55,Tb=0.71,Yb=2.43,Lu=0.39)
     condiearcheansed = (La=26,Ce=52,Nd=22,Sm=3.9,Eu=1.1,Gd=3.69,Tb=0.58,Yb=1.4,Lu=0.25,)
     condieproterozoicsed = (La=28,Ce=60,Nd=26,Sm=4.9,Eu=0.93,Gd=4.34,Tb=0.66,Yb=2.2,Lu=0.38,)
     condiemidphansed = (La=28,Ce=61,Nd=26,Sm=4.9,Eu=0.9,Gd=4.34,Tb=0.66,Yb=2.2,Lu=0.38,)
+
+
+## --- Parse fluvial sediment data 
+    # It isn't perfect, but weighting each location equally seems to make outliers worse 
+    
+    # # Average the REE concentration at each location, then average those averages 
+    # loc = unique(GloRiSe.Basin_ID)
+    # GloRiSe = NamedTuple{Tuple(spider_REEs)}(
+    #     nanmean([nanmean(GloRiSe[Symbol(k*"_ppm")][GloRiSe.Basin_ID .== l]) for l in loc]
+    # ) for k in string.(spider_REEs))
+
+    GloRiSe = NamedTuple{Tuple(spider_REEs)}(nanmean(GloRiSe[Symbol(k*"_ppm")]) 
+        for k in string.(spider_REEs)
+    )
 
 
 ## --- Resample (temporal) Archean vs. post-Archean shales 
@@ -117,34 +135,50 @@
     # p = Plots.palette(:darkrainbow, 5)  # ugly :(
 
     # Bulk Earth
-    h1 = spidergram(rudnick_gao, label="Rudnick and Gao, 2014 (Whole Earth)", 
+    h1 = spidergram(rudnick_gao, label="Rudnick and Gao (Whole Earth)", 
         markershape=:diamond, seriescolor=p[1], msc=:auto, markersize=6,
         legend=:topright, legendfont=10, titlefont=16,
-        size=(700,400), title="A. Major Lithology Averages", titleloc=:left,
+        size=(700,400), title="A. Whole Earth Averages", titleloc=:left,
         left_margin=(15,:px),
         fontfamily=:Helvetica, 
     )
-    spidergram!(h1, condie, label="Condie, 1993 (Whole Earth)",
+    spidergram!(h1, condie, label="Condie, (Whole Earth)",
         markershape=:diamond, seriescolor=p[2], msc=:auto, markersize=6,)
-    spidergram!(h1, ucc.sed, label="This Study (Sedimentary)",
-        markershape=:circle, seriescolor=p[3], msc=:auto, markersize=5,)
-    spidergram!(h1, ucc.ign, label="This Study (Igneous)",
-        markershape=:circle, seriescolor=p[4], msc=:auto, markersize=5,)
-    spidergram!(h1, ucc.bulk, label="This Study (Whole Earth)",
+    spidergram!(h1, gao, label="Gao et al., (Central East China)",
+        markershape=:diamond, seriescolor=p[3], msc=:auto, markersize=6,)
+    spidergram!(h1, GloRiSe, label="Muller et al., (Suspended Sediment)",
+        markershape=:diamond, seriescolor=p[4], msc=:auto, markersize=6,
+        linestyle=:dot)
+    spidergram!(h1, ucc.bulk, label="This Study",
         markershape=:circle, seriescolor=p[5], msc=:auto, markersize=5)
     ylims!(4,200)
     savefig("$filepath/spidergram_bulk.pdf")
     # display(h1)
 
+    # Major lithologies 
+    h4 = spidergram(ucc.bulk, label="Whole Earth Average",
+    markershape=:circle, seriescolor=p[5], msc=:auto, markersize=5,
+        legend=:topright, legendfont=10, titlefont=16,
+        size=(700,400), title="B. Major Lithology Averages", titleloc=:left,
+        left_margin=(15,:px),
+        fontfamily=:Helvetica, 
+    )
+    spidergram!(h4, ucc.sed, label="This Study (Sedimentary)",
+        markershape=:circle, seriescolor=p[1], msc=:auto, markersize=5,)
+    spidergram!(h4, ucc.ign, label="This Study (Igneous)",
+        markershape=:circle, seriescolor=p[2], msc=:auto, markersize=5,)
+    ylims!(4,200)
+    savefig("$filepath/spidergram_lith.pdf")
+
     # Igneous rocks
     h2 = spidergram(ucc.bulk, label="Whole Earth Average",
         markershape=:circle, seriescolor=p[5], msc=:auto, markersize=5,
         legend=:topright, legendfont=10, titlefont=16,
-        size=(700,400), title="B. Igneous", titleloc=:left,
+        size=(700,400), title="C. Igneous", titleloc=:left,
         left_margin=(15,:px),
         fontfamily=:Helvetica, 
     )
-    spidergram!(h2, ucc.ign, label="Igneous",
+    spidergram!(h2, ucc.ign, label="All Igneous",
         markershape=:circle, seriescolor=p[1], msc=:auto, markersize=5)
     spidergram!(h2, ucc.granite, label="Granite",
         markershape=:circle, seriescolor=p[2], msc=:auto, markersize=5)
@@ -154,15 +188,14 @@
     savefig("$filepath/spidergram_igneous.pdf")
     # display(h2)
 
-    # Shales, plotting Condie manually
+    # Shales
     h3 = spidergram(ucc.bulk, label="Whole Earth Average (This Study)",
         markershape=:circle, seriescolor=p[5], msc=:auto, markersize=5,
         legend=:topright, legendfont=10, titlefont=16,
-        size=(700,400), title="C. Shales and Greywacke", titleloc=:left,
+        size=(700,400), title="D. Shales and Greywacke", titleloc=:left,
         left_margin=(15,:px),
         fontfamily=:Helvetica, 
     )
-
     spidergram!(h3, condiearcheanshale, label="Archean Shale (Condie)",
         markershape=:diamond, seriescolor=p[1], msc=:auto, markersize=6)
     spidergram!(h3, condiearcheansed, label="L. Archean Graywacke (Condie)",
@@ -176,7 +209,7 @@
     # display(h3)
 
     # Assemble plots, but this is a placeholder because the y axis gets all messed up :(
-    h = Plots.plot(h1, h2, h3, layout=(3, 1), size=(600,1200))
+    h = Plots.plot(h1, h4, h2, h3, layout=(2, 2), size=(1200,800))
     display(h)
     savefig(h, "$filepath/spidergram.pdf")
 

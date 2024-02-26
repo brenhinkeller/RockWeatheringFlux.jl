@@ -27,7 +27,7 @@
     Plots.annotate!(((0.03, 0.97), ("Geochemical\nage is older", 12, :left, :top)))
     Plots.annotate!(((0.97, 0.97), ("Mapped age\nis older", 12, :right, :top)))
 
-    vline!([m], color=:black, linestyle=:dash, linewidth=2, label="")
+    vline!([m], color=:black, linestyle=:dot, linewidth=2, label="")
     Plots.annotate!([(m*40, 0.25, text("Median = $(round(m, sigdigits=3))", 9, :left, 
         :bottom, :black, rotation=90))]
     )
@@ -58,7 +58,7 @@
         color=colors.sed, lcolor=:match,
         barwidths = 2,
     )
-    vline!([m], color=:black, linestyle=:dash, linewidth=2, label="")
+    vline!([m], color=:black, linestyle=:dot, linewidth=2, label="")
     Plots.annotate!([(m*0.9, 500, text("Median = $(round(m, sigdigits=3))", 9, :left, 
         :bottom, :black, rotation=90))]
     )

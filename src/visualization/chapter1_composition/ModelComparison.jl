@@ -67,16 +67,17 @@
     )
     Plots.plot!(h, collect(xlims(h)), [1,1], label="", color=:black, linewidth=3)
     Plots.plot!(h, x, ratio.ucc, markershape=:diamond, label="Whole Earth (This Study)",
-        color=:black, msc=:auto, markersize=7, linewidth=3)
+        color=:black, msc=:auto, markersize=7, linewidth=2)
     Plots.plot!(h, x, ratio.plut, markershape=:diamond, label="Plutonic (This Study)",
-        color=p[1], msc=:auto, markersize=7, linewidth=3)
+        color=p[1], msc=:auto, markersize=7, linewidth=2)
     Plots.plot!(h, x, ratio.rudnick_gao, markershape=:circle, label="Rudnick and Gao, 2014",
-        color=p[2], msc=:auto, markersize=6, linewidth=3)
+        color=p[2], msc=:auto, markersize=6, linewidth=2)
     Plots.plot!(h, x, ratio.condie, markershape=:circle, label="Condie, 1993",
-        color=p[3], msc=:auto, markersize=6, linewidth=3)
+        color=p[3], msc=:auto, markersize=6, linewidth=2)
     Plots.plot!(h, x, ratio.gao, markershape=:circle, label="Gao et al., 1998",
-        color=p[4], msc=:auto, markersize=6, linewidth=3)
+        color=p[4], msc=:auto, markersize=6, linewidth=2)
     display(h)
+    savefig(h, "$filepath/modelcomparison.pdf")
 
 
 ## --- Normalize all values to my plutonic UCC values

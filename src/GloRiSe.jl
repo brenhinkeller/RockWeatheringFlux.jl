@@ -61,9 +61,10 @@
 
 
 ## --- How far off is bulk averaging major elements from the Muller et al., estimate?
-    # Answer: very :/
-    majoravg = [nanmean(out_ME[k]) for k in majors]
+    # Make sure to anhydrous normalize our things, since they're anhydrous
+    majoravg = normalize!([nanmean(out_ME[k]) for k in majors])
 
+    
 ## --- Save to a file 
     # Majors 
     anhydrous_majors = majors[1:end .!= findfirst(x->x==:Volatiles, majors)]

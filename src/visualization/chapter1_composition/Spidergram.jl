@@ -14,7 +14,7 @@
     ucc = importdataset(ucc_out, '\t', importas=:Tuple);
     ucc_err = importdataset(ucc_out_err, '\t', importas=:Tuple);
     rudnick_gao = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple);
-    GloRiSe = importdataset("data/GloRiSe/SedimentDatabase_TE.csv", ',', importas=:Tuple);
+    GloRiSe = importdataset("output/GloRiSe_minor_screened.tsv", '\t', importas=:Tuple);
 
     # Until StatGeochem PR gets updated on this machine 
     include("../../../src/dev.jl")
@@ -51,19 +51,8 @@
     condieproterozoicsed = (La=28,Ce=60,Nd=26,Sm=4.9,Eu=0.93,Gd=4.34,Tb=0.66,Yb=2.2,Lu=0.38,)
     condiemidphansed = (La=28,Ce=61,Nd=26,Sm=4.9,Eu=0.9,Gd=4.34,Tb=0.66,Yb=2.2,Lu=0.38,)
 
-
-## --- Parse fluvial sediment data 
-    # It isn't perfect, but weighting each location equally seems to make outliers worse 
-    
-    # # Average the REE concentration at each location, then average those averages 
-    # loc = unique(GloRiSe.Basin_ID)
-    # GloRiSe = NamedTuple{Tuple(spider_REEs)}(
-    #     nanmean([nanmean(GloRiSe[Symbol(k*"_ppm")][GloRiSe.Basin_ID .== l]) for l in loc]
-    # ) for k in string.(spider_REEs))
-
-    GloRiSe = NamedTuple{Tuple(spider_REEs)}(nanmean(GloRiSe[Symbol(k*"_ppm")]) 
-        for k in string.(spider_REEs)
-    )
+    # Suspended load, convert to ppm
+    GloRiSe = NamedTuple{Tuple(spider_REEs)}(nanmean(GloRiSe[k].*10_000) for k in spider_REEs)
 
 
 ## --- Resample (temporal) Archean vs. post-Archean shales 
@@ -124,7 +113,7 @@
     $(join(rpad.(ratio, 8), " "))
 
     Average: $(round(nanmean(ratio), digits=2))
-    1σ s.d:  $(round(nanstd(ratio), digits=2))
+    2σ s.d:  $(round(nanstd(ratio)*2, digits=2))
     """
     
 
@@ -142,11 +131,11 @@
         left_margin=(15,:px),
         fontfamily=:Helvetica, 
     )
-    spidergram!(h1, condie, label="Condie, (Whole Earth)",
+    spidergram!(h1, condie, label="Condie (Whole Earth)",
         markershape=:diamond, seriescolor=p[2], msc=:auto, markersize=6,)
-    spidergram!(h1, gao, label="Gao et al., (Central East China)",
+    spidergram!(h1, gao, label="Gao et al. (Central East China)",
         markershape=:diamond, seriescolor=p[3], msc=:auto, markersize=6,)
-    spidergram!(h1, GloRiSe, label="Muller et al., (Suspended Sediment)",
+    spidergram!(h1, GloRiSe, label="Muller et al. (Suspended Sediment)",
         markershape=:diamond, seriescolor=p[4], msc=:auto, markersize=6,
         linestyle=:dot)
     spidergram!(h1, ucc.bulk, label="This Study",

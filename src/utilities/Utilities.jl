@@ -954,6 +954,37 @@
     export decode_find_geolprov
 
 
+    """
+    ```julia
+    decode_find_geolcont(geolcont::AbstractArray)
+    ```
+
+    Translate numeric codes from `find_geolcont` to province names.
+    """
+    function decode_find_geolcont(geolcont::AbstractVector)
+        # Preallocate / define
+        out = Array{String}(undef, length(geolcont), 1)
+        decoder = (
+            Africa = 1,
+            Eurasia = 2,
+            North_America = 3,
+            South_America = 4,
+            Australia = 5,
+            Antarctica = 6,
+            NA = 7,
+        )
+
+        contnames = collect(keys(decoder))
+        for k in contnames
+            t = @. geolcont == decoder[k]
+            out[t] .= string.(k)
+        end
+
+        return vec(out)
+    end
+    export decode_find_geolcont
+
+
 ## --- Strings 
     """
     ```

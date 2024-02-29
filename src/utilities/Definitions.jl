@@ -17,7 +17,7 @@
 
     # Lithologic data
     macrostrat_io = "output/N_" * N * "/" * N * "_responses.h5"
-    surficial_abundance_total_out = "results/" * N * "_surficial_abundance_undifferentiated.tsv"
+    surficial_abundance_total_out = "results/" * N * "_surficial_abundance_mapped.tsv"
     surficial_abundance_out = "results/" * N * "_surficial_abundance.tsv"
     
     # Intermediate files 

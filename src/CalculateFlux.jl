@@ -35,68 +35,68 @@
     
 
 ## --- Calculate erosion rate at each coordinate point of interest	
-    # Load the slope variable from the SRTM15+ maxslope file
-    srtm15_slope = h5read("output/srtm15plus_maxslope.h5", "vars/slope")
-    srtm15_sf = h5read("output/srtm15plus_maxslope.h5", "vars/scalefactor")
+    # # Load the slope variable from the SRTM15+ maxslope file
+    # srtm15_slope = h5read("output/srtm15plus_maxslope.h5", "vars/slope")
+    # srtm15_sf = h5read("output/srtm15plus_maxslope.h5", "vars/scalefactor")
 
-    # Get slope at each coordinate point
-    # Function returns the standard deviation of slope in each window, which we don't
-    # actually care about propagating
-    rockslope = movingwindow(srtm15_slope, rocklat, rocklon, srtm15_sf, n=5)
-    rockslope = Measurements.value.(rockslope)
+    # # Get slope at each coordinate point
+    # # Function returns the standard deviation of slope in each window, which we don't
+    # # actually care about propagating
+    # rockslope = movingwindow(srtm15_slope, rocklat, rocklon, srtm15_sf, n=5)
+    # rockslope = Measurements.value.(rockslope)
 
-    # Calculate all erosion rates (mm/kyr) (propagate uncertainty)
-    rock_ersn = emmkyr.(rockslope);
+    # # Calculate all erosion rates (mm/kyr) (propagate uncertainty)
+    # rock_ersn = emmkyr.(rockslope);
 
 
 ## --- Calculate denundation at each point
-    # Area of land:
-        # Total: 149,733,926
-        # Antarctica: 14,200,000 
-        # Greenland: 2,166,086
-        # Area in this study = Total - (Antarctica + Greenland) = 133_367_840
-    # Declare constants
-    const crustal_density = 2750                            # kg/m³
-    npoints = length(mbulk.SiO2)                            # Number of *matched* points
-    unit_sample_area = (133_367_840 * 1000000) / npoints    # Area of continents / npoints (m²)
+    # # Area of land:
+    #     # Total: 149,733,926
+    #     # Antarctica: 14,200,000 
+    #     # Greenland: 2,166,086
+    #     # Area in this study = Total - (Antarctica + Greenland) = 133_367_840
+    # # Declare constants
+    # const crustal_density = 2750                            # kg/m³
+    # npoints = length(mbulk.SiO2)                            # Number of *matched* points
+    # unit_sample_area = (133_367_840 * 1000000) / npoints    # Area of continents / npoints (m²)
 
-    # Create file to save data
-    fid = h5open(eroded_out, "w")
+    # # Create file to save data
+    # fid = h5open(eroded_out, "w")
 
-    # Denundation at each point (kg/yr), for 
-    sampleflux = [rock_ersn[i] * unit_sample_area * crustal_density * 1e-6 for i = 1:npoints];
+    # # Denundation at each point (kg/yr), for 
+    # sampleflux = [rock_ersn[i] * unit_sample_area * crustal_density * 1e-6 for i = 1:npoints];
 
-    # Save to file
-    sampleflux_val, sampleflux_err = unmeasurementify(sampleflux)
-    bulk_denudation = create_group(fid, "bulk_denudation")
-    write(bulk_denudation, "values", sampleflux_val)
-    write(bulk_denudation, "errors", sampleflux_err)
+    # # Save to file
+    # sampleflux_val, sampleflux_err = unmeasurementify(sampleflux)
+    # bulk_denudation = create_group(fid, "bulk_denudation")
+    # write(bulk_denudation, "values", sampleflux_val)
+    # write(bulk_denudation, "errors", sampleflux_err)
 
 
 ## --- Calculate flux of each element at each point
-    # Define elements
-    majors, minors = get_elements()
-    allelements = [majors; minors]
-    nelements = length(allelements)
+    # # Define elements
+    # majors, minors = get_elements()
+    # allelements = [majors; minors]
+    # nelements = length(allelements)
 
-    # Preallocate file space
-    element_flux = create_group(fid, "element_flux")
-    elem_vals = create_dataset(element_flux, "values", Float64, (npoints, nelements))
-    elem_errs = create_dataset(element_flux, "errors", Float64, (npoints, nelements))
-    write(element_flux, "header", string.(allelements))
+    # # Preallocate file space
+    # element_flux = create_group(fid, "element_flux")
+    # elem_vals = create_dataset(element_flux, "values", Float64, (npoints, nelements))
+    # elem_errs = create_dataset(element_flux, "errors", Float64, (npoints, nelements))
+    # write(element_flux, "header", string.(allelements))
 
-    for i in eachindex(allelements)
-        # Since each Macrostrat point has a corresponding EarthChem sample, use that 
-        # sample to calculate flux of each element at each point
-        elementflux = [sampleflux[j] * mbulk[allelements[i]][j] * 1e-2 for j = 1:npoints]
+    # for i in eachindex(allelements)
+    #     # Since each Macrostrat point has a corresponding EarthChem sample, use that 
+    #     # sample to calculate flux of each element at each point
+    #     elementflux = [sampleflux[j] * mbulk[allelements[i]][j] * 1e-2 for j = 1:npoints]
 
-        # Save to file
-        elementflux_val, elementflux_err = unmeasurementify(elementflux)
-        elem_vals[:,i] += elementflux_val
-        elem_errs[:,i] += elementflux_err
-    end
+    #     # Save to file
+    #     elementflux_val, elementflux_err = unmeasurementify(elementflux)
+    #     elem_vals[:,i] += elementflux_val
+    #     elem_errs[:,i] += elementflux_err
+    # end
 
-    close(fid)
+    # close(fid)
 
 
 ## --- Open the file
@@ -154,7 +154,7 @@
 
 ## --- Preallocate and set switches for export
     # [SWITCH] lithologic class filter 
-    classfilter = class
+    classfilter = megaclass
 
     # Major elements for terminal printouts
     majors = get_elements()[1]
@@ -229,10 +229,49 @@
     """
 
 
+## --- Terminal printout for the LaTeX-formatting Excel sheet 
+    # Pre-computed compositions
+    comp = NamedTuple{keys(classfilter)}([(
+        comp = round.([result[:,k][i]*100 for i in eachindex(majors)], sigdigits=3),
+        sem = round.([result_err[:,k][i].*100 ./ sqrt(npoints) .*2 for i in eachindex(majors)], sigdigits=1)
+    ) for k in eachindex(keys(classfilter))])
+
+    target = (:volc, :plut, :sed, :bulk)
+    out = fill("", length(majors)+1)
+    for t in target
+        for i in eachindex(majors) 
+            out[i] *= "\$ $(comp[t].comp[i]) \\pm $(comp[t].sem[i]) \$; "
+        end
+        out[end] *= "$(round(sum(comp[t].comp), sigdigits=4)); "
+    end
+
+    # Anhydrous-normalized, as in UpperCrustComposition
+    k = findfirst(x->x==:bulk, keys(class))
+    index = collect(1:length(majors))[1:end .!= findfirst(x->x==:Volatiles, majors)]
+    anhydrous_comp = [result[:,k][i] for i = index]
+    anhydrous_sem = [result_err[:,k][i]*2 for i = index]
+    
+    sum_a = sum(anhydrous_comp)
+    anhydrous_comp = round.(anhydrous_comp ./ sum_a .* 100, sigdigits=3)
+    anhydrous_sem = round.(anhydrous_sem ./ sum_a .* 100, sigdigits=1)
+
+    out_anh = fill("", length(majors)+1)
+    for i = index
+        out_anh[i] *= "\$ $(anhydrous_comp[i]) \\pm $(anhydrous_sem[i]) \$"
+    end
+    out_anh[end] = string(round(sum(anhydrous_comp), sigdigits=4))
+
+    # Print to terminal
+    @info "Composition of eroded material (volc / plut / sed / bulk / anhydrous)"
+    for i in eachindex(out)
+        println("$(out[i] * out_anh[i])")
+    end
+
+
 ## --- Compute and export surficial abundance by lithologic class 
     # Because we reassigned all metamorphic rocks to sedimentary or igneous, the total
     # surficial abundance of sed + ign = 100%. Because we're using the matched types, 
-    # this actually happens automatically 😍
+    # this happens automatically 😍
     # 
     # That means metamorphic abundnace of X is just X% of rocks are metasedimentary or 
     # metaigneous
@@ -252,10 +291,78 @@
     end
 
 
-## --- Surficial abundance calculated for a reference table 
-    # This should include undifferentiated sedimentary rocks as part of the normalization 
-    # to 100% (e.g. sed + ign + met_undiff = 100).
-    # Include metasedimentary and metaigneous in metamorphic category
+## --- Surficial abundance as mapped, calculated for supplementary reference table
+    # Load Macrostrat lithologic classes (matched samples only)
+    fid = readdlm(matchedbulk_io)
+    gchem_ind = Int.(vec(fid[:,1]))
+    t = @. gchem_ind != 0
+
+    fid = h5open(macrostrat_io, "r")
+    header = read(fid["type"]["macro_cats_head"])
+    data = read(fid["type"]["macro_cats"])
+    data = @. data > 0
+    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
+    macro_cats = delete_cover(macro_cats)
+    close(fid)
+
+    # Calculate the surficial abundance of each subclass such that:
+        # sed + ign + undifferentiated met == 100
+        # volc + plut + carbonatite + undifferentiated ign == ign 
+    include_minor!(macro_cats);
+    dist2 = NamedTuple{(:sed, :volc, :plut, :carbonatite, :ign_undiff, :met_undiff)}(
+        normalize!([count(macro_cats.sed), count(macro_cats.volc), count(macro_cats.plut), 
+        count(macro_cats.carbonatite), 
+        count(macro_cats.ign .& .!(macro_cats.volc .| macro_cats.plut .| macro_cats.carbonatite)),
+        count(megaclass.met_undiff)]./npoints.*100
+    ))
+
+    # Definitions
+    minorsed, minorvolc, minorplut, minorign = get_rock_class()[2:end];
+
+
+    # Get counts for each class, including undifferentiated samples in the counts
+    exclude_minor!(macro_cats);
+    sed = float.([[count(macro_cats[k]) for k in minorsed]; count(macro_cats.sed)])
+    volc = float.([[count(macro_cats[k]) for k in minorvolc]; count(macro_cats.volc)])
+    plut = float.([[count(macro_cats[k]) for k in minorplut]; count(macro_cats.plut)])
+
+    include_minor!(macro_cats);
+    ign = float.([[count(macro_cats[k]) for k in minorign]; 
+        count(macro_cats.ign .& .!(macro_cats.volc .| macro_cats.plut .| macro_cats.carbonatite))
+    ])
+    
+    # Calculate percentage from counts 
+    sed .= (sed ./ npoints * 100)
+    volc .= (volc ./ npoints * 100)
+    plut .= (plut ./ npoints * 100)
+    ign .= (ign ./ npoints * 100)
+    
+    # Normalize percentages to the surficial abundance of that subtype to get the 
+    # sum total surficial abundance
+    sed .= sed ./ sum(sed) .* dist2.sed
+    volc .= volc ./ sum(volc) .* dist2.volc
+    plut .= plut ./ sum(plut) .* dist2.plut
+    ign .= ign ./ sum(ign) .* (dist2.volc + dist2.plut + dist2.carbonatite + dist2.ign_undiff)
+
+    # Metamorphic distributions: distribution from dist2 (surficial abudances as mapped),
+    # but calculate total metamorphic, metased and metaign as the percentage (where 100% 
+    # is total surface exposure) of rocks tagged as met / metased / metamorphic
+    met = count(megaclass.met) / npoints * 100
+    metased = count(metamorphic_cats.sed) / npoints * 100
+    metaign = count(metamorphic_cats.ign) / npoints * 100
+    
+    # Export 
+    sed_out = hcat(["Total Sedimentary"; string.(collect(minorsed)); "Undifferentiated Sedimentary"], 
+        [sum(sed); sed])
+    volc_out = hcat(["Total Volcanic"; string.(collect(minorvolc)); "Undifferentiated Volcanic"], 
+        [sum(volc); volc])
+    plut_out = hcat(["Total Plutonic"; string.(collect(minorplut)); "Undifferentiated Plutonic"], 
+        [sum(plut); plut])
+    ign_out = hcat(["Total Igneous", "Carbonatite", "Undifferentiated Igneous"], 
+        [sum(ign); ign[3:4]])
+    met_out = hcat(["Total Metamorphic", "Metasedimentary", "Metaigneous", "Undifferentiated Metamorphic"], 
+        [met, metased, metaign, dist2.met_undiff])
+    writedlm(surficial_abundance_total_out, [sed_out; volc_out; plut_out; ign_out; met_out])
 
 
 ## --- End of File

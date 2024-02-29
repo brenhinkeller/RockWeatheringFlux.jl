@@ -79,9 +79,6 @@
         end
         out[end] *= "$(round(sum(comp[t].comp), sigdigits=4)); "
     end
-    for i in eachindex(out)
-        println(out[i])
-    end
 
     # Anhydrous majors, doing The Most(™) so it's immune to changes in element order
     k = findfirst(x->x==:bulk, keys(class))
@@ -100,9 +97,6 @@
         out_anh[i] *= "\$ $(anhydrous_comp[i]) \\pm $(anhydrous_sem[i]) \$"
     end
     out_anh[end] = string(round(sum(anhydrous_comp), sigdigits=4))
-    for i in eachindex(out_anh)
-        println(out_anh[i])
-    end
 
     # Print to terminal 
     for i in eachindex(out)
@@ -176,162 +170,6 @@
         round.([mix_pease; misfit_pease], sigdigits=3),
     )
     display(out)
-
-
-## --- Distribution of lithologies exposed at the Earth's surface 
-#     # Specifically, I want this to be directly comperable to the measurements of fractional
-#     # contribution to total denudation.
-#     # 
-#     # Total denudation uses the match_cats lithologies, where metamorphic rocks have 
-#     # been totally reassigned to their assumed protoliths. Therefore, while we want an 
-#     # estimate of the surficial abundance of metamorphic rocks, we want the total 
-#     # sedimentary and igneous abundances to add to 100%. Separate metamorphic into 
-#     # metasedimentary and metaigneous for funsies.
-
-#     # Major classes, where metamorphic is undifferentiated
-#     include_minor!(macro_cats);
-#     macro_cats.met .&= .!(macro_cats.sed .| macro_cats.ign);
-#     majorclass = (:sed, :ign, :met) 
-#     dist_major = NamedTuple{majorclass}(
-#         normalize!([count(macro_cats[k])/length(macro_cats[k])*100 for k in majorclass])
-#     )
-
-#     # Minor classes
-#     exclude_minor!(macro_cats);
-#     dist_minorsed = NamedTuple{minorsed}(normalize!(
-#         [count(macro_cats[k])/length(macro_cats[k])*100 for k in minorsed]).*(dist_major.sed/100))
-#     dist_minorign = NamedTuple{minorign}(normalize!(
-#         [count(macro_cats[k])/length(macro_cats[k])*100 for k in minorign]).*(dist_major.ign/100))
-#     dist_minorvolc = NamedTuple{minorvolc}(normalize!(
-#         [count(macro_cats[k])/length(macro_cats[k])*100 for k in minorvolc]).*(dist_minorign.volc/100))
-#     dist_minorplut = NamedTuple{minorplut}(normalize!(
-#         [count(macro_cats[k])/length(macro_cats[k])*100 for k in minorplut]).*(dist_minorign.plut/100))
-
-#     # Export to file 
-#     sed = [[string.(collect(keys(dist_minorsed))) collect(values(dist_minorsed))];
-#     ["total sedimentary" dist_major.sed]]
-#     ign = [[string.(collect(keys(dist_minorign))) collect(values(dist_minorign))];
-#         ["total igneous" dist_major.ign]]
-#     volc = [[string.(collect(keys(dist_minorvolc))) collect(values(dist_minorvolc))];
-#         ["total volcanic" dist_minorign.volc]]
-#     plut = [[string.(collect(keys(dist_minorplut))) collect(values(dist_minorplut))];
-#         ["total plutonic" dist_minorign.plut]]
-#     met_total = ["undifferentiated metamorphic" dist_major.met]
-
-#     collected_abundance = [sed; ign; volc; plut; met_total];
-#     collected_abundance[:,2] = round.(collected_abundance[:,2], sigdigits=3)
-#     writedlm(surficial_abundance_out, collected_abundance)
-
-
-# ## ---
-#     # (Option 1)
-#     # We want to calculate absolute surficial abundances with two outputs: 
-#     #
-#     # 1) Include "undifferentiated" as a type. This will allow people to get a sense of 
-#     # how many samples were randomly re-assigned during the matching process
-#     #
-#     # 2) Abundances of known types only. This will allow us to compare 
-#     # 
-#     # Absolute surficial abundances means that if an abundance is listed as 3%, it is 3%
-#     # of all rocks exposed on Earth, not 3% of that subclass. The alternative to this is 
-#     # to make the sum of the minor classes equal to 100, e.g. if a volcanic subclass is 
-#     # 3%, that means 3% of all volcanic rocks are that subclass.
-
-#     # Calculate the surficial abundance of metamorphic rocks, including metasedimentary
-#     # and metaigneous rocks
-#     met_undiff = ["total metamorphic" (count(macro_cats.met)/length(macro_cats.met))*100] 
-
-#     # Calculate abundances of major classes, where metamorphic rocks refers to 
-#     # undifferentiated metamorphic rocks
-#     include_minor!(macro_cats);
-#     macro_cats.met .&= .!(macro_cats.sed .| macro_cats.ign);
-#     majorclass = (:sed, :ign, :met) 
-#     dist_major = NamedTuple{majorclass}(
-#         normalize!([count(macro_cats[k])/length(macro_cats[k])*100 for k in majorclass])
-#     )
-
-#     # Calculate abundances of minor classes
-#     exclude_minor!(macro_cats);
-#     minorsed, minorvolc, minorplut, minorign = get_rock_class()[2:end];
-#     sed = (minorsed..., :sed);
-#     ign = (minorign..., :ign);
-#     volc = (minorvolc..., :volc);
-#     plut = (minorplut..., :plut);
-
-#     dist_minorsed = NamedTuple{sed}(normalize!(
-#         [count(macro_cats[k])/length(macro_cats[k])*100 for k in sed]).*(dist_major.sed/100))
-#     dist_minorign = NamedTuple{ign}(normalize!(
-#         [count(macro_cats[k])/length(macro_cats[k])*100 for k in ign]).*(dist_major.ign/100))
-#     dist_minorvolc = NamedTuple{volc}(normalize!(
-#         [count(macro_cats[k])/length(macro_cats[k])*100 for k in volc]).*(dist_minorign.volc/100))
-#     dist_minorplut = NamedTuple{plut}(normalize!(
-#         [count(macro_cats[k])/length(macro_cats[k])*100 for k in plut]).*(dist_minorign.plut/100))
-
-#     # Check 
-#     # (sum(dist_minorsed) + sum(dist_minorvolc) + sum(dist_minorplut) + 
-#     # dist_minorign.carbonatite + dist_minorign.ign + dist_major.met) == 100
-
-#     # Export data to a file 
-#     sed = [[string.(collect(keys(dist_minorsed))) collect(values(dist_minorsed))];
-#         ["total sedimentary" dist_major.sed]]
-#     sed[end-1, 1] = "undifferentiated sedimentary"
-    
-#     ign = [[string.(collect(keys(dist_minorign))) collect(values(dist_minorign))];
-#         ["total igneous" dist_major.ign]]
-#     ign[end-1, 1] = "undifferentiated igneous"
-    
-#     volc = [[string.(collect(keys(dist_minorvolc))) collect(values(dist_minorvolc))];
-#         ["total volcanic" dist_minorign.volc]]
-#     volc[end-1, 1] = "undifferentiated volcanic"
-
-#     plut = [[string.(collect(keys(dist_minorplut))) collect(values(dist_minorplut))];
-#         ["total plutonic" dist_minorign.plut]]
-#     plut[end-1, 1] = "undifferentiated plutonic"
-
-#     met_total = ["undifferentiated metamorphic" dist_major.met]
-
-#     collected_abundance = [sed; ign; volc; plut; met_total; met_undiff];
-#     collected_abundance[:,2] = round.(collected_abundance[:,2], sigdigits=3)
-#     writedlm(surficial_abundance_total_out, collected_abundance)
-
-
-# ## --- Distribution of lithologies exposed at the Earth's surface (Option 2)
-#     # This option allows us to compare to the relative contribution of each class to 
-#     # global sediment production 
-
-#     # Major classes, where metamorphic is undifferentiated
-#     include_minor!(macro_cats);
-#     macro_cats.met .&= .!(macro_cats.sed .| macro_cats.ign);
-#     majorclass = (:sed, :ign, :met) 
-#     dist_major = NamedTuple{majorclass}(
-#         normalize!([count(macro_cats[k])/length(macro_cats[k])*100 for k in majorclass])
-#     )
-
-#     # Minor classes
-#     exclude_minor!(macro_cats);
-#     dist_minorsed = NamedTuple{minorsed}(normalize!(
-#         [count(macro_cats[k])/length(macro_cats[k])*100 for k in minorsed]).*(dist_major.sed/100))
-#     dist_minorign = NamedTuple{minorign}(normalize!(
-#         [count(macro_cats[k])/length(macro_cats[k])*100 for k in minorign]).*(dist_major.ign/100))
-#     dist_minorvolc = NamedTuple{minorvolc}(normalize!(
-#         [count(macro_cats[k])/length(macro_cats[k])*100 for k in minorvolc]).*(dist_minorign.volc/100))
-#     dist_minorplut = NamedTuple{minorplut}(normalize!(
-#         [count(macro_cats[k])/length(macro_cats[k])*100 for k in minorplut]).*(dist_minorign.plut/100))
-
-#     # Export to file 
-#     sed = [[string.(collect(keys(dist_minorsed))) collect(values(dist_minorsed))];
-#     ["total sedimentary" dist_major.sed]]
-#     ign = [[string.(collect(keys(dist_minorign))) collect(values(dist_minorign))];
-#         ["total igneous" dist_major.ign]]
-#     volc = [[string.(collect(keys(dist_minorvolc))) collect(values(dist_minorvolc))];
-#         ["total volcanic" dist_minorign.volc]]
-#     plut = [[string.(collect(keys(dist_minorplut))) collect(values(dist_minorplut))];
-#         ["total plutonic" dist_minorign.plut]]
-#     met_total = ["undifferentiated metamorphic" dist_major.met]
-
-#     collected_abundance = [sed; ign; volc; plut; met_total];
-#     collected_abundance[:,2] = round.(collected_abundance[:,2], sigdigits=3)
-#     writedlm(surficial_abundance_out, collected_abundance)
 
     
 ## --- End of file

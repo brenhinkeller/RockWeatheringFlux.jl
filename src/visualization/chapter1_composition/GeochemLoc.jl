@@ -60,13 +60,13 @@
     ax1 = GeoAxis(f[1,1]; dest = "+proj=wintri", coastlines=true, title="EarthChem")
     h = CairoMakie.scatter!(ax1, 
         bulk.Longitude, bulk.Latitude, 
-        color=bulk.Age, colormap=c_gradient, 
+        color=bulk.Age, colormap=colorgradient, 
         markersize = 3
     )
     ax2 = GeoAxis(f[2,1]; dest = "+proj=wintri", coastlines=true, title="Gard et al., 2019")
     h = CairoMakie.scatter!(ax2, 
         gard.Longitude, gard.Latitude, 
-        color=gard.Age, colormap=c_gradient, 
+        color=gard.Age, colormap=colorgradient, 
         markersize = 3,
         
     )
@@ -80,13 +80,13 @@
     ax1 = GeoAxis(f[1,1]; dest = "+proj=wintri", coastlines=true, title="EarthChem")
     h = CairoMakie.scatter!(ax1, 
         bulk.Longitude[bulk_cats.sed], bulk.Latitude[bulk_cats.sed],
-        color=bulk.Age[bulk_cats.sed], colormap=c_gradient, 
+        color=bulk.Age[bulk_cats.sed], colormap=colorgradient, 
         markersize = 4,
     )
     ax2 = GeoAxis(f[2,1]; dest = "+proj=wintri", coastlines=true, title="Gard et al., 2019")
     h = CairoMakie.scatter!(ax2, 
         gard.Longitude[gard_cats.sed], gard.Latitude[gard_cats.sed], 
-        color=gard.Age[gard_cats.sed], colormap=c_gradient, 
+        color=gard.Age[gard_cats.sed], colormap=colorgradient, 
         markersize = 4,
     )
     Colorbar(f[1:2,2], h, label = "Age [Ma]", height = Relative(0.75))
@@ -245,7 +245,7 @@
     ax = GeoAxis(f[1,1]; dest = "+proj=wintri", coastlines=true)
     h = CairoMakie.scatter!(ax, 
         macrostrat.rocklon[t], macrostrat.rocklat[t],
-        color=rock_ersn[t], colormap=c_gradient, 
+        color=rock_ersn[t], colormap=colorgradient, 
         markersize = 5, alpha=0.75
     )
     Colorbar(f[1,2], h, label = "Erosion rate [m/Myr]", height = Relative(0.75))

@@ -48,8 +48,8 @@
 ## --- Color names
 
     # Gradients
-    c_gradient = :nipy_spectral
-    export c_gradient
+    colorgradient = :nipy_spectral
+    export colorgradient
 
     # Observed samples by rock type
     lithclass = importdataset("data/lithclass_colors.tsv",'\t', importas=:Tuple)

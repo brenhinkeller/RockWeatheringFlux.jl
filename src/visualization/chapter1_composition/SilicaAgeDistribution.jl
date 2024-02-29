@@ -96,7 +96,7 @@
     )
     Plots.heatmap!(h1, out_bulk, 
         colorbar=false,
-        color=c_gradient,
+        color=colorgradient,
         title="A. Bulk Geochemical Data\n"
     )
 
@@ -110,7 +110,7 @@
     )
     Plots.heatmap!(h2, out_mbulk, 
         colorbar=false,
-        color=c_gradient,
+        color=colorgradient,
         title="B. Matched Samples\n"
     )
 
@@ -126,7 +126,7 @@
         titleloc=:left, titlefont = font(12),
     )
     b = Plots.heatmap(rand(2,2), clims=(0,1), 
-        framestyle=:none, color=c_gradient, colorbar_title="Relative Sample Density", 
+        framestyle=:none, color=colorgradient, colorbar_title="Relative Sample Density", 
         lims=(-1,0)
     )
     h = Plots.plot(a, b, layout=l)
@@ -174,7 +174,7 @@
         )
         Plots.heatmap!(h1, out_bulk, 
             colorbar=false,
-            color=c_gradient,
+            color=colorgradient,
             title="$(subfig[i][1]). Bulk $(labels[i]) Data\n"
         )
 
@@ -188,7 +188,7 @@
         )
         Plots.heatmap!(h2, out_mbulk, 
             colorbar=false,
-            color=c_gradient,
+            color=colorgradient,
             title="$(subfig[i][2]). Matched $(labels[i]) Samples\n"
         )
 
@@ -206,7 +206,7 @@
             titleloc=:left, titlefont = font(12),
         )
         b = Plots.heatmap(rand(2,2), clims=(0,1), 
-            framestyle=:none, color=c_gradient, colorbar_title="Relative Sample Density", 
+            framestyle=:none, color=colorgradient, colorbar_title="Relative Sample Density", 
             lims=(-1,0)
         )
 

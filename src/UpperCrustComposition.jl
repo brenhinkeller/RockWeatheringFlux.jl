@@ -3,6 +3,7 @@
     using RockWeatheringFlux
     using DelimitedFiles, HDF5
     using StatsBase
+    using NNLS      # Unregistered package
 
 
 ## --- Load data
@@ -140,11 +141,11 @@
     endmembers = [this_study.sed this_study.volc this_study.plut]
 
     # Calculate percent of each endmember represented in each estimate
-    mix_this_study = endmembers \ this_study.bulk
-    mix_anhydrous = endmembers \ anhydrous
-    mix_pease = endmembers \ pease
-    mix_rudnickgao = endmembers \ rudnickgao
-    mix_gao = endmembers \ gao
+    mix_this_study = nnls(endmembers, this_study.bulk)
+    mix_anhydrous = nnls(endmembers, anhydrous)
+    mix_pease = nnls(endmembers, pease)
+    mix_rudnickgao = nnls(endmembers, rudnickgao)
+    mix_gao = nnls(endmembers, gao)
 
     # Calculate misfit
     misfit_this_study = sum((endmembers * mix_this_study - this_study.bulk).^2)
@@ -169,7 +170,9 @@
         round.([mix_gao; misfit_gao], sigdigits=3),
         round.([mix_pease; misfit_pease], sigdigits=3),
     )
-    display(out)
-
+    for i in 1:size(out)[1]
+        println(join(out[i,:], ";"))
+    end
+    
     
 ## --- End of file

@@ -51,6 +51,13 @@
     colorgradient = :nipy_spectral
     export colorgradient
 
+    # Unified color palette 
+    # colorpalette = [parse(Colorant, "#C84630"), parse(Colorant, "#286886"), 
+    #     parse(Colorant, "#3E000C"), parse(Colorant, "#F5B700"), parse(Colorant, "#63A46C")
+    # ]
+    colorpalette = :berlin
+    export colorpalette
+
     # Observed samples by rock type
     lithclass = importdataset("data/lithclass_colors.tsv",'\t', importas=:Tuple)
     colortext = (

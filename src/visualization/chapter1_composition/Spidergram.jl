@@ -17,7 +17,7 @@
     GloRiSe = importdataset("output/GloRiSe_minor_screened.tsv", '\t', importas=:Tuple);
 
     # Until StatGeochem PR gets updated on this machine 
-    include("../../../src/dev.jl")
+    # include("../../../src/dev.jl")
 
 
 ## --- Load data 
@@ -118,10 +118,7 @@
     
 
 ## --- Assemble plots
-    # p = Plots.palette(:managua, 10)
-    # p = Plots.palette(:romaO, 10)
-    p = Plots.palette(:berlin, 5)
-    # p = Plots.palette(:darkrainbow, 5)  # ugly :(
+    p = Plots.palette(colorpalette, 5)
 
     # Bulk Earth
     h1 = spidergram(rudnick_gao, label="Rudnick and Gao (Whole Earth)", 

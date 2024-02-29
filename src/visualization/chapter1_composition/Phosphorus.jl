@@ -80,10 +80,7 @@
 
 
 ## --- Plot 
-    # p = Plots.palette([:hotpink, :royalblue, :seagreen], 5)
-    # p = Plots.palette([:black, :black], 5)
-    p = Plots.palette([:deeppink, :darkblue, :darkgreen], 5)
-    # p2 = Plots.palette(:Dark2_3, 3, rev=true)
+    p = Plots.palette(colorpalette, 5)
     p2 = Plots.palette(:isoluminant_cm_70_c39_n256, 3, rev=true)
     
     fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(target));

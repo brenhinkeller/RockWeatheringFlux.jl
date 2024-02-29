@@ -46,8 +46,7 @@
         gao = [gao[k] ./ ucc.bulk[k] for k in anhydrous_majors],
     )
 
-    # p = Plots.palette(:tab10, 10)
-    p = Plots.palette(:berlin, 5)
+    p = Plots.palette(colorpalette, 5)
     h = Plots.plot(
         framestyle=:box,
         fontfamily=:Helvetica, 

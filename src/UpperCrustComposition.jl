@@ -121,7 +121,7 @@
     # """
 
 
-## --- Compute mixing ratios for other estimates 
+## --- Compute mixing ratios for other crust composition estimates
     # Hypothesis: other estimates can be approximated by mixing our estimates in different 
     # proportions. Separate into sed / plut / volc.
     # 
@@ -154,12 +154,12 @@
     misfit_rudnickgao = sum((endmembers * mix_rudnickgao - rudnickgao).^2)
     misfit_gao = sum((endmembers * mix_gao - gao).^2)
 
-    # Normalize to surficial abundance of each endmember 
-    mix_this_study_norm = mix_this_study ./ mix_this_study
-    mix_anhydrous_norm = mix_anhydrous ./ mix_this_study
-    mix_pease_norm = mix_pease ./ mix_this_study
-    mix_rudnickgao_norm = mix_rudnickgao ./ mix_this_study
-    mix_gao_norm = mix_gao ./ mix_this_study
+    # # Normalize to surficial abundance of each endmember 
+    # mix_this_study_norm = mix_this_study ./ mix_this_study
+    # mix_anhydrous_norm = mix_anhydrous ./ mix_this_study
+    # mix_pease_norm = mix_pease ./ mix_this_study
+    # mix_rudnickgao_norm = mix_rudnickgao ./ mix_this_study
+    # mix_gao_norm = mix_gao ./ mix_this_study
     
     # Format for LaTeX-formatting Excel sheet (bulk, anhydrous, and other estimates)
     out = fill("", size(endmembers)[2] + 1)
@@ -170,9 +170,44 @@
         round.([mix_gao; misfit_gao], sigdigits=3),
         round.([mix_pease; misfit_pease], sigdigits=3),
     )
+    println("sed / volc / plut mixing ratios for: bulk / anhydrous / R&G / Gao / Pease")
     for i in 1:size(out)[1]
         println(join(out[i,:], ";"))
     end
     
-    
+
+## --- Compute mixing ratios for our eroded material estimates 
+    # Load data and calculate anhydrous composition
+    fid = readdlm(erodedcomp_out)
+    bulk_i = findfirst(x->x=="bulk", fid)[2]
+    bulkcomp = float.(fid[2:length(majors)+1, bulk_i])
+
+    anhydcomp = copy(bulkcomp)
+    anhydcomp[end] = 0
+    normalize!(anhydcomp)
+
+    # Muller et al.
+    muller = [65.1,18.7,5.67,0.8,2.1,2.9,1.1,2.7,0]
+
+    # Compute endmember mixing and calculate misfit :)
+    mix_bulk = nnls(endmembers, bulkcomp)
+    mix_anhyd = nnls(endmembers, anhydcomp)
+    mix_muller = nnls(endmembers, muller)
+
+    misfit_bulk = sum((endmembers * mix_bulk - bulkcomp).^2)
+    misfit_anhyd = sum((endmembers * mix_anhyd - anhydcomp).^2)
+    misfit_muller = sum((endmembers * mix_muller - muller).^2)
+
+    # Print to terminal 
+    out = fill("", size(endmembers)[2] + 1)
+    out = hcat(
+        round.([mix_bulk; misfit_bulk], sigdigits=3),
+        round.([mix_anhyd; misfit_anhyd], sigdigits=3),
+        round.([mix_muller; misfit_muller], sigdigits=3),
+    )
+    println("sed / volc / plut mixing ratios for: bulk / anhydrous / Muller")
+    for i in 1:size(out)[1]
+        println(join(out[i,:], ";"))
+    end
+
 ## --- End of file

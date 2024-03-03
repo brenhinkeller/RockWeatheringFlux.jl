@@ -484,6 +484,33 @@
     export screenvolatiles!
 
 
+    """
+    ```julia
+    ca_plagioclase(K2O, Al2O3, CaO, K2O_to_Al2O3, Na2O_to_Al2O3)
+    ```
+
+    Assuming all `K₂O`, `Al₂O₃`, and `Na₂O` comes from feldspars, calculate the expected 
+    CaO content of a sample. Give all values in wt.%, and specify conversion factors from 
+    K₂O and Na₂O to Al₂O₃:
+
+    ```julia
+    using StatGeochem
+    K2O_to_Al2O3 = (2*molarmass["Al"] + 3*molarmass["O"])/(molarmass["K"]*2 + molarmass["O"]);
+    Na2O_to_Al2O3 = (2*molarmass["Al"] + 3*molarmass["O"])/(molarmass["Na"]*2 + molarmass["O"]);
+    Al2O3_to_CaO = (molarmass["Ca"]+molarmass["O"])/(2*molarmass["Al"] + 3*molarmass["O"]);
+    ```
+
+    """
+    function ca_plagioclase(K2O, Al2O3, Na2O, K2O_to_Al2O3, Na2O_to_Al2O3, Al2O3_to_CaO)
+        # Calculate Al2O3 not from Na-plag or K-spar
+        Al2O3_Ca_plag = Al2O3 - (K2O*K2O_to_Al2O3 + Na2O*Na2O_to_Al2O3)
+
+        # Calculate CaO expected from known amount of Al2O3
+        return Al2O3_Ca_plag*Al2O3_to_CaO
+    end
+    export ca_plagioclase
+
+
 ## --- Sample matching
 
     """

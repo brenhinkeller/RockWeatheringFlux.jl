@@ -155,6 +155,10 @@
     CaO_to_H2O = 2*(2*1.00784+15.999)/(40.078+15.999)           # Gypsum
     CaO_to_SO3 = (32.065+3*15.999)/(40.078+15.999)              # Gypsum
 
+    K2O_to_Al2O3 = (26.98*2+15.999*3)/(39.098*2+15.999)       # K-spar
+    Na2O_to_Al2O3 = (26.98*2+15.999*3)/(22.990*2+15.999)      # Na-plag
+    Al2O3_to_CaO = (40.078+15.999)/(26.98*2+15.999*3)         # Ca-plag
+
 
 ## --- Calculate reported volatiles as the larger of [CO₂ + H₂O] OR LOI
     @turbo volatiles_reported .= nanadd.(bulk.CO2, bulk.H2O)
@@ -183,7 +187,7 @@
         converted[i] = (bulk.CaCO3[i] > 0)
     end
 
-    # Carbonates, siliciclasts, and shales: calculate CO₂ from CaO
+    # Carbonates: calculate CO₂ from CaO
     # Replace existing values, in case any samples already did this
     target = bulk_cats.carb .| bulk_cats.siliciclast .| bulk_cats.shale;
     @turbo for i in eachindex(bulk.CaO)
@@ -192,6 +196,21 @@
             bulk.CO2[i]                                     # Otherwise, use reported CO₂
         )
     end
+
+    # Siliciclasts and shales: calculate CO₂ from CaO not associated with Ca-plag
+    CaO_excess = similar(bulk.CO2)
+    @turbo for i in eachindex(CaO_excess)
+        CaO_plag = ca_plagioclase(bulk.K2O[i], bulk.Al2O3[i], bulk.Na2O[i], 
+            K2O_to_Al2O3, Na2O_to_Al2O3, Al2O3_to_CaO
+        )
+        CaO_excess[i] = bulk.CaO[i] - CaO_plag
+    end
+    
+    target = @. (bulk_cats.siliciclast .| bulk_cats.shale) & !converted
+    @turbo for i in eachindex(CO2)
+        bulk.CO2[i] = ifelse(target[i] & (CaO_excess[i] > 0), CaO_excess[i]*CaO_to_CO2, bulk.CO2[i])
+    end
+
 
     # Gypsum: calculate H₂O and SO₃ from CaO 
     SO3 = Array{Float64}(undef, length(bulk.SiO2), 1)

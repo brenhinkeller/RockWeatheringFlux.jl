@@ -1,14 +1,14 @@
 ## --- Load data files
     # Main file
-    gard_sample = importdataset("data/gard2019/sample.csv", ',', importas=:Tuple)
-    npoints = length(gard_sample.sample_id)
+    gard_sample = importdataset("data/gard2019/sample.csv", ',', importas=:Tuple);
+    npoints = length(gard_sample.sample_id);
 
     # Other files
-    gard_age = importdataset("data/gard2019/age.csv", ',', importas=:Tuple)
-    gard_rgroup = importdataset("data/gard2019/rockgroup.csv", ',', importas=:Tuple)
-    gard_major = importdataset("data/gard2019/major.csv", ',', importas=:Tuple)
-    gard_trace = importdataset("data/gard2019/trace.csv", ',', importas=:Tuple)
-    gard_ref = importdataset("data/gard2019/reference.csv", ',', importas=:Tuple)
+    gard_age = importdataset("data/gard2019/age.csv", ',', importas=:Tuple);
+    gard_rgroup = importdataset("data/gard2019/rockgroup.csv", ',', importas=:Tuple);
+    gard_major = importdataset("data/gard2019/major.csv", ',', importas=:Tuple);
+    gard_trace = importdataset("data/gard2019/trace.csv", ',', importas=:Tuple);
+    gard_ref = importdataset("data/gard2019/reference.csv", ',', importas=:Tuple);
 
 
 ## --- Fill in any missing ages using bounds and time periods
@@ -98,7 +98,7 @@
     gard_age.age_max[viable] .= period_age_max[viable]
 
     # Remove ages younger than 0 or older than 4000
-    gard_age.age[(0 .> gard_age.age) .| (gard_age.age .> 4000)] .= NaN
+    gard_age.age[(0 .> gard_age.age) .| (gard_age.age .> 4000)] .= NaN;
 
 
 ## --- Then, fix all the weird and / or misspelled ages (TO DO)
@@ -382,7 +382,7 @@
     MgCO3[.!(0 .< MgCO3 .< 100)] .= NaN     # 99th percentile is 41%
 
     # annnnd... everything else
-    screen_outliers!(out, gard_cats)
+    screen_outliers!(out, gard_cats);
 
 
 ## --- Calculate volatiles
@@ -396,6 +396,10 @@
     CaO_to_H2O = 2*(2*1.00784+15.999)/(40.078+15.999)         # Gypsum CaSO₄ ⋅ 2H₂O
 
     CaO_to_CO2 = (15.999*2+12.01)/(40.078+15.999)             # Assumes CaCO₃ decomposition
+
+    K2O_to_Al2O3 = (26.98*2+15.999*3)/(39.098*2+15.999)       # K-spar
+    Na2O_to_Al2O3 = (26.98*2+15.999*3)/(22.990*2+15.999)      # Na-plag
+    Al2O3_to_CaO = (40.078+15.999)/(26.98*2+15.999*3)         # Ca-plag
 
     # Preallocate
     CO2_CaCO3, CaO_CaCO3 = similar(out.SiO2), similar(out.SiO2)
@@ -413,11 +417,27 @@
         converted[i] = (CaCO3[i] * CaCO3_to_CaO) > 0        
     end
 
-    # [CLASTICS, CARBONATES] Compute CO2 from CaO, assuming CaO is from CaCO3 
+    # [CARBONATES] Compute CO2 from CaO, assuming CaO is from CaCO3 
     # Only replace values if there isn't already a value there, and we didn't convert already
-    target = gard_cats.siliciclast .| gard_cats.carb .| gard_cats.shale;
+    target = @. gard_cats.carb & !converted & isnan(CO2)
     @turbo for i in eachindex(CO2)
-        CO2[i] = ifelse(target[i] & !converted[i] & isnan(CO2[i]), out.CaO[i]*CaO_to_CO2, CO2[i])
+        CO2[i] = ifelse(target[i], out.CaO[i]*CaO_to_CO2, CO2[i])
+    end
+
+    # [CLASTICS] Compute CO2 from excess CaO
+    # Some Ca is present in feldspars; only convert if there's more CaO than one would 
+    # expect from Ca plagioclase
+    CaO_excess = similar(CO2)
+    @turbo for i in eachindex(CaO_excess)
+        CaO_plag = ca_plagioclase(out.K2O[i], out.Al2O3[i], out.Na2O[i], 
+            K2O_to_Al2O3, Na2O_to_Al2O3, Al2O3_to_CaO
+        )
+        CaO_excess[i] = out.CaO[i] - CaO_plag
+    end
+    
+    target = @. (gard_cats.siliciclast .| gard_cats.shale) & !converted & isnan(CO2)
+    @turbo for i in eachindex(CO2)
+        CO2[i] = ifelse(target[i] & (CaO_excess[i] > 0), CaO_excess[i]*CaO_to_CO2, CO2[i])
     end
 
     # [EVAPORITES] Compute H2O [GYPSUM] and SO3 [GYPSUM, ANHYDRITE] from CaO

@@ -164,7 +164,7 @@
     result = Array{Float64}(undef, length(elementflux_val)+1, length(classfilter))
     result_err = similar(result)
     rows = vcat(string.(collect(keys(elementflux_val))), "Total")
-    cols = hcat("elem", reshape(string.(collect(keys(classfilter))), 1, :))
+    cols = hcat("elem", reshape(string.(collect(keys(classfilter))), 1, :));
 
 
 ## --- Compute and export the mass flux of denuded material, and relative contribution
@@ -212,7 +212,7 @@
 
     # Save major element values for terminal printout
     majorcomp_rel = round.(result[1:nmajors, end].*100, sigdigits=3)
-    majorcomp_rel_err = round.(result_err[1:nmajors, end].*100 ./ sqrt(npoints) .*2, sigdigits=1)
+    majorcomp_rel_err = round.(result_err[1:nmajors, end].*100 ./ sqrt(npoints) .*2, sigdigits=1);
 
 
 ## --- Terminal printout 
@@ -236,7 +236,7 @@
         sem = round.([result_err[:,k][i].*100 ./ sqrt(npoints) .*2 for i in eachindex(majors)], sigdigits=1)
     ) for k in eachindex(keys(classfilter))])
 
-    target = (:volc, :plut, :sed, :bulk)
+    target = (:sed, :volc, :plut, :bulk)
     out = fill("", length(majors)+1)
     for t in target
         for i in eachindex(majors) 
@@ -262,7 +262,7 @@
     out_anh[end] = string(round(sum(anhydrous_comp), sigdigits=4))
 
     # Print to terminal
-    @info "Composition of eroded material (volc / plut / sed / bulk / anhydrous)"
+    @info "Composition of eroded material (sed / volc / plut / bulk / anhydrous)"
     for i in eachindex(out)
         println("$(out[i] * out_anh[i])")
     end
@@ -284,12 +284,21 @@
 
     # Terminal printout, formatted to be copy-pasted into the LaTeX formatting sheet 
     @info "Surficial abundance and contribution to erosion by lithologic class:"
-    contrib = readdlm(erodedrel_out)[end, 2:end].*100;
-    k = keys(classfilter);
-    for i in eachindex(contrib)
-        println("$(k[i]) $(round(dist[k[i]], sigdigits=3)) $(round(contrib[i], sigdigits=3))")
+    fid = readdlm(erodedrel_out)
+    contrib = NamedTuple{Tuple(Symbol.(fid[1,2:end]))}(fid[end, 2:end].*100)
+    for k in keys(classfilter)
+        println("$(k) $(round(dist[k], sigdigits=3)) $(round(contrib[k], sigdigits=3))")
     end
 
+    @info "Abundance / contribution: Sed / volc / plut"
+    out = ""
+    for i in (:sed, :volc, :plut)
+        out *= "$(round(dist[i], sigdigits=3));"
+    end
+    for i in (:sed, :volc, :plut)
+        out *= "$(round(contrib[i], sigdigits=3));"
+    end
+    println(out)
 
 ## --- Surficial abundance as mapped, calculated for supplementary reference table
     # Load Macrostrat lithologic classes (matched samples only)

@@ -68,74 +68,6 @@
     end
 
 
-## --- Build plot (bulk igneous data)
-    # Geochemical data
-    out_bulk = zeros(ybins, xbins)
-    for i = 1:ybins
-        t = @. yedges[i] <= simbulk.ign[:,2] < yedges[i+1]
-        c, n = bincounts(simbulk.ign[:,1][t], xmin, xmax, xbins) 
-        out_bulk[i,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
-    end
-
-    # Matched data
-    out_mbulk = zeros(ybins, xbins)
-    for i = 1:ybins
-        t = @. yedges[i] <= sim_mbulk.ign[:,2] < yedges[i+1]
-        c, n = bincounts(sim_mbulk.ign[:,1][t], xmin, xmax, xbins)
-        out_mbulk[i,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
-    end
-
-    # Bulk geochemical data
-    h1 = Plots.plot(
-        ylims=(0,ybins),
-        yticks=(0:ybins/7.6:ybins, string.(0:500:3800)),
-        yflip=true,
-        xlabel="SiO2 [wt.%]", 
-        ylabel="Age [Ma]",
-        size=(600,500),
-    )
-    Plots.heatmap!(h1, out_bulk, 
-        colorbar=false,
-        color=colorgradient,
-        title="A. Bulk Geochemical Data\n"
-    )
-
-    # Matched samples
-    h2 = Plots.plot(
-        ylims=(0,ybins),
-        yticks=false,
-        yflip=true,
-        xlabel="SiO2 [wt.%]", 
-        size=(600,500),
-    )
-    Plots.heatmap!(h2, out_mbulk, 
-        colorbar=false,
-        color=colorgradient,
-        title="B. Matched Samples\n"
-    )
-
-    # Assemble all plots with a common color bar
-    l = @layout [a{0.95w} b{0.05w}]
-    a = Plots.plot(h1, h2, layout=(1,2),
-        size=(1000, 400),
-        framestyle=:box,
-        grid=false,
-        fontfamily=:Helvetica,
-        xticks=(0:xbins/4:xbins, string.(40:10:80)),
-        left_margin=(25,:px), bottom_margin=(15,:px),
-        titleloc=:left, titlefont = font(12),
-    )
-    b = Plots.heatmap(rand(2,2), clims=(0,1), 
-        framestyle=:none, color=colorgradient, colorbar_title="Relative Sample Density", 
-        lims=(-1,0)
-    )
-    h = Plots.plot(a, b, layout=l)
-
-    display(h)
-    savefig("$filepath/silica_heatmap.pdf")
-    savefig("$filepath_png/silica_heatmap.png")
-
-
 ## --- Build plot (subdivide igneous into volcanic and plutonic classes)
     # Preallocate 
     fig = Array{Plots.Plot{Plots.GRBackend}}(undef, 3)
@@ -212,13 +144,14 @@
 
         h = Plots.plot(a, b, layout=l)
         fig[i] = h
-        savefig(h, "$filepath/silica_heatmap_$(subclass[i]).pdf")
-        savefig(h, "$filepath_png/silica_heatmap_$(subclass[i]).png")
+        savefig(h, "$filepath/heatmap_$(subclass[i]).pdf")
+        # savefig(h, "$filepath_png/heatmap_$(subclass[i]).png")
     end
 
     # Assemble The Big Plot™
     # But just for looks. Do this in illustrator because this keeps moving stuff around
     h = Plots.plot(fig..., layout=(3, 1), size=(1000,1300))
+    savefig(h, "$filepath/heatmap_all_classes.pdf")
     display(h)
 
 

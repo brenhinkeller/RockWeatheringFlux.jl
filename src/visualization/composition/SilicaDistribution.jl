@@ -153,7 +153,7 @@
         xlabel="SiO2 [wt.%]"
     )
     display(h)
-    savefig(h, "$filepath/silica_ign.pdf")
+    savefig(h, "$filepath/histogram_ign.pdf")
     # savefig(h, "$filepath_png/silica_ign.png")
 
 
@@ -258,7 +258,7 @@
         labelfontsize=24
     )
     display(h)
-    savefig(h, "$filepath/silica_all.pdf")
+    savefig(h, "$filepath/histogram_all_classes.pdf")
 
     
 ## --- End of file

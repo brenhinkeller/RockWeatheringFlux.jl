@@ -5,8 +5,8 @@
     using Plots
 
     # Definitions
-    filepath = "results/figures/chapter1_composition"
-    filepath_png = "results/figures/chapter1_composition/pngs"
+    filepath = "results/figures/composition"
+    filepath_png = "results/figures/composition_pngs"
 
     @info """
     File IO:

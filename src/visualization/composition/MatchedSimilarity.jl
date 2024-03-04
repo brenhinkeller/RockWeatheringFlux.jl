@@ -10,14 +10,14 @@
     c, n = bincounts(agediff, -3800, 3800, 38*2)
     m = nanmedian(agediff)
 
-    h = plot(
+    h1 = plot(
         framestyle=:box, 
         fontfamily=:Helvetica, 
         xlabel="Age Difference [Myr.]", ylabel="Abundance",
         ylims=(0.1, round(Int, maximum(n)*1.5)), yticks=10.0.^(0:2:5),
         xlims=(-1100, 3000),
     )
-    Plots.plot!(h, c[n .> 0], n[n .> 0], label="",
+    Plots.plot!(h1, c[n .> 0], n[n .> 0], label="",
         seriestype=:bar, 
         yscale=:log10,
         color=colors.evap, lcolor=:match,
@@ -33,10 +33,10 @@
     )
 
     jump = 500
-    xticks!((xlims(h)[1]jump)*jump:jump:(xlims(h)[2]÷jump-1)*jump)
+    xticks!((xlims(h1)[1]jump)*jump:jump:(xlims(h1)[2]÷jump-1)*jump)
 
-    display(h)
-    savefig(h, "$filepath/agediff.pdf")
+    display(h1)
+    savefig(h1, "$filepath/diff_age.pdf")
 
 
 ## --- Location 
@@ -46,14 +46,14 @@
     c, n = bincounts(locdiff, 0, 180, 90)
     m = nanmedian(locdiff)
 
-    h = plot(
+    h2 = plot(
         framestyle=:box, 
         fontfamily=:Helvetica, 
         xlabel="Distance [arc degrees]", ylabel="Abundance",
         ylims=(0.1, round(Int, maximum(n)*1.05)),
         xlims=(-2, 180),
     )
-    Plots.plot!(h, c, n, label="",
+    Plots.plot!(h2, c, n, label="",
         seriestype=:bar, 
         color=colors.sed, lcolor=:match,
         barwidths = 2,
@@ -62,8 +62,13 @@
     Plots.annotate!([(m*0.9, 500, text("Median = $(round(m, sigdigits=3))", 9, :left, 
         :bottom, :black, rotation=90))]
     )
-    display(h)
-    savefig(h, "$filepath/locdiff.pdf")
+    display(h2)
+    savefig(h2, "$filepath/diff_loc.pdf")
 
+
+## --- Collect plots for LaTeX placeholder
+
+    h = Plots.plot(h1, h2, layout=(1,2), size=(1200,400))
+    savefig(h, "$filepath/diff_combo.pdf")
 
 ## --- End of File

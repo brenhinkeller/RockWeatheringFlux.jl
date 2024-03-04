@@ -72,7 +72,7 @@
     ) for k in eachindex(keys(class))])
 
     # Pre-computed compositions
-    target = (:volc, :plut, :sed, :bulk)
+    target = (:sed, :volc, :plut, :bulk)
     out = fill("", length(majors)+1)
     for t in target
         for i in eachindex(majors) 
@@ -100,6 +100,7 @@
     out_anh[end] = string(round(sum(anhydrous_comp), sigdigits=4))
 
     # Print to terminal 
+    println("composition of sed / volc / plut / bulk / anhydrous")
     for i in eachindex(out)
         println("$(out[i] * out_anh[i])")
     end

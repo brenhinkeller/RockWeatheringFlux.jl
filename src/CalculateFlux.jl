@@ -290,15 +290,6 @@
         println("$(k) $(round(dist[k], sigdigits=3)) $(round(contrib[k], sigdigits=3))")
     end
 
-    @info "Abundance / contribution: Sed / volc / plut"
-    out = ""
-    for i in (:sed, :volc, :plut)
-        out *= "$(round(dist[i], sigdigits=3));"
-    end
-    for i in (:sed, :volc, :plut)
-        out *= "$(round(contrib[i], sigdigits=3));"
-    end
-    println(out)
 
 ## --- Surficial abundance as mapped, calculated for supplementary reference table
     # Load Macrostrat lithologic classes (matched samples only)
@@ -324,73 +315,83 @@
     continent = NamedTuple{Tuple([Symbol.(continents[1:end-1]); :Global])}([
         [continent .== i for i in eachindex(continents[1:end-1])]; [trues(npoints)]
     ])
-    dist_cont = NamedTuple{keys(continent)}(count(continent[k])/npoints for k in keys(continent))
+    dist_cont = merge(NamedTuple{keys(continent)[1:end-1]}(normalize!(
+            [count(continent[k])/npoints for k in keys(continent)[1:end-1]])
+        ), (Global=100.0,)
+    )
 
-    # Calculate the surficial abundance of each subclass such that:
-    # sed + (volc + plut + carbonatite + undiff. ign) + undiff. met == 100
-    include_minor!(macro_cats);
-    dist2 = NamedTuple{(:sed, :volc, :plut, :carbonatite, :ign_undiff, :met_undiff)}(
-        normalize!([count(macro_cats.sed), count(macro_cats.volc), count(macro_cats.plut), 
-        count(macro_cats.carbonatite), 
-        count(macro_cats.ign .& .!(macro_cats.volc .| macro_cats.plut .| macro_cats.carbonatite)),
-        count(megaclass.met_undiff)]./npoints.*100
-    ))
-    dist2_ign = dist2.volc + dist2.plut + dist2.carbonatite + dist2.ign_undiff
-
-    # Compute surficial abundance of rock types in each region
+    # Preallocate 
     region = collect(keys(continent))
     ncols = (length(minorsed)+2) + (length(minorplut)+2) + (length(minorvolc)+2) + 3 + 4;
-    result = Array{Float64}(undef, ncols, length(region))
+    result = Array{Float64}(undef, ncols, length(region));
 
+    # Surficial abundance by region
     for i in eachindex(region)
         # Filter for the region
-        t = continent[region[i]]
+        s = continent[region[i]]
+        nregion = count(s)
 
-        # Get counts for each class, including undifferentiated samples
-        exclude_minor!(macro_cats);
-        sed = float.([[count(macro_cats[k] .& t) for k in minorsed]; count(macro_cats.sed .& t)])
-        volc = float.([[count(macro_cats[k] .& t) for k in minorvolc]; count(macro_cats.volc .& t)])
-        plut = float.([[count(macro_cats[k] .& t) for k in minorplut]; count(macro_cats.plut .& t)])
-
+        # Calculate abundances of constituent class in this region, normalized to 100%
         include_minor!(macro_cats);
-        differentiated_ign = macro_cats.volc .| macro_cats.plut .| macro_cats.carbonatite;
-        ign = float.([[count(macro_cats[k] .& t) for k in minorign]; 
-            count(macro_cats.ign .& .!differentiated_ign .& t)
-        ])
+        ign_undiff = .!(macro_cats.volc .| macro_cats.plut .| macro_cats.carbonatite);
+        dist2 = NamedTuple{(:sed, :volc, :plut, :carbonatite, :ign_undiff, :met_undiff)}(
+            normalize!([
+                count(macro_cats.sed .& s),                 # Sedimentary
+                count(macro_cats.volc .& s),                # Volcanic
+                count(macro_cats.plut .& s),                # Plutonic
+                count(macro_cats.carbonatite .& s),         # Carbonatite
+                count(macro_cats.ign .& ign_undiff .& s),   # Undifferentiated ign
+                count(megaclass.met_undiff .& s)            # Undifferentiated met
+            ]./nregion.*100
+        ))
+        dist2_ign = dist2.volc + dist2.plut + dist2.carbonatite + dist2.ign_undiff
+
+        # Count frequency of subclasses within constituent classes. 
+        exclude_minor!(macro_cats)
+        sed = float.([[count(macro_cats[k] .& s) for k in minorsed]; count(macro_cats.sed .& s)])
+        volc = float.([[count(macro_cats[k] .& s) for k in minorvolc]; count(macro_cats.volc .& s)])
+        plut = float.([[count(macro_cats[k] .& s) for k in minorplut]; count(macro_cats.plut .& s)])
 
         # Calculate percentage abundance from counts 
-        sed .= (sed ./ npoints * 100)
-        volc .= (volc ./ npoints * 100)
-        plut .= (plut ./ npoints * 100)
-        ign .= (ign ./ npoints * 100)
+        sed .= sed ./ nregion * 100
+        volc .= volc ./ nregion * 100
+        plut .= plut ./ nregion * 100
+        
+        # Normalize to the abundance of the constituent class, and to the contribution of
+        # the region of interest to total global surface area
+        # fractional_contrib = dist_cont[region[i]] / 100
+        fractional_contrib = 1.0
+        sed .= sed ./ sum(sed) .* dist2.sed * fractional_contrib
+        volc .= volc ./ sum(volc) .* dist2.volc * fractional_contrib
+        plut .= plut ./ sum(plut) .* dist2.plut * fractional_contrib
+        
+        # Percent metasedimentary and metaigneous rocks (relative to global area), splitting
+        # doubly-matched samples equally so as to not artifically inflate the percentages
+        split_overlap = count(megaclass.metased .& megaclass.metaign) / 2
+        metased = count(megaclass.metased .& .!megaclass.metaign .& s) + split_overlap
+        metaign = count(megaclass.metaign .& .!megaclass.metased .& s) + split_overlap
+        
+        metased /= (nregion * 100 * fractional_contrib)
+        metaign /= (nregion * 100 * fractional_contrib)
+        met_undiff = dist2.met_undiff * fractional_contrib
+        met_total = metased + metaign + met_undiff
 
-        # Normalize to the surficial abundance of that subtype so everything adds to the 
-        # total contribution of that continent to surficial area (for the global region, 
-        # this is 100%, but for e.g. Africa, this is 23%)
-        fractional_contrib = dist_cont[region[i]]
-        sed .= (sed ./ sum(sed) .* dist2.sed) .* fractional_contrib
-        volc .= (volc ./ sum(volc) .* dist2.volc) .* fractional_contrib
-        plut .= (plut ./ sum(plut) .* dist2.plut) .* fractional_contrib
-        ign .= (ign ./ sum(ign) .* dist2_ign) .* fractional_contrib
 
-        # The contribution of undifferentiated metamorphic rocks is the difference of sum 
-        # of the contributions of other classes (sed, volc, plut, carbonatite, undiff. ign)
-        # and the fractional contribution of this continent to surface area 
-        met_undiff = (fractional_contrib*100) - (sum(sed) + sum(volc) + sum(plut) + sum(ign[3:4]))
-
-        # Metasedimentary and metaigneous are a simple percentage of the samples tagged as
-        # metamorphic in each region
-        metased = count(metamorphic_cats.sed .& t) / npoints * 100
-        metaign = count(metamorphic_cats.ign .& t) / npoints * 100
+        # Get non volcanic / plutonic data from the distribution tuple and recast to fraction
+        # of global area (dist2 is normalized to 100% of the regional area)
+        ign_out = [dist2_ign, dist2.carbonatite, dist2.ign_undiff] .* fractional_contrib
 
         # Save all data to the results array in the order [total; subtypes] 
         sed_out = [sum(sed); sed]
         volc_out = [sum(volc); volc]
         plut_out = [sum(plut); plut]
-        ign_out = [sum(ign); ign[3:4]]
-        met_out = [met, metased, metaign, dist2.met_undiff]
-        result[:,i] .= [sed_out; volc_out; plut_out; ign_out; met_out]
+        met_out = [met_total, metased, metaign, met_undiff]
+        result[:,i] .= [sed_out; ign_out; volc_out; plut_out; met_out]
+
+        # Convert from 100% normalization to % of total global surface area
+        result[:,i] .*= dist_cont[region[i]] / 100
     end
+    
 
     # Define labels (down here so it's easier to compare to the arrays above)
     sed_label = ["Total Sedimentary"; string.(collect(minorsed)); "Undifferentiated Sedimentary"]
@@ -406,16 +407,5 @@
         ign_label; met_label], result))
     )
 
-    # # Figure out where continent.NA samples are
-    # using CairoMakie
-    # using GeoMakie      # Must be @0.5.0 until they fix v0.6
-    # using ImageMagick
-    # f = Figure(resolution=(1200,1200), fontsize=24)
-    # ax1 = GeoAxis(f[1,1]; dest = "+proj=wintri", coastlines=true)
-    # h = CairoMakie.scatter!(ax1, 
-    #     rocklon[continent.NA], rocklat[continent.NA], 
-    #     markersize = 10
-    # )
-    # save("unknowncontinent.pdf", f)
 
 ## --- End of File

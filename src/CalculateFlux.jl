@@ -359,11 +359,9 @@
         
         # Normalize to the abundance of the constituent class, and to the contribution of
         # the region of interest to total global surface area
-        # fractional_contrib = dist_cont[region[i]] / 100
-        fractional_contrib = 1.0
-        sed .= sed ./ sum(sed) .* dist2.sed * fractional_contrib
-        volc .= volc ./ sum(volc) .* dist2.volc * fractional_contrib
-        plut .= plut ./ sum(plut) .* dist2.plut * fractional_contrib
+        sed .= sed ./ sum(sed) .* dist2.sed
+        volc .= volc ./ sum(volc) .* dist2.volc
+        plut .= plut ./ sum(plut) .* dist2.plut
         
         # Percent metasedimentary and metaigneous rocks (relative to global area), splitting
         # doubly-matched samples equally so as to not artifically inflate the percentages
@@ -371,27 +369,34 @@
         metased = count(megaclass.metased .& .!megaclass.metaign .& s) + split_overlap
         metaign = count(megaclass.metaign .& .!megaclass.metased .& s) + split_overlap
         
-        metased /= (nregion * 100 * fractional_contrib)
-        metaign /= (nregion * 100 * fractional_contrib)
-        met_undiff = dist2.met_undiff * fractional_contrib
+        metased = metased / nregion * 100
+        metaign = metaign / nregion * 100
+        met_undiff = dist2.met_undiff
         met_total = metased + metaign + met_undiff
-
 
         # Get non volcanic / plutonic data from the distribution tuple and recast to fraction
         # of global area (dist2 is normalized to 100% of the regional area)
-        ign_out = [dist2_ign, dist2.carbonatite, dist2.ign_undiff] .* fractional_contrib
+        ign_out = [dist2_ign, dist2.carbonatite, dist2.ign_undiff]
+
+        # Convert data from 100% of region to % of total surface area 
+        area_frac = dist_cont[region[i]] / 100
+
+        ign_out = ign_out .* area_frac
+        sed_out = [sum(sed); sed] .* area_frac
+        volc_out = [sum(volc); volc] .* area_frac
+        plut_out = [sum(plut); plut] .* area_frac
+        met_out = [met_total, metased, metaign, met_undiff] .* area_frac
 
         # Save all data to the results array in the order [total; subtypes] 
-        sed_out = [sum(sed); sed]
-        volc_out = [sum(volc); volc]
-        plut_out = [sum(plut); plut]
-        met_out = [met_total, metased, metaign, met_undiff]
         result[:,i] .= [sed_out; ign_out; volc_out; plut_out; met_out]
-
-        # Convert from 100% normalization to % of total global surface area
-        result[:,i] .*= dist_cont[region[i]] / 100
     end
     
+    # Normalize each set of results to the global total 
+    for i = 1:size(result)[1]
+        normresult = result[i, 1:end-1] ./ sum(result[i, 1:end-1]) * result[i,end]
+        result[i, 1:end-1] .= normresult
+    end
+
 
     # Define labels (down here so it's easier to compare to the arrays above)
     sed_label = ["Total Sedimentary"; string.(collect(minorsed)); "Undifferentiated Sedimentary"]

@@ -68,56 +68,39 @@
 ## --- Terminal printout to copy paste into the LaTeX-formatting Excel sheet 
     comp = NamedTuple{keys(class)}([(
         comp = round.([result[:,k][i] for i in eachindex(majors)], sigdigits=3),
-        sem = round.([result_err[:,k][i]*2 for i in eachindex(majors)], sigdigits=1)
+        sem = round.([result_err[:,k][i] for i in eachindex(majors)], sigdigits=1)
     ) for k in eachindex(keys(class))])
 
-    # Pre-computed compositions
-    target = (:sed, :volc, :plut, :bulk)
+    # Sedimentary, volcanic, and plutonic report only wt.% without error
+    target = (:sed, :volc, :plut,)
     out = fill("", length(majors)+1)
     for t in target
         for i in eachindex(majors) 
-            out[i] *= "\$ $(comp[t].comp[i]) \\pm $(comp[t].sem[i]) \$; "
+            out[i] *= "$(comp[t].comp[i]); "
         end
         out[end] *= "$(round(sum(comp[t].comp), sigdigits=4)); "
     end
 
-    # Anhydrous majors, doing The Most(™) so it's immune to changes in element order
-    k = findfirst(x->x==:bulk, keys(class))
-    index = collect(1:length(majors))[1:end .!= findfirst(x->x==:Volatiles, majors)]
-    anhydrous_comp = [result[:,k][i] for i = index]
-    anhydrous_sem = [result_err[:,k][i]*2 for i = index]
-    
-    # Normalize, without the function so I can make sure we're propagating error correctly
-    # Also round at the same time
-    sum_a = sum(anhydrous_comp)
-    anhydrous_comp = round.(anhydrous_comp ./ sum_a .* 100, sigdigits=3)
-    anhydrous_sem = round.(anhydrous_sem ./ sum_a .* 100, sigdigits=1)
-
-    out_anh = fill("", length(majors)+1)
-    for i = index
-        out_anh[i] *= "\$ $(anhydrous_comp[i]) \\pm $(anhydrous_sem[i]) \$"
+    # Whole-earth estimate reported with error
+    for i in eachindex(majors)
+        out[i] *= "\$ $(comp.bulk.comp[i]) \\pm $(comp.bulk.sem[i]) \$; "
     end
-    out_anh[end] = string(round(sum(anhydrous_comp), sigdigits=4))
+    out[end] *= "$(round(sum(comp.bulk.comp), sigdigits=4)); "
 
-    # Print to terminal 
-    println("composition of sed / volc / plut / bulk / anhydrous")
+    println("composition of sed / volc / plut / bulk")
     for i in eachindex(out)
-        println("$(out[i] * out_anh[i])")
+        println("$(out[i])")
     end
 
 
 ## --- Compute mixing ratios for other crust composition estimates
     # Hypothesis: other estimates can be approximated by mixing our estimates in different 
     # proportions. Separate into sed / plut / volc.
-    # 
-    # For comparison, we want to also show the mix for our bulk dataset, but because this 
-    # is just a measure of surficial abundance, we want to normalize values by this number
 
     # In order: SiO2, Al2O3, FeOT, TiO2, MgO, CaO, Na2O, K2O, Volatiles
     this_study = NamedTuple{keys(class)}([result[:,k][i] for i in eachindex(majors)] 
         for k in eachindex(keys(class))
     )
-    anhydrous = copy(this_study.bulk); anhydrous[findfirst(x->x==:Volatiles, majors)] = 0
     pease = [59.5, 17.3, 6.53, 0.901, 2.88, 5.39, 4.14, 3.24, 0.129]
     rudnickgao = [66.62, 15.4, 5.04, 0.64, 2.48, 3.59, 3.27, 2.8, 0]
     gao = [58.48, 12.12, 4.6, 0.57, 3.73, 7.41, 2.57, 2.27, 7.36]
@@ -127,35 +110,25 @@
 
     # Calculate percent of each endmember represented in each estimate
     mix_this_study = nnls(endmembers, this_study.bulk)
-    mix_anhydrous = nnls(endmembers, anhydrous)
     mix_pease = nnls(endmembers, pease)
     mix_rudnickgao = nnls(endmembers, rudnickgao)
     mix_gao = nnls(endmembers, gao)
 
     # Calculate misfit
     misfit_this_study = sum((endmembers * mix_this_study - this_study.bulk).^2)
-    misfit_anhydrous = sum((endmembers * mix_anhydrous - anhydrous).^2)
     misfit_pease = sum((endmembers * mix_pease - pease).^2)
     misfit_rudnickgao = sum((endmembers * mix_rudnickgao - rudnickgao).^2)
     misfit_gao = sum((endmembers * mix_gao - gao).^2)
-
-    # # Normalize to surficial abundance of each endmember 
-    # mix_this_study_norm = mix_this_study ./ mix_this_study
-    # mix_anhydrous_norm = mix_anhydrous ./ mix_this_study
-    # mix_pease_norm = mix_pease ./ mix_this_study
-    # mix_rudnickgao_norm = mix_rudnickgao ./ mix_this_study
-    # mix_gao_norm = mix_gao ./ mix_this_study
     
     # Format for LaTeX-formatting Excel sheet (bulk, anhydrous, and other estimates)
     out = fill("", size(endmembers)[2] + 1)
     out = hcat(
         round.([mix_this_study.*100; misfit_this_study], sigdigits=3),
-        round.([mix_anhydrous.*100; misfit_anhydrous], sigdigits=3),
-        round.([mix_gao.*100; misfit_gao], sigdigits=3),
         round.([mix_rudnickgao.*100; misfit_rudnickgao], sigdigits=3),
+        round.([mix_gao.*100; misfit_gao], sigdigits=3),
         round.([mix_pease.*100; misfit_pease], sigdigits=3),
     )
-    println("sed / volc / plut mixing ratios for: bulk / anhydrous / Gao / R&G / Pease")
+    println("sed / volc / plut mixing ratios for: bulk / R&G / Gao / Pease")
     for i in 1:size(out)[1]
         println(join(out[i,:], ";"))
     end

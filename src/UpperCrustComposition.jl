@@ -105,22 +105,6 @@
         println("$(out[i] * out_anh[i])")
     end
 
-    # # Alternate views
-    # @info """Major element composition by selected lithologic class (± 2 s.e):
-    #          $(join(rpad.(majors, 8), " "))
-    # Bulk:    $(join(rpad.(comp.bulk.comp, 8), " "))
-    #        ± $(join(rpad.(comp.bulk.sem, 8), " "))
-
-    # Sed:     $(join(rpad.(comp.sed.comp, 8), " "))
-    #        ± $(join(rpad.(comp.sed.sem, 8), " ")) 
-
-    # Plut:    $(join(rpad.(comp.plut.comp, 8), " "))
-    #        ± $(join(rpad.(comp.plut.sem, 8), " "))
-
-    # Volc:    $(join(rpad.(comp.volc.comp, 8), " "))
-    #        ± $(join(rpad.(comp.volc.sem, 8), " "))
-    # """
-
 
 ## --- Compute mixing ratios for other crust composition estimates
     # Hypothesis: other estimates can be approximated by mixing our estimates in different 
@@ -165,13 +149,13 @@
     # Format for LaTeX-formatting Excel sheet (bulk, anhydrous, and other estimates)
     out = fill("", size(endmembers)[2] + 1)
     out = hcat(
-        round.([mix_this_study; misfit_this_study], sigdigits=3),
-        round.([mix_anhydrous; misfit_anhydrous], sigdigits=3),
-        round.([mix_rudnickgao; misfit_rudnickgao], sigdigits=3),
-        round.([mix_gao; misfit_gao], sigdigits=3),
-        round.([mix_pease; misfit_pease], sigdigits=3),
+        round.([mix_this_study.*100; misfit_this_study], sigdigits=3),
+        round.([mix_anhydrous.*100; misfit_anhydrous], sigdigits=3),
+        round.([mix_gao.*100; misfit_gao], sigdigits=3),
+        round.([mix_rudnickgao.*100; misfit_rudnickgao], sigdigits=3),
+        round.([mix_pease.*100; misfit_pease], sigdigits=3),
     )
-    println("sed / volc / plut mixing ratios for: bulk / anhydrous / R&G / Gao / Pease")
+    println("sed / volc / plut mixing ratios for: bulk / anhydrous / Gao / R&G / Pease")
     for i in 1:size(out)[1]
         println(join(out[i,:], ";"))
     end
@@ -202,9 +186,9 @@
     # Print to terminal 
     out = fill("", size(endmembers)[2] + 1)
     out = hcat(
-        round.([mix_bulk; misfit_bulk], sigdigits=3),
-        round.([mix_anhyd; misfit_anhyd], sigdigits=3),
-        round.([mix_muller; misfit_muller], sigdigits=3),
+        round.([mix_bulk.*100; misfit_bulk], sigdigits=3),
+        round.([mix_anhyd.*100; misfit_anhyd], sigdigits=3),
+        round.([mix_muller.*100; misfit_muller], sigdigits=3),
     )
     println("sed / volc / plut mixing ratios for: bulk / anhydrous / Muller")
     for i in 1:size(out)[1]

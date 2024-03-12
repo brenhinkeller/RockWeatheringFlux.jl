@@ -118,50 +118,52 @@
     p = Plots.palette(colorpalette, 5)
 
     # Bulk Earth
-    h1 = spidergram(rudnick_gao, label="Rudnick and Gao (Whole Earth)", 
+    h1 = spidergram(rudnick_gao, label="Rudnick and Gao", 
         markershape=:diamond, seriescolor=p[1], msc=:auto, markersize=6,
         legend=:topright, legendfont=10, titlefont=16,
-        size=(700,400), title="A. Whole Earth Averages", titleloc=:left,
+        size=(700,400), title="A. Surface Earth Averages", titleloc=:left,
         left_margin=(15,:px),
         fontfamily=:Helvetica, 
     )
-    spidergram!(h1, condie, label="Condie (Whole Earth)",
+    spidergram!(h1, condie, label="Condie",
         markershape=:diamond, seriescolor=p[2], msc=:auto, markersize=6,)
     spidergram!(h1, gao, label="Gao et al. (Central East China)",
         markershape=:diamond, seriescolor=p[3], msc=:auto, markersize=6,)
     spidergram!(h1, GloRiSe, label="Muller et al. (Suspended Sediment)",
         markershape=:diamond, seriescolor=p[4], msc=:auto, markersize=6,
         linestyle=:dot)
-    spidergram!(h1, ucc.bulk, label="This Study",
+    spidergram!(h1, ucc.bulk, label="This Study (Surface Earth)",
         markershape=:circle, seriescolor=p[5], msc=:auto, markersize=5)
     ylims!(4,200)
     savefig("$filepath/spidergram_bulk.pdf")
     # display(h1)
 
     # Major lithologies 
-    h4 = spidergram(ucc.bulk, label="Whole Earth Average",
+    h4 = spidergram(ucc.bulk, label="Surface Earth Average",
     markershape=:circle, seriescolor=p[5], msc=:auto, markersize=5,
         legend=:topright, legendfont=10, titlefont=16,
-        size=(700,400), title="B. Major Lithology Averages", titleloc=:left,
+        size=(700,400), title="B. Major Lithologic Classes", titleloc=:left,
         left_margin=(15,:px),
         fontfamily=:Helvetica, 
     )
-    spidergram!(h4, ucc.sed, label="This Study (Sedimentary)",
+    spidergram!(h4, ucc.sed, label="Sedimentary",
         markershape=:circle, seriescolor=p[1], msc=:auto, markersize=5,)
-    spidergram!(h4, ucc.ign, label="This Study (Igneous)",
+    spidergram!(h4, ucc.volc, label="Volcanic",
         markershape=:circle, seriescolor=p[2], msc=:auto, markersize=5,)
+    spidergram!(h4, ucc.plut, label="Plutonic",
+        markershape=:circle, seriescolor=p[3], msc=:auto, markersize=5,)
     ylims!(4,200)
     savefig("$filepath/spidergram_lith.pdf")
 
     # Igneous rocks
-    h2 = spidergram(ucc.bulk, label="Whole Earth Average",
+    h2 = spidergram(ucc.bulk, label="Surface Earth Average",
         markershape=:circle, seriescolor=p[5], msc=:auto, markersize=5,
         legend=:topright, legendfont=10, titlefont=16,
-        size=(700,400), title="C. Igneous", titleloc=:left,
+        size=(700,400), title="C. Igneous Endmembers", titleloc=:left,
         left_margin=(15,:px),
         fontfamily=:Helvetica, 
     )
-    spidergram!(h2, ucc.ign, label="All Igneous",
+    spidergram!(h2, ucc.ign, label="Average Igneous",
         markershape=:circle, seriescolor=p[1], msc=:auto, markersize=5)
     spidergram!(h2, ucc.granite, label="Granite",
         markershape=:circle, seriescolor=p[2], msc=:auto, markersize=5)
@@ -172,10 +174,10 @@
     # display(h2)
 
     # Shales
-    h3 = spidergram(ucc.bulk, label="Whole Earth Average (This Study)",
+    h3 = spidergram(ucc.bulk, label="Surface Earth Average (This Study)",
         markershape=:circle, seriescolor=p[5], msc=:auto, markersize=5,
         legend=:topright, legendfont=10, titlefont=16,
-        size=(700,400), title="D. Shales and Greywacke", titleloc=:left,
+        size=(700,400), title="D. Fine Grained Sedimentary Rocks", titleloc=:left,
         left_margin=(15,:px),
         fontfamily=:Helvetica, 
     )

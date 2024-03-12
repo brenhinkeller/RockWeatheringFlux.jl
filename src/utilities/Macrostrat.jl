@@ -106,7 +106,7 @@
         try
             parsed["success"]["data"]["burwell"][1]["lith"]
         catch error
-            resp = HTTP.get("https://macrostrat.org/api/mobile/map_query?lat=$lat&lng=$lon&z=1")
+            resp = HTTP.get("https://macrostrat.org/api/mobile/map_query?lat=$lat&lng=$lon&z=5")
             str = String(resp.body)
             parsed = JSON.Parser.parse(str)
         end

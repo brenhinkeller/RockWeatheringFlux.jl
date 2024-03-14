@@ -1,6 +1,6 @@
 # Depending on the number of points requested from the Macrostrat / Burwell API, this code
 # may take multiple days to run. Recommend running from the command line as a background
-# process: nohup julia src/ParseMacrostrat.jl &
+# process: nohup julia --project="Project.toml" src/ParseMacrostrat.jl &
 
 ## --- Set up
     # Packages

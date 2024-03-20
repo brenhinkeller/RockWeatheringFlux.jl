@@ -10,24 +10,24 @@
 
 
 ## --- Generate random points on the continental crust
+    @info "Script started."
     npoints = 1_000_000
-    savepts = round(Int, npoints / 100_000)
+    saveinterval = 10_000
+    savepts = round(Int, npoints / saveinterval)
     etopo = get_etopo("elevation")
     rocklat, rocklon, elevations = gen_continental_points(npoints, etopo)
 
 
-## --- Start timer, estimate runtime, and print to terminal
+## --- Get data for each point from the Burwell / Macrostrat API
     start = now()
     @info """
     Starting API calls: $(Dates.Date(start)) $(Dates.format(start, "HH:MM"))
 
     Okay, shouldn't take long. Between an hour and, um, 11 months*. Somewhere in there.
 
-     * Each group of 100,000 samples takes roughly 5 hours.
+     * A set of 100,000 samples takes roughly 5 hours.
     """
 
-
-## --- Get data for each point from the Burwell / Macrostrat API
     savefilename = "responses"
     zoom = 11
     responses = Array{Any}(undef, npoints, 1)
@@ -47,7 +47,7 @@
         sleep(0.05)
 
         # Checkpoint save and garbage collect every 10,000 points
-        if i % 100_000 == 0
+        if i % saveinterval == 0
             GC.gc()
             parsed = parse_macrostrat_responses(responses, i)
             fid = h5open("output/macrostrat/$savefilename$i.h5", "w")
@@ -66,8 +66,8 @@
                 fid["npoints"] = npoints
             close(fid)
 
-            println("Save point $(round(Int, i/100000))/$savepts at $(Dates.Date(now())) $(
-                Dates.format(now(), "HH:MM"))"
+            println("Save point $(round(Int, i/saveinterval))/$savepts at $(Dates.Date(now())) 
+                $(Dates.format(now(), "HH:MM"))"
             )
         end
     end
@@ -122,9 +122,7 @@
 
     bulktypes = create_group(fid, "type")
         # Rock types
-        macro_cats = match_rocktype(parsed.rocktype, parsed.rockname, 
-            parsed.rockdescrip,
-        )
+        macro_cats = match_rocktype(parsed.rocktype, parsed.rockname, parsed.rockdescrip)
         a = Array{Int64}(undef, length(macro_cats[1]), length(macro_cats))
         for i in eachindex(keys(macro_cats))
             for j in eachindex(macro_cats[i])
@@ -133,17 +131,16 @@
         end
         bulktypes["macro_cats"] = a
         bulktypes["macro_cats_head"] = string.(collect(keys(macro_cats))) 
-
-        # Rock names
-        name_cats = match_rockname(parsed.rocktype, parsed.rockname, parsed.rockdescrip)
-        a = Array{Int64}(undef, length(name_cats[1]), length(name_cats))
-        for i in eachindex(keys(name_cats))
-            for j in eachindex(name_cats[i])
-                a[j,i] = ifelse(name_cats[i][j], 1, 0)
+        
+        # Metamorphic rocks 
+        metamorph_cats = find_metamorphics(parsed.rocktype, parsed.rockname, parsed.rockdescrip)
+        a = Array{Int64}(undef, length(metamorph_cats[1]), length(metamorph_cats))
+        for i in eachindex(keys(metamorph_cats))
+            for j in eachindex(metamorph_cats[i])
+                a[j,i] = ifelse(metamorph_cats[i][j], 1, 0)
             end
         end
-        bulktypes["name_cats"] = a
-        bulktypes["name_cats_head"] = string.(collect(keys(name_cats)))
+        bulktypes["metamorphic_cats"] = a
     
     close(fid)
 

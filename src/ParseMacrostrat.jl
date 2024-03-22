@@ -12,7 +12,7 @@
 ## --- Generate random points on the continental crust
     @info "Script started."
     npoints = 1_000_000
-    saveinterval = 10_000
+    saveinterval = 1_000_000
     savepts = round(Int, npoints / saveinterval)
     etopo = get_etopo("elevation")
     rocklat, rocklon, elevations = gen_continental_points(npoints, etopo)
@@ -25,20 +25,19 @@
 
     Okay, shouldn't take long. Between an hour and, um, 11 months*. Somewhere in there.
 
-     * A set of 100,000 samples takes roughly 5 hours.
+     * A set of 1,000 samples takes roughly 3 minutes.
     """
 
     savefilename = "responses"
-    zoom = 11
-    responses = Array{Any}(undef, npoints, 1)
+    responses = Array{Union{Dict{String, Any}, String}}(undef, npoints, 1)
     for i = 1:npoints
         try
-            responses[i] = query_macrostrat(rocklat[i], rocklon[i], zoom)
+            responses[i] = query_macrostrat(rocklat[i], rocklon[i])
         catch
             try
                 # Wait and try again
                 sleep(10)
-                responses[i] = query_macrostrat(rocklat[i], rocklon[i], zoom)
+                responses[i] = query_macrostrat(rocklat[i], rocklon[i])
             catch
                 # If still nothing, move on
                 responses[i] = "No response"
@@ -46,7 +45,7 @@
         end
         sleep(0.05)
 
-        # Checkpoint save and garbage collect every 10,000 points
+        # Checkpoint save and garbage collect at save point intervals
         if i % saveinterval == 0
             GC.gc()
             parsed = parse_macrostrat_responses(responses, i)

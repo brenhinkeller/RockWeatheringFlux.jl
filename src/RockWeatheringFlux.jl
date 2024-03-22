@@ -11,6 +11,9 @@ module RockWeatheringFlux
     # File reading
     using HDF5, DelimitedFiles
 
+    # Macrostrat API query 
+    using JLD, HTTP, JSON
+
     # General requirements
     using Static 
     using Colors: RGB, Colorant

@@ -25,7 +25,7 @@
 
     Okay, shouldn't take long. Between an hour and, um, 11 months*. Somewhere in there.
 
-     * A set of 1,000 samples takes roughly 3 minutes.
+     * A set of 100,000 samples takes 4-5 hours.
     """
 
     savefilename = "responses"

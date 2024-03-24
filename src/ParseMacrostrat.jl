@@ -12,7 +12,7 @@
 ## --- Generate random points on the continental crust
     @info "Script started."
     npoints = 1_000_000
-    saveinterval = 1_000_000
+    saveinterval = 100_000
     savepts = round(Int, npoints / saveinterval)
     etopo = get_etopo("elevation")
     rocklat, rocklon, elevations = gen_continental_points(npoints, etopo)
@@ -30,6 +30,7 @@
 
     savefilename = "responses"
     responses = Array{Union{Dict{String, Any}, String}}(undef, npoints, 1)
+    skipcount = 0
     for i = 1:npoints
         try
             responses[i] = query_macrostrat(rocklat[i], rocklon[i])
@@ -41,6 +42,7 @@
             catch
                 # If still nothing, move on
                 responses[i] = "No response"
+                global skipcount += 1
             end
         end
         sleep(0.05)
@@ -50,24 +52,27 @@
             GC.gc()
             parsed = parse_macrostrat_responses(responses, i)
             fid = h5open("output/macrostrat/$savefilename$i.h5", "w")
-                fid["rocklat"] = rocklat
-                fid["rocklon"] = rocklon
-                fid["elevation"] = elevations
-                fid["agemax"] = parsed.agemax
-                fid["agemin"] = parsed.agemin
-                fid["age"] = parsed.age
-                fid["rocktype"] = parsed.rocktype
-                fid["rockname"] = parsed.rockname
-                fid["rockdescrip"] = parsed.rockdescrip
-                fid["rockstratname"] = parsed.rockstratname
-                fid["rockcomments"] = parsed.rockcomments
-                fid["reference"] = parsed.refstrings
-                fid["npoints"] = npoints
+            g = create_group(fid, "vars")
+                g["rocklat"] = rocklat
+                g["rocklon"] = rocklon
+                g["elevation"] = elevations
+                g["agemax"] = parsed.agemax
+                g["agemin"] = parsed.agemin
+                g["age"] = parsed.age
+                g["rocktype"] = parsed.rocktype
+                g["rockname"] = parsed.rockname
+                g["rockdescrip"] = parsed.rockdescrip
+                g["rockstratname"] = parsed.rockstratname
+                g["rockcomments"] = parsed.rockcomments
+                g["reference"] = parsed.refstrings
+                g["npoints"] = npoints
             close(fid)
 
-            println("Save point $(round(Int, i/saveinterval))/$savepts at $(Dates.Date(now())) 
-                $(Dates.format(now(), "HH:MM"))"
-            )
+            # Print info to terminal
+            point = round(Int, i/saveinterval)
+            day = Dates.Date(now())
+            time = Dates.format(now(), "HH:MM")
+            println("Save point $point/$savepts at $day $time. No response from $skipcount / $i samples.")
         end
     end
 
@@ -121,7 +126,7 @@
 
     bulktypes = create_group(fid, "type")
         # Rock types
-        macro_cats = match_rocktype(parsed.rocktype, parsed.rockname, parsed.rockdescrip)
+        macro_cats = match_rocktype(parsed.rocktype, parsed.rockname, parsed.rockdescrip, showprogress=false)
         a = Array{Int64}(undef, length(macro_cats[1]), length(macro_cats))
         for i in eachindex(keys(macro_cats))
             for j in eachindex(macro_cats[i])
@@ -132,7 +137,7 @@
         bulktypes["macro_cats_head"] = string.(collect(keys(macro_cats))) 
         
         # Metamorphic rocks 
-        metamorph_cats = find_metamorphics(parsed.rocktype, parsed.rockname, parsed.rockdescrip)
+        metamorph_cats = find_metamorphics(parsed.rocktype, parsed.rockname, parsed.rockdescrip, showprogress=false)
         a = Array{Int64}(undef, length(metamorph_cats[1]), length(metamorph_cats))
         for i in eachindex(keys(metamorph_cats))
             for j in eachindex(metamorph_cats[i])

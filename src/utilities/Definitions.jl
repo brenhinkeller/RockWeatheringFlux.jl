@@ -253,7 +253,7 @@
         andesite = ("andesit", "andeste", "boninite", "icelandite", "marianite", "adakite", 
             "propylite",)
         dacite = ("dacit", "santorinite", "ignimbrite",)
-        rhyolite = ("rhyolit", "felsite", "liparite", "felsic", "silicic", "pumice", 
+        rhyolite = ("rhyolit", "felsite", "liparite", "silicic", "pumice", 
             "obsidian", "dellenite", "rhyodacite", "ignimbrite", "lenticulite", 
             "halleflinta", "rhyoite")
         alk_volc = ("polzenite", "hauynite", "arsoite", "benmoreite", "camptonite", 
@@ -287,7 +287,7 @@
         granodiorite = ("granodiorite",)
         granite = ("granit", "microgranite", "adamellite", "aplite", "charnockite", 
             "granophyre", "rapakivi", "monzonit", "monzonize", "mangerite", "greisen", 
-            "pegmat", "adamelllite", "adamelite", "unakite")
+            "pegmat", "adamelllite", "adamelite", "unakite", "felsic",)
         alk_plut = ("syenit", "seyenite", "alaskite", "borolanite", "bostonite", "durbachite", 
             "foyaite", "jacupirangite", "juvite", "kentallenite", "larvikite", "lujavrite",
             "nordmarkite", "orthoclasite", "shonkinite", "sommaite", "kaersutitite",

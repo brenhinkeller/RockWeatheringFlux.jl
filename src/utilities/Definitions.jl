@@ -134,15 +134,15 @@
 
         
     Minor elements:
-    * Ag, As, Au, B, Ba, Be, Bi, C, Cd, Ce, Cl, Co, Cr₂O₃, Cs, Cu, Dy, Er, Eu, 
-        F, Ga, Gd, Hf, Hg, Ho, I, In, Ir, La, Li, Lu, MnO, Mo, Nb, Nd, NiO, Os, P₂O₅, Pb, 
+    * Ag, As, Au, B, Ba, Be, Bi, C, Cd, Ce, Cl, Co, Cr, Cs, Cu, Dy, Er, Eu, 
+        F, Ga, Gd, Hf, Hg, Ho, I, In, Ir, La, Li, Lu, MnO, Mo, Nb, Nd, Ni, Os, P₂O₅, Pb, 
         Pd, Pt, Pr, Re, Rb, Sb, Sc, Se, S, Sm, Sn, Sr, Ta, Tb, Te, Th, Tl, Tm, U, V, W, Y, 
         Yb, Zn, Zr
 
     Major elements are in part defined based on Faye and Ødegård 1975 
     (https://www.ngu.no/filearchive/NGUPublikasjoner/NGUnr\\_322\\_Bulletin\\_35\\_Faye\\_35\\_53.pdf).
 
-    Note that Cr₂O₃, MnO, NiO, and P₂O₅ are minor elements calculated as wt.% element 
+    Note that MnO and P₂O₅ are minor elements calculated as wt.% element 
     oxide.
 
     See also: `major_elements`

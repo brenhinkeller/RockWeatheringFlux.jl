@@ -282,9 +282,9 @@
             "theralite", "norite", "troctolite", "sebastianite", "eclogite", "amphibolit", 
             "rodingite", "corganite", "corgaspinite",)
         diorite = ("diorit", "iorite", "jotunite", "marscoite", "sanukite",)
-        trondhjemite =  ("trondhjemite", "trond",)
-        tonalite = ("tonalit", "adamellite", "enderbite",)
-        granodiorite = ("granodiorite",)
+        trondhjemite =  ("trondhjemite", "trond", "ttg",)
+        tonalite = ("tonalit", "adamellite", "enderbite", "ttg",)
+        granodiorite = ("granodiorite", "ttg",)
         granite = ("granit", "microgranite", "adamellite", "aplite", "charnockite", 
             "granophyre", "rapakivi", "monzonit", "monzonize", "mangerite", "greisen", 
             "pegmat", "adamelllite", "adamelite", "unakite", "felsic",)

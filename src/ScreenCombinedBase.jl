@@ -1,6 +1,8 @@
 ### --- Load data files (~10 minutes)
-    @time combined = importdataset("data/combined.tsv", '\t', importas=:Tuple)
+    combined = importdataset("data/combined.tsv", '\t', importas=:Tuple)
     npoints = length(combined.SiO2)
+
+    showprogress && @info """Database loaded $(Dates.format(now(), "HH:MM"))"""
 
     # Missing ages have already been filled in from age min / max bounds
     # Outliers have already been removed  

@@ -2,13 +2,17 @@
 
     # Geochemical 
     # dataset = "bulk"
-    dataset = "gard"
+    # dataset = "gard"
+    dataset = "combined"
 
     # Lithologic
     # N = "500"
-    N = "250K"
-    # N = "1M"
+    # N = "250K"
+    N = "1M"
     
+    if dataset == "bulk" || dataset == "gard"
+        @error "EarthChem and Gard datasets may not be compatible with current code base."
+    end
 
 ## --- File names
 

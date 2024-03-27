@@ -284,10 +284,81 @@
 
     """
     ```julia
+    match_rocktype(Rock_Group, Rock_Subgroup, Rock_Composition, Rock_Name)
+    ```
+    """
+    function match_rocktype(Rock_Group::T, Rock_Subgroup::T, Rock_Composition::T, Rock_Name::T) where T <: AbstractArray{String}
+        # Get rock type classifications, including metamorphic, and initialized BitVectors
+        typelist, cats = get_cats(false, length(Rock_Name))
+        metatypelist = get_metamorphic_class()
+        metacats = deepcopy(cats)
+
+        # Assign major lithologic class 
+        metacats.met .= Rock_Group .== "metamorphic"
+        metacats.sed .= Rock_Subgroup .== "metasedimentary"
+        metacats.ign .= Rock_Subgroup .== "metaigneous"
+        metacats.volc .= Rock_Subgroup .== "metavolcanic"
+        metacats.plut .= Rock_Subgroup .== "metaplutonic"
+
+        cats.ign .= (Rock_Group .== "igneous") .| metacats.ign;
+        cats.met .= (Rock_Group .== "metamorphic");
+        cats.sed .= (Rock_Group .== "sedimentary") .| metacats.sed;
+        cats.volc .= (Rock_Subgroup .== "volcanic") .| metacats.volc;
+        cats.plut .= (Rock_Subgroup .== "plutonic") .| metacats.plut;
+
+        # Match by major lithology 
+        minorsed, minorvolc, minorplut, minorign = get_rock_class()[2:5];
+
+        match_subset!(cats, cats.sed, typelist, (minorsed..., :sed,), Rock_Name);
+        match_subset!(cats, cats.met, typelist, (:met,), Rock_Name);
+        match_subset!(cats, cats.ign, typelist, (minorign..., :ign,), Rock_Name);
+        match_subset!(cats, cats.volc, typelist, (minorvolc..., :volc,), Rock_Name);
+        match_subset!(cats, cats.plut, typelist, (minorplut..., :plut,), Rock_Name);
+
+        match_subset!(metacats, metacats.sed, metatypelist, (minorsed..., :sed,), Rock_Name)
+        match_subset!(metacats, metacats.ign, metatypelist, (minorign..., :ign,), Rock_Name)
+        match_subset!(metacats, metacats.volc, metatypelist, (minorvolc..., :volc,), Rock_Name)
+        match_subset!(metacats, metacats.plut, metatypelist, (minorplut..., :plut,), Rock_Name)
+
+        # Weird shit happens with metamorphic rocks, so check rock name again
+        for k in keys(typelist)
+            for i in typelist[k]
+                cats[k] .= cats[k] .|| containsi.(Rock_Name, i)
+            end
+        end
+
+        t = find_unmatched(metacats);
+        for k in keys(metatypelist)
+            for i in metatypelist[k]
+                metacats[k][t] .|= containsi.(Rock_Name[t], i)
+            end
+        end
+
+        # Ensure metamorphic samples are only those with no known protolith 
+        include_minor!(cats)
+        include_minor!(metacats)
+        cats.met .&= .!(cats.ign .| cats.sed)
+        metacats.met .&= .!(metacats.ign .| metacats.sed)
+
+        # Remove soil samples 
+        t = Rock_Composition .== "soil"
+        for k in keys(cats)
+            cats[k][t] .= false
+            metacats[k][t] .= false
+        end
+        cats.cover[t] .= true
+
+        # Remove false positives and return
+        return rm_false_positives!(cats), metacats
+    end
+
+    
+    """
+    ```julia
     match_rocktype(writtentype::AbstractArray{String})
     ```
 
-    Return a `NamedTuple` of `BitVector`s catagorizing Macrostrat samples as sedimentary, 
+    Return a `NamedTuple` of `BitVector`s catagorizing samples as sedimentary, 
     igneous, metamorphic, and associated subtypes, or cover from types stored as strings 
     in `writtentype`.
 
@@ -346,6 +417,7 @@
 
         return cats
     end
+
 
     """
     ```julia

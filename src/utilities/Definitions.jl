@@ -233,7 +233,7 @@
         carb = ("carbonate", "calcite", "limestone", "dolo", "marl", "chalk", "coquina", 
             "biogenic", "travertine", "tavertine", "tufa", "calcarenite", "teravertine", 
             "marble", "calc silicate", "calcsilicate", "skarn",  "calcrete", "siderite", 
-            "magnesite")
+            "magnesite", "boundstone", "packstone", "grainstone", )
         evap = ("evaporite", "anhydrite", "gypsum", "trona", "halite", "sylvite", 
             "salt flat", "caliche", "exhalite", "sulfate deposit")
         chert = ("chert", "opal", "porcellanite", "diatomite", "novaculite", "iron", 

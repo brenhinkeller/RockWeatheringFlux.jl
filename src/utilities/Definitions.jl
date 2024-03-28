@@ -138,7 +138,7 @@
 
         
     Minor elements:
-    * Ag, As, Au, B, Ba, Be, Bi, C, Cd, Ce, Cl, Co, Cr, Cs, Cu, Dy, Er, Eu, 
+    * Ag, As, Au, B, Ba, Be, Bi, Cd, Ce, Cl, Co, Cr, Cs, Cu, Dy, Er, Eu, 
         F, Ga, Gd, Hf, Hg, Ho, I, In, Ir, La, Li, Lu, MnO, Mo, Nb, Nd, Ni, Os, P₂O₅, Pb, 
         Pd, Pt, Pr, Re, Rb, Sb, Sc, Se, S, Sm, Sn, Sr, Ta, Tb, Te, Th, Tl, Tm, U, V, W, Y, 
         Yb, Zn, Zr
@@ -154,7 +154,7 @@
     """
     function get_elements()
         majors = [:SiO2,:Al2O3,:FeOT,:TiO2,:MgO,:CaO,:Na2O,:K2O,:Volatiles]
-        minors = [:Ag,:As,:Au,:B,:Ba,:Be,:Bi,:C,:Cd,:Ce,:Cl,:Co,:Cr,:Cs,:Cu,
+        minors = [:Ag,:As,:Au,:B,:Ba,:Be,:Bi,:Cd,:Ce,:Cl,:Co,:Cr,:Cs,:Cu,
             :Dy,:Er,:Eu,:F,:Ga,:Gd,:Hf,:Hg,:Ho,:I,:In,:Ir,:La,:Li,:Lu,:MnO,:Mo,:Nb,:Nd,
             :Ni,:Os,:P2O5,:Pb,:Pd,:Pt,:Pr,:Re,:Rb,:Sb,:Sc,:Se,:S,:Sm,:Sn,:Sr,:Ta,:Tb,
             :Te,:Th,:Tl,:Tm,:U,:V,:W,:Y,:Yb,:Zn,:Zr

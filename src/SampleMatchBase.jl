@@ -28,20 +28,6 @@
     data = read(fid["bulk"]["data"])
     bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
 
-    # # Bulk rock name, type, and material (only required if not loading class matches)
-    # path = fid["bulktext"]["sampledata"]
-    # header = read(path["header"])
-    # index = read(path["index"])
-
-    # target = ["Rock_Name", "Type", "Material"]
-    # targetind = [findall(==(i), header)[1] for i in target]
-
-    # bulktext = NamedTuple{Tuple(Symbol.(target))}(
-    #     [lowercase.(read(path["elements"][target[i]]))[index[:,targetind[i]]] 
-    #         for i in eachindex(target)
-    #     ]
-    # )
-
     # Rock type matches
     header = read(fid["bulktypes"]["bulk_cats_head"])
     data = read(fid["bulktypes"]["bulk_cats"])
@@ -49,15 +35,6 @@
     bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
 
     close(fid)
-
-
-## --- Alternatively, do the matching yourself
-    # macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
-
-    # typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
-    # bulk_cats = match_rocktype(bulktext.Rock_Name, bulktext.Type, bulktext.Material, 
-    #     (minorsed..., :sed,), (minorvolc..., minorplut..., minorign..., :ign)
-    # )
 
 
 ## --- Remove misleading positives from the matches

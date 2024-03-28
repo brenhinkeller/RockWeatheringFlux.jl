@@ -26,7 +26,7 @@
     
     # Intermediate files 
     matchedbulk_io = "output/N_" * N * "/" * N * "_bulkidx_" * dataset * ".tsv"
-    eroded_out = "output/N_250K/250K_erodedmaterial_" * dataset * ".h5"
+    eroded_out = "output/N_" * N * "/" * N * "_erodedmaterial_" * dataset * ".h5"
 
     # Bulk continental crust
     ucc_out = "results/" * N * "_exposedcrust_" * dataset * ".tsv"

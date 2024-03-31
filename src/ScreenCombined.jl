@@ -11,7 +11,7 @@
     using LoopVectorization: @turbo
 
     # File name IO
-    fileout = "output/combined.h5"
+    fileout = "output/geochemistry/combined.h5"
 
     # Start timer 
     start = now()

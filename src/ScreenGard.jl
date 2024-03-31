@@ -9,7 +9,7 @@
     using LoopVectorization: @turbo
 
     # File name IO
-    fileout = "output/gard.h5"
+    fileout = "output/geochemistry/gard.h5"
 
     # Start timer 
     start = now()

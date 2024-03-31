@@ -14,17 +14,17 @@
 
 
 ## --- VERSION 1: FILE MATCHES EXISTING FORMAT
-    # Match rock class
-    macrostrat = (
-        rocktype = read(oldfid["vars"]["rocktype"]),
-        rockname = read(oldfid["vars"]["rockname"]),
-        rockdescrip = read(oldfid["vars"]["rockdescrip"]),
-    )
-    macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
-    metamorph_cats = find_metamorphics(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
+    # # Match rock class
+    # macrostrat = (
+    #     rocktype = read(oldfid["vars"]["rocktype"]),
+    #     rockname = read(oldfid["vars"]["rockname"]),
+    #     rockdescrip = read(oldfid["vars"]["rockdescrip"]),
+    # )
+    # macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
+    # metamorph_cats = find_metamorphics(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
 
-    # Copy old data over to the new file 
-    copy_object(oldfid, "vars", newfid, "vars")    # The stuff that isn't changed
+    # # Copy old data over to the new file 
+    # copy_object(oldfid, "vars", newfid, "vars")    # The stuff that isn't changed
 
 
 ## --- VERSION 2: FILE DOES NOT MATCH EXISTING FORMAT
@@ -47,12 +47,15 @@
         copy_object(oldfid["reference"], g, "reference")
         copy_object(oldfid["rockcomments"], g, "rockcomments")
         copy_object(oldfid["rockdescrip"], g, "rockdescrip")
-        copy_object(oldfid["rocklat"], g, "rocklat")
-        copy_object(oldfid["rocklon"], g, "rocklon")
         copy_object(oldfid["rockname"], g, "rockname")
         copy_object(oldfid["rockstratname"], g, "rockstratname")
         copy_object(oldfid["rocktype"], g, "rocktype")
 
+    # Trim rocklat and rocklon, if necessary 
+    npoints = length(macrostrat.rocktype)
+    g["rocklat"] = read(oldfid["rocklat"])[1:npoints]
+    g["rocklon"] = read(oldfid["rocklon"])[1:npoints]
+    
 
 ## --- BOTH VERSIONS: Copy new rock classes over to the new file 
     bulktypes = create_group(newfid, "type")

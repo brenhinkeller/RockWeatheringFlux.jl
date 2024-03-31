@@ -6,10 +6,10 @@
     dataset = "combined"
 
     # Lithologic
-    # version = 2023
-    version = 2024
-    N = 200_000;   tag = "200K"
-    # N = 250_000;   tag = "250K"
+    version = 2023
+    # version = 2024
+    # N = 200_000;   tag = "200K"
+    N = 250_000;   tag = "250K"
     # N = 1_000_000; tag = "1M"
     
     @info """ Datasets loaded:
@@ -25,16 +25,16 @@
 ## --- File names
 
     # Folder paths 
-    output = "output/N_$tag/" * dataset
-    results = "results/N_$tag/" * dataset
+    output = "output/N_$tag/" * dataset * "/"
+    results = "results/N_$tag/" * dataset * "/"
 
     # Geochemical and lithologic data 
     geochem_fid = "output/geochemistry/" * dataset * ".h5"
     macrostrat_io = "output/lithology/$version/responses$N.h5"
 
     # Surficial abundance (mapped and assigned)
-    surfacelith_mapped_out = "results/N_$tag/surfacelith_mapped.tsv"
-    surfacelith_calc_out = "results/N_$tag/surfacelith_calculated.tsv"
+    surfacelith_mapped_out = "results/N_$tag/surfacelith_mapped_v$version.tsv"
+    surfacelith_calc_out = "results/N_$tag/surfacelith_calculated_v$version.tsv"
     
     # Intermediate files 
     matchedbulk_io = output * "bulkind" * ".tsv"
@@ -54,7 +54,7 @@
     erodedcomp_out_err = results * "eroded_composition_err.tsv"
 
     export geochem_fid, macrostrat_io
-    export surficial_abundance_total_out, surficial_abundance_out
+    export surfacelith_mapped_out, surfacelith_calc_out
     export matchedbulk_io, eroded_out
     export ucc_out, ucc_out_err
     export erodedabs_out, erodedrel_out, erodedcomp_out

@@ -35,68 +35,68 @@
     
 
 ## --- Calculate erosion rate at each coordinate point of interest	
-    # # Load the slope variable from the SRTM15+ maxslope file
-    # srtm15_slope = h5read("output/srtm15plus_maxslope.h5", "vars/slope")
-    # srtm15_sf = h5read("output/srtm15plus_maxslope.h5", "vars/scalefactor")
+    # Load the slope variable from the SRTM15+ maxslope file
+    srtm15_slope = h5read("output/srtm15plus_maxslope.h5", "vars/slope")
+    srtm15_sf = h5read("output/srtm15plus_maxslope.h5", "vars/scalefactor")
 
-    # # Get slope at each coordinate point
-    # # Function returns the standard deviation of slope in each window, which we don't
-    # # actually care about propagating
-    # rockslope = movingwindow(srtm15_slope, rocklat, rocklon, srtm15_sf, n=5)
-    # rockslope = Measurements.value.(rockslope)
+    # Get slope at each coordinate point
+    # Function returns the standard deviation of slope in each window, which we don't
+    # actually care about propagating
+    rockslope = movingwindow(srtm15_slope, rocklat, rocklon, srtm15_sf, n=5)
+    rockslope = Measurements.value.(rockslope)
 
-    # # Calculate all erosion rates (mm/kyr) (propagate uncertainty)
-    # rock_ersn = emmkyr.(rockslope);
+    # Calculate all erosion rates (mm/kyr) (propagate uncertainty)
+    rock_ersn = emmkyr.(rockslope);
 
 
 ## --- Calculate denundation at each point
-    # # Area of land:
-    #     # Total: 149,733,926
-    #     # Antarctica: 14,200,000 
-    #     # Greenland: 2,166,086
-    #     # Area in this study = Total - (Antarctica + Greenland) = 133_367_840
-    # # Declare constants
-    # const crustal_density = 2750                            # kg/m³
-    # npoints = length(mbulk.SiO2)                            # Number of *matched* points
-    # unit_sample_area = (133_367_840 * 1000000) / npoints    # Area of continents / npoints (m²)
+    # Area of land:
+        # Total: 149,733,926
+        # Antarctica: 14,200,000 
+        # Greenland: 2,166,086
+        # Area in this study = Total - (Antarctica + Greenland) = 133_367_840
+    # Declare constants
+    const crustal_density = 2750                            # kg/m³
+    npoints = length(mbulk.SiO2)                            # Number of *matched* points
+    unit_sample_area = (133_367_840 * 1000000) / npoints    # Area of continents / npoints (m²)
 
-    # # Create file to save data
-    # fid = h5open(eroded_out, "w")
+    # Create file to save data
+    fid = h5open(eroded_out, "w")
 
-    # # Denundation at each point (kg/yr), for 
-    # sampleflux = [rock_ersn[i] * unit_sample_area * crustal_density * 1e-6 for i = 1:npoints];
+    # Denundation at each point (kg/yr), for 
+    sampleflux = [rock_ersn[i] * unit_sample_area * crustal_density * 1e-6 for i = 1:npoints];
 
-    # # Save to file
-    # sampleflux_val, sampleflux_err = unmeasurementify(sampleflux)
-    # bulk_denudation = create_group(fid, "bulk_denudation")
-    # write(bulk_denudation, "values", sampleflux_val)
-    # write(bulk_denudation, "errors", sampleflux_err)
+    # Save to file
+    sampleflux_val, sampleflux_err = unmeasurementify(sampleflux)
+    bulk_denudation = create_group(fid, "bulk_denudation")
+    write(bulk_denudation, "values", sampleflux_val)
+    write(bulk_denudation, "errors", sampleflux_err)
 
 
 ## --- Calculate flux of each element at each point
-    # # Define elements
-    # majors, minors = get_elements()
-    # allelements = [majors; minors]
-    # nelements = length(allelements)
+    # Define elements
+    majors, minors = get_elements()
+    allelements = [majors; minors]
+    nelements = length(allelements)
 
-    # # Preallocate file space
-    # element_flux = create_group(fid, "element_flux")
-    # elem_vals = create_dataset(element_flux, "values", Float64, (npoints, nelements))
-    # elem_errs = create_dataset(element_flux, "errors", Float64, (npoints, nelements))
-    # write(element_flux, "header", string.(allelements))
+    # Preallocate file space
+    element_flux = create_group(fid, "element_flux")
+    elem_vals = create_dataset(element_flux, "values", Float64, (npoints, nelements))
+    elem_errs = create_dataset(element_flux, "errors", Float64, (npoints, nelements))
+    write(element_flux, "header", string.(allelements))
 
-    # for i in eachindex(allelements)
-    #     # Since each Macrostrat point has a corresponding EarthChem sample, use that 
-    #     # sample to calculate flux of each element at each point
-    #     elementflux = [sampleflux[j] * mbulk[allelements[i]][j] * 1e-2 for j = 1:npoints]
+    for i in eachindex(allelements)
+        # Since each Macrostrat point has a corresponding EarthChem sample, use that 
+        # sample to calculate flux of each element at each point
+        elementflux = [sampleflux[j] * mbulk[allelements[i]][j] * 1e-2 for j = 1:npoints]
 
-    #     # Save to file
-    #     elementflux_val, elementflux_err = unmeasurementify(elementflux)
-    #     elem_vals[:,i] += elementflux_val
-    #     elem_errs[:,i] += elementflux_err
-    # end
+        # Save to file
+        elementflux_val, elementflux_err = unmeasurementify(elementflux)
+        elem_vals[:,i] += elementflux_val
+        elem_errs[:,i] += elementflux_err
+    end
 
-    # close(fid)
+    close(fid)
 
 
 ## --- Open the file
@@ -278,7 +278,7 @@
     dist = NamedTuple{keys(classfilter)}(
         count(classfilter[k])/length(classfilter[k])*100 for k in keys(classfilter)
     )
-    writedlm(surficial_abundance_out, vcat(["lithology" "surficial abundance"], 
+    writedlm(surfacelith_calc_out, vcat(["lithology" "surficial abundance"], 
         hcat(collect(string.(keys(dist))), collect(values(dist))))
     )
 
@@ -408,7 +408,7 @@
     cols = ["Lithology" reshape(collect(string.(keys(continent))), 1, :)]
 
     # Export file, values in percentages
-    writedlm(surficial_abundance_total_out, vcat(cols, hcat([sed_label; volc_label; plut_label; 
+    writedlm(surfacelith_mapped_out, vcat(cols, hcat([sed_label; volc_label; plut_label; 
         ign_label; met_label], result))
     )
 

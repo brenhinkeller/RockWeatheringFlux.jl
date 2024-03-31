@@ -6,40 +6,52 @@
     dataset = "combined"
 
     # Lithologic
-    # N = "500"
-    # N = "250K"
-    N = "1M"
+    # version = 2023
+    version = 2024
+    N = 200_000;   tag = "200K"
+    # N = 250_000;   tag = "250K"
+    # N = 1_000_000; tag = "1M"
     
+    @info """ Datasets loaded:
+    Geochemical: $dataset
+    Macrostrat: $tag
+    """
+
     if dataset == "bulk" || dataset == "gard"
         @error "EarthChem and Gard datasets may not be compatible with current code base."
     end
 
+
 ## --- File names
 
-    # Geochemical data 
-    geochem_fid = "output/" * dataset * ".h5"
+    # Folder paths 
+    output = "output/N_$tag/" * dataset
+    results = "results/N_$tag/" * dataset
 
-    # Lithologic data
-    macrostrat_io = "output/N_" * N * "/" * N * "_responses.h5"
-    surficial_abundance_total_out = "results/" * N * "_surficial_abundance_mapped.tsv"
-    surficial_abundance_out = "results/" * N * "_surficial_abundance.tsv"
+    # Geochemical and lithologic data 
+    geochem_fid = "output/geochemistry/" * dataset * ".h5"
+    macrostrat_io = "output/lithology/$version/responses$N.h5"
+
+    # Surficial abundance (mapped and assigned)
+    surfacelith_mapped_out = "results/N_$tag/surfacelith_mapped.tsv"
+    surfacelith_calc_out = "results/N_$tag/surfacelith_calculated.tsv"
     
     # Intermediate files 
-    matchedbulk_io = "output/N_" * N * "/" * N * "_bulkidx_" * dataset * ".tsv"
-    eroded_out = "output/N_" * N * "/" * N * "_erodedmaterial_" * dataset * ".h5"
+    matchedbulk_io = output * "bulkind" * ".tsv"
+    eroded_out = output * "erodedmaterial.h5"
 
     # Bulk continental crust
-    ucc_out = "results/" * N * "_exposedcrust_" * dataset * ".tsv"
-    ucc_out_err = "results/" * N * "_exposedcrust_err_" * dataset * ".tsv"
+    ucc_out = results * "exposedcrust.tsv"
+    ucc_out_err = results * "exposedcrust_err.tsv"
 
     # Eroded material: absolute, fractional contribution, composition
-    erodedabs_out = "results/" * N * "_eroded_absolute_" * dataset * ".tsv"
-    erodedrel_out = "results/" * N * "_eroded_fraction_" * dataset * ".tsv"
-    erodedcomp_out = "results/" * N * "_eroded_composition_" * dataset * ".tsv"
+    erodedabs_out = results * "eroded_absolute_mass.tsv"
+    erodedrel_out = results * "eroded_fraction_contributed.tsv"
+    erodedcomp_out = results * "eroded_composition.tsv"
 
-    erodedabs_out_err = "results/" * N * "_eroded_absolute_err_" * dataset * ".tsv"
-    erodedrel_out_err = "results/" * N * "_eroded_fraction_err_" * dataset * ".tsv"
-    erodedcomp_out_err = "results/" * N * "_eroded_composition_err_" * dataset * ".tsv"
+    erodedabs_out_err = results * "eroded_absolute_err.tsv"
+    erodedrel_out_err = results * "eroded_fraction_err.tsv"
+    erodedcomp_out_err = results * "eroded_composition_err.tsv"
 
     export geochem_fid, macrostrat_io
     export surficial_abundance_total_out, surficial_abundance_out

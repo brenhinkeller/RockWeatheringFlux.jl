@@ -4,14 +4,17 @@
     using RockWeatheringFlux
     using HDF5
 
-
-## --- Match rock names
+    # Load file 
     @info "Re-matching samples from $macrostrat_io"
-
-    # Macrostrat
     oldfid = h5open(macrostrat_io, "r")
 
-    # Get matches
+    # Open a new file
+    fid = split(macrostrat_io, ".")[1]
+    newfid = h5open(fid * "_2.h5" , "w")
+
+
+## --- VERSION 1: FILE MATCHES EXISTING FORMAT
+    # Match rock class
     macrostrat = (
         rocktype = read(oldfid["vars"]["rocktype"]),
         rockname = read(oldfid["vars"]["rockname"]),
@@ -20,14 +23,38 @@
     macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
     metamorph_cats = find_metamorphics(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
 
-
-## --- Put data in new file
-    # Create a new file and put the old file in it
-    fid = split(macrostrat_io, ".")[1]
-    newfid = h5open(fid * "_2.h5" , "w")
+    # Copy old data over to the new file 
     copy_object(oldfid, "vars", newfid, "vars")    # The stuff that isn't changed
 
-    # Rock types and rock names
+
+## --- VERSION 2: FILE DOES NOT MATCH EXISTING FORMAT
+    # Match rock class
+    macrostrat = (
+        rocktype = read(oldfid["rocktype"]),
+        rockname = read(oldfid["rockname"]),
+        rockdescrip = read(oldfid["rockdescrip"]),
+    )
+    macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
+    metamorph_cats = find_metamorphics(macrostrat.rocktype, macrostrat.rockname, macrostrat.rockdescrip)
+
+    # Create vars group and copy over static data
+    g = create_group(newfid, "vars")
+        copy_object(oldfid["age"], g, "age")
+        copy_object(oldfid["agemax"], g, "agemax")
+        copy_object(oldfid["agemin"], g, "agemin")
+        copy_object(oldfid["elevation"], g, "elevation")
+        copy_object(oldfid["npoints"], g, "npoints")
+        copy_object(oldfid["reference"], g, "reference")
+        copy_object(oldfid["rockcomments"], g, "rockcomments")
+        copy_object(oldfid["rockdescrip"], g, "rockdescrip")
+        copy_object(oldfid["rocklat"], g, "rocklat")
+        copy_object(oldfid["rocklon"], g, "rocklon")
+        copy_object(oldfid["rockname"], g, "rockname")
+        copy_object(oldfid["rockstratname"], g, "rockstratname")
+        copy_object(oldfid["rocktype"], g, "rocktype")
+
+
+## --- BOTH VERSIONS: Copy new rock classes over to the new file 
     bulktypes = create_group(newfid, "type")
 
     a = Array{Int64}(undef, length(macro_cats[1]), length(macro_cats))
@@ -50,41 +77,6 @@
 
     close(newfid)
     close(oldfid)
-
-
-## --- Or if you're working with really old files that don't have the updated structure:
-    # newfid = h5open(macrostrat_io, "w")
-
-    # # Copy over existing data
-    # g = create_group(newfid, "vars")
-    #     copy_object(oldfid["age"], g, "age")
-    #     copy_object(oldfid["agemax"], g, "agemax")
-    #     copy_object(oldfid["agemin"], g, "agemin")
-    #     copy_object(oldfid["elevation"], g, "elevation")
-    #     copy_object(oldfid["npoints"], g, "npoints")
-    #     copy_object(oldfid["reference"], g, "reference")
-    #     copy_object(oldfid["rockcomments"], g, "rockcomments")
-    #     copy_object(oldfid["rockdescrip"], g, "rockdescrip")
-    #     copy_object(oldfid["rocklat"], g, "rocklat")
-    #     copy_object(oldfid["rocklon"], g, "rocklon")
-    #     copy_object(oldfid["rockname"], g, "rockname")
-    #     copy_object(oldfid["rockstratname"], g, "rockstratname")
-    #     copy_object(oldfid["rocktype"], g, "rocktype")
-
-    # # Rock types and rock names
-    # bulktypes = create_group(newfid, "type")
-
-    # # Rock types
-    # a = Array{Int64}(undef, length(macro_cats[1]), length(macro_cats))
-    # for i in eachindex(keys(macro_cats))
-    #     for j in eachindex(macro_cats[i])
-    #         a[j,i] = ifelse(macro_cats[i][j], 1, 0)
-    #     end
-    # end
-    # bulktypes["macro_cats"] = a
-    # bulktypes["macro_cats_head"] = string.(collect(keys(macro_cats))) 
-
-    # close(newfid)
 
 
 ## --- Rename the files so I don't have to 

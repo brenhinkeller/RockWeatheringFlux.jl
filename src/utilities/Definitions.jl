@@ -9,16 +9,20 @@
     version = 2023
     # version = 2024
     # N = 200_000;   tag = "200K"
-    N = 250_000;   tag = "250K"
-    # N = 1_000_000; tag = "1M"
+    # N = 250_000;   tag = "250K"
+    N = 1_000_000; tag = "1M"
     
     @info """ Datasets loaded:
     Geochemical: $dataset
-    Macrostrat: $tag
+    Macrostrat: $tag ($version)
     """
 
+    # Warnings for sample sets that may not be compatible with current code 
     if dataset == "bulk" || dataset == "gard"
         @error "EarthChem and Gard datasets may not be compatible with current code base."
+    end
+    if (N==250_000 && version==2024)
+        error("$tag dataset does not exist for $version Macrostrat version.")
     end
 
 
@@ -150,15 +154,15 @@
 
         
     Minor elements:
-    * Ag, As, Au, B, Ba, Be, Bi, Cd, Ce, Cl, Co, Cr, Cs, Cu, Dy, Er, Eu, 
-        F, Ga, Gd, Hf, Hg, Ho, I, In, Ir, La, Li, Lu, MnO, Mo, Nb, Nd, Ni, Os, P₂O₅, Pb, 
+    * Ag, As, Au, B, Ba, Be, Bi, C, Cd, Ce, Cl, Co, Cr₂O₃, Cs, Cu, Dy, Er, Eu, 
+        F, Ga, Gd, Hf, Hg, Ho, I, In, Ir, La, Li, Lu, MnO, Mo, Nb, Nd, NiO, Os, P₂O₅, Pb, 
         Pd, Pt, Pr, Re, Rb, Sb, Sc, Se, Sm, Sn, Sr, Ta, Tb, Te, Th, Tl, Tm, U, V, W, Y, 
         Yb, Zn, Zr
 
     Major elements are in part defined based on Faye and Ødegård 1975 
     (https://www.ngu.no/filearchive/NGUPublikasjoner/NGUnr\\_322\\_Bulletin\\_35\\_Faye\\_35\\_53.pdf).
 
-    Note that MnO and P₂O₅ are minor elements calculated as wt.% element 
+    Note that Cr₂O₃, NiO, MnO, and P₂O₅ are minor elements reported as wt.% element 
     oxide.
 
     See also: `major_elements`
@@ -166,9 +170,9 @@
     """
     function get_elements()
         majors = [:SiO2,:Al2O3,:FeOT,:TiO2,:MgO,:CaO,:Na2O,:K2O,:Volatiles]
-        minors = [:Ag,:As,:Au,:B,:Ba,:Be,:Bi,:Cd,:Ce,:Cl,:Co,:Cr,:Cs,:Cu,
+        minors = [:Ag,:As,:Au,:B,:Ba,:Be,:Bi,:C,:Cd,:Ce,:Cl,:Co,:Cr2O3,:Cs,:Cu,
             :Dy,:Er,:Eu,:F,:Ga,:Gd,:Hf,:Hg,:Ho,:I,:In,:Ir,:La,:Li,:Lu,:MnO,:Mo,:Nb,:Nd,
-            :Ni,:Os,:P2O5,:Pb,:Pd,:Pt,:Pr,:Re,:Rb,:Sb,:Sc,:Se,:Sm,:Sn,:Sr,:Ta,:Tb,
+            :NiO,:Os,:P2O5,:Pb,:Pd,:Pt,:Pr,:Re,:Rb,:Sb,:Sc,:Se,:Sm,:Sn,:Sr,:Ta,:Tb,
             :Te,:Th,:Tl,:Tm,:U,:V,:W,:Y,:Yb,:Zn,:Zr
         ]
 
@@ -242,7 +246,7 @@
     function get_rock_class(; major::Bool=false)
         # Sedimentary
         siliciclast = ("siliciclast", "conglo", "sand", "psamm", "arenit", "arkos", "silt",
-            "breccia", "quartzite", "quarzite", "sst", "cgl")
+            "breccia", "quartzite", "quarzite", "sst", "cgl", "siliclastic")
         shale = ("lutite", "mud", "clay", "shale", "wacke", "argillite", "argillaceous", 
             "flysch", "pelit", "turbidite", "tasmanite", "slate", "phyllite", 
             "metapellite", "micaschist", "mica schist")

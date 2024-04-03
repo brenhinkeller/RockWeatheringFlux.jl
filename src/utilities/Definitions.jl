@@ -257,7 +257,7 @@
         evap = ("evaporite", "anhydrite", "gypsum", "trona", "halite", "sylvite", 
             "salt flat", "caliche", "exhalite", "sulfate deposit")
         chert = ("chert", "opal", "porcellanite", "diatomite", "novaculite", "iron", 
-            "taconite", "banded iron", "spiculite",)
+            "taconite", "banded iron", "spiculite", "jasper", "bif")
         phosphorite = ("phosphorite", "phosphate")
         coal = ("coal", "anthracite", "lignite", "bitumen")
         sed = ("sediment", "clast", "diamict", "tillite", "stream deposits", 
@@ -474,6 +474,7 @@
         )
     end
     export get_metamorphic_class
+
     
 ## --- Lithologic class accessory functions 
 

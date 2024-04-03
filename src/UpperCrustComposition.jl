@@ -28,6 +28,9 @@
 
     # How many samples explain 90% of the matches?
     npoints = unique_sample(mbulk.Sample_ID, 90)
+    @info """ Matched sample metadata:
+    Total: $(length(unique(mbulk.Sample_ID))) samples 
+    90% of matches explained by $npoints samples"""
 
 
 ## --- Compute and export composition of exposed crust!

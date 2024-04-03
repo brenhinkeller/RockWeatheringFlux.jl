@@ -15,8 +15,9 @@
     # Matched samples 
     fid = readdlm(matchedbulk_io)
     gchem_ind = Int.(vec(fid[:,1]))
+    recorded_type  = vec(fid[:,2])
     t = @. gchem_ind != 0
-
+    
     # Lithologic class 
     match_cats, metamorphic_cats, class, megaclass = get_lithologic_class();
 
@@ -32,7 +33,11 @@
     rocklat = read(fid["vars"]["rocklat"])[t]
     rocklon = read(fid["vars"]["rocklon"])[t]
     close(fid)
-    
+
+    # Check there aren't samples with known lithology and no geochemical sample
+    unm = RockWeatheringFlux.find_unmatched(match_cats);
+    @assert unique(recorded_type[.!t]) == ["none"] && count(unm) == 0 "Matched lithology without matched sample"
+
 
 ## --- Calculate erosion rate at each coordinate point of interest	
     # Load the slope variable from the SRTM15+ maxslope file
@@ -268,24 +273,33 @@
     end
 
 
-## --- Compute and export surficial abundance by lithologic class 
+## --- Compute and export surficial abundance and contribution to erosion by lithologic class 
     # Because we reassigned all metamorphic rocks to sedimentary or igneous, the total
     # surficial abundance of sed + ign = 100%. Because we're using the matched types, 
     # this happens automatically 😍
     # 
-    # That means metamorphic abundnace of X is just X% of rocks are metasedimentary or 
+    # That means metamorphic abundance of X is just X% of rocks are metasedimentary or 
     # metaigneous
+
+    # Calculate contribution to eroded material 
+    fid = readdlm(erodedrel_out)
+    contrib = NamedTuple{Tuple(Symbol.(fid[1,2:end]))}(fid[end, 2:end].*100)
+
+    # Calculate surficial abundance
     dist = NamedTuple{keys(classfilter)}(
         count(classfilter[k])/length(classfilter[k])*100 for k in keys(classfilter)
     )
-    writedlm(surfacelith_calc_out, vcat(["lithology" "surficial abundance"], 
-        hcat(collect(string.(keys(dist))), collect(values(dist))))
+
+    # Save to file and print to terminal
+    @assert keys(contrib) == keys(dist) """
+    Element order mismatch in tuples of surface exposure and contribution to erosion"""
+
+    writedlm(surfacelith_calc_out, vcat(
+        ["lithology" "surficial abundance" "erosion contribution"], 
+        hcat(collect(string.(keys(dist))), collect(values(dist)), collect(values(contrib))))
     )
 
-    # Terminal printout, formatted to be copy-pasted into the LaTeX formatting sheet 
     @info "Surficial abundance and contribution to erosion by lithologic class:"
-    fid = readdlm(erodedrel_out)
-    contrib = NamedTuple{Tuple(Symbol.(fid[1,2:end]))}(fid[end, 2:end].*100)
     for k in keys(classfilter)
         println("$(k) $(round(dist[k], sigdigits=3)) $(round(contrib[k], sigdigits=3))")
     end
@@ -408,9 +422,17 @@
     cols = ["Lithology" reshape(collect(string.(keys(continent))), 1, :)]
 
     # Export file, values in percentages
-    writedlm(surfacelith_mapped_out, vcat(cols, hcat([sed_label; volc_label; plut_label; 
-        ign_label; met_label], result))
-    )
+    labels = [sed_label; volc_label; plut_label; ign_label; met_label];
+    writedlm(surfacelith_mapped_out, vcat(cols, hcat(labels, result)))
 
+    # Check to make sure the sums work out 
+    sums_match = isapprox.(nansum(result[:, 1:end-1], dims=2), result[:, end])
+    if count(sums_match) == size(result)[1]
+        @info "Mapped lithology: sum of continents equals global value"
+    else
+        @warn "Mapped lithology: discrepancy in values for $(labels[.!vec(sums_match)])" 
+    end
+
+    # Print undifferentiated lithologies 
 
 ## --- End of File

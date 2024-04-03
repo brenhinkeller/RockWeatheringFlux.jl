@@ -20,7 +20,7 @@
     # Call file and write output to a file
     show_progress = true
     include("SampleMatchBase.jl")
-    writedlm("$matchedbulk_io", [matches string.(littletypes)], '\t')
+    writedlm(matchedbulk_io, [matches string.(littletypes)], '\t')
 
     # End timer
     stop = now()

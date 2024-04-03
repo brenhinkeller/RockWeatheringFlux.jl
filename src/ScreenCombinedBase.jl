@@ -2,14 +2,14 @@
     combined = importdataset("data/combined.tsv", '\t', importas=:Tuple)
     npoints = length(combined.SiO2)
 
-    showprogress && @info """Database loaded $(Dates.format(now(), "HH:MM"))"""
+    show_progress && @info """Database loaded $(Dates.format(now(), "HH:MM"))"""
 
     # Missing ages have already been filled in from age min / max bounds
     # Outliers have already been removed  
 
 
 ## --- Convert rock names to lithologic classes and add metamorphic tags to each sample
-    combo_cats, meta_cats = match_rocktype(combined.Rock_Group, combined.Rock_Subgroup, 
+    @time combo_cats, meta_cats = match_rocktype(combined.Rock_Group, combined.Rock_Subgroup, 
         combined.Rock_Composition, combined.Rock_Name
     ); 
 
@@ -19,13 +19,11 @@
     majors, minors = get_elements()
     allelements = [majors; minors]
     deleteat!(allelements, findall(x->x==:Volatiles,allelements))
-    deleteat!(allelements, findall(x->x==:C,allelements))
-    deleteat!(allelements, findall(x->x==:S,allelements))
     
     out = NamedTuple{Tuple(allelements)}(Array{Float64}(undef, npoints) for _ in allelements);
 
     # Define elements not listed in ppm
-    wtpct = (majors..., :FeO, :P2O5, :MnO, :H2O, :CO2, :LOI, :TOC,);
+    wtpct = (majors..., :Cr2O3,:NiO,:P2O5,:MnO);
 
     # Assign each element to the new Tuple 
     p = Progress(length(allelements), desc="Creating geochemial data array", enabled=show_progress)
@@ -83,14 +81,13 @@
     end
 
     # [EVAPORITES] Compute H2O [GYPSUM] and SO3 [GYPSUM, ANHYDRITE] from CaO
-    # All SO3 values are calculated (none reported). Take H2O as the larger of the calculated
-    # and reported values
+    # Take SO3 and H2O as the  larger of the calculated and reported values
     for i in eachindex(SO3)
         if combo_cats.evap[i] && combined.Rock_Name[i] == "gypsum"
-            SO3[i] = out.CaO[i]*CaO_to_SO3
+            SO3[i] = nanmax(out.CaO[i]*CaO_to_SO3, combined.SO3[i])
             H2O[i] = nanmax(out.CaO[i]*CaO_to_H2O, combined.H2O[i])
         elseif combo_cats.evap[i] && combined.Rock_Name[i] == "anhydrite"
-            SO3[i] = out.CaO[i]*CaO_to_SO3
+            SO3[i] = nanmax(out.CaO[i]*CaO_to_SO3, combined.SO3[i])
         end
     end
 
@@ -115,7 +112,6 @@
     @inbounds for i in eachindex(bulkweight)
         if abovesea[i] & !isOIB[i]
             bulkweight[i] = nansum([out[j][i] for j in allelements]) + volatiles[i]
-            bulkweight[i] = nanadd(bulkweight[i], combined.TOC[i])
         else
             bulkweight[i] = NaN
         end
@@ -153,7 +149,7 @@
     up = count(t) - tᵢ
     @info """Saving $(count(t)) samples ($(round(count(t)/length(t)*100, digits=2))%)
     Assuming volatiles increased count from $tᵢ to $(count(t))
-    Total increase = $up
+    Total increase = $up ($(round(up/count(t)*100, sigdigits=2)) %)
     """
 
 
@@ -198,7 +194,7 @@
             @warn "After filtering, type \"$k\" has $(count(combo_cats[k])) samples."
         end
     end
-    meta_kittens = NamedTuple{keys(meta_cats)}(meta_cats[k][t] for k in keys(meta_cats))
+    meta_kittens = NamedTuple{keys(meta_cats)}(meta_cats[k][t] for k in keys(meta_cats));
 
 
 ## --- Save all data to new file 
@@ -241,6 +237,20 @@
     class["bulk_cats_head"] = string.(collect(keys(combo_kittens)))
     
     close(fid)
+
+
+## --- Print relevant methods data to terminal 
+    # Total number usable samples (descriptive lithology)
+    exclude_minor!(combo_kittens);
+    unmatched = RockWeatheringFlux.find_unmatched(combo_kittens)
+    nondescriptive = combo_kittens.sed .| combo_kittens.ign .| combo_kittens.met .| combo_kittens.cover
+    not_used = count(unmatched) + count(nondescriptive)
+
+    @info """Functional dataset size: $(length(combo_kittens.sed) - not_used)
+    Nondescriptive: $not_used
+    Unused lithology: $(count(unmatched))
+    Total samples: $(length(combo_kittens.sed))
+    """
 
 
 ## --- End of File     

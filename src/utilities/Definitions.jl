@@ -17,20 +17,12 @@
     Macrostrat: $tag ($version)
     """
 
-    # Warnings for sample sets that may not be compatible with current code 
-    if dataset == "bulk" || dataset == "gard"
-        @error "EarthChem and Gard datasets may not be compatible with current code base."
-    end
-    if (N==250_000 && version==2024)
-        error("$tag dataset does not exist for $version Macrostrat version.")
-    end
-
 
 ## --- File names
 
     # Folder paths 
-    output = "output/N_$tag/" * dataset * "/"
-    results = "results/N_$tag/" * dataset * "/"
+    output = "output/N_$tag/lith_$version/" * dataset * "/"
+    results = "results/N_$tag/lith_$version/" * dataset * "/"
 
     # Geochemical and lithologic data 
     geochem_fid = "output/geochemistry/" * dataset * ".h5"
@@ -63,6 +55,18 @@
     export ucc_out, ucc_out_err
     export erodedabs_out, erodedrel_out, erodedcomp_out
     export erodedabs_out_err, erodedrel_out_err, erodedcomp_out_err    
+
+
+## --- Warnings for sample sets that may not be compatible with current code 
+
+    # Warnings 
+    version==2024 && @error "$version geologic maps may contain unresolved errors."
+    !isfile(geochem_fid) && error("$geochem_fid does not exist :(")
+    !isfile(macrostrat_io) && error("$macrostrat_io does not exist :(")
+
+    # Create directories if they do not exist 
+    !ispath(output) && run(`mkdir -p $output`) 
+    !ispath(results) && run(`mkdir -p $results`)
 
 
 ## --- Color names

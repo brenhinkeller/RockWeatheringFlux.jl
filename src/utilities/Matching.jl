@@ -287,7 +287,9 @@
     match_rocktype(Rock_Group, Rock_Subgroup, Rock_Composition, Rock_Name)
     ```
     """
-    function match_rocktype(Rock_Group::T, Rock_Subgroup::T, Rock_Composition::T, Rock_Name::T) where T <: AbstractArray{String}
+    function match_rocktype(Rock_Group::T, Rock_Subgroup::T, Rock_Composition::T, 
+        Rock_Facies::T, Rock_Name::T) where T <: AbstractArray{String}
+
         # Get rock type classifications, including metamorphic, and initialized BitVectors
         typelist, cats = get_cats(false, length(Rock_Name))
         metatypelist = get_metamorphic_class()
@@ -330,8 +332,14 @@
         # are named metased / metaign rock names but aren't tagged as such 
         match_subset!(cats, cats.met, typelist, keys(cats), Rock_Name);  
         match_subset!(metacats, metacats.met, typelist, keys(metacats), Rock_Name); 
+
+        # Check rock facies (these will for sure be metamorphic)
+        unmatched_cats = find_unmatched(cats)
+        unmatched_metacats = find_unmatched(metacats)
+        match_subset!(cats, unmatched_cats, typelist, keys(cats), Rock_Facies);  
+        match_subset!(metacats, unmatched_metacats, typelist, keys(metacats), Rock_Facies);
         
-        # And then re-exclude for protoliths...
+        # And then re-exclude protoliths from metamorphic rocks
         include_minor!(cats)
         include_minor!(metacats)
         cats.met .&= .!(cats.ign .| cats.sed)

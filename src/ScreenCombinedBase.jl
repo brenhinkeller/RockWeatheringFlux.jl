@@ -10,7 +10,7 @@
 
 ## --- Convert rock names to lithologic classes and add metamorphic tags to each sample
     @time combo_cats, meta_cats = match_rocktype(combined.Rock_Group, combined.Rock_Subgroup, 
-        combined.Rock_Composition, combined.Rock_Name
+        combined.Rock_Composition, combined.Rock_Facies, combined.Rock_Name
     ); 
 
 

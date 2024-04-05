@@ -12,7 +12,7 @@
     # Load data
     @info "Upper crust data: $ucc_out"
     ucc = importdataset(ucc_out, '\t', importas=:Tuple);
-    ucc_err = importdataset(ucc_out_err, '\t', importas=:Tuple);
+    ersn = importdataset(erodedcomp_out, '\t', importas=:Tuple);
     rudnick_gao = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple);
     GloRiSe = importdataset("output/GloRiSe_minor_screened.tsv", '\t', importas=:Tuple);
 
@@ -23,8 +23,8 @@
     ucc = NamedTuple{keys(class)}([NamedTuple{Tuple(spider_REEs)}(
         [ucc[f][elementindex[k]].*10_000 for k in spider_REEs]) for f in keys(class)]
     );
-    ucc_err = NamedTuple{keys(class)}([NamedTuple{Tuple(spider_REEs)}(
-        [ucc_err[f][elementindex[k]].*10_000 for k in spider_REEs]) for f in keys(class)]
+    ersn = NamedTuple{keys(class)}([NamedTuple{Tuple(spider_REEs)}(
+        [ersn[f][elementindex[k]].*10_000 for k in spider_REEs]) for f in keys(class)]
     );
 
     # Previous estimates, units are already ppm
@@ -115,7 +115,7 @@
     
 
 ## --- Assemble plots
-    p = Plots.palette(colorpalette, 5)
+    p = Plots.palette(colorpalette, 6)
 
     # Bulk Earth
     h1 = spidergram(rudnick_gao, label="Rudnick and Gao", 
@@ -134,6 +134,8 @@
         linestyle=:dot)
     spidergram!(h1, ucc.bulk, label="This Study (Surface Earth)",
         markershape=:circle, seriescolor=p[5], msc=:auto, markersize=5)
+    spidergram!(h1, ersn.bulk, label="This Study (Eroded Material)",
+        markershape=:circle, seriescolor=p[6], msc=:auto, markersize=5)
     ylims!(4,200)
     savefig("$filepath/spidergram_bulk.pdf")
     # display(h1)

@@ -20,6 +20,14 @@
     labelfontsize = 18
     tickfontsize = 16
     legendfontsize = 18
+
+    # Standardized colors for data sources 
+    sourcecolors = (
+        rudnickgao = :orangered,
+        gao = :gold,
+        condie = :hotpink,
+        muller = :goldenrod,
+    )
     
     
 ## --- Matched Geochemical Data and Macrostrat / Burwell

@@ -52,7 +52,7 @@
         fontfamily=:Helvetica, 
         xticks=(1:length(anhydrous_majors), string.(anhydrous_majors)), 
         xlims=(0.5, length(anhydrous_majors)+0.5),
-        ylims=(0.4, 1.75),
+        ylims=(0.25, 2.25),
         fg_color_legend=:white, legendfontsize=12, legend=:topleft,
         labelfontsize=12, tickfontsize=10,
         ylabel="Normalized to Whole Earth Estimate",
@@ -68,13 +68,13 @@
     Plots.plot!(h, x, ratio.ucc, markershape=:diamond, label="Whole Earth (This Study)",
         color=:black, msc=:auto, markersize=7, linewidth=2)
     Plots.plot!(h, x, ratio.plut, markershape=:diamond, label="Plutonic (This Study)",
-        color=p[1], msc=:auto, markersize=7, linewidth=2)
+        color=:darkorange, msc=:auto, markersize=7, linewidth=2)
     Plots.plot!(h, x, ratio.rudnick_gao, markershape=:circle, label="Rudnick and Gao, 2014",
-        color=p[2], msc=:auto, markersize=6, linewidth=2)
+        color=sourcecolors.rudnickgao, msc=:auto, markersize=6, linewidth=2)
     Plots.plot!(h, x, ratio.condie, markershape=:circle, label="Condie, 1993",
-        color=p[3], msc=:auto, markersize=6, linewidth=2)
+        color=sourcecolors.condie, msc=:auto, markersize=6, linewidth=2)
     Plots.plot!(h, x, ratio.gao, markershape=:circle, label="Gao et al., 1998",
-        color=p[4], msc=:auto, markersize=6, linewidth=2)
+        color=sourcecolors.gao, msc=:auto, markersize=6, linewidth=2)
     display(h)
     savefig(h, "$filepath/modelcomparison.pdf")
 

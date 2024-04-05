@@ -6,34 +6,34 @@
 
 
 ## --- Age 
-    agediff = macrostrat.age .- mbulk.Age;
-    c, n = bincounts(agediff, -3800, 3800, 38*2)
+    agediff = abs.(macrostrat.age .- mbulk.Age);
+    c, n = bincounts(agediff, 0, 3800, 38*2)
+    n = float(n) ./ nansum(float(n) .* step(c))
     m = nanmedian(agediff)
 
     h1 = plot(
         framestyle=:box, 
         fontfamily=:Helvetica, 
-        xlabel="Age Difference [Myr.]", ylabel="Abundance",
-        ylims=(0.1, round(Int, maximum(n)*1.5)), yticks=10.0.^(0:2:5),
-        xlims=(-1100, 3000),
+        xlabel="Absolute Age Difference [Myr.]", ylabel="Relative Abundance",
+        ylims=(9e-9,0.02),
+        yticks=false,
+        xlims=(-100, 3800),
+        left_margin=(15,:px)
     )
     Plots.plot!(h1, c[n .> 0], n[n .> 0], label="",
         seriestype=:bar, 
         yscale=:log10,
-        color=colors.evap, lcolor=:match,
+        color=colors.carb, lcolor=:match,
         barwidths = 100,
     )
-    vline!([0], linestyle=:solid, color=:black, linewidth=1, label="")
-    Plots.annotate!(((0.03, 0.97), ("Geochemical\nage is older", 12, :left, :top)))
-    Plots.annotate!(((0.97, 0.97), ("Mapped age\nis older", 12, :right, :top)))
 
     vline!([m], color=:black, linestyle=:dot, linewidth=2, label="")
-    Plots.annotate!([(m*40, 0.25, text("Median = $(round(m, sigdigits=3))", 9, :left, 
+    Plots.annotate!([(m*8, 2e-8, text("Median = $(round(m, sigdigits=3))", 9, :left, 
         :bottom, :black, rotation=90))]
     )
 
     jump = 500
-    xticks!((xlims(h1)[1]jump)*jump:jump:(xlims(h1)[2]÷jump-1)*jump)
+    xticks!((xlims(h1)[1]jump)*jump:jump:(xlims(h1)[2]÷jump)*jump)
 
     display(h1)
     savefig(h1, "$filepath/diff_age.pdf")
@@ -43,23 +43,26 @@
     locdiff = haversine.(mbulk.Latitude, mbulk.Longitude, macrostrat.rocklat, 
         macrostrat.rocklon
     )
-    c, n = bincounts(locdiff, 0, 180, 90)
+    c, n = bincounts(locdiff, 0, 180, 45)
+    n = float(n) ./ nansum(float(n) .* step(c))
     m = nanmedian(locdiff)
 
     h2 = plot(
         framestyle=:box, 
         fontfamily=:Helvetica, 
-        xlabel="Distance [arc degrees]", ylabel="Abundance",
-        ylims=(0.1, round(Int, maximum(n)*1.05)),
+        xlabel="Distance [arc degrees]", # ylabel="Abundance",
+        # ylims=(0.1, round(Int, maximum(n)*1.05)),
+        ylims=(0,0.026),
+        yticks=false,
         xlims=(-2, 180),
     )
     Plots.plot!(h2, c, n, label="",
         seriestype=:bar, 
         color=colors.sed, lcolor=:match,
-        barwidths = 2,
+        barwidths = 4,
     )
     vline!([m], color=:black, linestyle=:dot, linewidth=2, label="")
-    Plots.annotate!([(m*0.9, 500, text("Median = $(round(m, sigdigits=3))", 9, :left, 
+    Plots.annotate!([(m*0.9,0.0026, text("Median = $(round(m, sigdigits=3))", 9, :left, 
         :bottom, :black, rotation=90))]
     )
     display(h2)

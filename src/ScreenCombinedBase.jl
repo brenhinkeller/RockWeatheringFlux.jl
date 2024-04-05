@@ -200,7 +200,7 @@
 ## --- Save all data to new file 
     fid = h5open(fileout, "w")
     data = create_group(fid, "bulk")
-    text = create_group(fid, "bulktext")
+    bulktext = create_group(fid, "bulktext")
     class = create_group(fid, "bulktypes")
 
     # Data 
@@ -212,10 +212,10 @@
     end
 
     # References and rock descriptions
-    write(text, "Reference", combined.Reference[t])
-    write(text, "Data_Source", combined.Data_Source[t])
-    write(text, "Methods", combined.Methods[t])
-    write(text, "Rock_Name", combined.Rock_Name[t])
+    write(bulktext, "Reference", combined.Reference[t])
+    write(bulktext, "Data_Source", combined.Data_Source[t])
+    write(bulktext, "Methods", combined.Methods[t])
+    write(bulktext, "Rock_Name", combined.Rock_Name[t])
 
     # Rock class
     a = Array{Int64}(undef, length(combo_kittens[1]), length(combo_kittens))

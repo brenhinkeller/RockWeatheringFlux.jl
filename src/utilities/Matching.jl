@@ -478,9 +478,9 @@
      *  Sedimentary (clastic) from volcani*clastic*.
     """
     function rm_false_positives!(cats)
-        cats.granodiorite .&= .!cats.diorite  # granodiorite / diorite
-        cats.alk_volc .&= .!cats.coal         # malignite / lignite 
-        cats.volcaniclast .&= .!cats.sed      # volcaniclast / sed (clast)
+        cats.diorite .&= .!cats.granodiorite  # granodiorite / diorite
+        cats.coal .&= .!cats.alk_volc         # malignite / lignite 
+        cats.sed .&= .!cats.volcaniclast      # volcaniclast / sed (clast)
 
         return cats
     end

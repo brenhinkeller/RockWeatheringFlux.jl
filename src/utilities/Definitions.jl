@@ -17,8 +17,7 @@
     Macrostrat: $tag ($version)
     """
 
-
-## --- File names
+## --- File names (switch mechanics)
 
     # Folder paths 
     output = "output/N_$tag/lith_$version/" * dataset * "/"
@@ -56,10 +55,7 @@
     export erodedabs_out, erodedrel_out, erodedcomp_out
     export erodedabs_out_err, erodedrel_out_err, erodedcomp_out_err    
 
-
-## --- Warnings for sample sets that may not be compatible with current code 
-
-    # Warnings 
+    # Warnings for sample sets that may not be compatible with current code  
     version==2024 && @error "$version geologic maps may contain unresolved errors."
     !isfile(geochem_fid) && error("$geochem_fid does not exist :(")
     !isfile(macrostrat_io) && error("$macrostrat_io does not exist :(")
@@ -256,8 +252,8 @@
             "metapellite", "micaschist", "mica schist")
         carb = ("carbonate", "calcite", "limestone", "dolo", "marl", "chalk", "coquina", 
             "biogenic", "travertine", "tavertine", "tufa", "calcarenite", "teravertine", 
-            "marble", "calc silicate", "calcsilicate", "skarn",  "calcrete", "siderite", 
-            "magnesite", "boundstone", "packstone", "grainstone", )
+            "marble", "calc silicate", "calcsilicate", "calc-silicate", "skarn",  
+            "calcrete", "siderite", "magnesite", "boundstone", "packstone", "grainstone", )
         evap = ("evaporite", "anhydrite", "gypsum", "trona", "halite", "sylvite", 
             "salt flat", "caliche", "exhalite", "sulfate deposit")
         chert = ("chert", "opal", "porcellanite", "diatomite", "novaculite", "iron", 
@@ -336,7 +332,8 @@
             "high grade metamorphic", "meta", "granulit", "granofels", "schist", "schsit", 
             "gneiss", "hornfels", "garnet", "spessartite", "melanite", "buchite", "epidot", 
             "fenite", "albitite", "chloritite", "phlogopitite", "sericitite", "tactite", 
-            "tourmalinite", "vogesite", "gossan", "palagonite", "sanidinite", "mylonite")
+            "tourmalinite", "vogesite", "gossan", "palagonite", "sanidinite", "mylonite", 
+            "diatexite")
 
         # Cover
         cover = ("lluv", "fluv", "boulder", "gravel", "aleurite", "glaci", "till", "loess", 
@@ -408,7 +405,7 @@
         # Sedimentary
         siliciclast = ("quartzite", "quarzite",)
         shale = ("pelit",  "slate", "phyllite", "metapellite", "micaschist", "mica schist")
-        carb = ("marble", "calc silicate", "calcsilicate", "skarn")
+        carb = ("marble", "calc silicate", "calcsilicate", "calc-silicate", "skarn")
         evap = ()
         chert = ("porcellanite",)
         phosphorite = ()
@@ -447,7 +444,8 @@
             "high grade metamorphic", "meta", "granulit", "granofels", "schist", "schsit", 
             "gneiss", "hornfels", "garnet", "spessartite", "melanite", "buchite", "epidot", 
             "fenite", "albitite", "chloritite", "phlogopitite", "sericitite", "tactite", 
-            "tourmalinite", "vogesite", "gossan", "palagonite", "sanidinite", "mylonite")
+            "tourmalinite", "vogesite", "gossan", "palagonite", "sanidinite", "mylonite", 
+            "diatexite")
 
         # Cover
         cover = ()

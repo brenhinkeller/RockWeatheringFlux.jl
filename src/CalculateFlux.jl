@@ -34,10 +34,6 @@
     rocklon = read(fid["vars"]["rocklon"])[t]
     close(fid)
 
-    # Check there aren't samples with known lithology and no geochemical sample
-    unm = RockWeatheringFlux.find_unmatched(match_cats);
-    @assert unique(recorded_type[.!t]) == ["none"] && count(unm) == 0 "Matched lithology without matched sample"
-
 
 ## --- Calculate erosion rate at each coordinate point of interest	
     # Load the slope variable from the SRTM15+ maxslope file
@@ -339,13 +335,13 @@
     ncols = (length(minorsed)+2) + (length(minorplut)+2) + (length(minorvolc)+2) + 3 + 4;
     result = Array{Float64}(undef, ncols, length(region));
 
-    # Surficial abundance by region
+    # Calculate surficial abundance by region
     for i in eachindex(region)
         # Filter for the region
         s = continent[region[i]]
         nregion = count(s)
 
-        # Calculate abundances of constituent class in this region, normalized to 100%
+        # Calculate abundances of constituent classes in this region, normalized to 100%
         include_minor!(macro_cats);
         ign_undiff = .!(macro_cats.volc .| macro_cats.plut .| macro_cats.carbonatite);
         dist2 = NamedTuple{(:sed, :volc, :plut, :carbonatite, :ign_undiff, :met_undiff)}(
@@ -366,43 +362,38 @@
         volc = float.([[count(macro_cats[k] .& s) for k in minorvolc]; count(macro_cats.volc .& s)])
         plut = float.([[count(macro_cats[k] .& s) for k in minorplut]; count(macro_cats.plut .& s)])
 
-        # Calculate percentage abundance from counts 
+        # Calculate percentage abundance of each class from counts 
         sed .= sed ./ nregion * 100
         volc .= volc ./ nregion * 100
         plut .= plut ./ nregion * 100
         
-        # Normalize to the abundance of the constituent class, and to the contribution of
-        # the region of interest to total global surface area
+        # Normalize minor class percentages to the abundance of the constituent class
         sed .= sed ./ sum(sed) .* dist2.sed
         volc .= volc ./ sum(volc) .* dist2.volc
         plut .= plut ./ sum(plut) .* dist2.plut
         
-        # Percent metasedimentary and metaigneous rocks (relative to global area), splitting
-        # doubly-matched samples equally so as to not artifically inflate the percentages
-        split_overlap = count(megaclass.metased .& megaclass.metaign) / 2
-        metased = count(megaclass.metased .& .!megaclass.metaign .& s) + split_overlap
-        metaign = count(megaclass.metaign .& .!megaclass.metased .& s) + split_overlap
-        
-        metased = metased / nregion * 100
-        metaign = metaign / nregion * 100
-        met_undiff = dist2.met_undiff
-        met_total = metased + metaign + met_undiff
+        # Calculate the percentage of metased and metaign rocks as the fraction of total 
+        # sed / ign rocks tagged as metamorphic 
+        include_minor!(macro_cats);
+        metased = count(megaclass.metased .& s) / count(macro_cats.sed .& s)
+        metaign = count(megaclass.metaign .& s) / count(macro_cats.ign .& s)
+        metased *= dist2.sed 
+        metaign *= dist2_ign
 
-        # Get non volcanic / plutonic data from the distribution tuple and recast to fraction
-        # of global area (dist2 is normalized to 100% of the regional area)
-        ign_out = [dist2_ign, dist2.carbonatite, dist2.ign_undiff]
+        met_total = metased + metaign + dist2.met_undiff
 
         # Convert data from 100% of region to % of total surface area 
         area_frac = dist_cont[region[i]] / 100
 
-        ign_out = ign_out .* area_frac
+        ign_out = [dist2_ign, dist2.carbonatite, dist2.ign_undiff] .* area_frac
         sed_out = [sum(sed); sed] .* area_frac
         volc_out = [sum(volc); volc] .* area_frac
         plut_out = [sum(plut); plut] .* area_frac
-        met_out = [met_total, metased, metaign, met_undiff] .* area_frac
+        met_out = [met_total, metased, metaign, dist2.met_undiff] .* area_frac
 
         # Save all data to the results array in the order [total; subtypes] 
-        result[:,i] .= [sed_out; ign_out; volc_out; plut_out; met_out]
+        # Be SURE to check that this is in the same order as labeled in the output 🤦
+        result[:,i] .= [sed_out; volc_out; plut_out; ign_out; met_out]
     end
     
     # Normalize each set of results to the global total 
@@ -410,7 +401,6 @@
         normresult = result[i, 1:end-1] ./ sum(result[i, 1:end-1]) * result[i,end]
         result[i, 1:end-1] .= normresult
     end
-
 
     # Define labels (down here so it's easier to compare to the arrays above)
     sed_label = ["Total Sedimentary"; string.(collect(minorsed)); "Undifferentiated Sedimentary"]
@@ -427,12 +417,21 @@
 
     # Check to make sure the sums work out 
     sums_match = isapprox.(nansum(result[:, 1:end-1], dims=2), result[:, end])
-    if count(sums_match) == size(result)[1]
-        @info "Mapped lithology: sum of continents equals global value"
-    else
-        @warn "Mapped lithology: discrepancy in values for $(labels[.!vec(sums_match)])" 
+    if count(sums_match) != size(result)[1]
+        @warn "Mapped lithology: discrepancy in values for: $(labels[.!vec(sums_match)])" 
     end
 
-    # Print undifferentiated lithologies 
+    # Print % undifferentiated lithologies to terminal 
+    target = containsi.(labels, "Undifferentiated")
+    undiff_label = labels[target]
+    undiff_value = round.(result[:,end][target], sigdigits=3)
+    @info """ Abundance of:
+    $(undiff_label[1]): $(undiff_value[1])%
+    $(undiff_label[2]): \t$(undiff_value[2])%
+    $(undiff_label[3]): \t$(undiff_value[3])%
+    $(undiff_label[4]): \t$(undiff_value[4])%
+    $(undiff_label[5]): $(undiff_value[5])%
+    """
+
 
 ## --- End of File

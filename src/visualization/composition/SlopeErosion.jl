@@ -57,11 +57,11 @@
         # left_margin=(10,:px), bottom_margin=(10,:px)
     )
     Plots.scatter!(basin_srtm.avg_slope,octopusdata.ebe_mmkyr, label="Be-10", 
-        msc=:auto, color=:darkseagreen, 
+        msc=:auto, color=colors_covariance.a, 
         markersize = 2,
     )
     Plots.scatter!(h, basin_srtm.avg_slope,octopusdata.eal_mmkyr, label="Al-26", 
-        msc=:auto, color=:royalblue, 
+        msc=:auto, color=colors_covariance.b, 
         markersize = 2,
     )
     Plots.scatter!(h, c, m, yerror=ey*2, label="",
@@ -78,7 +78,6 @@
 
     display(h)
     savefig("$filepath/erosionslope.pdf")
-    savefig("$filepath_png/erosionslope.png")
     
 
 ## --- End of File 

@@ -8,7 +8,7 @@
     filepath = "results/figures/NEGeobio"
 
     # Color palette
-    pal = p = Plots.palette(:managua, 10)
+    pal = Plots.palette(:managua, 10)
 
 
 ## --- Matched geochemical data 

@@ -2,7 +2,7 @@
     # Packages
     using RockWeatheringFlux
     using DelimitedFiles, HDF5
-    using Plots
+    using Plots, Colors
 
     # Definitions
     filepath = "results/figures/composition"
@@ -15,21 +15,34 @@
     Saving to:   $filepath/
     """
 
-    # Plot settings 
-    titlefontsize = 20
-    labelfontsize = 18
-    tickfontsize = 16
-    legendfontsize = 18
-
-    # Standardized colors for data sources 
-    sourcecolors = (
-        rudnickgao = :orangered,
-        gao = :gold,
-        condie = :hotpink,
-        muller = :goldenrod,
+    # Standardized color schemes 
+    colors_covariance = (
+        a = parse(Colorant, "#5b80bb"),         # Based on managua blues
+        b = parse(Colorant, "#bb965b"),
     )
-    
-    
+    colors_contrast = (
+        a = parse(Colorant, "#91463b"),         # Based on managua oranges
+        b = parse(Colorant, "#3b8691"),
+    )
+    p = Plots.palette(:managua, 5)
+    colors_source = (
+        this_study = parse(Colorant, "#f0a400"),    # This study 
+        rudnick = p[2],                             # Rudnick and Gao, 2014
+        gao = p[3],                                 # Gao et al., 1998
+        condie = p[4],                              # Condie, 1993
+        muller = parse(Colorant, "#0bd1ff"),        # Muller et al., 2021
+    )
+    colors_dark = (                             # Modified USGS colors
+        sed = parse(Colorant, "#206341"),
+        shale = parse(Colorant, "#44c283"),
+        ign = colors.ign,
+        volc = parse(Colorant, "#ff6bbb"),
+        basalt = parse(Colorant, "#ca895d"),
+        plut = parse(Colorant, "#fb3448"),
+        granite = parse(Colorant, "#f36e7a"),
+    )
+
+
 ## --- Matched Geochemical Data and Macrostrat / Burwell
     # Matched samples 
     fid = readdlm(matchedbulk_io)

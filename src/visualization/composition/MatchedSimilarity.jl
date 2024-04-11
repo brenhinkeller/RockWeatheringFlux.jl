@@ -14,7 +14,7 @@
     h1 = plot(
         framestyle=:box, 
         fontfamily=:Helvetica, 
-        xlabel="Absolute Age Difference [Myr.]", ylabel="Relative Abundance",
+        xlabel="Absolute Age Difference [Myr.]", ylabel="Logarithmic Relative Abundance",
         ylims=(9e-9,0.02),
         yticks=false,
         xlims=(-100, 3800),
@@ -23,7 +23,7 @@
     Plots.plot!(h1, c[n .> 0], n[n .> 0], label="",
         seriestype=:bar, 
         yscale=:log10,
-        color=colors.carb, lcolor=:match,
+        color=colors_contrast.a, lcolor=:match,
         barwidths = 100,
     )
 
@@ -52,13 +52,13 @@
         fontfamily=:Helvetica, 
         xlabel="Distance [arc degrees]", # ylabel="Abundance",
         # ylims=(0.1, round(Int, maximum(n)*1.05)),
-        ylims=(0,0.026),
+        ylims=(-1e-4,0.026),
         yticks=false,
         xlims=(-2, 180),
     )
     Plots.plot!(h2, c, n, label="",
         seriestype=:bar, 
-        color=colors.sed, lcolor=:match,
+        color=colors_contrast.b, lcolor=:match,
         barwidths = 4,
     )
     vline!([m], color=:black, linestyle=:dot, linewidth=2, label="")
@@ -72,6 +72,7 @@
 ## --- Collect plots for LaTeX placeholder
 
     h = Plots.plot(h1, h2, layout=(1,2), size=(1200,400))
+    display(h)
     savefig(h, "$filepath/diff_combo.pdf")
 
 ## --- End of File

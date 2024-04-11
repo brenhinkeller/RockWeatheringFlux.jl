@@ -46,76 +46,57 @@
         gao = [gao[k] ./ ucc.bulk[k] for k in anhydrous_majors],
     )
 
-    p = Plots.palette(colorpalette, 5)
+    # Base plot
     h = Plots.plot(
         framestyle=:box,
         fontfamily=:Helvetica, 
-        xticks=(1:length(anhydrous_majors), string.(anhydrous_majors)), 
         xlims=(0.5, length(anhydrous_majors)+0.5),
+        xticks=(1:length(anhydrous_majors), string.(anhydrous_majors)), 
         ylims=(0.25, 2.25),
+        yticks=(0.5:0.5:2, string.(Int.((0.5:0.5:2)*100))),
         fg_color_legend=:white, legendfontsize=12, legend=:topleft,
         labelfontsize=12, tickfontsize=10,
-        ylabel="Normalized to Whole Earth Estimate",
+        ylabel="Relative Difference",
         grid=false,
     )
 
+    # Plot data for this study and ±10%
     x = 1:length(anhydrous_majors)
     Plots.plot!(h, 
         [xlims(h)[1], xlims(h)[2], xlims(h)[2], xlims(h)[1]], [0.9, 0.9, 1.1, 1.1],
         seriestype=:shape, color=:grey, alpha=0.15, lcolor=:match, label=""
     )
     Plots.plot!(h, collect(xlims(h)), [1,1], label="", color=:black, linewidth=3)
-    Plots.plot!(h, x, ratio.ucc, markershape=:diamond, label="Whole Earth (This Study)",
-        color=:black, msc=:auto, markersize=7, linewidth=2)
-    Plots.plot!(h, x, ratio.plut, markershape=:diamond, label="Plutonic (This Study)",
-        color=:darkorange, msc=:auto, markersize=7, linewidth=2)
-    Plots.plot!(h, x, ratio.rudnick_gao, markershape=:circle, label="Rudnick and Gao, 2014",
-        color=sourcecolors.rudnickgao, msc=:auto, markersize=6, linewidth=2)
-    Plots.plot!(h, x, ratio.condie, markershape=:circle, label="Condie, 1993",
-        color=sourcecolors.condie, msc=:auto, markersize=6, linewidth=2)
-    Plots.plot!(h, x, ratio.gao, markershape=:circle, label="Gao et al., 1998",
-        color=sourcecolors.gao, msc=:auto, markersize=6, linewidth=2)
+
+    Plots.plot!(h, x, ratio.ucc, markershape=:circle, 
+        label="Surface Earth (This Study)",
+        color=:black, msc=:auto, 
+        markersize=6, linewidth=2
+    )
+    Plots.plot!(h, x, ratio.plut, markershape=:circle, 
+        label="Plutonic (This Study)",
+        color=colors_source.this_study, msc=:auto, 
+        markersize=6, linewidth=2
+    )
+
+    # Plot previous estimates
+    Plots.plot!(h, x, ratio.rudnick_gao, markershape=:diamond, 
+        label="Rudnick and Gao, 2014",
+        color=colors_source.rudnick, 
+        msc=:auto, markersize=7, linewidth=2
+    )
+    Plots.plot!(h, x, ratio.gao, markershape=:diamond, 
+        label="Gao et al., 1998",
+        color=colors_source.gao, 
+        msc=:auto, markersize=7, linewidth=2
+    )
+    Plots.plot!(h, x, ratio.condie, markershape=:diamond, 
+        label="Condie, 1993",
+        color=colors_source.condie, 
+        msc=:auto, markersize=7, linewidth=2
+    )
     display(h)
     savefig(h, "$filepath/modelcomparison.pdf")
-
-
-## --- Normalize all values to my plutonic UCC values
-    # ratio = (
-    #     ucc = [ucc.bulk[k] ./ ucc.plut[k] for k in anhydrous_majors],
-    #     plut = [ucc.plut[k] ./ ucc.plut[k] for k in anhydrous_majors],
-    #     rudnick_gao = [rudnick_gao[k] ./ ucc.plut[k] for k in anhydrous_majors],
-    #     condie = [condie[k] ./ ucc.plut[k] for k in anhydrous_majors],
-    #     gao = [gao[k] ./ ucc.plut[k] for k in anhydrous_majors],
-    # )
-
-    # # p = Plots.palette(:tab10, 10)
-    # p = Plots.palette(:berlin, 5)
-    # h = Plots.plot(
-    #     framestyle=:box,
-    #     fontfamily=:Helvetica, 
-    #     xticks=(1:length(anhydrous_majors), string.(anhydrous_majors)), 
-    #     xlims=(0.5, length(anhydrous_majors)+0.5),
-    #     fg_color_legend=:white, legendfontsize=12, legend=:topleft,
-    #     labelfontsize=12, tickfontsize=10,
-    #     ylabel="Normalized to Plutonic Estimate",
-    #     grid=false,
-    # )
-
-    # x = 1:length(anhydrous_majors)
-    # Plots.plot!(h, 
-    #     [xlims(h)[1], xlims(h)[2], xlims(h)[2], xlims(h)[1]], [0.9, 0.9, 1.1, 1.1],
-    #     seriestype=:shape, color=:grey, alpha=0.15, lcolor=:match, label=""
-    # )
-    # Plots.plot!(h, collect(xlims(h)), [1,1], label="", color=:black)
-    # Plots.plot!(h, x, ratio.ucc, markershape=:diamond, label="Whole Earth (This Study)",
-    #     color=p[1], msc=:auto, markersize=6)
-    # Plots.plot!(h, x, ratio.rudnick_gao, markershape=:circle, label="Rudnick and Gao, 2014",
-    #     color=p[2], msc=:auto)
-    # Plots.plot!(h, x, ratio.condie, markershape=:circle, label="Condie, 1993",
-    #     color=p[3], msc=:auto)
-    # Plots.plot!(h, x, ratio.gao, markershape=:circle, label="Gao et al., 1998",
-    #     color=p[4], msc=:auto)
-    # display(h)
 
     
 ## --- End of file 

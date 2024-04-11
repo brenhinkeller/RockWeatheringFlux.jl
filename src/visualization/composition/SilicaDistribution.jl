@@ -77,7 +77,7 @@
     # Preallocate
     fig = Array{Plots.Plot{Plots.GRBackend}}(undef, 3)
     fig_types = (:volc, :plut, :ign)
-    fig_names = ("A. (Meta)Volcanic", "B. (Meta)Plutonic", "C. (Meta)Igneous")
+    fig_names = ("A. Volcanic", "B. Plutonic", "C. Igneous")
     simVP = [simvolcanic, simplutonic, simigneous]
 
     # Build plots
@@ -88,7 +88,9 @@
             fontfamily=:Helvetica, 
             xlims=(40,80),
             xticks=(40:10:80, string.(40:10:80)),
-            yticks=false
+            yticks=false,
+            fg_color_legend=:white,
+            labelfontsize=18, titlefont=20, tickfontsize=16,legendfontsize=18,
         )
 
         # Raw data
@@ -124,37 +126,34 @@
         # Final formatting
         Plots.ylims!(0, round(maximum([n₁; n₂; u.density]), digits=2)+0.02)
         npoints = count(match_cats[fig_types[i]])
-        Plots.annotate!(((0.03, 0.97), (fig_names[i] * "\nn = $npoints", labelfontsize, :left, :top)))
+        Plots.annotate!(((0.03, 0.97), ("n = $npoints", labelfontsize, :left, :top)))
         fig[i] = h
     end
 
     # Axis labels
-    ylabel!(fig[1], "Relative Abundance")
+    # ylabel!(fig[1], "Relative Abundance")
     # xlabel!(fig[2], "SiO2 [wt.%]")
 
     # Shared legend
     Plots.plot!(fig[1], [0],[0], color=:white, linecolor=:match, label=" ")
     Plots.plot!(fig[1], [0],[0], color=colors.volc, linecolor=:match, seriestype=:bar, 
-        alpha=0.25, label=" ",)
-    Plots.plot!(fig[1], [0],[0], color=colors.plut, linecolor=:match, seriestype=:bar, 
-        alpha=0.25, label=" This study")
-    Plots.plot!(fig[1], [0],[0], color=colors.ign, linecolor=:match, seriestype=:bar, 
-        alpha=0.25, label=" ")
-
-    Plots.plot!(fig[1], [0],[0], color=:white, linecolor=:match, label=" ")
+        alpha=0.25, label=" This study",)
     Plots.plot!(fig[1], [0], [0], linewidth=2, color=:black, linestyle=:dot,
         label=" Keller et al., 2015")
 
     # Assemble plots
     h = Plots.plot(fig..., layout=(1, 3), size=(2000, 500), 
-        left_margin=(75,:px), right_margin=(25,:px), bottom_margin=(55,:px),
-        labelfontsize=labelfontsize, titlefont=titlefontsize, tickfontsize=tickfontsize,
-        legendfontsize=legendfontsize, fg_color_legend=:white, legend=:topright,
+        left_margin=(25,:px), right_margin=(25,:px), bottom_margin=(55,:px),
+        labelfontsize=18, titlefont=20, tickfontsize=16,
+        legendfontsize=18, fg_color_legend=:white, legend=:topright,
         xlabel="SiO2 [wt.%]"
     )
     display(h)
     savefig(h, "$filepath/histogram_ign.pdf")
-    # savefig(h, "$filepath_png/silica_ign.png")
+
+    savefig(fig[1], "$filepath/histogram_volc.pdf")
+    savefig(fig[2], "$filepath/histogram_plut.pdf")
+    savefig(fig[3], "$filepath/histogram_ign_isolate.pdf")
 
 
 ## --- All 

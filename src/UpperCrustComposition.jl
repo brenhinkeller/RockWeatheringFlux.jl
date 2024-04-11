@@ -36,8 +36,12 @@
 ## --- Compute and export composition of exposed crust!
     # Some elements just aren't measured, but a good whole rock geochemistry should
     # measure the major elements. If it's a NaN, it's probably just not there fr fr
+    # All other elements should have NaNs and not zeros though
     for i in majors
         zeronan!(mbulk[i])
+    end
+    for i in minors 
+        nanzero!(mbulk[i])
     end
 
     # Save to a file 

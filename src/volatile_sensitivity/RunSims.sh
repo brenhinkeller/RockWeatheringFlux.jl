@@ -10,15 +10,29 @@ set -e
     printf "Starting simulations $(date +'%D %T')\n"
 
 
-## Initialize variables
-    # File names (remember to change screening file in Simulation.jl too!!)
+## Output file names -- remember to change the ScreenBase script in Simulation.jl
+    # Note that if we want to move faster, we only actually plot simout2, although we do 
+    # use simout to store the current experimental conditions
+
+    # # EarthChem
     # simout='src/volatile_sensitivity/simout.h5'             # Simulation output file for results
     # simout1='src/volatile_sensitivity/simout_prop.h5'       # Proportional volatiles output
     # simout2='src/volatile_sensitivity/simout_prop2.h5'      # Proportional volatiles output version 2
-    simout='src/volatile_sensitivity/simout_gard.h5'
-    simout1='src/volatile_sensitivity/simout_prop_gard.h5'
-    simout2='src/volatile_sensitivity/simout_prop2_gard.h5'
-    stem='src/volatile_sensitivity/simbulk_'                  # Temporary simulation data file    
+    
+    # # Gard 
+    # simout='src/volatile_sensitivity/simout_gard.h5'
+    # simout1='src/volatile_sensitivity/simout_prop_gard.h5'
+    # simout2='src/volatile_sensitivity/simout_prop2_gard.h5'
+
+    # Combined
+    simout='src/volatile_sensitivity/simout_combo.h5'
+    simout1='src/volatile_sensitivity/simout_prop_combo.h5'
+    simout2='src/volatile_sensitivity/simout_prop2_combo.h5'
+
+
+## Initialize other variables
+    # Temporary simulation data file 
+    stem='src/volatile_sensitivity/simbulk_'  
 
     # Project location
     proj='../RockWeatheringFlux.jl/Project.toml'
@@ -36,8 +50,8 @@ set -e
 
 
 ## Set up output files
-    julia --project=$proj src/volatile_sensitivity/DefineOutput.jl $simout
-    julia --project=$proj src/volatile_sensitivity/DefineOutput.jl $simout1
+    # julia --project=$proj src/volatile_sensitivity/DefineOutput.jl $simout
+    # julia --project=$proj src/volatile_sensitivity/DefineOutput.jl $simout1
     julia --project=$proj src/volatile_sensitivity/DefineOutput.jl $simout2
 
 
@@ -52,13 +66,13 @@ set -e
     do
         printf "\nRunning simulation with ${dol_sim[i]} wt.%% volatiles $(date +'%D %T').\n"
 
-        # Equal volatiles
-        julia --project=$proj src/volatile_sensitivity/Simulation.jl\
-        $simout $stem ${dol_sim[i]} ${dol_sim[i]} ${dol_sim[i]} ${dol_sim[i]}
+        # # Equal volatiles
+        # julia --project=$proj src/volatile_sensitivity/Simulation.jl\
+        # $simout $stem ${dol_sim[i]} ${dol_sim[i]} ${dol_sim[i]} ${dol_sim[i]}
 
-        # Proportional volatiles (undifferentiated evaporites)
-        julia --project=$proj src/volatile_sensitivity/Simulation.jl\
-        $simout1 $stem ${dol_sim[i]} ${bas_sim[i]} ${dol_sim[i]} ${bas_sim[i]}
+        # # Proportional volatiles (undifferentiated evaporites)
+        # julia --project=$proj src/volatile_sensitivity/Simulation.jl\
+        # $simout1 $stem ${dol_sim[i]} ${bas_sim[i]} ${dol_sim[i]} ${bas_sim[i]}
 
         # Proportional volatiles (differentiated evaporites)
         julia --project=$proj src/volatile_sensitivity/Simulation.jl\
@@ -70,7 +84,7 @@ set -e
     printf "\nRunning simulation for current experimental conditions $(date +'%D %T').\n"
 
     julia --project=$proj src/volatile_sensitivity/Simulation.jl\
-    $simout $stem 'initial' $gyp $dol $bas
+    $simout2 $stem 'initial' $gyp $dol $bas
 
 
 ## Stop timer

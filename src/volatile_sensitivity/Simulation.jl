@@ -28,7 +28,8 @@
 
     # Run screening restrictions
     # include("../ScreenBulkBase.jl")
-    include("../ScreenGardBase.jl")
+    # include("../ScreenGardBase.jl")
+    include("../ScreenCombinedBase.jl")
 
     # Save BitVector and sample increase to simout file
     a = zeros(Int64, length(t))

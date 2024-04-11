@@ -8,58 +8,63 @@
     # sim1 = "src/volatile_sensitivity/simout.h5"
     # sim2 = "src/volatile_sensitivity/simout_prop.h5"
     # sim3 = "src/volatile_sensitivity/simout_prop2.h5"
-    sim1 = "src/volatile_sensitivity/simout_gard.h5"
-    sim2 = "src/volatile_sensitivity/simout_prop_gard.h5"
-    sim3 = "src/volatile_sensitivity/simout_prop2_gard.h5"
+
+    # sim1 = "src/volatile_sensitivity/simout_gard.h5"
+    # sim2 = "src/volatile_sensitivity/simout_prop_gard.h5"
+    # sim3 = "src/volatile_sensitivity/simout_prop2_gard.h5"
+
+    sim1 = "src/volatile_sensitivity/simout_combo.h5"
+    sim2 = "src/volatile_sensitivity/simout_prop_combo.h5"
+    sim3 = "src/volatile_sensitivity/simout_prop2_combo.h5"
 
 
 ## --- Load simulation with equal assumed volatiles and current experimental conditions
-    # Load data and find SiO₂ index
-    fid = h5open(sim1, "r")
-    allelements = read(fid["vars"]["elements"])
-    sᵢ = findfirst(x->x=="SiO2", allelements)
+    # # Load data and find SiO₂ index
+    # fid = h5open(sim1, "r")
+    # allelements = read(fid["vars"]["elements"])
+    # sᵢ = findfirst(x->x=="SiO2", allelements)
 
-    # Preallocate 
-    simid = keys(fid["sims"]["UCC"])
-    sim = Array{Float64}(undef, length(simid), 1)
-    silica = Array{Float64}(undef, length(simid), 1)
-    stdev = Array{Float64}(undef, length(simid), 1)
-    c = 0
+    # # Preallocate 
+    # simid = keys(fid["sims"]["UCC"])
+    # sim = Array{Float64}(undef, length(simid), 1)
+    # silica = Array{Float64}(undef, length(simid), 1)
+    # stdev = Array{Float64}(undef, length(simid), 1)
+    # c = 0
 
-    # Find bulk silica distribution for iterative experiments
-    for i in eachindex(simid)
-        silica[i] = read(fid["sims"]["UCC"][simid[i]])[sᵢ]
-        stdev[i] = read(fid["sims"]["UCC_sem"][simid[i]])[sᵢ]
+    # # Find bulk silica distribution for iterative experiments
+    # for i in eachindex(simid)
+    #     silica[i] = read(fid["sims"]["UCC"][simid[i]])[sᵢ]
+    #     stdev[i] = read(fid["sims"]["UCC_sem"][simid[i]])[sᵢ]
 
-        try 
-            sim[i] = parse(Float64, split(simid[i],"_")[2]) 
-        catch
-            # Catch current experimental conditions
-            c = i
-            sim[i] = 47
-        end
-    end
-    close(fid)
+    #     try 
+    #         sim[i] = parse(Float64, split(simid[i],"_")[2]) 
+    #     catch
+    #         # Catch current experimental conditions
+    #         c = i
+    #         sim[i] = 47
+    #     end
+    # end
+    # close(fid)
 
 
 ## --- Load simulation with proportional assumed volatiles (bassanite:dolomite)
-    fid = h5open(sim2, "r")
-    allelements = read(fid["vars"]["elements"])
-    sᵢ = findfirst(x->x=="SiO2", allelements)
+    # fid = h5open(sim2, "r")
+    # allelements = read(fid["vars"]["elements"])
+    # sᵢ = findfirst(x->x=="SiO2", allelements)
     
-    # Preallocate 
-    simid = keys(fid["sims"]["UCC"])
-    sim_prop = Array{Float64}(undef, length(simid), 1)
-    silica_prop = Array{Float64}(undef, length(simid), 1)
-    stdev_prop = Array{Float64}(undef, length(simid), 1)
+    # # Preallocate 
+    # simid = keys(fid["sims"]["UCC"])
+    # sim_prop = Array{Float64}(undef, length(simid), 1)
+    # silica_prop = Array{Float64}(undef, length(simid), 1)
+    # stdev_prop = Array{Float64}(undef, length(simid), 1)
 
-    # Find bulk silica distribution for iterative experiments
-    for i in eachindex(simid)
-        sim_prop[i] = parse(Float64, split(simid[i],"_")[2]) 
-        silica_prop[i] = read(fid["sims"]["UCC"][simid[i]])[sᵢ]
-        stdev_prop[i] = read(fid["sims"]["UCC_sem"][simid[i]])[sᵢ]
-    end
-    close(fid)
+    # # Find bulk silica distribution for iterative experiments
+    # for i in eachindex(simid)
+    #     sim_prop[i] = parse(Float64, split(simid[i],"_")[2]) 
+    #     silica_prop[i] = read(fid["sims"]["UCC"][simid[i]])[sᵢ]
+    #     stdev_prop[i] = read(fid["sims"]["UCC_sem"][simid[i]])[sᵢ]
+    # end
+    # close(fid)
 
 
 ## --- Load simulation with proportional assumed volatiles (gypsum:dolomite:bassanite)

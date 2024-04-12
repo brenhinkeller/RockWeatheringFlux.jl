@@ -244,22 +244,53 @@
 
 
 ## --- Save to file: Composition of eroded material 
-    # The composition of eroded material [wt.%] is calculated for an element of interest 
-    # as the mass of that element divided by the total eroded mass
+    # TO DO: propagate uncertainty correctly :(
+    @warn "Composition of eroded material does not correctly propagate uncertainties"
+
+    # Calcuating the composition of eroded material from the total eroded mass means 
+    # infrequently-measured elements (e.g. REEs) will be skewed downward due to missing 
+    # data. 
+
+    # Compute the average total erosion at each point [kg/yr] for each rock class
+    erosion_bulk_average = (;
+        vals = NamedTuple{classes}(nanmean(erosion_bulk.vals[classfilter[k]]) for k in classes),
+        errs = NamedTuple{classes}(nanmean(erosion_bulk.errs[classfilter[k]]) for k in classes),
+    );
+
+    # Compute the average erosion at each point [kg/yr] for each element for each rock class 
+    erosion_element_average = (;
+        vals = NamedTuple{classes}([NamedTuple{Tuple(allelements)}(
+            nanmean(erosion_element.vals[e][classfilter[k]]) for e in allelements) for k in classes]
+        ),
+        errs = NamedTuple{classes}([NamedTuple{Tuple(allelements)}(
+            nanmean(erosion_element.errs[e][classfilter[k]]) for e in allelements) for k in classes]
+        ),
+    );
+
+    # The average composition of each class is average element mass / average total mass
+    result_composition = deepcopy(result)
     for i in eachindex(classes)
-        total_eroded_mass = result.vals[end,i]
-        result.vals[:,i] ./= total_eroded_mass
-        result.errs[:,i] ./= total_eroded_mass
+        for j in eachindex(allelements)
+            element = allelements[j]                # For each element...
+            
+            # This uncertainty propogates correctly!
+            val = erosion_element_average.vals[classes[i]][element] / erosion_bulk_average.vals[classes[i]]
+            err = erosion_element_average.errs[classes[i]][element] / erosion_bulk_average.vals[classes[i]]
+            
+            # Convert to wt.%
+            result_composition.vals[j,i] = val * 100
+            result_composition.errs[j,i] = err * 100
+        end
     end
 
-    # Save to file 
-    writedlm(erodedcomp_out, vcat(cols, hcat(rows, result.vals .* 100)))
-    writedlm(erodedcomp_out_err, vcat(cols, hcat(rows, result.errs .* 100)))
+    # Save to file
+    writedlm(erodedcomp_out, vcat(cols, hcat(rows, result_composition.vals)))
+    writedlm(erodedcomp_out_err, vcat(cols, hcat(rows, result_composition.errs .* 100)))
 
     # Format for terminal printout 
     composition = NamedTuple{classes}([(
-        vals = round.([result.vals[:,k][i]*100 for i in eachindex(majors)], sigdigits=3),
-        errs = round.([result.errs[:,k][i].*100 ./ sqrt(npoints) .*2 for i in eachindex(majors)], sigdigits=1)
+        vals = round.([result_composition.vals[:,k][i]*100 for i in eachindex(majors)], sigdigits=3),
+        errs = round.([result_composition.errs[:,k][i].*100 ./ sqrt(npoints) .*2 for i in eachindex(majors)], sigdigits=1)
     ) for k in eachindex(classes)])
 
 

@@ -244,12 +244,12 @@
 
 
 ## --- Save to file: Composition of eroded material 
-    # TO DO: propagate uncertainty correctly :(
-    @warn "Composition of eroded material does not correctly propagate uncertainties"
-
     # Calcuating the composition of eroded material from the total eroded mass means 
     # infrequently-measured elements (e.g. REEs) will be skewed downward due to missing 
     # data. 
+
+    # TO DO: propagate uncertainty correctly :(
+    @warn "Composition of eroded material does not correctly propagate uncertainties"
 
     # Compute the average total erosion at each point [kg/yr] for each rock class
     erosion_bulk_average = (;

@@ -98,20 +98,6 @@
     allshale = NamedTuple{Tuple(spider_REEs)}(
         reshape(nanmean(simout[:,1:end-1], dims=1), :, 1)
     )
-
-
-## --- Terminal printout: what's the ratio of my estimate to Rudnick and Gao?
-    me = [ucc.bulk[k] for k in spider_REEs]
-    rg = [rudnick_gao[k] for k in spider_REEs]
-    ratio = round.(me ./ rg, digits=2)
-
-    @info """ REEs are higher are higher than Rudnick and Gao by a factor of:
-    $(join(rpad.(spider_REEs, 8), " "))
-    $(join(rpad.(ratio, 8), " "))
-
-    Average: $(round(nanmean(ratio), digits=2))
-    2σ s.d:  $(round(nanstd(ratio)*2, digits=2))
-    """
     
 
 ## --- Assemble plots
@@ -177,7 +163,11 @@
         title="C. Sedimentary Rocks",
     )
     spidergram!(h3, ucc.sed, label="Sedimentary", 
-        seriescolor=colors.sed, msc=:auto,
+        seriescolor=colors_dark.sed, msc=:auto,
+        markershape=:circle, markersize=5,
+    )
+    spidergram!(h3, ucc.shale, label="Shale", 
+        seriescolor=colors_dark.shale, msc=:auto,
         markershape=:circle, markersize=5,
     )
     spidergram!(h3, ucc.carb, label="Carbonate", 

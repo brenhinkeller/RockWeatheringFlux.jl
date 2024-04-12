@@ -50,105 +50,109 @@
     rock_ersn = emmkyr.(rockslope);
 
 
-## --- Calculate denundation at each point
-    # Area of land:
-        # Total: 149,733,926
-        # Antarctica: 14,200,000 
-        # Greenland: 2,166,086
-        # Area in this study = Total - (Antarctica + Greenland) = 133_367_840
-    # Declare constants
-    const crustal_density = 2750                            # kg/m³
+## --- Calculate bulk erosion and erosion by element at each point 
+    # Definitions 
+    crustal_density = 2750                                  # kg/m³
     npoints = length(mbulk.SiO2)                            # Number of *matched* points
     unit_sample_area = (133_367_840 * 1000000) / npoints    # Area of continents / npoints (m²)
+        # Area considered = Total - (Antarctica + Greenland)
+        # 149,733,926 - (14,200,000 + 2,166,086) = 133_367_840
 
-    # Create file to save data
-    fid = h5open(eroded_out, "w")
-
-    # Denundation at each point (kg/yr), for 
-    sampleflux = [rock_ersn[i] * unit_sample_area * crustal_density * 1e-6 for i = 1:npoints];
-
-    # Save to file
-    sampleflux_val, sampleflux_err = unmeasurementify(sampleflux)
-    bulk_denudation = create_group(fid, "bulk_denudation")
-    write(bulk_denudation, "values", sampleflux_val)
-    write(bulk_denudation, "errors", sampleflux_err)
-
-
-## --- Calculate flux of each element at each point
-    # Define elements
+    # Get element names
     majors, minors = get_elements()
     allelements = [majors; minors]
     nelements = length(allelements)
+    
+    # Bulk (total / undifferentiated) erosion at each point
+    # Multiply by 1e-6 to convert from kg/Myr to kg/yr
+    erosion_bulk = [rock_ersn[i] * unit_sample_area * crustal_density * 1e-6 for i = 1:npoints];
 
-    # Preallocate file space
-    element_flux = create_group(fid, "element_flux")
-    elem_vals = create_dataset(element_flux, "values", Float64, (npoints, nelements))
-    elem_errs = create_dataset(element_flux, "errors", Float64, (npoints, nelements))
-    write(element_flux, "header", string.(allelements))
-
+    # Contribution of each element to bulk erosion at each point
+    # Multiply by 1e-2 to convert from wt.% to fraction
+    erosion_element = (;
+        vals = Array{Float64}(undef, npoints, nelements),
+        errs = Array{Float64}(undef, npoints, nelements),
+    )
     for i in eachindex(allelements)
-        # Since each Macrostrat point has a corresponding EarthChem sample, use that 
-        # sample to calculate flux of each element at each point
         elementflux = [sampleflux[j] * mbulk[allelements[i]][j] * 1e-2 for j = 1:npoints]
-
-        # Save to file
-        elementflux_val, elementflux_err = unmeasurementify(elementflux)
-        elem_vals[:,i] += elementflux_val
-        elem_errs[:,i] += elementflux_err
+        erosion_element.vals[:,i] .= Measurements.value.(elementflux)
+        erosion_element.errs[:,i] .= Measurements.uncertainty.(elementflux)
     end
 
+    # Save to file
+    fid = h5open(eroded_out, "w")
+
+    g = create_group(fid, "erosion_bulk")
+    write(g, "values", Measurements.value.(erosion_bulk))
+    write(g, "errors", Measurements.uncertainty.(erosion_bulk))
+
+    g = create_group(fid, "erosion_element")
+    write(g, "header", string.(allelements))
+    write(g, "values", erosion_element.vals)
+    write(g, "errors", erosion_element.errs)
+
     close(fid)
 
 
-## --- Open the file
-    # Redundant, but means we can skip straight to this cell and start analyzing things
+## --- Load data from file 
     fid = h5open("$eroded_out", "r")
 
-    # Total / bulk denundation at each point in kg/yr
-    path = fid["bulk_denudation"]
-    bulk_denudation_val = read(path["values"])
-    bulk_denudation_err = read(path["errors"])
+    # Bulk erosion at each point [kg/yr]
+    erosion_bulk = (;
+        vals = read(fid["erosion_bulk"]["values"]),
+        errs = read(fid["erosion_bulk"]["errors"]),
+    )
 
-    # Global flux of each element at each point in kg/yr
-    path = fid["element_flux"]
-    vals = read(path["values"])
-    errs = read(path["errors"])
-    header = Tuple(Symbol.(read(path["header"])))
-    elementflux_val = NamedTuple{header}([vals[:,i] for i in eachindex(header)])
-    elementflux_err = NamedTuple{header}([errs[:,i] for i in eachindex(header)])
+    # Erosion by element at each point [kg/yr]
+    header = Tuple(Symbol.(read(fid["erosion_element"]["header"])))
+    vals = read(fid["erosion_element"]["values"])
+    errs = read(fid["erosion_element"]["errors"])
+    erosion_element = (;
+        vals = NamedTuple{header}([vals[:,i] for i in eachindex(header)]),
+        errs = NamedTuple{header}([errs[:,i] for i in eachindex(header)]),
+    )
 
     close(fid)
 
 
-## --- Calculate mass of bulk sediment, and mass of sediment by element
-    # Conversion for kg to Gt. Data file will be in units of kg/yr
-    const kg_gt = 1e12
+## --- Calculate the total (global) mass of eroded sediment and of each element
+    # Convert point data from kg/yr to Gt/yr
+    kg_gt = 1e12
 
-    # Global denundation in Gt/yr.
-    global_denun_val = nansum(bulk_denudation_val ./ kg_gt)
-    global_denun_err = sqrt(nansum((bulk_denudation_err ./ kg_gt).^2))
-
-    # Total global flux for each element in Gt/yr
-    totalelementflux_val = NamedTuple{keys(elementflux_val)}([nansum(i) / kg_gt for i in elementflux_val])
-    totalelementflux_err = NamedTuple{keys(elementflux_err)}([sqrt(nansum((i ./ kg_gt).^2)) 
-        for i in elementflux_err]
+    # Total mass of eroded sediment (one number for whole earth)
+    global_erosion_bulk = (;
+        vals = nansum(erosion_bulk.vals ./ kg_gt),
+        errs = sqrt(nansum((erosion_bulk.errs ./ kg_gt).^2)),
     )
 
-    # Sum of all element fluxes in Gt/yr
-    global_elem_val = nansum(values(totalelementflux_val))
-    global_elem_err = sqrt(nansum(values(totalelementflux_err).^2))
+    # Total mass of each eroded element (one number for each element)
+    elem = keys(erosion_element.vals)
+    global_erosion_element = (;
+        vals = NamedTuple{elem}([nansum(erosion_element.vals[k]) / kg_gt for k in elem]),
+        errs = NamedTuple{elem}([sqrt(nansum((erosion_element.errs[k] ./ kg_gt).^2)) for k in elem]),
+    );
 
-    # Print to terminal
-    @info """ Results ± 2σ s.d.:
-    Total global denundation: $(round(global_denun_val, sigdigits=3)) ± $(round(global_denun_err, sigdigits=3)*2) Gt/yr
-    Sum of all element fluxes: $(round(global_elem_val, sigdigits=3)) ± $(round(global_elem_err, sigdigits=3)*2) Gt/yr
-    """
+    # Print to terminal 
+    global_sum = (;
+        val = round(global_erosion_bulk.vals, sigdigits=3),
+        err = round(2*global_erosion_bulk.errs, sigdigits=3),
+    )
+    global_element_sum = (;
+        val = round(nansum(values(global_erosion_element.vals)), sigdigits=3),
+        err = round(sqrt(2*nansum(values(global_erosion_element.errs).^2)), sigdigits=3),
+    )
 
-    if global_elem_val > global_denun_val
-        diff = global_elem_val - global_denun_val
+    if isapprox(global_sum.val, global_element_sum.val, atol = max(global_sum.err, global_element_sum.err))
+        @info "Mass of global sediment production ± 2σ s.d.: $(global_sum.val) ± $(global_sum.err) Gt/yr"
+    else
+        diff = abs((global_sum.val ± global_sum.err) - (global_element_sum.val ± global_element_sum.err))
         @warn """
-        Mass of total eroded material from all elements is greater than bulk eroded mass. 
-        Difference: $diff
+        Mass of global sediment production ± 2σ s.d.: $(global_sum.val) ± $(global_sum.err) Gt/yr
+
+        Mass of eroded sediment and sum of eroded elements are not within 2σ s.d. error.
+        \t Eroded sediment:        $(global_sum.val) ± $(global_sum.err) Gt/yr
+        \t Sum of eroded elements: $(global_element_sum.val) ± $(global_element_sum.err) Gt/yr
+        Difference: $diff Gt/yr
         """
     end
 
@@ -156,152 +160,190 @@
 ## --- Preallocate and set switches for export
     # [SWITCH] lithologic class filter 
     classfilter = megaclass
+    classes = keys(classfilter)
 
-    # Major elements for terminal printouts
-    majors = get_elements()[1]
+    # Elements of interest 
+    majors, minors = get_elements()
     nmajors = length(majors)
+    allelements = [majors; minors]
 
-    # Preallocate results array (element row, rock type column)
-    result = Array{Float64}(undef, length(elementflux_val)+1, length(classfilter))
-    result_err = similar(result)
-    rows = vcat(string.(collect(keys(elementflux_val))), "Total")
-    cols = hcat("elem", reshape(string.(collect(keys(classfilter))), 1, :));
-
-
-## --- Compute and export the mass flux of denuded material, and relative contribution
-    # Absolute contribution of each rock class to the denudation of each element is the 
-    # sum of the individual contributions of each spatial point
-    for i in eachindex(keys(classfilter))
-        for j in eachindex(keys(elementflux_val))
-            result[j,i] = nansum(elementflux_val[j][classfilter[i]])
-            result_err[j,i] = sqrt(nansum((elementflux_err[j][classfilter[i]]).^2))
-        end
-    end
-    result[end,:] .= vec(nansum(result[1:end-1,:], dims=1))
-    result_err[end,:] .= vec(sqrt.(nansum((result_err[1:end-1,:]).^2, dims=1)))
-
-    # Convert units from kg/yr to gt/yr.
-    # We now have absolute amount of material eroded by lithologic class each year!
-    result ./= kg_gt
-    result_err ./= kg_gt
-    writedlm(erodedabs_out, vcat(cols, hcat(rows, result)))
-    writedlm(erodedabs_out_err, vcat(cols, hcat(rows, result_err)))
-
-    # Save major element values for terminal printout 
-    majorcomp = round.(result[1:nmajors, end], digits=1)
-    majorcomp_err = round.(result_err[1:nmajors, end]*2, digits=1)
-
-    # Relative contribution of each lithologic class to total mass flux
-    # Note that major classes will be the sum of their constituent minor classes.
-    writedlm(erodedrel_out, vcat(cols, hcat(rows, result./result[:,end])))
-    writedlm(erodedrel_out_err, vcat(cols, hcat(rows, result_err./result[:,end])))
-
-
-## --- Calculate and export the composition of eroded material
-    # How many samples explain 90% of the matches?
+    # N samples account for 90% of matches
     npoints = unique_sample(mbulk.Sample_ID, 90)
 
-    # Compute the composition of eroded material [wt.%] for each lithologic class as the
-    # fraction of that element out of the total erosion for that class.
-    for i in eachindex(keys(classfilter))
-        normconst = result[end,i]
-        result[:,i] ./= normconst
-        result_err[:,i] ./= normconst
+    # Preallocate results array (element row, rock class column)
+    rows = vcat(string.(collect(keys(erosion_element.vals))), "Total")
+    cols = hcat("elem", reshape(string.(collect(keys(classfilter))), 1, :));
+
+    result = (;
+        vals = Array{Float64}(undef, length(rows), length(cols) - 1),
+        errs = Array{Float64}(undef, length(rows), length(cols) - 1),       # 1σ s.d.
+    )
+
+
+## --- Save to file: Absolute mass of eroded elements by rock class  
+    # The absolute mass of eroded material which erodes from a given rock class is the sum
+    # of the mass of each point of that class 
+    for i in eachindex(classes)
+        for j in eachindex(allelements)
+            rockclass = classfilter[classes[i]]     # For each rock class...
+            element = allelements[j]                # For each element...
+            
+            # Sum all values which are matched to the rock class of interest
+            result.vals[j,i] = nansum(erosion_element.vals[element][rockclass])
+            result.errs[j,i] = sqrt(nansum(erosion_element.vals[element][rockclass]).^2)
+
+            # Convert sum from kg/yr to Gt/yr
+            result.vals[j,i] /= kg_gt
+            result.errs[j,i] /= kg_gt
+        end
     end
-    writedlm(erodedcomp_out, vcat(cols, hcat(rows, result.*100)))
-    writedlm(erodedcomp_out_err, vcat(cols, hcat(rows, result_err.*100)))
 
-    # Save major element values for terminal printout
-    majorcomp_rel = round.(result[1:nmajors, end].*100, sigdigits=3)
-    majorcomp_rel_err = round.(result_err[1:nmajors, end].*100 ./ sqrt(npoints) .*2, sigdigits=1);
+    # The bulk mass eroded from each rock class is the sum of the mass of all elements 
+    result.vals[end,:] .= vec(nansum(result.vals[1:end-1,:], dims=1))
+    result.errs[end,:] .= vec(sqrt.(nansum((result.errs[1:end-1,:]).^2, dims=1)))
+
+    # Replace all 0's with NaNs!!
+    nanzero!(result.vals)
+    nanzero!(result.errs)
+
+    # Save to file
+    writedlm(erodedabs_out, vcat(cols, hcat(rows, result.vals)))
+    writedlm(erodedabs_out_err, vcat(cols, hcat(rows, result.errs)))
+
+    # Save major element values to print to terminal 
+    erodedmass_to_terminal = (;
+        vals = round.(result.vals[1:nmajors, end], digits=1),
+        errs = round.(result.errs[1:nmajors, end]*2, digits=1),
+    )
 
 
-## --- Terminal printout 
+## --- Save to file: Fractional contribution of each rock class and element to total erosion
+    # That is, the fraction of total erosion represented by each element and each class.
+    # Rows are summative rather than columns; e.g. a sedimentary SiO2 value of 0.61 means 
+    # 61% of SiO2 erodes from sedimentary rocks---NOT that 61% of sedimentary eroded 
+    # eroded material is SiO2 (the latter is composition, computed later). 
+
+    # The contribution of major classes will be the sum of the contribution of their 
+    # subclasses. Keep in mind that Because we don't consider metamorphic rocks as a 
+    # descriptive class (e.g., during matching, all rocks are assigned to be a subclass 
+    # of sed / volc / plut rocks), the sum of the fractional contributions of 
+    # sed + volc + plut = 1
+    
+    # Calculate contribution 
+    result_contribution = (;
+        vals = result.vals ./ result.vals[:,end],
+        errs = result.errs ./ result.vals[:,end],
+    )
+
+    # Save to file 
+    writedlm(erodedrel_out, vcat(cols, hcat(rows, result_contribution.vals)))
+    writedlm(erodedrel_out_err, vcat(cols, hcat(rows, result_contribution.errs)))
+
+    # Format total contribution for terminal printout 
+    contribution = NamedTuple{classes}(result_contribution.vals[end,:].*100)
+
+
+## --- Save to file: Composition of eroded material 
+    # The composition of eroded material [wt.%] is calculated for an element of interest 
+    # as the mass of that element divided by the total eroded mass
+    for i in eachindex(classes)
+        total_eroded_mass = result.vals[end,i]
+        result.vals[:,i] ./= total_eroded_mass
+        result.errs[:,i] ./= total_eroded_mass
+    end
+
+    # Save to file 
+    writedlm(erodedcomp_out, vcat(cols, hcat(rows, result.vals .* 100)))
+    writedlm(erodedcomp_out_err, vcat(cols, hcat(rows, result.errs .* 100)))
+
+    # Format for terminal printout 
+    composition = NamedTuple{classes}([(
+        vals = round.([result.vals[:,k][i]*100 for i in eachindex(majors)], sigdigits=3),
+        errs = round.([result.errs[:,k][i].*100 ./ sqrt(npoints) .*2 for i in eachindex(majors)], sigdigits=1)
+    ) for k in eachindex(classes)])
+
+
+## --- Print to terminal: major element mass and composition vibe check
     @info """ Annual mass flux of denuded material:
     Total mass flux [Gt/yr] ± 2σ s.d.
       $(join(rpad.(majors, 8), " "))
-      $(join(rpad.(majorcomp, 8), " "))
-    ± $(join(rpad.(majorcomp_err, 8), " "))
+      $(join(rpad.(erodedmass_to_terminal.vals, 8), " "))
+    ± $(join(rpad.(erodedmass_to_terminal.errs, 8), " "))
     
     Composition [wt.%] of bulk eroded material ± 2 s.e.:
       $(join(rpad.(majors, 8), " "))
-      $(join(rpad.(majorcomp_rel, 8), " "))
-    ± $(join(rpad.(majorcomp_rel_err, 8), " "))
+      $(join(rpad.(composition.bulk.vals, 8), " "))
+    ± $(join(rpad.(composition.bulk.errs, 8), " "))
     """
 
-
-## --- Terminal printout for the LaTeX-formatting Excel sheet 
-    # Pre-computed compositions
-    comp = NamedTuple{keys(classfilter)}([(
-        comp = round.([result[:,k][i]*100 for i in eachindex(majors)], sigdigits=3),
-        sem = round.([result_err[:,k][i].*100 ./ sqrt(npoints) .*2 for i in eachindex(majors)], sigdigits=1)
-    ) for k in eachindex(keys(classfilter))])
-
+## --- Print to terminal: composition, formatted for LaTeX / Excel workflow
+    # Preallocate
     target = (:sed, :volc, :plut, :bulk)
-    out = fill("", length(majors)+1)
-    for t in target
+    out = fill("", length(majors) + 1)
+
+    # Compute anhydrous composition of eroded material 
+    @assert majors[end] == :Volatiles   # Assumes volatiles listed at the end of majors
+    anhydrous_sum = 100 - composition.bulk.vals[end]
+    composition_anhydrous = (;
+        vals = round.(composition.bulk.vals[1:end-1] ./ anhydrous_sum .* 100, sigdigits=3),
+        errs = round.(composition.bulk.vals[1:end-1] ./ anhydrous_sum .* 100, sigdigits=1),
+    )
+
+    # Format major element composition and sum of major elements 
+    for key in target
         for i in eachindex(majors) 
-            out[i] *= "\$ $(comp[t].comp[i]) \\pm $(comp[t].sem[i]) \$; "
-        end
-        out[end] *= "$(round(sum(comp[t].comp), sigdigits=4)); "
+            out[i] *= "\$ $(composition[key].vals[i]) \\pm $(composition[key].errs[i]) \$; "
+        end 
+        out[end] *= "$(round(sum(composition[key].vals), sigdigits=4)); "
     end
-
-    # Anhydrous-normalized, as in UpperCrustComposition
-    k = findfirst(x->x==:bulk, keys(class))
-    index = collect(1:length(majors))[1:end .!= findfirst(x->x==:Volatiles, majors)]
-    anhydrous_comp = [result[:,k][i] for i = index]
-    anhydrous_sem = [result_err[:,k][i]*2 for i = index]
     
-    sum_a = sum(anhydrous_comp)
-    anhydrous_comp = round.(anhydrous_comp ./ sum_a .* 100, sigdigits=3)
-    anhydrous_sem = round.(anhydrous_sem ./ sum_a .* 100, sigdigits=1)
-
-    out_anh = fill("", length(majors)+1)
-    for i = index
-        out_anh[i] *= "\$ $(anhydrous_comp[i]) \\pm $(anhydrous_sem[i]) \$"
+    # Format anhydrous composition and sum of major elements 
+    out_anhydrous = fill("", length(majors)+1)
+    for i in eachindex(majors[1:end-1])
+        out_anhydrous[i] *= "\$ $(composition_anhydrous.vals[i]) \\pm $(composition_anhydrous.errs[i]) \$"
     end
-    out_anh[end] = string(round(sum(anhydrous_comp), sigdigits=4))
+    out_anhydrous[end] = string(round(sum(composition_anhydrous.vals), sigdigits=4))
 
-    # Print to terminal
-    @info "Composition of eroded material (sed / volc / plut / bulk / anhydrous)"
+    # Print to terminal 
+    @info "Composition of eroded material: $target + anhydrous"
     for i in eachindex(out)
-        println("$(out[i] * out_anh[i])")
+        println("$(out[i] * out_anhydrous[i])")
     end
 
 
-## --- Compute and export surficial abundance and contribution to erosion by lithologic class 
-    # Because we reassigned all metamorphic rocks to sedimentary or igneous, the total
-    # surficial abundance of sed + ign = 100%. Because we're using the matched types, 
-    # this happens automatically 😍
-    # 
-    # That means metamorphic abundance of X is just X% of rocks are metasedimentary or 
-    # metaigneous
+## --- Save to file / Print to terminal: Surficial abundance and fractional contribution
+    # This repeats data found in the fractional contribution to eroded material file, but
+    # simplified to only bulk data (e.g. undifferentiated by element)
 
-    # Calculate contribution to eroded material 
-    fid = readdlm(erodedrel_out)
-    contrib = NamedTuple{Tuple(Symbol.(fid[1,2:end]))}(fid[end, 2:end].*100)
+    # To compare surficial abundance and contribution to total erosion, we must use the 
+    # lithologies assigned to each sample during matching. This means the total surficial 
+    # abundance of sed + ign = 100%. Metamorphic abundances should be considered as subsets 
+    # of "descriptive" lithologies: e.g. 7% of sedimentary rocks are metasedimentary. The 
+    # "met" class is all metamorphic rocks (metased + metaign + undifferentiated)
 
-    # Calculate surficial abundance
-    dist = NamedTuple{keys(classfilter)}(
+    # Calculate surficial abundance 
+    matched_surficial = NamedTuple{classes}(
         count(classfilter[k])/length(classfilter[k])*100 for k in keys(classfilter)
     )
 
-    # Save to file and print to terminal
-    @assert keys(contrib) == keys(dist) """
-    Element order mismatch in tuples of surface exposure and contribution to erosion"""
+    # Save to file 
+    cols = ["lithology" "surficial abundance" "fractional contribution"]
+    writedlm(surfacelith_calc_out, vcat(cols, hcat(
+        collect(string.(keys(dist))), 
+        collect(values(matched_surficial)), 
+        collect(values(contribution))
+    )))
 
-    writedlm(surfacelith_calc_out, vcat(
-        ["lithology" "surficial abundance" "erosion contribution"], 
-        hcat(collect(string.(keys(dist))), collect(values(dist)), collect(values(contrib))))
+    # Print data for target classes to terminal 
+    @info "Surficial abundance / fractional contribution to erosion: $target"
+    println(
+        """$(join([round(matched_surficial[k], sigdigits=3) for k in target], "; "))
+        $(join([round(contribution[k], sigdigits=3) for k in target], "; "))
+        """
     )
 
-    @info "Surficial abundance and contribution to erosion by lithologic class:"
-    for k in keys(classfilter)
-        println("$(k) $(round(dist[k], sigdigits=3)) $(round(contrib[k], sigdigits=3))")
-    end
 
-
-## --- Surficial abundance as mapped, calculated for supplementary reference table
+## --- Save to file: Surficial abundance as mapped
     # Load Macrostrat lithologic classes (matched samples only)
     fid = readdlm(matchedbulk_io)
     gchem_ind = Int.(vec(fid[:,1]))

@@ -53,7 +53,7 @@
         xlims=(0.5, length(anhydrous_majors)+0.5),
         xticks=(1:length(anhydrous_majors), string.(anhydrous_majors)), 
         ylims=(0.25, 2.25),
-        yticks=(0.5:0.5:2, string.(Int.((0.5:0.5:2)*100))),
+        yticks=(0.5:0.5:2, string.(((0.5:0.5:2)))),
         fg_color_legend=:white, legendfontsize=12, legend=:topleft,
         labelfontsize=12, tickfontsize=10,
         ylabel="Relative Difference",

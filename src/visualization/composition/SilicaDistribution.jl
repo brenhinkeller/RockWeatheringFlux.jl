@@ -126,7 +126,7 @@
         # Final formatting
         Plots.ylims!(0, round(maximum([n₁; n₂; u.density]), digits=2)+0.02)
         npoints = count(match_cats[fig_types[i]])
-        Plots.annotate!(((0.03, 0.97), ("n = $npoints", labelfontsize, :left, :top)))
+        Plots.annotate!(((0.03, 0.97), ("n = $npoints", 18, :left, :top)))
         fig[i] = h
     end
 

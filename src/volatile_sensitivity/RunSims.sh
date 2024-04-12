@@ -10,27 +10,13 @@ set -e
     printf "Starting simulations $(date +'%D %T')\n"
 
 
-## Output file names -- remember to change the ScreenBase script in Simulation.jl
-    # Note that if we want to move faster, we only actually plot simout2, although we do 
-    # use simout to store the current experimental conditions
+## Initialize variables
 
-    # # EarthChem
-    # simout='src/volatile_sensitivity/simout.h5'             # Simulation output file for results
-    # simout1='src/volatile_sensitivity/simout_prop.h5'       # Proportional volatiles output
-    # simout2='src/volatile_sensitivity/simout_prop2.h5'      # Proportional volatiles output version 2
-    
-    # # Gard 
-    # simout='src/volatile_sensitivity/simout_gard.h5'
-    # simout1='src/volatile_sensitivity/simout_prop_gard.h5'
-    # simout2='src/volatile_sensitivity/simout_prop2_gard.h5'
+    # Output file names -- remember to change the ScreenBase script in Simulation.jl
+    # simout2='src/volatile_sensitivity/simout_prop2.h5'          # EarthChem
+    # simout2='src/volatile_sensitivity/simout_prop2_gard.h5'     # Gard 
+    simout2='src/volatile_sensitivity/simout_prop2_combo.h5'    # Combined
 
-    # Combined
-    simout='src/volatile_sensitivity/simout_combo.h5'
-    simout1='src/volatile_sensitivity/simout_prop_combo.h5'
-    simout2='src/volatile_sensitivity/simout_prop2_combo.h5'
-
-
-## Initialize other variables
     # Temporary simulation data file 
     stem='src/volatile_sensitivity/simbulk_'  
 
@@ -50,8 +36,6 @@ set -e
 
 
 ## Set up output files
-    # julia --project=$proj src/volatile_sensitivity/DefineOutput.jl $simout
-    # julia --project=$proj src/volatile_sensitivity/DefineOutput.jl $simout1
     julia --project=$proj src/volatile_sensitivity/DefineOutput.jl $simout2
 
 
@@ -65,14 +49,6 @@ set -e
     for i in "${!dol_sim[@]}"
     do
         printf "\nRunning simulation with ${dol_sim[i]} wt.%% volatiles $(date +'%D %T').\n"
-
-        # # Equal volatiles
-        # julia --project=$proj src/volatile_sensitivity/Simulation.jl\
-        # $simout $stem ${dol_sim[i]} ${dol_sim[i]} ${dol_sim[i]} ${dol_sim[i]}
-
-        # # Proportional volatiles (undifferentiated evaporites)
-        # julia --project=$proj src/volatile_sensitivity/Simulation.jl\
-        # $simout1 $stem ${dol_sim[i]} ${bas_sim[i]} ${dol_sim[i]} ${bas_sim[i]}
 
         # Proportional volatiles (differentiated evaporites)
         julia --project=$proj src/volatile_sensitivity/Simulation.jl\

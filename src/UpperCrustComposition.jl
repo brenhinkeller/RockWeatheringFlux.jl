@@ -78,6 +78,14 @@
         sem = round.([result_err[:,k][i] for i in eachindex(majors)], sigdigits=1)
     ) for k in eachindex(keys(class))])
 
+    # Carbonate SiO2 and CaO values for the paper :)
+    i_silica = findfirst(x->x==:SiO2, majors)
+    i_calcium = findfirst(x->x==:CaO, majors)
+    @info """Carbonates:
+    SiO2: $(comp.carb.comp[i_silica]) \\pm $(comp.carb.sem[i_silica])
+    CaO:  $(comp.carb.comp[i_calcium]) \\pm $(comp.carb.sem[i_calcium])
+    """
+
     # Sedimentary, volcanic, and plutonic report only wt.% without error
     target = (:sed, :volc, :plut,)
     out = fill("", length(majors)+1)

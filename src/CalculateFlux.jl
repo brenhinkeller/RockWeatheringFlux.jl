@@ -289,8 +289,8 @@
 
     # Format for terminal printout 
     composition = NamedTuple{classes}([(
-        vals = round.([result_composition.vals[:,k][i]*100 for i in eachindex(majors)], sigdigits=3),
-        errs = round.([result_composition.errs[:,k][i].*100 ./ sqrt(npoints) .*2 for i in eachindex(majors)], sigdigits=1)
+        vals = round.([result_composition.vals[:,k][i] for i in eachindex(majors)], sigdigits=3),
+        errs = round.([result_composition.errs[:,k][i] ./ sqrt(npoints) .*2 for i in eachindex(majors)], sigdigits=1)
     ) for k in eachindex(classes)])
 
 

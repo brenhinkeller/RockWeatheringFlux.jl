@@ -1038,4 +1038,46 @@
     export replace_malformed_char
 
 
+## --- Resampling 
+
+    """
+    ```julia 
+    resampling_age(geochem_age, geochem_age_min, geochem_age_max, 
+        map_age, map_age_min, map_age_max, error_rel, error_abs
+    ) 
+    ```
+
+    Calculate sample age and age uncertainties for a set of matched samples. Prefer ages 
+    associated with geochemical age. If no ages are listed, use mapped ages. Specify 
+    relative (`error_rel` percent) and absolute (`error_abs`, Myr.) errors.
+
+    # Example
+    ```julia-repl
+    sampleage, ageuncert = resampling_age(mbulk.Age, mbulk.Age_Min, mbulk.Age_Max, 
+        macrostrat.age, macrostrat.agemin, macrostrat.agemax, 5, 50
+    )
+    ```
+
+    """
+    function resampling_age(geochem::T, geochem_min::T, geochem_max::T, 
+            map::T, map_min::T, map_max::T, error_rel::Number, error_abs::Number
+        ) where T <: AbstractArray{<:Number}
+
+        # Try geochemical age
+        sampleage = copy(geochem);
+        ageuncert = nanadd.(geochem_max, .- geochem_min) ./ 2;
+
+        t = isnan.(sampleage);
+        sampleage[t] .= map[t]
+        ageuncert[t] .= nanadd.(map_max[t], .- map_min[t]) ./ 2;
+        
+        for i in eachindex(ageuncert)
+            ageuncert[i] = max(sampleage[i]*error_rel/100, ageuncert[i], error_abs)
+        end
+
+        return sampleage, ageuncert
+    end
+    export resampling_age
+
+
 ## --- End of file

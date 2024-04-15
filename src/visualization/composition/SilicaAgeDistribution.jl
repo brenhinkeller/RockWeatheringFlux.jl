@@ -21,81 +21,76 @@
 
 
 ## --- Resample (spatiotemporal) bulk geochemical data
-    # # Preallocate 
-    # simbulk = NamedTuple{target}(Array{Float64}(undef, nsims, 2) for _ in target)
+    # Preallocate 
+    simbulk = NamedTuple{target}(Array{Float64}(undef, nsims, 2) for _ in target)
 
-    # # Compute age uncertainties 
-    # ageuncert = nanadd.(bulk.Age_Max, .- bulk.Age_Min) ./ 2;
-    # for i in eachindex(ageuncert)
-    #     ageuncert[i] = max(bulk.Age[i]*age_error, ageuncert[i], age_error_abs)
-    # end
+    # Compute age uncertainties 
+    ageuncert = nanadd.(bulk.Age_Max, .- bulk.Age_Min) ./ 2;
+    for i in eachindex(ageuncert)
+        ageuncert[i] = max(bulk.Age[i]*age_error, ageuncert[i], age_error_abs)
+    end
 
-    # # Restrict to samples with data and resample 
-    # t = @. !isnan(bulk.Latitude) & !isnan(bulk.Longitude) & !isnan(bulk.Age);
-    # for key in target 
-    #     s = t .& bulk_cats[key]
-    #     k = invweight(bulk.Latitude[s], bulk.Longitude[s], bulk.Age[s])
-    #     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    #     data = [bulk.SiO2[s] bulk.Age[s]]
-    #     uncertainty = [fill(SiO2_error, count(s)) ageuncert[s]]
-    #     simbulk[key] .= bsresample(data, uncertainty, nsims, p)
-    # end
+    # Restrict to samples with data and resample 
+    t = @. !isnan(bulk.Latitude) & !isnan(bulk.Longitude) & !isnan(bulk.Age);
+    for key in target 
+        s = t .& bulk_cats[key]
+        k = invweight(bulk.Latitude[s], bulk.Longitude[s], bulk.Age[s])
+        p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+        data = [bulk.SiO2[s] bulk.Age[s]]
+        uncertainty = [fill(SiO2_error, count(s)) ageuncert[s]]
+        simbulk[key] .= bsresample(data, uncertainty, nsims, p)
+    end
 
 
 ## --- Resample (temporal) matched samples
-    # # Preallocate 
-    # sim_mbulk = NamedTuple{target}(Array{Float64}(undef, nsims, 2) for _ in target)
+    # Preallocate 
+    sim_mbulk = NamedTuple{target}(Array{Float64}(undef, nsims, 2) for _ in target)
 
-    # # Use the sample age, unless the sample doesn't have an age: then use map age
-    # t = @. !isnan(mbulk.Age);
-    # sampleage = copy(mbulk.Age);
-    # ageuncert = nanadd.(mbulk.Age_Max, .- mbulk.Age_Min) ./ 2;
-    # sampleage[t] .= macrostrat.age[t]
-    # ageuncert[t] .= nanadd.(macrostrat.agemax[t], .- macrostrat.agemin[t]) ./ 2;
-    # for i in eachindex(ageuncert)
-    #     ageuncert[i] = max(sampleage[i]*age_error, ageuncert[i], age_error_abs)
-    # end
+    # Calculate sample age and uncertainty
+    sampleage, ageuncert = resampling_age(mbulk.Age, mbulk.Age_Min, mbulk.Age_Max, 
+        macrostrat.age, macrostrat.agemin, macrostrat.agemax, age_error, age_error_abs
+    )
 
-    # # Restrict to only samples with data and resample 
-    # t = @. !isnan.(sampleage);
-    # for key in target 
-    #     s = t .& match_cats[key]
-    #     k = invweight_age(sampleage[s])
-    #     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    #     data = [mbulk.SiO2[s] sampleage[s]]
-    #     uncertainty = [fill(SiO2_error, count(s)) ageuncert[s]]
-    #     sim_mbulk[key] .= bsresample(data, uncertainty, nsims, p)
-    # end
+    # Restrict to only samples with data and resample 
+    t = @. !isnan.(sampleage);
+    for key in target 
+        s = t .& match_cats[key]
+        k = invweight_age(sampleage[s])
+        p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+        data = [mbulk.SiO2[s] sampleage[s]]
+        uncertainty = [fill(SiO2_error, count(s)) ageuncert[s]]
+        sim_mbulk[key] .= bsresample(data, uncertainty, nsims, p)
+    end
 
 
 ## --- Sort matched data into time bins, normalize, and save to a file
-    # fid = h5open("src/visualization/composition/SilicaAgeDistribution.h5", "w")
-    # g = create_group(fid, "vars")
+    fid = h5open("src/visualization/composition/SilicaAgeDistribution.h5", "w")
+    g = create_group(fid, "vars")
 
-    # # Resampled
-    # g_resam = create_group(g, "resampled")
-    # for i in eachindex(target)
-    #     out_bulk = zeros(ybins, xbins)
-    #     for j = 1:ybins
-    #         t = @. yedges[j] <= simbulk[target[i]][:,2] < yedges[j+1]
-    #         c, n = bincounts(simbulk[target[i]][:,1][t], xmin, xmax, xbins)
-    #         out_bulk[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
-    #     end
-    #     write(g_resam, "$(target[i])", out_bulk)
-    # end
+    # Resampled
+    g_resam = create_group(g, "resampled")
+    for i in eachindex(target)
+        out_bulk = zeros(ybins, xbins)
+        for j = 1:ybins
+            t = @. yedges[j] <= simbulk[target[i]][:,2] < yedges[j+1]
+            c, n = bincounts(simbulk[target[i]][:,1][t], xmin, xmax, xbins)
+            out_bulk[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
+        end
+        write(g_resam, "$(target[i])", out_bulk)
+    end
 
-    # # Matched
-    # g_match = create_group(g, "matched")
-    # for i in eachindex(target)
-    #     out_mbulk = zeros(ybins, xbins)
-    #     for j = 1:ybins
-    #         t = @. yedges[j] <= sim_mbulk[target[i]][:,2] < yedges[j+1]
-    #         c, n = bincounts(sim_mbulk[target[i]][:,1][t], xmin, xmax, xbins)
-    #         out_mbulk[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
-    #     end
-    #     write(g_match, "$(target[i])", out_mbulk)
-    # end
-    # close(fid)
+    # Matched
+    g_match = create_group(g, "matched")
+    for i in eachindex(target)
+        out_mbulk = zeros(ybins, xbins)
+        for j = 1:ybins
+            t = @. yedges[j] <= sim_mbulk[target[i]][:,2] < yedges[j+1]
+            c, n = bincounts(sim_mbulk[target[i]][:,1][t], xmin, xmax, xbins)
+            out_mbulk[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
+        end
+        write(g_match, "$(target[i])", out_mbulk)
+    end
+    close(fid)
 
 
 ## --- Load data 

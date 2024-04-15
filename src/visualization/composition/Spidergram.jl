@@ -59,14 +59,9 @@
     age_error = 0.05
     simout = Array{Float64}(undef, nsims, length(spider_REEs)+1)
 
-    t = @. !isnan(mbulk.Age);
-    sampleage = copy(mbulk.Age);
-    ageuncert = nanadd.(mbulk.Age_Max, .- mbulk.Age_Min) ./ 2;
-    sampleage[t] .= macrostrat.age[t]
-    ageuncert[t] .= nanadd.(macrostrat.agemax[t], .- macrostrat.agemin[t]) ./ 2;
-    for i in eachindex(ageuncert)
-        ageuncert[i] = max(sampleage[i]*age_error, ageuncert[i])
-    end
+    sampleage, ageuncert = resampling_age(mbulk.Age, mbulk.Age_Min, mbulk.Age_Max, 
+        macrostrat.age, macrostrat.agemin, macrostrat.agemax, age_error, age_error_abs  
+    )
 
     t = @. !isnan.(sampleage) .& match_cats.shale;
     data = Array{Float64}(undef, count(t), length(spider_REEs)+1)

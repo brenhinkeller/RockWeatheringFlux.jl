@@ -1055,14 +1055,15 @@
     # Example
     ```julia-repl
     sampleage, ageuncert = resampling_age(mbulk.Age, mbulk.Age_Min, mbulk.Age_Max, 
-        macrostrat.age, macrostrat.agemin, macrostrat.agemax, 5, 50
+        macrostrat.age, macrostrat.agemin, macrostrat.agemax, 
+        uncert_rel=5, uncert_abs=50
     )
     ```
 
     """
     function resampling_age(geochem::T, geochem_min::T, geochem_max::T, 
             map::T, map_min::T, map_max::T;
-            uncert_rel::Number, uncert_abs::Number
+            uncert_rel::Number=0, uncert_abs::Number=0
         ) where T <: AbstractArray{<:Number}
 
         # Try geochemical age
@@ -1075,48 +1076,6 @@
         
         for i in eachindex(ageuncert)
             ageuncert[i] = max(sampleage[i]*uncert_rel/100, ageuncert[i], uncert_abs)
-        end
-
-        return sampleage, ageuncert
-    end
-
-    # Relative error only 
-    function resampling_age(geochem::T, geochem_min::T, geochem_max::T, 
-            map::T, map_min::T, map_max::T;
-            uncert_rel::Number
-        ) where T <: AbstractArray{<:Number}
-
-        # Try geochemical age
-        sampleage = copy(geochem);
-        ageuncert = nanadd.(geochem_max, .- geochem_min) ./ 2;
-
-        t = isnan.(sampleage);
-        sampleage[t] .= map[t]
-        ageuncert[t] .= nanadd.(map_max[t], .- map_min[t]) ./ 2;
-        
-        for i in eachindex(ageuncert)
-            ageuncert[i] = max(sampleage[i]*uncert_rel/100, ageuncert[i])
-        end
-
-        return sampleage, ageuncert
-    end
-
-    # Absolute error only
-    function resampling_age(geochem::T, geochem_min::T, geochem_max::T, 
-            map::T, map_min::T, map_max::T;
-            uncert_abs::Number
-        ) where T <: AbstractArray{<:Number}
-
-        # Try geochemical age
-        sampleage = copy(geochem);
-        ageuncert = nanadd.(geochem_max, .- geochem_min) ./ 2;
-
-        t = isnan.(sampleage);
-        sampleage[t] .= map[t]
-        ageuncert[t] .= nanadd.(map_max[t], .- map_min[t]) ./ 2;
-
-        for i in eachindex(ageuncert)
-            ageuncert[i] = max(ageuncert[i], uncert_abs)
         end
 
         return sampleage, ageuncert

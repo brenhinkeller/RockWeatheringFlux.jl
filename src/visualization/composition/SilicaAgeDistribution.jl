@@ -8,7 +8,7 @@
     # Preallocate / Local definitions
     nsims = Int(1e7)                         # 10 M simulations
     SiO2_error = 1.0                         # Assumed SiO₂ error
-    age_error = 0.05                         # Minimum age error (%)
+    age_error = 5                            # Minimum age error (%)
     age_error_abs = 50                       # Minimum age error (Ma)
 
     xmin, xmax, xbins = 40, 80, 240          # Silica
@@ -48,7 +48,8 @@
 
     # Calculate sample age and uncertainty
     sampleage, ageuncert = resampling_age(mbulk.Age, mbulk.Age_Min, mbulk.Age_Max, 
-        macrostrat.age, macrostrat.agemin, macrostrat.agemax, age_error, age_error_abs
+        macrostrat.age, macrostrat.agemin, macrostrat.agemax, 
+        uncert_rel=age_error, uncert_abs=age_error_abs
     )
 
     # Restrict to only samples with data and resample 

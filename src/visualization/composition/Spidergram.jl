@@ -56,11 +56,13 @@
     # Resample 
     nsims = Int(1e7)
     err = 0.01
-    age_error = 0.05
+    age_error = 5
     simout = Array{Float64}(undef, nsims, length(spider_REEs)+1)
 
+    # Calculate sample age and uncertainty
     sampleage, ageuncert = resampling_age(mbulk.Age, mbulk.Age_Min, mbulk.Age_Max, 
-        macrostrat.age, macrostrat.agemin, macrostrat.agemax, age_error, age_error_abs  
+        macrostrat.age, macrostrat.agemin, macrostrat.agemax, 
+        uncert_rel=age_error
     )
 
     t = @. !isnan.(sampleage) .& match_cats.shale;

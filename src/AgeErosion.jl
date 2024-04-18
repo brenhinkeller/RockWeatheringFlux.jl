@@ -4,38 +4,35 @@
 
 ## -- Set up
     # Packages
-    using StatGeochem
+    using RockWeatheringFlux
+    # using StatGeochem
     using HDF5
     using DelimitedFiles
     using StatsBase
-    using CurveFit; using Isoplot
+    # using CurveFit; using Isoplot
 
     using Plots
-    using StatsPlots
-    using CairoMakie
-    using GeoMakie
-    using ImageMagick
+    # using StatsPlots
+    # using CairoMakie
+    # using GeoMakie
+    # using ImageMagick
 
-    using LoopVectorization
-    using Static
-    using Measurements
+    # using LoopVectorization
+    # using Static
+    # using Measurements
 
     # Local utilities
-    include("utilities/Utilities.jl")
+    # include("utilities/Utilities.jl")
 
 
 ## --- Load Macrostrat data
     # Indices of matched EarthChem samples from SampleMatch.jl
-    fid = readdlm("$matchedbulk_io")
+    fid = readdlm(matchedbulk_io)
     bulkidx = Int.(vec(fid[:,1]))
     t = @. bulkidx != 0
 
-    # Matched types, majors inclusive of minors
-    # bulktype = string.(vec(fid[:,2]))
-    # macro_cats = match_rocktype(bulktype[t])
-
     # Macrostrat data
-    fid = h5open("$macrostrat_io", "r")
+    fid = h5open(macrostrat_io, "r")
     macrostrat = (
         rocklat = read(fid["vars"]["rocklat"])[t],
         rocklon = read(fid["vars"]["rocklon"])[t],
@@ -43,32 +40,10 @@
         agemin = read(fid["vars"]["agemin"])[t],
         agemax = read(fid["vars"]["agemax"])[t],
     )
-
-    header = read(fid["type"]["macro_cats_head"])
-    data = read(fid["type"]["macro_cats"])
-    data = @. data > 0
-    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
     close(fid)
 
-    # Major types include minor types
-    minorsed, minorign, minormet = get_minor_types()
-    for type in minorsed
-        macro_cats.sed .|= macro_cats[type]
-    end
-    for type in minorign
-        macro_cats.ign .|= macro_cats[type]
-    end
-    for type in minormet
-        macro_cats.met .|= macro_cats[type]
-    end
-
-    # Exclude cover from everything
-    subcats = collect(keys(macro_cats))
-    deleteat!(subcats, findall(x->x==:cover,subcats))
-    for type in subcats
-        macro_cats[type] .&= .!(macro_cats.cover)
-    end
-
+    match_cats, metamorphic_cats, class, megaclass = get_lithologic_class();
+    
 
 ## --- Calculate erosion rate at each point of interest
     # Load the slope variable from the SRTM15+ maxslope file
@@ -89,170 +64,110 @@
 
 
 ## --- Resample matched data by major rock type
+    # Calculate rock age uncertainty, samples without uncert are assigned 5% rock age
+    sampleage = copy(macrostrat.age)
+    ageuncert = nanadd.(macrostrat.agemax, .- macrostrat.agemin) ./ 2;
+
+    t = isnan.(ageuncert)
+    ageuncert[t] .= sampleage[t] .* 0.05
+
+
     # Set up
-    simitemsout = [macrostrat.rocklat, macrostrat.rocklon, macrostrat.age, rockslope]
-    simitemsuncert = (
-        zeros(length(macrostrat.rocklat)),
-        zeros(length(macrostrat.rocklon)),
-        ((macrostrat.agemax .- macrostrat.agemin) ./ 2),
-        rockslope_uncert,
-    )
+    # simitemsout = [macrostrat.rocklat, macrostrat.rocklon, sampleage, rockslope]
+    # simitemsuncert = (
+    #     zeros(length(macrostrat.rocklat)),
+    #     zeros(length(macrostrat.rocklon)),
+    #     ageuncert,
+    #     rockslope_uncert,
+    # )
 
     nsims = Int(1e6)
 
     # Samples without min / max bounds are assigned an uncertainty of 5% of the rock age
-    for i in eachindex(simitemsuncert[3])
-        simitemsuncert[3][i] = ifelse(isnan(simitemsuncert[3][i]), 0.05 * macrostrat.age[i], 
-            simitemsuncert[3][i]
-        )
-    end
+    # for i in eachindex(simitemsuncert[3])
+    #     simitemsuncert[3][i] = ifelse(isnan(simitemsuncert[3][i]), 0.05 * macrostrat.age[i], 
+    #         simitemsuncert[3][i]
+    #     )
+    # end
 
     # Preallocate
+    n_out = 2
     simout = (
-        sed = Array{Float64}(undef, nsims, length(simitemsout)),
-        ign = Array{Float64}(undef, nsims, length(simitemsout)),
-        met = Array{Float64}(undef, nsims, length(simitemsout)),
+        sed = Array{Float64}(undef, nsims, n_out),
+        ign = Array{Float64}(undef, nsims, n_out),
+        volc = Array{Float64}(undef, nsims, n_out),
+        plut = Array{Float64}(undef, nsims, n_out),
     )
 
     # Run simulation for each rock type
-    simtypes = collect(keys(simout))
-    for i in eachindex(simtypes)
-        # Get data and uncertainty
-        datafilter = macro_cats[simtypes[i]]
-        ndata = count(datafilter)
+    for key in keys(simout)
+        s = match_cats[key]
+        # k = invweight_age(sampleage[s])
+        # p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+        p = ones(count(s))
 
-        data = Array{Float64}(undef, ndata, length(simitemsout))
-        uncert = Array{Float64}(undef, ndata, length(simitemsout))
-        for j in eachindex(simitemsout)
-            data[:,j] .= simitemsout[j][datafilter]
-            uncert[:,j] .= simitemsuncert[j][datafilter]
-        end
-
-        test = @. (!isnan(macrostrat.rocklon[datafilter]) & 
-            !isnan(macrostrat.rocklat[datafilter]) & !isnan(macrostrat.age[datafilter]))
-        data = data[test[:],:]
-        uncert = uncert[test[:],:]
-
-        # Run simulation and save results
-        simout[simtypes[i]] .= bsresample(data, uncert, nsims, ones(count(datafilter)))
+        data = hcat(sampleage[s], rockslope[s])
+        uncert = hcat(ageuncert[s],rockslope_uncert[s])
+        simout[key] .= bsresample(data, uncert, nsims, p)
     end
 
-    # Map columns to data
-    c_lat = findfirst(x -> x==macrostrat.rocklat, simitemsout)
-    c_lon = findfirst(x -> x==macrostrat.rocklon, simitemsout)
-    c_slp = findfirst(x -> x==rockslope, simitemsout)
-    c_age = 0
-    for i in eachindex(simitemsout)
-        c_age = i
-        filter(!isnan, simitemsout[i]) == filter(!isnan, macrostrat.age) && return c_age
-    end
+    # # Map columns to data
+    # c_lat = findfirst(x -> x==macrostrat.rocklat, simitemsout)
+    # c_lon = findfirst(x -> x==macrostrat.rocklon, simitemsout)
+    # c_slp = findfirst(x -> x==rockslope, simitemsout)
+    # c_age = 0
+    # for i in eachindex(simitemsout)
+    #     c_age = i
+    #     filter(!isnan, simitemsout[i]) == filter(!isnan, macrostrat.age) && return c_age
+    # end
 
-    # Remove any physically impossible data
-    # slope only: age and lat/lon should self-select when relevant
-    t = @. (0 < simout.sed[:,c_slp] < 1000)
-    simsed = simout.sed[t[:],:]
+    # c_lat = 1; c_lon = 2; 
+    c_slp = 2; c_age = 1;
+
+    # # Remove any physically impossible data
+    # # slope only: age and lat/lon should self-select when relevant
+    # t = @. (0 < simout.sed[:,c_slp] < 1000)
+    # simsed = simout.sed[t[:],:]
     
-    t = @. (0 < simout.ign[:,c_slp] < 1000)
-    simign = simout.ign[t[:],:]
+    # t = @. (0 < simout.ign[:,c_slp] < 1000)
+    # simign = simout.ign[t[:],:]
     
-    t = @. (0 < simout.met[:,c_slp] < 1000)
-    simmet = simout.met[t[:],:]
-
-    # Save data
-    fid = h5open("output/resampled/age_slope.h5", "w")
-        g = create_group(fid, "vars")
-            g["sed"] = simout.sed
-            g["ign"] = simout.ign
-            g["met"] = simout.met
-        g = create_group(fid, "cols")
-            g["c_lat"] = c_lat
-            g["c_lon"] = c_lon
-            g["c_slp"] = c_slp
-            g["c_age"] = c_age
-    close(fid)
-
-
-## --- If you already have data, load from file
-    fid = h5open("output/resampled/age_slope.h5", "r")
-        simout = (
-            sed = read(fid["vars"]["sed"]),
-            ign = read(fid["vars"]["ign"]),
-            met = read(fid["vars"]["met"]),
-        )
-        c_lat = read(fid["cols"]["c_lat"])
-        c_lon = read(fid["cols"]["c_lon"])
-        c_slp = read(fid["cols"]["c_slp"])
-        c_age = read(fid["cols"]["c_age"])
-    close(fid)
-    
-
-## --- Fit an exponential decay to the age / slope relationship
-    x = 0:10:3800
-    xₛ = xᵢ = xₘ = x
-
-    # xₛ = 200:10:3800
-    c,m,e = binmeans(simsed[:,c_age], simsed[:,c_slp], xₛ[1], xₛ[end], Int((xₛ[end] - xₛ[1])/100))
-    sedexp = exp_fit(c, m)
-    yₛ = @. sedexp[1] * exp(sedexp[2] * xₛ);
-
-    # xᵢ = 0:10:2900
-    c,m,e = binmeans(simign[:,c_age], simign[:,c_slp], xᵢ[1], xᵢ[end], Int((xₛ[end] - xₛ[1])/100))
-    ignexp = exp_fit(c, m)
-    yᵢ = @. ignexp[1] * exp(ignexp[2] * xᵢ);
-
-    # xₘ = 0:10:2300
-    c,m,e = binmeans(simmet[:,c_age], simmet[:,c_slp], xₘ[1], xₘ[end], Int((xₛ[end] - xₛ[1])/100))
-    metexp = exp_fit(c, m)
-    yₘ = @. metexp[1] * exp(metexp[2] * xₘ);
-
-
-## --- Plot erosion rate as a function of slope, but by rock type
-    c,m,e = binmeans(simsed[:,c_age], simsed[:,c_slp], 0, 3800, 38)
-    hₛ = Plots.plot(c, m, yerror=e, color=:blue, lcolor=:blue, msc=:blue,
-        label="Sed", markershape=:circle,)
-    Plots.plot!(xₛ, yₛ, label="Model", color=:black, linewidth=2)
-
-    c,m,e = binmeans(simign[:,c_age], simign[:,c_slp], 0, 3800, 38)
-    hᵢ = Plots.plot(c, m, yerror=e, color=:red, lcolor=:red, msc=:red,
-        label="Ign", ylabel="Hillslope [m/km]", markershape=:circle,)
-    Plots.plot!(xᵢ, yᵢ, label="Model", color=:black, linewidth=2)
-
-    c,m,e = binmeans(simmet[:,c_age], simmet[:,c_slp], 0, 3800, 38)
-    hₘ = Plots.plot(c, m, yerror=e, color=:orange, lcolor=:orange, msc=:orange,
-        label="Met", xlabel="Bedrock Age [Ma]", markershape=:circle,)
-    Plots.plot!(xₘ, yₘ, label="Model", color=:black, linewidth=2)
-
-    h = Plots.plot(hₛ, hᵢ, hₘ, layout=(3,1), size=(600, 1200), left_margin=(30, :px), 
-        framestyle=:box, legend=:topright, yaxis=:log10
-    )
-    display(h)
-    savefig(h, "results/figures/ageslope.png")
+    # t = @. (0 < simout.met[:,c_slp] < 1000)
+    # simmet = simout.met[t[:],:]
 
 
 ## --- Everything everywhere over 3800 million years?
     # (Plot everything on the same axis)
 
-    h = Plots.plot(xlabel="Bedrock Age [Ma]", ylabel="Hillslope [m/km]", framestyle=:box,
-        legend=:topright, # yaxis=:log10
+    h = plot(xlabel="Bedrock Age [Ma]", ylabel="Hillslope [m/km]", framestyle=:box,
+        legend=:topright, # yaxis=:log10,
+        ylims=(20,175)
     )
 
-    c,m,e = binmeans(simsed[:,c_age], simsed[:,c_slp], 0, 3800, 38)
-    Plots.plot!(c, m, yerror=e, color=:blue, lcolor=:blue, msc=:blue,
-        label="Sed", markershape=:diamond,
-    )
+    for k in keys(simout)
+        c,m,e = binmeans(simout[k][:,c_age], simout[k][:,c_slp], 0, 3800, 38)
+        plot!(h, c, m, ribbon=e, 
+            color=colors[k], msc=:auto, markershape=:circle, label="$k"
+        )
+    end
 
-    c,m,e = binmeans(simign[:,c_age], simign[:,c_slp], 0, 3800, 38)
-    Plots.plot!(c, m, yerror=e, color=:red, lcolor=:red, msc=:red,
-        label="Ign", markershape=:circle,
-    )
+    # c,m,e = binmeans(simout.sed[:,c_age], simout.sed[:,c_slp], 0, 3800, 38)
+    # Plots.plot!(c, m, yerror=e, color=:blue, lcolor=:blue, msc=:blue,
+    #     label="Sed", markershape=:diamond,
+    # )
 
-    c,m,e = binmeans(simmet[:,c_age], simmet[:,c_slp], 0, 3800, 38)
-    Plots.plot!(c, m, yerror=e, color=:purple, lcolor=:purple, msc=:purple,
-        label="Met", markershape=:star5,
-    )
+    # c,m,e = binmeans(simout.ign[:,c_age], simout.ign[:,c_slp], 0, 3800, 38)
+    # Plots.plot!(c, m, yerror=e, color=:red, lcolor=:red, msc=:red,
+    #     label="Ign", markershape=:circle,
+    # )
+
+    # c,m,e = binmeans(simout.met[:,c_age], simout.met[:,c_slp], 0, 3800, 38)
+    # Plots.plot!(c, m, yerror=e, color=:purple, lcolor=:purple, msc=:purple,
+    #     label="Met", markershape=:star5,
+    # )
 
     display(h)
-    savefig(h, "results/figures/ageslope_stack.png")
+    # savefig(h, "results/figures/ageslope_stack.png")
 
 
 ## --- Yorkfit in log space

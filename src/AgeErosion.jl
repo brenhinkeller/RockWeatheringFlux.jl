@@ -20,12 +20,12 @@
     # Lithologic class 
     match_cats, metamorphic_cats, class, megaclass = get_lithologic_class();
 
-    # Matched geochemical data
-    fid = h5open(geochem_fid, "r")
-    header = read(fid["bulk"]["header"])
-    data = read(fid["bulk"]["data"])
-    mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][gchem_ind[t]] for i in eachindex(header)])
-    close(fid)
+    # # Matched geochemical data
+    # fid = h5open(geochem_fid, "r")
+    # header = read(fid["bulk"]["header"])
+    # data = read(fid["bulk"]["data"])
+    # mbulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i][gchem_ind[t]] for i in eachindex(header)])
+    # close(fid)
 
     # Mapped data 
     fid = h5open("$macrostrat_io", "r")
@@ -50,14 +50,15 @@
     # are the primary erosion source)
     sampleage = copy(macrostrat.age)
     ageuncert = nanadd.(macrostrat.agemax, .- macrostrat.agemin) ./ 2;
+    ageuncert[isnan.(ageuncert)] .= sampleage[isnan.(ageuncert)] .* 0.05
 
-    t = isnan.(sampleage);
-    sampleage[t] = mbulk.Age[t]
-    ageuncert[t] .= nanadd.(mbulk.Age_Max[t], .- mbulk.Age_Min[t]) ./ 2;
+    # t = isnan.(sampleage);
+    # sampleage[t] = mbulk.Age[t]
+    # ageuncert[t] .= nanadd.(mbulk.Age_Max[t], .- mbulk.Age_Min[t]) ./ 2;
 
-    for i in eachindex(ageuncert)
-        ageuncert[i] = max(sampleage[i]*0.05, ageuncert[i], 50)
-    end
+    # for i in eachindex(ageuncert)
+    #     ageuncert[i] = nanmax(sampleage[i]*0.05, ageuncert[i], 50)
+    # end
 
 
 
@@ -71,55 +72,17 @@
     # Function returns the standard deviation of slope in each window, which we don't
     # actually care about propagating
     rockslope = movingwindow(srtm15_slope, macrostrat.rocklat, macrostrat.rocklon, srtm15_sf, n=5)
-    rockslope = Measurements.value.(rockslope)
-
+    rockslope = (;
+        vals = Measurements.value.(rockslope),
+        errs = Measurements.uncertainty.(rockslope),
+    )
+    
     # Calculate all erosion rates (mm/kyr) (propagate uncertainty)
-    rock_ersn = emmkyr.(rockslope);
+    rock_ersn = emmkyr.(rockslope.vals);
     rock_ersn = (;
         vals = Measurements.value.(rock_ersn),
         errs = Measurements.uncertainty.(rock_ersn),
     )
-
-
-## --- TESTING TESTING TESTING age / slope relationship resampling??
-    # Definitions 
-    nsims = 10_000
-    xmin, xmax, nbins = 0, 3800, 38
-    target = (:ign,)
-
-    s = .!isnan.(sampleage) .& match_cats[target[1]]
-    k = invweight_age(sampleage[s])
-    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-
-    # bin_bsr
-    # c1,m1,el,eu = bin_bsr(sampleage[s], rock_ersn.vals[s], xmin, xmax, nbins,
-    #     x_sigma = ageuncert[s],
-    #     y_sigma = rock_ersn.errs[s],
-    #     nresamplings = nsims,
-    #     sem = :pctile,
-    #     p = p,
-    # ) 
-
-    # bsresample, then bin
-    resampled = bsresample([sampleage[s] rock_ersn.vals[s]], 
-        [ageuncert[s] rock_ersn.errs[s]], nsims, ones(count(s))
-    )
-    c2, m2, e = binmeans(resampled[:,1], resampled[:,2], xmin, xmax, nbins)
-
-    # Plot on the same axis 
-    h = plot(
-        framestyle=:box,
-        fontfamily=:Helvetica,
-        xlims=(-50, 3850),
-        grid=false,
-        fg_color_legend=:white,
-        xlabel="Age [Ma.]", ylabel="Erosion [m/Myr.]",
-        title="mapped age $(target[1])", titleloc=:left
-    )
-    plot!(h, c2, m2, markershape=:circle, # ribbon=(eu, el), 
-        label="bsresample + binmeans")
-    # plot!(h, c1, m1, markershape=:circle, # ribbon=e, 
-    #     label="bin_bsr")
 
 
 ## --- Resample (temporal) erosion / age relationship 
@@ -134,25 +97,26 @@
     simout_bulk = NamedTuple{target}(Array{Float64}(undef, nsims, 2) for _ in target)
 
     # Resample
-    for key in target
+    @showprogress for key in target
         s = .!isnan.(sampleage) .& match_cats[key]
 
         # Resampling weights 
-        k = invweight_age(sampleage[s])
-        p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+        # k = invweight_age(sampleage[s])
+        # p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+        p = ones(count(s))
 
-        # Resample 
-        c,m,el,eu = bin_bsr(sampleage[s], rock_ersn.vals[s], xmin, xmax, nbins,
-            x_sigma = ageuncert[s],
-            y_sigma = rock_ersn.errs[s],
-            nresamplings = nsims,
-            sem = :pctile,
-            p = p,
-        )
-        simout_pctile[key] .= [m eu el]
+        # # Resample 
+        # c,m,el,eu = bin_bsr(sampleage[s], rockslope.vals[s], xmin, xmax, nbins,
+        #     x_sigma = ageuncert[s],
+        #     y_sigma = rockslope.errs[s],
+        #     nresamplings = nsims,
+        #     sem = :pctile,
+        #     p = p,
+        # )
+        # simout_pctile[key] .= [m eu el]
 
-        simout_bulk[key] .= bsresample([sampleage[s] rock_ersn.vals[s]], 
-            [ageuncert[s] rock_ersn.errs[s]], nsims, p
+        simout_bulk[key] .= bsresample([sampleage[s] rockslope.vals[s]], 
+            [ageuncert[s] rockslope.errs[s]], nsims, p
         )
     end
 
@@ -165,20 +129,16 @@
         xlims=(-50, 3850),
         grid=false,
         fg_color_legend=:white,
-        xlabel="Age [Ma.]", ylabel="Erosion [m/Myr.]"
+        xlabel="Age [Ma.]", ylabel="Slope",
+        title="bin_bsr", titleloc=:left,
     );
-    Plots.plot!(h, c, simout_pctile.sed[:,1], 
-        # yerror=(simout_pctile.sed[:,2], simout_pctile.sed[:,3],),
-        label="", color=colors.sed, seriestype=:path, markershape=:circle
-    )
-    Plots.plot!(h, c, simout_pctile.volc[:,1], 
-        # yerror=(simout_pctile.volc[:,2], simout_pctile.volc[:,3],),
-        label="", color=colors.volc, seriestype=:path, markershape=:circle
-    )
-    Plots.plot!(h, c, simout_pctile.plut[:,1], 
-        # yerror=(simout_pctile.plut[:,2], simout_pctile.plut[:,3],),
-        label="", color=colors.plut, seriestype=:path, markershape=:circle
-    )
+    c = cntr(xmin:(xmax-xmin)/nbins:xmax)
+    for k in keys(simout_pctile)
+        plot!(h, c, simout_pctile[k][:,1], 
+            # yerror=(simout_pctile.sed[:,2], simout_pctile.sed[:,3],),
+            label="$k", color=colors[k], seriestype=:path, markershape=:circle
+        )
+    end
     display(h)
 
     # Resampled and unbinned data 
@@ -188,24 +148,19 @@
         xlims=(-50, 3850),
         grid=false,
         fg_color_legend=:white,
-        xlabel="Age [Ma.]", ylabel="Erosion [m/Myr.]"
+        xlabel="Age [Ma.]", ylabel="Slope",
+        title="bsresample + binmeans", titleloc=:left,
     );
 
-    c, m, e = binmeans(simout_bulk.sed[:,1], simout_bulk.sed[:,2], xmin, xmax, nbins)
-    Plots.plot!(h, c, m, # yerror=e, 
-        label="", color=colors.sed, seriestype=:path, markershape=:circle
-    )
-
-    c, m, e = binmeans(simout_bulk.volc[:,1], simout_bulk.volc[:,2], xmin, xmax, nbins)
-    Plots.plot!(h, c, m, # yerror=e, 
-        label="", color=colors.volc, seriestype=:path, markershape=:circle
-    )
-
-    c, m, e = binmeans(simout_bulk.plut[:,1], simout_bulk.plut[:,2], xmin, xmax, nbins)
-    Plots.plot!(h, c, m, # yerror=e, 
-        label="", color=colors.plut, seriestype=:path, markershape=:circle
-    )
+    for k in keys(simout_bulk)
+        c, m, e = binmeans(simout_bulk[k][:,1], simout_bulk[k][:,2], xmin, xmax, nbins)
+        plot!(h, c, m, # yerror=e, 
+            label="$k", color=colors[k], seriestype=:path, markershape=:circle
+        )
+    end
     display(h)
+    
+    
 
 
 ## --- Model age / erosion as with an exponential decay function 
@@ -236,7 +191,6 @@
 
 
 ## --- Yorkfit in log space
-    include("utilities/yorkfit.jl")
 
     # Transform to log-space
     ersn_sed, ersn_sed_e = unmeasurementify(emmkyr.(simsed[:,c_slp]))

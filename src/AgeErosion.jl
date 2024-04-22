@@ -5,24 +5,10 @@
 ## -- Set up
     # Packages
     using RockWeatheringFlux
-    # using StatGeochem
-    using HDF5
-    using DelimitedFiles
-    using StatsBase
-    # using CurveFit; using Isoplot
-
+    using HDF5, DelimitedFiles
     using Plots
-    # using StatsPlots
-    # using CairoMakie
-    # using GeoMakie
-    # using ImageMagick
-
-    # using LoopVectorization
-    # using Static
-    # using Measurements
-
-    # Local utilities
-    # include("utilities/Utilities.jl")
+    # using StatsBase
+    # using CurveFit; using Isoplot
 
 
 ## --- Load Macrostrat data
@@ -50,8 +36,7 @@
     srtm15_slope = h5read("output/srtm15plus_maxslope.h5", "vars/slope")
     srtm15_sf = h5read("output/srtm15plus_maxslope.h5", "vars/scalefactor")
 
-    # Get slope at each coordinate point with a known EarthChem sample
-    # Modify this function to return an error as well
+    # Get slope at each coordinate point (exclude slope > 1000 m/km)
     rockslope = movingwindow(srtm15_slope, macrostrat.rocklat, macrostrat.rocklon, 
         srtm15_sf, n=5
     )
@@ -59,22 +44,30 @@
         vals = Measurements.value.(rockslope),
         errs = Measurements.uncertainty.(rockslope),
     )
+    t = rockslope.vals .>= 1000;
+    rockslope.vals[t] = rockslope.errs[t] .= NaN
 
-    # Calculate all erosion rates (mm/kyr)
+    # Calculate erosion rate [mm/kyr] (exclude erosion > 10_000 mm/kyr)
     rock_ersn = emmkyr.(rockslope.vals)
     rock_ersn = (
         vals = Measurements.value.(rock_ersn),
         errs = Measurements.uncertainty.(rock_ersn),
     )
+    t = rock_ersn.vals .> 10_000
+    rock_ersn.vals[t] = rock_ersn.errs[t] .= NaN
 
 
 ## --- Resample matched data by major rock type
-    # Calculate rock age uncertainty, samples without uncert are assigned 5% rock age
+    # Calculate rock age and uncertainty, using mapped age because we're basically 
+    # interested in the relationship between location and age.
+    # Rock uncertainty is the maximum of mapped uncertainty, 5% age, or 50 Ma.
     sampleage = copy(macrostrat.age)
     ageuncert = nanadd.(macrostrat.agemax, .- macrostrat.agemin) ./ 2;
-    ageuncert[isnan.(ageuncert)] .= sampleage[isnan.(ageuncert)] .* 0.05
+    for i in eachindex(ageuncert)
+        ageuncert[i] = nanmaximum([ageuncert[i], sampleage[i] .* 0.05, 50])
+    end
 
-    # Preallocate
+    # Preallocates
     nsims = Int(1e6)
     target = (:sed, :ign, :volc, :plut)
     simout = NamedTuple{target}(Array{Float64}(undef, nsims, 2) for _ in target)
@@ -86,20 +79,17 @@
         # p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
         p = ones(count(s))
 
-        data = hcat(sampleage[s], rockslope.vals[s])
-        uncert = hcat(ageuncert[s],rockslope.errs[s])
+        data = hcat(sampleage[s], rock_ersn.vals[s])
+        uncert = hcat(ageuncert[s],rock_ersn.errs[s])
         simout[key] .= bsresample(data, uncert, nsims, p)
     end
 
 
-## --- Everything everywhere over 3800 million years?
-    # (Plot everything on the same axis)
-
+## --- Plot erosion binned by age
     h = plot(xlabel="Bedrock Age [Ma]", ylabel="Hillslope [m/km]", framestyle=:box,
         legend=:topright,
-        ylims=(20,175)
+        # ylims=(20,175)
     )
-
     for k in keys(simout)
         c,m,e = binmeans(simout[k][:,1], simout[k][:,2], 0, 3800, 38)
         plot!(h, c, m, ribbon=e, 

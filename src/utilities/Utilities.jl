@@ -1075,7 +1075,7 @@
         ageuncert[t] .= nanadd.(map_max[t], .- map_min[t]) ./ 2;
         
         for i in eachindex(ageuncert)
-            ageuncert[i] = max(sampleage[i]*uncert_rel/100, ageuncert[i], uncert_abs)
+            ageuncert[i] = nanmaximum([sampleage[i]*uncert_rel/100, ageuncert[i], uncert_abs])
         end
 
         return sampleage, ageuncert

@@ -1,7 +1,3 @@
-## --- Model erosion (slope) as a function of rock age
-    # TO DO: correlation plot
-    # TO DO: PCA?
-
 ## -- Set up
     # Packages
     using RockWeatheringFlux
@@ -21,17 +17,25 @@
 
     # Macrostrat data
     fid = h5open(macrostrat_io, "r")
+
     macrostrat = (
         rocklat = read(fid["vars"]["rocklat"])[t],
         rocklon = read(fid["vars"]["rocklon"])[t],
         age = read(fid["vars"]["age"])[t],
-        agemin = read(fid["vars"]["agemin"])[t],
         agemax = read(fid["vars"]["agemax"])[t],
+        agemin = read(fid["vars"]["agemin"])[t],
     )
     close(fid)
+    
+    # Sample age and uncertainty (5% or 50 Myr. uncertainty)
+    # sampleage, ageuncert = resampling_age(
+    #     mbulk.Age, mbulk.Age_Min, mbulk.Age_Max, 
+    #     macrostrat.age, macrostrat.agemin, macrostrat.agemax, 
+    #     uncert_rel=5, uncert_abs=50
+    # )
 
 
-## --- Calculate erosion rate at each point of interest
+## --- Slope / erosion rate at each coordinate point
     # Load the slope variable from the SRTM15+ maxslope file
     srtm15_slope = h5read("output/srtm15plus_maxslope.h5", "vars/slope")
     srtm15_sf = h5read("output/srtm15plus_maxslope.h5", "vars/scalefactor")
@@ -177,162 +181,6 @@
         framestyle=:box, legend=:topright,
     )
     display(h)
-
-
-## --- Try to figure out why Archean samples are eroding so fast
-## --- Show that this exists in the real data and is not an artifact of resampling
-    c,m,e = binmeans(macrostrat.age[macro_cats.sed], rockslope[macro_cats.sed], 0, 3800, 38)
-    h1 = Plots.plot(c, m, yerror=e, color=:blue, lcolor=:blue, msc=:blue, framestyle=:box,
-        label="Sed",
-        markershape=:circle, yaxis=:log10, legend=:topright,
-    )
-
-    c,m,e = binmeans(macrostrat.age[macro_cats.ign], rockslope[macro_cats.ign], 0, 3800, 38)
-    h2 = Plots.plot(c, m, yerror=e, color=:red, lcolor=:red, msc=:red, framestyle=:box,
-        label="Ign", ylabel="Hillslope [m/km]", 
-        markershape=:circle, yaxis=:log10, legend=:topright,
-    )
-
-    c,m,e = binmeans(macrostrat.age[macro_cats.met], rockslope[macro_cats.met], 0, 3800, 38)
-    h3 = Plots.plot(c, m, yerror=e, color=:purple, lcolor=:purple, msc=:purple, framestyle=:box,
-        label="Met", xlabel="Bedrock Age [Ma]",
-        markershape=:circle, yaxis=:log10, legend=:topright,
-    )
-
-    h = Plots.plot(h1, h2, h3, layout=(3,1), size=(600, 1200), left_margin=(30, :px))
-    display(h)
-    
-
-## --- Characterize old and young Archean rocks
-    # Archean rocks younger than 3000 Ma tend to have lower slopes (< 30 m/km) while
-    # rocks older than 3000 Ma tend to have higher slopes (>80 m/km).
-    #
-    # This is mostly true for sed and ign rocks, and less true for mets.
-
-    # I hate vowels
-    old_archn = @. macrostrat.age >= 3000;
-    yng_archn = @. 2500 <= macrostrat.age < 3000;
-
-
-## --- Geospatial (Where are the Archean rocks?)
-    f = Figure(resolution = (1200, 600))
-    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
-    h1 = CairoMakie.scatter!(ax, macrostrat.rocklon[old_archn], macrostrat.rocklat[old_archn], 
-        color=:crimson, markersize = 3,)
-    elem1 = MarkerElement(color=:crimson, marker=:circle, markersize=15,
-        points = Point2f[(0.5, 0.5)]
-    )
-    
-    h2 = CairoMakie.scatter!(ax, macrostrat.rocklon[yng_archn], macrostrat.rocklat[yng_archn], 
-        color=:blueviolet, markersize = 3,)
-    elem2 = MarkerElement(color=:blueviolet, marker=:circle, markersize=15, 
-        points = Point2f[(0.5, 0.5)]
-    )
-
-    Legend(f[1, 2], [elem1, elem2], ["> 3000 Ma", "< 3000 Ma"], patchsize = (35, 35), rowgap = 10)
-    display(f)
-
-## --- Slope of Archean rocks
-    archean = old_archn .| yng_archn;
-
-    f = Figure(resolution = (1200, 600))
-    ax = GeoAxis(f[1,1]; coastlines = true, dest = "+proj=wintri")
-    h1 = CairoMakie.scatter!(ax, macrostrat.rocklon[archean], macrostrat.rocklat[archean], 
-        color=rockslope[archean], colormap=c_gradient, markersize = 3,)
-    Colorbar(f[1,2], h1, label = "Hillslope [m/km]", height = Relative(0.9))
-    display(f)
-
-
-## --- Temporal (Where are the Archean rocks?)
-    ageuncert = (macrostrat.agemax .- macrostrat.agemin) ./ 2;
-
-
-## --- Geologic province (Who are the Archean rocks?)
-    old_provs = decode_find_geolprov(find_geolprov(macrostrat.rocklat[old_archn], 
-        macrostrat.rocklon[old_archn]))
-    yng_provs = decode_find_geolprov(find_geolprov(macrostrat.rocklat[yng_archn], 
-        macrostrat.rocklon[yng_archn]))
-    archeanprovs = unique([old_provs; yng_provs])
-
-    old_provs = float.([count(x -> x==name, old_provs) for name in archeanprovs])
-    yng_provs = float.([count(x -> x==name, yng_provs) for name in archeanprovs])
-
-
-    # We already know most rocks are shields, so it's more useful to look at, for each
-    # province, the proportion of rocks greater / less than 3000 Ma.
-    totalprovs = old_provs .+ yng_provs
-    old_provs ./= totalprovs
-    yng_provs ./= totalprovs
-
-    x = 1:length(totalprovs)
-    h = StatsPlots.groupedbar([yng_provs old_provs], bar_position=:stack,
-        framestyle=:box, label=["< 3000 Ma" "> 3000 Ma"],
-        ylabel="Abundance", xlabel="Geologic Province", xticks=(x, archeanprovs), 
-        xrotation = 45, ylims = (0, 1.1),
-        legend=:outertopright, bottom_margin=(30, :px)
-    )
-
-
-## --- Rock type (Who are the Archean rocks?)
-
-
-## --- Look at just igneous rocks
-    c,m,e = binmeans(macrostrat.age[macro_cats.ign], rockslope[macro_cats.ign], 2500, 3800, 13)
-    h = Plots.plot(c, m, yerror=e, color=:red, lcolor=:red, msc=:red, framestyle=:box,
-        label="Ign", ylabel="Hillslope [m/km]", xlabel="Age [Ma]", seriestype=:scatter,
-        markershape=:circle, yaxis=:log10, legend=:topright,
-    )
-
-
-## --- Average slope of each province
-    allprov = decode_find_geolprov(find_geolprov(macrostrat.rocklat, macrostrat.rocklon))
-    uniqueprovs = unique(allprov)
-    inprov = NamedTuple{Tuple(Symbol.(uniqueprovs))}([allprov .== name for name in uniqueprovs])
-    
-    avg_slope = [nanmean(rockslope[t]) for t in inprov]
-    # TO DO: errors aren't behaving as expected--e.g. maximum error isn't plotted at 317 even though
-    # that's the maximum upper error :(
-    # lower = avg_slope .- [percentile(rockslope[t], 5) for t in inprov]
-    # upper = [percentile(rockslope[t], 95) for t in inprov] .- avg_slope
-
-    # Average slope by geologic province
-    x = 1:length(avg_slope)
-    h = Plots.plot(x, avg_slope, seriestype=:bar, framestyle=:box, label="", 
-        ylabel="Average Slope [m/km]", xlabel="Geologic Province", xticks=(x, uniqueprovs), 
-        xrotation = 45, ylims = (0, maximum(upper) + 0.1*maximum(upper)),
-        bottom_margin=(30, :px)
-    )
-    display(h)
-
-
-## --- Abundance of each geologic eon in each province
-    allprov = decode_find_geolprov(find_geolprov(macrostrat.rocklat, macrostrat.rocklon))
-    uniqueprovs = unique(allprov)
-
-    # TO DO: normalize to relative abundance relative to abundance of all rock ages
-    # Or something to show how Archean rocks tend to be in shields...
-    archean = @. macrostrat.age >= 2500;
-    proterozoic = @. 541 <= macrostrat.age < 2500;
-    phanerozoic = @. macrostrat.age < 541;
-
-    # Total number of rocks by eon
-    # count_archean = 
-    # count_proterozoic = 
-    # count_phanerozoic = 
-
-    # Abundance by province
-    arc_provs = [count(x -> x==name, allprov[archean]) for name in uniqueprovs]
-    pro_provs = [count(x -> x==name, allprov[proterozoic]) for name in uniqueprovs]
-    pha_provs = [count(x -> x==name, allprov[phanerozoic]) for name in uniqueprovs]
-    total_provs = @. arc_provs + pro_provs + pha_provs
-
-    x = 1:length(arc_avg_slope)
-    h = StatsPlots.groupedbar([arc_provs pro_provs pha_provs], bar_position=:stack,
-        framestyle=:box, label=["Archean" "Proterozoic" "Phanerozoic"],
-        ylabel="Abundance", xlabel="Geologic Province", xticks=(x, uniqueprovs), 
-        xrotation = 45, ylims = (0, maximum(total_provs) + 0.1*maximum(total_provs)),
-        legend=:topright, bottom_margin=(30, :px)
-    )
 
     
 ## --- End of file 

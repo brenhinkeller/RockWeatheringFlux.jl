@@ -40,14 +40,14 @@
     # srtm15_slope = h5read("output/srtm15plus_maxslope.h5", "vars/slope")
     # srtm15_sf = h5read("output/srtm15plus_maxslope.h5", "vars/scalefactor")
 
-    # # Get slope at each coordinate point
-    # # Function returns the standard deviation of slope in each window, which we don't
-    # # actually care about propagating
+    # # Get slope at each coordinate point, exclude values above 1000 m/km
     # rockslope = movingwindow(srtm15_slope, rocklat, rocklon, srtm15_sf, n=5)
     # rockslope = Measurements.value.(rockslope)
+    # rockslope[rockslope .>= 1000] .= NaN;
 
-    # # Calculate all erosion rates (mm/kyr) (propagate uncertainty)
+    # # Calculate all erosion rates [mm/kyr] (exclude erosion > 10_000 mm/kyr)
     # rock_ersn = emmkyr.(rockslope);
+    # rock_ersn[rock_ersn .> 10_000] .= NaN
 
 
 ## --- Calculate bulk erosion and erosion by element at each point 
@@ -74,7 +74,7 @@
     #     errs = Array{Float64}(undef, npoints, nelements),
     # )
     # for i in eachindex(allelements)
-    #     elementflux = [sampleflux[j] * mbulk[allelements[i]][j] * 1e-2 for j = 1:npoints]
+    #     elementflux = [erosion_bulk[j] * mbulk[allelements[i]][j] * 1e-2 for j = 1:npoints]
     #     erosion_element.vals[:,i] .= Measurements.value.(elementflux)
     #     erosion_element.errs[:,i] .= Measurements.uncertainty.(elementflux)
     # end
@@ -142,6 +142,7 @@
         err = round(sqrt(2*nansum(values(global_erosion_element.errs).^2)), sigdigits=3),
     )
 
+    # Print to terminal, warn if sum of elements does not equal bulk erosion rate
     if isapprox(global_sum.val, global_element_sum.val, atol = max(global_sum.err, global_element_sum.err))
         @info "Mass of global sediment production ± 2σ s.d.: $(global_sum.val) ± $(global_sum.err) Gt/yr"
     else

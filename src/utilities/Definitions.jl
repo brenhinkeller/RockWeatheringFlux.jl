@@ -103,9 +103,9 @@
             carbonatite = "Intrusive carbonatite",
         sed = "Sedimentary rock", 
             siliciclast = "Medium-grained mixed clastic rock", 
-            shale = "Shale", 
+            shale = "Siltstone", 
             carb = "Carbonate rock",
-            chert = "Chert", 
+            chert = "Novaculite", 
             evap = "Evaporite", 
             coal = "Coal", 
             phosphorite = "Phosphorite",
@@ -127,16 +127,24 @@
 
     """
     ```julia
-    display_colors()
+    display_colors([c])
     ```
 
-    Display all colors in `colors` to the plots window.
+    Display all colors in `colors` to the plots window. Optionally specify a rock class 
+    or array of classes.
     """
     function display_colors()
         typelist, =  get_rock_class()
         t = [colors[k] for k in keys(typelist)]
         display(t)
     end
+
+    function display_colors(c::T) where T <: Union{NTuple, AbstractArray{Symbol}}
+        t = [colors[k] for k in c]
+        display(t)
+    end
+
+    display_colors(c::Symbol) = display(colors[c])
     export display_colors
 
     

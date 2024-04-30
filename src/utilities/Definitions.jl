@@ -122,7 +122,7 @@
         i = findfirst(x -> x == colortext[c], lithclass.text)
         colors[c] = RGB(lithclass.r[i]/255, lithclass.g[i]/255, lithclass.b[i]/255)
     end    
-    colors = NamedTuple{Tuple(keys(colors))}(values(colors))
+    colors = merge(NamedTuple{Tuple(keys(colors))}(values(colors)), (bulk=RGB(0.,0.,0.),))
     export colors
 
     """

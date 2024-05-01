@@ -39,14 +39,18 @@
 
     # Calculate sample age
     # Use the sample age, unless the sample doesn't have an age: then use map age
-    t = @. !isnan(mbulk.Age);
-    sampleage = copy(mbulk.Age);
-    ageuncert = nanadd.(mbulk.Age_Max, .- mbulk.Age_Min) ./ 2;
-    sampleage[t] .= macrostrat.age[t]
-    ageuncert[t] .= nanadd.(macrostrat.agemax[t], .- macrostrat.agemin[t]) ./ 2;
-    for i in eachindex(ageuncert)
-        ageuncert[i] = max(sampleage[i]*age_error, ageuncert[i], age_error_abs)
-    end
+    # t = @. !isnan(mbulk.Age);
+    # sampleage = copy(mbulk.Age);
+    # ageuncert = nanadd.(mbulk.Age_Max, .- mbulk.Age_Min) ./ 2;
+    # sampleage[t] .= macrostrat.age[t]
+    # ageuncert[t] .= nanadd.(macrostrat.agemax[t], .- macrostrat.agemin[t]) ./ 2;
+    # for i in eachindex(ageuncert)
+    #     ageuncert[i] = max(sampleage[i]*age_error, ageuncert[i], age_error_abs)
+    # end
+    sampleage, ageuncert = resampling_age(mbulk.Age, mbulk.Age_Min, mbulk.Age_Max, 
+        macrostrat.age, macrostrat.agemin, macrostrat.agemax, 
+        uncert_rel=age_error, uncert_abs=age_error_abs
+    )
 
 
 ## --- Resample, temporal weights 

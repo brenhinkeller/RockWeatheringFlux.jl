@@ -172,49 +172,89 @@
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
 
     t = @. match_cats.sed & (2500 < sampleage < 3800)
+    # t .&= .!isnan.(Ca²⁺) .& .!isnan.(Mg²⁺) .& .!isnan.(K⁺) .& .!isnan.(Na⁺)
+
     data = [Ca²⁺[t] Mg²⁺[t] K⁺[t] Na⁺[t] alkalinity2[t]]
     uncert = ones(size(data)) ./ 10
     resampled = bsresample([data sampleage[t]], [uncert ageuncert[t]], nsims, p)
 
-    # Plot data 
+    
+## --- Plot data 
+    xmin, xmax = 2500, 3800
+    nbins = Int((xmax-xmin)/100)
+
     p = palette(:rainbow, 4)
     h = plot(
         framestyle=:box,
         fontfamily=:Helvetica,
         fg_color_legend=:white,
         ylabel="Cation [mol.]",
-        legend=:top
+        legend=:topright
     );
 
-    # # Real data 
-    # t = @. match_cats.sed & (2500 < sampleage < 3800)
-    # c,m,e = binmeans(sampleage[t], Ca²⁺[t], xmin, xmax, nbins)
-    # # plot!(c,m,yerror=2e, color=p[1], lcolor=p[1], msc=:auto, markershape=:circle, label="Ca²⁺")
-    # # c,m,e = binmeans(sampleage[t], Mg²⁺[t], xmin, xmax, nbins)
-    # # plot!(c,m,yerror=2e, color=p[2], lcolor=p[2], msc=:auto, markershape=:circle, label="Mg²⁺")
-    # # c,m,e = binmeans(sampleage[t], K⁺[t], xmin, xmax, nbins)
-    # # plot!(c,m,yerror=2e, color=p[3], lcolor=p[3], msc=:auto, markershape=:circle, label="K⁺")
-    # # c,m,e = binmeans(sampleage[t], Na⁺[t], xmin, xmax, nbins)
-    # # plot!(c,m,yerror=2e, color=p[4], lcolor=p[4], msc=:auto, markershape=:circle, label="Na⁺")
-    # # c,m,e = binmeans(sampleage[t], alkalinity[t], xmin, xmax, nbins)
-    # # plot!(twinx(), c,m,yerror=2e, label="", ylabel="Alk [mol.]", color=:black)
-
+    # Real data 
+    h1 = deepcopy(h)
+    t = @. match_cats.sed .& (xmin .< sampleage .< xmax)
+    # t = trues(length(match_cats.sed))
+    c,m,e = binmeans(sampleage[t], Ca²⁺[t], xmin, xmax, nbins)
+    plot!(h1, c,m,yerror=2e, color=p[1], lcolor=p[1], msc=:auto, markershape=:circle, label="Ca²⁺")
+    c,m,e = binmeans(sampleage[t], Mg²⁺[t], xmin, xmax, nbins)
+    plot!(h1, c,m,yerror=2e, color=p[2], lcolor=p[2], msc=:auto, markershape=:circle, label="Mg²⁺")
+    c,m,e = binmeans(sampleage[t], K⁺[t], xmin, xmax, nbins)
+    plot!(h1, c,m,yerror=2e, color=p[3], lcolor=p[3], msc=:auto, markershape=:circle, label="K⁺")
+    c,m,e = binmeans(sampleage[t], Na⁺[t], xmin, xmax, nbins)
+    plot!(h1, c,m,yerror=2e, color=p[4], lcolor=p[4], msc=:auto, markershape=:circle, label="Na⁺")
+    c,m,e = binmeans(sampleage[t], alkalinity2[t], xmin, xmax, nbins)
+    plot!(twinx(), c,m,yerror=2e, label="", ylabel="Alk [mol.]", color=:black,
+        title="Observed", titleloc=:left
+    )
+    # xlims!(2500,3800)
+    display(h1)
 
     # Resampled data 
+    h1 = deepcopy(h)
     age = resampled[:,end]
+    t = @. 2500 < age < 3800;
     labels = ["Ca²⁺", "Mg²⁺", "K⁺", "Na⁺"]
     for i = 1:4
-        c,m,e = binmeans(age, resampled[:,i], xmin, xmax, nbins)
-        plot!(c,m,yerror=2e, 
+        c,m,e = binmeans(age[t], resampled[:,i][t], xmin, xmax, nbins)
+        plot!(h1, c,m,yerror=2e, 
             color=p[i], lcolor=p[i], msc=:auto, 
             markershape=:circle, label=labels[i]
         )
     end
 
-    c,m,e = binmeans(age, resampled[:,5], xmin, xmax, nbins)
-    plot!(twinx(), c,m,yerror=2e, label="", ylabel="Alk [mol.]", color=:black)
-
+    c,m,e = binmeans(age[t], resampled[:,5][t], xmin, xmax, nbins)
+    plot!(twinx(), c,m,yerror=2e, label="", ylabel="Alk [mol.]", color=:black,
+        title="Resampled", titleloc=:left,
+    )
     xlims!(2500, 3900)
-    display(h)
+    display(h1)
 
-## --- End of file 
+
+## --- Missing data or low values?
+    # Concerned with K, Na, Mg, and Ca in that order 
+    # Look at resampled data 
+    xmin, xmax = 2500, 3800
+    nbins = Int((xmax-xmin)/100)
+
+    age = resampled[:,end]
+    t = @. 2500 < age < 3800;
+    labels = ["Ca²⁺", "Mg²⁺", "K⁺", "Na⁺"]
+
+    h = plot(
+        framestyle=:box,
+        fontfamily=:Helvetica,
+        xlabel="Age [Ma.]", ylabel="Count",
+    )
+    for i in eachindex(labels)
+        s = t .& .!isnan.(resampled[:,i])
+        c,n = bincounts(age[s], xmin, xmax, nbins)
+        plot!(c, n, markershape=:circle, label="$(labels[i])",
+            color=p[i], lcolor=p[i], msc=:auto, 
+        )
+    end
+    vline!([3250.0], label="Alkalinity Drop")
+
+
+## --- End of file  

@@ -4,15 +4,40 @@
 
     show_progress && @info """Database loaded $(Dates.format(now(), "HH:MM"))"""
 
-    # Missing ages have already been filled in from age min / max bounds
-    # Outliers have already been removed  
-
 
 ## --- Convert rock names to lithologic classes and add metamorphic tags to each sample
     @time combo_cats, meta_cats = match_rocktype(combined.Rock_Group, combined.Rock_Subgroup, 
         combined.Rock_Composition, combined.Rock_Facies, combined.Rock_Name
     ); 
+    include_minor!(combo_cats);
 
+
+## --- Remove improbable ages 
+    # We assume missing ages have been filled in from the min / max bounds, if available, 
+    # and that ages older than 3800 and younger than 0 have been excluded.
+
+    # Here we exclude ages which are older than the maximum age of the craton as recorded 
+    # by the TC1 tectonic age model of Artemieva 2006, doi: 10.1016/j.tecto.2005.11.022
+    tc1_age, tc1_min, tc1_max = find_tc1_age(combined.Latitude, combined.Longitude)
+
+    # Get maximum ages. Add 10% to all TC1 maximum and geochemial minimum ages. (Note 
+    # absolute minimum TC1 age of 3500 Ma.) If bounds are not known, default to 20% of 
+    # recorded age.
+    tc1_max *= 1.1
+    tc1_max[isnan.(tc1_max)] .= tc1_age[isnan.(tc1_max)] * 1.2
+    combined_min = combined.Age_Min * 0.9
+    combined_min[isnan.(combined_min)] .= combined.Age[isnan.(combined_min)] * 0.8
+
+    # NaN out any ages that are older than the cratonization age, allowing 10% error tolerance
+    invalidage = @. !isnan(tc1_age) && (combined.Age > tc1_age) && (combined_min > tc1_max);
+    # difference = abs.(combined.Age - tc1_age)
+    # difference[.!invalidage] .= NaN 
+    # println(count(invalidage))
+    # h = histogram(difference, yaxis=:log10)
+    # display(h)
+
+    combined.Age[invalidage .& combo_cats.sed] .= NaN;
+    
 
 ## --- Convert all units to wt.% and create geochemical data Tuple 
     # Preallocate 
@@ -182,8 +207,8 @@
     end
 
     # Remove impossible locations 
-    out.Latitude[(-90 .> out.Latitude) .| (out.Latitude .> 90)] .= NaN
-    out.Longitude[(-180 .> out.Longitude) .| (out.Longitude .> 180)] .= NaN
+    out.Latitude[(-90 .> out.Latitude) .| (out.Latitude .> 90)] .= NaN;
+    out.Longitude[(-180 .> out.Longitude) .| (out.Longitude .> 180)] .= NaN;
 
 
 ## --- Get and restrict metadata 
@@ -246,10 +271,17 @@
     nondescriptive = combo_kittens.sed .| combo_kittens.ign .| combo_kittens.met .| combo_kittens.cover
     not_used = count(unmatched) + count(nondescriptive)
 
+    include_minor!(combo_kittens)
+    # invalidvolc = round(count(combo_kittens.volc .& invalidage[t]) / count(combo_kittens.volc)*100, sigdigits=3)
+    # invalidplut = round(count(combo_kittens.plut .& invalidage[t]) / count(combo_kittens.plut)*100, sigdigits=3)
+    invalidseds = round(count(combo_kittens.sed .& invalidage[t]) / count(combo_kittens.sed)*100, sigdigits=3)
+
     @info """Functional dataset size: $(length(combo_kittens.sed) - not_used)
     Nondescriptive: $not_used
     Unused lithology: $(count(unmatched))
     Total samples: $(length(combo_kittens.sed))
+    Invalid age included: $(count(invalidage[t]))
+        Sedimentary (set to NaN): $invalidseds
     """
 
 

@@ -86,7 +86,7 @@
         Mg²⁺ = mbulk.MgO[i] * MgO_to_Mg * 2     # +2 change
         K⁺ = mbulk.K2O[i] * K2O_to_K
         Na⁺ = mbulk.Na2O[i] * Na2O_to_Na
-        alkalinity[i] = Ca²⁺ + Mg²⁺ + K⁺ + Na⁺
+        alkalinity[i] = nansum([Ca²⁺, Mg²⁺, K⁺, Na⁺])
 
         phosphorus[i] = mbulk.P2O5[i] * P2O5_to_mol
     end
@@ -160,21 +160,23 @@
     plot!(twinx(), c,m,yerror=2e, label="", ylabel="Alk [mol.]", color=:blue)
 
 
-## --- Plot moles of each alkalinity cation over the Archean
-    Ca²⁺ = Array{Float64}(undef, length(mbulk.CaO))
-    Mg²⁺ = Array{Float64}(undef, length(mbulk.CaO))
-    K⁺ = Array{Float64}(undef, length(mbulk.CaO))
-    Na⁺ = Array{Float64}(undef, length(mbulk.CaO))
-    for i in eachindex(alkalinity)
-        Ca²⁺[i] = mbulk.CaO[i] * CaO_to_Ca
-        Mg²⁺[i] = mbulk.MgO[i] * MgO_to_Mg
-        K⁺[i] = mbulk.K2O[i] * K2O_to_K
-        Na⁺[i] = mbulk.Na2O[i] * Na2O_to_Na
-        # alkalinity[i] = Ca²⁺ + Mg²⁺ + K⁺ + Na⁺
-    end
+## --- Plot moles of each alkalinity cation in Archean seds     
+    # Get individual cation abundances and resample
+    Ca²⁺ = @. mbulk.CaO * CaO_to_Ca     # x2 for charge!!
+    Mg²⁺ = @. mbulk.MgO * MgO_to_Mg     # x2 for charge!!
+    K⁺ = @. mbulk.K2O * K2O_to_K
+    Na⁺ = @. mbulk.Na2O * Na2O_to_Na
+    alkalinity2 = nansum([2*Ca²⁺ 2*Mg²⁺ K⁺ Na⁺], dims=2)
 
-    t = match_cats.ign
-    # t = trues(length(match_cats.sed))
+    k = invweight_age(sampleage[match_cats.sed])
+    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+
+    t = @. match_cats.sed & (2500 < sampleage < 3800)
+    data = [Ca²⁺[t] Mg²⁺[t] K⁺[t] Na⁺[t] alkalinity2[t]]
+    uncert = ones(size(data)) ./ 10
+    resampled = bsresample([data sampleage[t]], [uncert ageuncert[t]], nsims, p)
+
+    # Plot data 
     p = palette(:rainbow, 4)
     h = plot(
         framestyle=:box,
@@ -183,16 +185,33 @@
         ylabel="Cation [mol.]",
         legend=:top
     );
-    c,m,e = binmeans(sampleage[t], Ca²⁺[t], xmin, xmax, nbins)
-    plot!(c,m,yerror=2e, color=p[1], lcolor=p[1], msc=:auto, markershape=:circle, label="Ca²⁺")
-    c,m,e = binmeans(sampleage[t], Mg²⁺[t], xmin, xmax, nbins)
-    plot!(c,m,yerror=2e, color=p[2], lcolor=p[2], msc=:auto, markershape=:circle, label="Mg²⁺")
-    c,m,e = binmeans(sampleage[t], K⁺[t], xmin, xmax, nbins)
-    plot!(c,m,yerror=2e, color=p[3], lcolor=p[3], msc=:auto, markershape=:circle, label="K⁺")
-    c,m,e = binmeans(sampleage[t], Na⁺[t], xmin, xmax, nbins)
-    plot!(c,m,yerror=2e, color=p[4], lcolor=p[4], msc=:auto, markershape=:circle, label="Na⁺")
 
-    c,m,e = binmeans(sampleage[t], alkalinity[t], xmin, xmax, nbins)
+    # # Real data 
+    # t = @. match_cats.sed & (2500 < sampleage < 3800)
+    # c,m,e = binmeans(sampleage[t], Ca²⁺[t], xmin, xmax, nbins)
+    # # plot!(c,m,yerror=2e, color=p[1], lcolor=p[1], msc=:auto, markershape=:circle, label="Ca²⁺")
+    # # c,m,e = binmeans(sampleage[t], Mg²⁺[t], xmin, xmax, nbins)
+    # # plot!(c,m,yerror=2e, color=p[2], lcolor=p[2], msc=:auto, markershape=:circle, label="Mg²⁺")
+    # # c,m,e = binmeans(sampleage[t], K⁺[t], xmin, xmax, nbins)
+    # # plot!(c,m,yerror=2e, color=p[3], lcolor=p[3], msc=:auto, markershape=:circle, label="K⁺")
+    # # c,m,e = binmeans(sampleage[t], Na⁺[t], xmin, xmax, nbins)
+    # # plot!(c,m,yerror=2e, color=p[4], lcolor=p[4], msc=:auto, markershape=:circle, label="Na⁺")
+    # # c,m,e = binmeans(sampleage[t], alkalinity[t], xmin, xmax, nbins)
+    # # plot!(twinx(), c,m,yerror=2e, label="", ylabel="Alk [mol.]", color=:black)
+
+
+    # Resampled data 
+    age = resampled[:,end]
+    labels = ["Ca²⁺", "Mg²⁺", "K⁺", "Na⁺"]
+    for i = 1:4
+        c,m,e = binmeans(age, resampled[:,i], xmin, xmax, nbins)
+        plot!(c,m,yerror=2e, 
+            color=p[i], lcolor=p[i], msc=:auto, 
+            markershape=:circle, label=labels[i]
+        )
+    end
+
+    c,m,e = binmeans(age, resampled[:,5], xmin, xmax, nbins)
     plot!(twinx(), c,m,yerror=2e, label="", ylabel="Alk [mol.]", color=:black)
 
     xlims!(2500, 3900)

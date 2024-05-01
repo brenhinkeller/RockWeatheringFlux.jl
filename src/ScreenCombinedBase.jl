@@ -281,7 +281,7 @@
     Unused lithology: $(count(unmatched))
     Total samples: $(length(combo_kittens.sed))
     Invalid age included: $(count(invalidage[t]))
-        Sedimentary (set to NaN): $invalidseds
+        Sedimentary (set to NaN): $invalidseds%
     """
 
 

@@ -55,8 +55,9 @@
     # 2012 extended methods for more info
 
     # Definitions
-    P2O5_err = 2.0      # Error set as 10x the error given in 
-    alk_err = 1.0       # volcanic.mat (Keller et al., 2015)   
+    xmin, xmax, nbins = 0, 3800, 38
+    P2O5_err = 0.002        # Or whatever. Forgot that this should be mols
+    alk_err = 0.001 
 
     # Get sample ages and uncertainties
     sampleage, ageuncert = resampling_age(mbulk.Age, mbulk.Age_Min, mbulk.Age_Max, 
@@ -74,16 +75,18 @@
     simout_bulk = NamedTuple{target}(Array{Float64}(undef, nsims, 3) for _ in target)
 
     # Conversion factors from wt.% element oxide to moles per 100g sample
-    CaO_to_Ca =   (molarmass["Ca"]   + molarmass["O"]  )
-    MgO_to_Mg =   (molarmass["Mg"]   + molarmass["O"]  )
-    K2O_to_K =    (molarmass["K"] *2 + molarmass["O"]  ) * 2   # 2 mol K / 1 mol K₂O
-    Na2O_to_Na =  (molarmass["Na"]*2 + molarmass["O"]  ) * 2   # 2 mol Na / 1 mol Na₂O
-    P2O5_to_mol = (molarmass["P"] *2 + molarmass["O"]*5)
+    # Note that these are molar masses and must be **divided** from the wt.% [g/g] value
+    CaO_to_Ca =   1 / (molarmass["Ca"]   + molarmass["O"]  )
+    MgO_to_Mg =   1 / (molarmass["Mg"]   + molarmass["O"]  )
+    K2O_to_K =    2 / (molarmass["K"] *2 + molarmass["O"]  )    # 2 mol K / 1 mol K₂O
+    Na2O_to_Na =  2 / (molarmass["Na"]*2 + molarmass["O"]  )    # 2 mol Na / 1 mol Na₂O
+    FeO_to_Fe =   1 / (molarmass["Fe"]   + molarmass["O"]  )
+    P2O5_to_mol = 2 / (molarmass["P"] *2 + molarmass["O"]*5)    # 2 mol P / 1 mol P₂O₅
 
     # Moles of alkalinity (charge), phosphorus, 
     for i in eachindex(alkalinity)
-        Ca²⁺ = mbulk.CaO[i] * CaO_to_Ca * 2     # +2 change
-        Mg²⁺ = mbulk.MgO[i] * MgO_to_Mg * 2     # +2 change
+        Ca²⁺ = mbulk.CaO[i] * CaO_to_Ca * 2                 # +2 change
+        Mg²⁺ = mbulk.MgO[i] * MgO_to_Mg * 2                 # +2 change
         K⁺ = mbulk.K2O[i] * K2O_to_K
         Na⁺ = mbulk.Na2O[i] * Na2O_to_Na
         alkalinity[i] = nansum([Ca²⁺, Mg²⁺, K⁺, Na⁺])
@@ -119,7 +122,7 @@
     end
 
     # Sanity check plot 
-    figs = Array{Plots.Plot{Plots.GRBackend}}(undef, length(simout))
+    figs = Array{Plots.Plot{Plots.GRBackend}}(undef, length(simout_ratio))
     p = palette([:red, :hotpink, :seagreen], 3)
     c,m,el,eu = 1,2,3,4;
     h = plot(
@@ -132,8 +135,8 @@
     for i in eachindex(target)
         key = target[i]
         h1 = deepcopy(h)
-        plot!(h1, simout[key][:,c], simout[key][:,m], 
-            yerror=(2*simout[key][:,el], 2*simout[key][:,eu]), 
+        plot!(h1, simout_ratio[key][:,c], simout_ratio[key][:,m], 
+            yerror=(2*simout_ratio[key][:,el], 2*simout_ratio[key][:,eu]), 
             label="$key", 
             color=p[i], lcolor=p[i], msc=:auto, 
             markershape=:circle,
@@ -154,19 +157,43 @@
         fg_color_legend=:white,
     )
     c,m,e = binmeans(simout_bulk.sed[:,1], simout_bulk.sed[:,2], xmin, xmax, nbins)
-    plot!(c,m,yerror=2e, label="", ylabel="P [mol.]", color=:red)
+    plot!(c,m,yerror=2e, label="", ylabel="P [mol.]", 
+        color=:red, lcolor=:red, msc=:auto,
+    )
     
     c,m,e = binmeans(simout_bulk.sed[:,1], simout_bulk.sed[:,3], xmin, xmax, nbins)
-    plot!(twinx(), c,m,yerror=2e, label="", ylabel="Alk [mol.]", color=:blue)
+    plot!(twinx(), c,m,yerror=2e, label="", ylabel="Alk [mol.]", 
+        color=:blue, lcolor=:blue, msc=:auto,
+    )
+
+
+## --- ??? What if we calculate the ratio after resampling 
+    ratio = simout_bulk.sed[:,2] ./ simout_bulk.sed[:,3]
+    c,m,e = binmeans(simout_bulk.sed[:,1], ratio, xmin, xmax, nbins)
+    plot(c,m,yerror=2e, label="", ylabel="P / Alk [mol.]", 
+        color=:blue, lcolor=:blue, msc=:auto,
+    )
+
+    # That's fucked; try a new way
+    c,m₁,e₁ = binmeans(simout_bulk.sed[:,1], simout_bulk.sed[:,2], xmin, xmax, nbins)
+    c,m₂,e₂ = binmeans(simout_bulk.sed[:,1], simout_bulk.sed[:,3], xmin, xmax, nbins)
+    r = (m₁ .± e₁) ./ (m₂ .± e₂)
+    m = Measurements.value.(r)
+    e = Measurements.uncertainty.(r)
+    plot(c,m,yerror=2e, label="", ylabel="P / Alk [mol.]", 
+        color=:blue, lcolor=:blue, msc=:auto,
+    )
 
 
 ## --- Plot moles of each alkalinity cation in Archean seds     
-    # Get individual cation abundances and resample
+    # Get individual cation abundances and resample.
     Ca²⁺ = @. mbulk.CaO * CaO_to_Ca     # x2 for charge!!
     Mg²⁺ = @. mbulk.MgO * MgO_to_Mg     # x2 for charge!!
     K⁺ = @. mbulk.K2O * K2O_to_K
     Na⁺ = @. mbulk.Na2O * Na2O_to_Na
-    alkalinity2 = nansum([2*Ca²⁺ 2*Mg²⁺ K⁺ Na⁺], dims=2)
+    Fe²⁺ = @. mbulk.FeOT * FeO_to_Fe    # x2 for charge!!
+    # alkalinity2 = nansum([2*Ca²⁺ 2*Mg²⁺ K⁺ Na⁺], dims=2)
+    alkalinity2 = nansum([2*Ca²⁺ 2*Mg²⁺ K⁺ Na⁺ 2*Fe²⁺], dims=2)
 
     k = invweight_age(sampleage[match_cats.sed])
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
@@ -174,16 +201,17 @@
     t = @. match_cats.sed & (2500 < sampleage < 3800)
     # t .&= .!isnan.(Ca²⁺) .& .!isnan.(Mg²⁺) .& .!isnan.(K⁺) .& .!isnan.(Na⁺)
 
-    data = [Ca²⁺[t] Mg²⁺[t] K⁺[t] Na⁺[t] alkalinity2[t]]
-    uncert = ones(size(data)) ./ 10
+    data = [Ca²⁺[t] Mg²⁺[t] K⁺[t] Na⁺[t] Fe²⁺[t] alkalinity2[t]]
+    nanzero!(data)
+    uncert = ones(size(data)) ./ 100
     resampled = bsresample([data sampleage[t]], [uncert ageuncert[t]], nsims, p)
 
-    
+
 ## --- Plot data 
     xmin, xmax = 2500, 3800
     nbins = Int((xmax-xmin)/100)
 
-    p = palette(:rainbow, 4)
+    p = palette(:rainbow, 5)
     h = plot(
         framestyle=:box,
         fontfamily=:Helvetica,
@@ -192,31 +220,41 @@
         legend=:topright
     );
 
-    # Real data 
-    h1 = deepcopy(h)
-    t = @. match_cats.sed .& (xmin .< sampleage .< xmax)
-    # t = trues(length(match_cats.sed))
-    c,m,e = binmeans(sampleage[t], Ca²⁺[t], xmin, xmax, nbins)
-    plot!(h1, c,m,yerror=2e, color=p[1], lcolor=p[1], msc=:auto, markershape=:circle, label="Ca²⁺")
-    c,m,e = binmeans(sampleage[t], Mg²⁺[t], xmin, xmax, nbins)
-    plot!(h1, c,m,yerror=2e, color=p[2], lcolor=p[2], msc=:auto, markershape=:circle, label="Mg²⁺")
-    c,m,e = binmeans(sampleage[t], K⁺[t], xmin, xmax, nbins)
-    plot!(h1, c,m,yerror=2e, color=p[3], lcolor=p[3], msc=:auto, markershape=:circle, label="K⁺")
-    c,m,e = binmeans(sampleage[t], Na⁺[t], xmin, xmax, nbins)
-    plot!(h1, c,m,yerror=2e, color=p[4], lcolor=p[4], msc=:auto, markershape=:circle, label="Na⁺")
-    c,m,e = binmeans(sampleage[t], alkalinity2[t], xmin, xmax, nbins)
-    plot!(twinx(), c,m,yerror=2e, label="", ylabel="Alk [mol.]", color=:black,
-        title="Observed", titleloc=:left
-    )
-    # xlims!(2500,3800)
-    display(h1)
+    # # Real data 
+    # h1 = deepcopy(h)
+    # t = @. match_cats.sed .& (xmin .< sampleage .< xmax)
+    # # t = trues(length(match_cats.sed))
+    # c,m,e = binmeans(sampleage[t], Ca²⁺[t], xmin, xmax, nbins)
+    # plot!(h1, c,m,yerror=2e, color=p[1], lcolor=p[1], msc=:auto, markershape=:circle, label="Ca²⁺")
+    # c,m,e = binmeans(sampleage[t], Mg²⁺[t], xmin, xmax, nbins)
+    # plot!(h1, c,m,yerror=2e, color=p[2], lcolor=p[2], msc=:auto, markershape=:circle, label="Mg²⁺")
+    # c,m,e = binmeans(sampleage[t], K⁺[t], xmin, xmax, nbins)
+    # plot!(h1, c,m,yerror=2e, color=p[3], lcolor=p[3], msc=:auto, markershape=:circle, label="K⁺")
+    # c,m,e = binmeans(sampleage[t], Na⁺[t], xmin, xmax, nbins)
+    # plot!(h1, c,m,yerror=2e, color=p[4], lcolor=p[4], msc=:auto, markershape=:circle, label="Na⁺")
+    # c,m,e = binmeans(sampleage[t], Na⁺[t], xmin, xmax, nbins)
+    # plot!(h1, c,m,yerror=2e, color=p[4], lcolor=p[4], msc=:auto, markershape=:circle, label="Na⁺")
+    # c,m,e = binmeans(sampleage[t], Fe²⁺[t], xmin, xmax, nbins)
+    # plot!(h1, c,m,yerror=2e, color=p[5], lcolor=p[5], msc=:auto, markershape=:circle, label="Fe²⁺")
+    # c,m,e = binmeans(sampleage[t], alkalinity2[t], xmin, xmax, nbins)
+    # plot!(twinx(), c,m,yerror=2e, label="", ylabel="Alk [mol.]", color=:black,
+    #     title="Observed", titleloc=:left
+    # )
+    # # xlims!(2500,3800)
+    # display(h1)
+
+    # Shouldn't adding Fe change the alkalinity??
+    # t = @. match_cats.sed .& (xmin .< sampleage .< xmax)
+    # c,m,e = binmeans(sampleage[t], alkalinity2[t], xmin, xmax, nbins)
+    # h1 = deepcopy(h)
+    # plot!(h1,c,m,yerror=2e, label="", ylabel="Alk [mol.]", color=:black,)
 
     # Resampled data 
     h1 = deepcopy(h)
     age = resampled[:,end]
     t = @. 2500 < age < 3800;
-    labels = ["Ca²⁺", "Mg²⁺", "K⁺", "Na⁺"]
-    for i = 1:4
+    labels = ["Ca²⁺", "Mg²⁺", "K⁺", "Na⁺", "Fe²⁺"]
+    for i in eachindex(labels)
         c,m,e = binmeans(age[t], resampled[:,i][t], xmin, xmax, nbins)
         plot!(h1, c,m,yerror=2e, 
             color=p[i], lcolor=p[i], msc=:auto, 
@@ -224,7 +262,7 @@
         )
     end
 
-    c,m,e = binmeans(age[t], resampled[:,5][t], xmin, xmax, nbins)
+    c,m,e = binmeans(age[t], resampled[:,end-1][t], xmin, xmax, nbins)
     plot!(twinx(), c,m,yerror=2e, label="", ylabel="Alk [mol.]", color=:black,
         title="Resampled", titleloc=:left,
     )
@@ -245,7 +283,8 @@
     h = plot(
         framestyle=:box,
         fontfamily=:Helvetica,
-        xlabel="Age [Ma.]", ylabel="Count",
+        xlabel="Age [Ma.]", ylabel="Sample Count",
+        legend=:top
     )
     for i in eachindex(labels)
         s = t .& .!isnan.(resampled[:,i])
@@ -254,7 +293,9 @@
             color=p[i], lcolor=p[i], msc=:auto, 
         )
     end
-    vline!([3250.0], label="Alkalinity Drop")
+    c,m,e = binmeans(age[t], resampled[:,5][t], xmin, xmax, nbins)
+    plot!(twinx(), c,m,yerror=2e, label="", ylabel="Alk [mol.]", color=:black,
+    )
 
 
 ## --- End of file  

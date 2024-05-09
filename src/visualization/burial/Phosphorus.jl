@@ -56,8 +56,7 @@
 
     # Definitions
     xmin, xmax, nbins = 0, 3800, 38
-    P2O5_err = 0.002        # Or whatever. Forgot that this should be mols
-    alk_err = 0.001 
+    uncert = 0.05                       # Percent error 
 
     # Get sample ages and uncertainties
     sampleage, ageuncert = resampling_age(mbulk.Age, mbulk.Age_Min, mbulk.Age_Max, 
@@ -108,15 +107,15 @@
         c,m,el,eu = bin_bsr_ratios(sampleage[t], phosphorus[t], alkalinity[t], 
             xmin, xmax, nbins,
             x_sigma = ageuncert[t],
-            num_sigma = fill(P2O5_err, count(t)),
-            denom_sigma = fill(alk_err, count(t)),
+            num_sigma = phosphorus[t]*uncert,
+            denom_sigma = alkalinity[t]*uncert,
             p = p
         )
         simout_ratio[key] .= [c m el eu]
 
         # Resample values
         simout_bulk[key] .= bsresample([sampleage[t] phosphorus[t] alkalinity[t]], 
-            [ageuncert[t] fill(P2O5_err, count(t)) fill(alk_err, count(t))], 
+            [ageuncert[t] phosphorus[t]*uncert alkalinity[t]*uncert], 
             nsims, p
         )
     end
@@ -130,7 +129,7 @@
         framestyle=:box,
         fontfamily=:Helvetica,
         fg_color_legend=:white,
-        legend=:topleft,
+        legend=:topright,
     );
     for i in eachindex(target)
         key = target[i]
@@ -146,7 +145,7 @@
     
     h2 = plot(figs..., layout=(1,3), size=(1800,400))
     display(h2)
-    # savefig(h2, "$filepath/p_alk.pdf")
+    savefig(h2, "$filepath/p_alk.pdf")
 
 
 ## --- Plot resampled alkalinity / phosphorus over time 
@@ -155,34 +154,45 @@
         framestyle=:box,
         fontfamily=:Helvetica,
         fg_color_legend=:white,
-    )
+        title="Resampled P and Alk"
+    );
     c,m,e = binmeans(simout_bulk.sed[:,1], simout_bulk.sed[:,2], xmin, xmax, nbins)
     plot!(c,m,yerror=2e, label="", ylabel="P [mol.]", 
         color=:red, lcolor=:red, msc=:auto,
+        y_foreground_color_border=:red,
+        y_foreground_color_text=:red,
+        y_foreground_color_axis=:red,
+        y_guidefontcolor=:red,
     )
     
     c,m,e = binmeans(simout_bulk.sed[:,1], simout_bulk.sed[:,3], xmin, xmax, nbins)
     plot!(twinx(), c,m,yerror=2e, label="", ylabel="Alk [mol.]", 
         color=:blue, lcolor=:blue, msc=:auto,
+        y_foreground_color_border=:blue,
+        y_foreground_color_text=:blue,
+        y_foreground_color_axis=:blue,
+        y_guidefontcolor=:blue,
     )
 
 
 ## --- ??? What if we calculate the ratio after resampling 
-    ratio = simout_bulk.sed[:,2] ./ simout_bulk.sed[:,3]
-    c,m,e = binmeans(simout_bulk.sed[:,1], ratio, xmin, xmax, nbins)
-    plot(c,m,yerror=2e, label="", ylabel="P / Alk [mol.]", 
-        color=:blue, lcolor=:blue, msc=:auto,
-    )
+    # ratio = simout_bulk.sed[:,2] ./ simout_bulk.sed[:,3]
+    # c,m,e = binmeans(simout_bulk.sed[:,1], ratio, xmin, xmax, nbins)
+    # h = plot(c,m,yerror=2e, label="", ylabel="P / Alk [mol.]", 
+    #     color=:blue, lcolor=:blue, msc=:auto,
+    # )
+    # display(h)
 
-    # That's fucked; try a new way
-    c,m₁,e₁ = binmeans(simout_bulk.sed[:,1], simout_bulk.sed[:,2], xmin, xmax, nbins)
-    c,m₂,e₂ = binmeans(simout_bulk.sed[:,1], simout_bulk.sed[:,3], xmin, xmax, nbins)
-    r = (m₁ .± e₁) ./ (m₂ .± e₂)
-    m = Measurements.value.(r)
-    e = Measurements.uncertainty.(r)
-    plot(c,m,yerror=2e, label="", ylabel="P / Alk [mol.]", 
-        color=:blue, lcolor=:blue, msc=:auto,
-    )
+    # # That's fucked; try a new way
+    # c,m₁,e₁ = binmeans(simout_bulk.sed[:,1], simout_bulk.sed[:,2], xmin, xmax, nbins)
+    # c,m₂,e₂ = binmeans(simout_bulk.sed[:,1], simout_bulk.sed[:,3], xmin, xmax, nbins)
+    # r = (m₁ .± e₁) ./ (m₂ .± e₂)
+    # m = Measurements.value.(r)
+    # e = Measurements.uncertainty.(r)
+    # h = plot(c,m,yerror=2e, label="", ylabel="P / Alk [mol.]", 
+    #     color=:blue, lcolor=:blue, msc=:auto,
+    # )
+    # display(h)
 
 
 ## --- Plot moles of each alkalinity cation in Archean seds     
@@ -217,7 +227,7 @@
         fontfamily=:Helvetica,
         fg_color_legend=:white,
         ylabel="Cation [mol.]",
-        legend=:topright
+        legend=:top
     );
 
     # # Real data 
@@ -263,7 +273,9 @@
     end
 
     c,m,e = binmeans(age[t], resampled[:,end-1][t], xmin, xmax, nbins)
-    plot!(twinx(), c,m,yerror=2e, label="", ylabel="Alk [mol.]", color=:black,
+    plot!(twinx(), c,m,yerror=2e, 
+        label="Alkalinity", legend=:topright, fg_color_legend=:white,
+        ylabel="Alk [mol.]", color=:black,
         title="Resampled", titleloc=:left,
     )
     xlims!(2500, 3900)
@@ -278,7 +290,7 @@
 
     age = resampled[:,end]
     t = @. 2500 < age < 3800;
-    labels = ["Ca²⁺", "Mg²⁺", "K⁺", "Na⁺"]
+    labels = ["Ca²⁺", "Mg²⁺", "K⁺", "Na⁺", "Fe²+"]
 
     h = plot(
         framestyle=:box,
@@ -293,9 +305,62 @@
             color=p[i], lcolor=p[i], msc=:auto, 
         )
     end
-    c,m,e = binmeans(age[t], resampled[:,5][t], xmin, xmax, nbins)
+    c,m,e = binmeans(age[t], resampled[:,end-1][t], xmin, xmax, nbins)
     plot!(twinx(), c,m,yerror=2e, label="", ylabel="Alk [mol.]", color=:black,
     )
+
+
+## --- Check chert abundance over time 
+    # Definitions
+    xmin, xmax, nbins = 0, 3800, 38
+    nsims = Int(1e6)
+    minorsed, minorvolc, minorplut, minorign = get_rock_class()[2:5];
+
+    # Try geochemical age, but it may make more sense to use map age
+    sampleage, ageuncert = resampling_age(mbulk.Age, mbulk.Age_Min, mbulk.Age_Max, 
+        macrostrat.age, macrostrat.agemin, macrostrat.agemax, 
+        uncert_rel=age_error, uncert_abs=age_error_abs
+    )
+
+    # Resample sedimentary rock types over geologic time 
+    a = Array{Int64}(undef, count(match_cats.sed), length(minorsed))
+    for i in eachindex(minorsed)
+        target = match_cats[minorsed[i]][match_cats.sed]
+        for j in eachindex(target)
+            a[j,i] = ifelse(target[j], 1, 0)
+        end
+    end
+
+    k = invweight_age(sampleage[match_cats.sed])
+    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+    resampled = bsresample([sampleage[match_cats.sed] a], 
+        [ageuncert[match_cats.sed] zeros(size(a))], 
+        nsims, p
+    )
+
+    # Count abundance of cherts in each bin over time 
+    sedindex = NamedTuple{minorsed}(collect(1:length(minorsed)) .+ 1)
+    t = resampled[:,sedindex.chert] .== 1;                   # Find cherts 
+    # s = resampled[]
+
+    c,n₁ = bincounts(resampled[:,1], xmin, xmax, nbins)      # Absolute counts of all seds
+    c,n₂ = bincounts(resampled[:,1][t], xmin, xmax, nbins)   # Absolute counts of cherts 
+    n = float.(n₂) ./ float.(n₁)                             # Relative abundance
+
+    plot(c, n, label="",
+        color=colors.chert,
+        markershape=:circle,
+        framestyle=:box,
+        fontfamily=:Helvetica,
+        xlabel="Age [Ma.]", ylabel="Fractional Abundance"    
+    )
+    # plot!(twinx())
+
+
+    # cherts = Array{Float64}(undef, length(c))
+    # for i in eachindex(cherts)
+    #     t = 
+    # end
 
 
 ## --- End of file  

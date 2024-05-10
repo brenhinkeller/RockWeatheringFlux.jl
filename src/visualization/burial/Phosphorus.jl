@@ -248,111 +248,89 @@
     target = (cations..., :Alk, :Age, seds...,)
     r_index = NamedTuple{target}(1:length(target))
 
+    # Create a new resampled array for charges to avoid confusion between cation 
+    # abundance and alkalinity 
+    resampled_charge = copy(resampled)
+    resampled_charge[:,r_index.Ca] .*= 2;
+    resampled_charge[:,r_index.Mg] .*= 2;
+    resampled_charge[:,r_index.Fe] .*= 2;
 
-## --- Plot data 
-    # Re-parse rock class and age data 
+    # Re-parse rock class data
     sim_cats = NamedTuple{seds}(resampled[:,r_index[k]] .> 0 for k in seds)
     for k in seds
         sim_cats.sed .|= sim_cats[k]
     end
+
+    # Get age data since we'll be accessing it a lot 
     sim_age = resampled[:,r_index.Age]
-
-    # marines = sim_cats.shale .| sim_cats.carb
-
-    # Plot alkalinity and cation abundance for bulk Archean sedimentary rocks 
-    p = palette(:rainbow, length(cations))
-    cation_labels = ["Ca²⁺", "Mg²⁺", "K⁺", "Na⁺", "Fe²⁺"]
-    t = @. 2500 < sim_age < 3800;
-
-    h = plot(
-        framestyle=:box,
-        fontfamily=:Helvetica,
-        fg_color_legend=:white,
-        ylabel="Cation [mol.]",
-        legend=:top,
-        title="Bulk Sedimentary Rocks", titleloc=:left,
-        y_foreground_color_border=:red,
-        y_foreground_color_text=:red,
-        y_foreground_color_axis=:red,
-        y_guidefontcolor=:red,
-    );
-    for i in eachindex(cations)
-        c,m,e = binmeans(sim_age[t], resampled[:,r_index[cations[i]]][t], xmin, xmax, nbins)
-        plot!(h, c,m,yerror=2e, 
-            color=p[i], lcolor=p[i], msc=:auto, 
-            markershape=:circle, label=cation_labels[i]
-        )
-    end
-    c,m,e = binmeans(sim_age[t], resampled[:,r_index.Alk][t], xmin, xmax, nbins)
-    plot!(twinx(), c,m,yerror=2e, 
-        label="Alkalinity", legend=:topright, fg_color_legend=:white,
-        ylabel="Alk [mol.]", color=:black,
-    )
-    display(h)
 
 
 ## --- Plot data 
-    
+    # Filter for Archean samples 
+    t = @. 2500 < sim_age < 3800;
 
+    # Check for agreement in alkalinity vs. sum of charges in resampled data
+    sim_alk = Array{Float64}(undef, size(resampled)[1], length(cations))
+    for i in eachindex(cations)
+        sim_alk[:,i] .= resampled_charge[:,r_index[cations[i]]]
+    end
+    sim_alk = nansum(sim_alk, dims=2)
+    alk_difference = sim_alk .- resampled[:,r_index.Alk];
+    h = histogram(alk_difference, label="",
+        xlabel="Difference [mol.] -- Negative if resampled larger than calculated", 
+        ylabel="Abundance",
+        framestyle=:box,
+        fontfamily=:Helvetica,
+        color=:black,
+        title="Resampled Alkalinity vs. Sum of Charges", titleloc=:left,
+    )
+    display(h)
+
+    # Bulk sedimentary cation abundance and alkalinity
     p = palette(:rainbow, 5)
+    labels = ["Ca²⁺", "Mg²⁺", "K⁺", "Na⁺", "Fe²⁺"]
     h = plot(
         framestyle=:box,
         fontfamily=:Helvetica,
         fg_color_legend=:white,
         ylabel="Cation [mol.]",
         legend=:top
-    );
-
-    # # Real data 
-    # h1 = deepcopy(h)
-    # t = @. match_cats.sed .& (xmin .< sampleage .< xmax)
-    # # t = trues(length(match_cats.sed))
-    # c,m,e = binmeans(sampleage[t], Ca²⁺[t], xmin, xmax, nbins)
-    # plot!(h1, c,m,yerror=2e, color=p[1], lcolor=p[1], msc=:auto, markershape=:circle, label="Ca²⁺")
-    # c,m,e = binmeans(sampleage[t], Mg²⁺[t], xmin, xmax, nbins)
-    # plot!(h1, c,m,yerror=2e, color=p[2], lcolor=p[2], msc=:auto, markershape=:circle, label="Mg²⁺")
-    # c,m,e = binmeans(sampleage[t], K⁺[t], xmin, xmax, nbins)
-    # plot!(h1, c,m,yerror=2e, color=p[3], lcolor=p[3], msc=:auto, markershape=:circle, label="K⁺")
-    # c,m,e = binmeans(sampleage[t], Na⁺[t], xmin, xmax, nbins)
-    # plot!(h1, c,m,yerror=2e, color=p[4], lcolor=p[4], msc=:auto, markershape=:circle, label="Na⁺")
-    # c,m,e = binmeans(sampleage[t], Na⁺[t], xmin, xmax, nbins)
-    # plot!(h1, c,m,yerror=2e, color=p[4], lcolor=p[4], msc=:auto, markershape=:circle, label="Na⁺")
-    # c,m,e = binmeans(sampleage[t], Fe²⁺[t], xmin, xmax, nbins)
-    # plot!(h1, c,m,yerror=2e, color=p[5], lcolor=p[5], msc=:auto, markershape=:circle, label="Fe²⁺")
-    # c,m,e = binmeans(sampleage[t], alkalinity2[t], xmin, xmax, nbins)
-    # plot!(twinx(), c,m,yerror=2e, label="", ylabel="Alk [mol.]", color=:black,
-    #     title="Observed", titleloc=:left
-    # )
-    # # xlims!(2500,3800)
-    # display(h1)
-
-    # Shouldn't adding Fe change the alkalinity??
-    # t = @. match_cats.sed .& (xmin .< sampleage .< xmax)
-    # c,m,e = binmeans(sampleage[t], alkalinity2[t], xmin, xmax, nbins)
-    # h1 = deepcopy(h)
-    # plot!(h1,c,m,yerror=2e, label="", ylabel="Alk [mol.]", color=:black,)
-
-    # Resampled data 
-    h1 = deepcopy(h)
-    age = resampled[:,end]
-    t = @. 2500 < age < 3800;
-    labels = ["Ca²⁺", "Mg²⁺", "K⁺", "Na⁺", "Fe²⁺"]
+    ); 
     for i in eachindex(labels)
-        c,m,e = binmeans(age[t], resampled[:,i][t], xmin, xmax, nbins)
-        plot!(h1, c,m,yerror=2e, 
+        c,m,e = binmeans(sim_age[t], resampled[:,i][t], xmin, xmax, nbins)
+        plot!(h, c,m,yerror=2e, 
             color=p[i], lcolor=p[i], msc=:auto, 
             markershape=:circle, label=labels[i]
         )
     end
-
-    c,m,e = binmeans(age[t], resampled[:,end-1][t], xmin, xmax, nbins)
+    c,m,e = binmeans(sim_age[t], resampled[:,r_index.Alk][t], xmin, xmax, nbins)
     plot!(twinx(), c,m,yerror=2e, 
         label="Alkalinity", legend=:topright, fg_color_legend=:white,
         ylabel="Alk [mol.]", color=:black,
-        title="Resampled", titleloc=:left,
+        title="Resampled Alkalinity, Cation Abundance", titleloc=:left,
     )
-    xlims!(2500, 3900)
-    display(h1)
+    display(h)
+
+    # Alkalinity by rock class of interest
+    p = palette(:berlin, (length(seds)))
+    h = plot(
+        framestyle=:box,
+        fontfamily=:Helvetica,
+        fg_color_legend=:white,
+        xlabel="Age [Ma.]", ylabel="Alkalinity [mol.]",
+        legend=:outerright, size=(800,600),
+        title="Alkalinity by Rock Class", titleloc=:left
+    )
+    for i in eachindex(seds)
+        s = t .& sim_cats[seds[i]]
+        count(s) == 0 && continue
+        c,m,e = binmeans(sim_age[s], resampled[:,r_index.Alk][s], xmin, xmax, nbins)
+        plot!(h, c, m, yerror=2e, label="$(seds[i])",
+            linewidth=2, markershape=:circle,
+            color=p[i], lcolor=p[i], msc=:auto
+        )
+    end
+    display(h)
 
 
 ## --- Missing data or low values?

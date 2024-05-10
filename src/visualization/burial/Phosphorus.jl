@@ -401,27 +401,38 @@
 ## --- [PLOT] Marine sediment alkalinity over time?
     p = (;
         carb=:teal,
-        shale=:darkviolet,
+        shale=:darkorange,
     )
     h = plot(
         framestyle=:box,
         fontfamily=:Helvetica,
-        xlabel="Age [Ma.]", ylabel="Alkalinity [mol.]",
+        xlabel="Age [Ma.]", 
         fg_color_legend=:white,
-        title="Marine Alkalinity", titleloc=:left,
+        title="Marine Alkalinity [GOE Marked]", titleloc=:left,
     )
     c,m,e = binmeans(sim_age[sim_cats.shale], resampled[:,r_index.Alk][sim_cats.shale], 
         xmin, xmax, nbins)
-    plot!(c,m,yerror=2e, label="Carb", markershape=:circle, 
+    plot!(c,m,yerror=2e, label="", markershape=:circle, 
         color=p.shale, lcolor=p.shale, msc=:auto,
         legend=:topleft, fg_color_legend=:white,
+        ylabel="Shale Alkalinity [mol.]",
+        y_foreground_color_border=p.shale,
+        y_foreground_color_text=p.shale,
+        y_foreground_color_axis=p.shale,
+        y_guidefontcolor=p.shale,
     )
     c,m,e = binmeans(sim_age[sim_cats.carb], resampled[:,r_index.Alk][sim_cats.carb], 
         xmin, xmax, nbins)
-    plot!(twinx(), c,m,yerror=2e, label="Shale", markershape=:circle, 
+    plot!(twinx(), c,m,yerror=2e, label="", markershape=:circle, 
         color=p.carb, lcolor=p.carb, msc=:auto,
         legend=:bottomleft, fg_color_legend=:white,
+        ylabel="Carbonate Alkalinity [mol.]",
+        y_foreground_color_border=p.carb,
+        y_foreground_color_text=p.carb,
+        y_foreground_color_axis=p.carb,
+        y_guidefontcolor=p.carb,
     )
+    vline!([2500], label="", color=:black, linestyle=:dash)
     display(h)
 
 

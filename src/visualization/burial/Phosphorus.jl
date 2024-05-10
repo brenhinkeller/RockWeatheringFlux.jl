@@ -5,7 +5,7 @@
     # Packages 
     using RockWeatheringFlux
     using DelimitedFiles, HDF5
-    using Plots, Colors
+    using Plots, StatsPlots, Colors
 
     # Save figures to: 
     filepath = "results/figures/burial"
@@ -15,6 +15,15 @@
     xmin, xmax, nbins = 0, 3800, 38
     age_error = 0.05                   # Minimum age error (%)
     age_error_abs = 50                 # Minimum age error (Ma)
+
+    # Conversion factors from wt.% element oxide to moles per 100g sample
+    # Note that these are molar masses and must be **divided** from the wt.% [g/g] value
+    CaO_to_Ca =   1 / (molarmass["Ca"]   + molarmass["O"]  )
+    MgO_to_Mg =   1 / (molarmass["Mg"]   + molarmass["O"]  )
+    K2O_to_K =    2 / (molarmass["K"] *2 + molarmass["O"]  )    # 2 mol K / 1 mol K₂O
+    Na2O_to_Na =  2 / (molarmass["Na"]*2 + molarmass["O"]  )    # 2 mol Na / 1 mol Na₂O
+    FeO_to_Fe =   1 / (molarmass["Fe"]   + molarmass["O"]  )
+    P2O5_to_mol = 2 / (molarmass["P"] *2 + molarmass["O"]*5)    # 2 mol P / 1 mol P₂O₅
 
 
 ## --- Load data 
@@ -72,15 +81,6 @@
     target = (:plut, :volc, :sed)
     simout_ratio = NamedTuple{target}(Array{Float64}(undef, nbins, 4) for _ in target)
     simout_bulk = NamedTuple{target}(Array{Float64}(undef, nsims, 3) for _ in target)
-
-    # Conversion factors from wt.% element oxide to moles per 100g sample
-    # Note that these are molar masses and must be **divided** from the wt.% [g/g] value
-    CaO_to_Ca =   1 / (molarmass["Ca"]   + molarmass["O"]  )
-    MgO_to_Mg =   1 / (molarmass["Mg"]   + molarmass["O"]  )
-    K2O_to_K =    2 / (molarmass["K"] *2 + molarmass["O"]  )    # 2 mol K / 1 mol K₂O
-    Na2O_to_Na =  2 / (molarmass["Na"]*2 + molarmass["O"]  )    # 2 mol Na / 1 mol Na₂O
-    FeO_to_Fe =   1 / (molarmass["Fe"]   + molarmass["O"]  )
-    P2O5_to_mol = 2 / (molarmass["P"] *2 + molarmass["O"]*5)    # 2 mol P / 1 mol P₂O₅
 
     # Moles of alkalinity (charge), phosphorus, 
     for i in eachindex(alkalinity)
@@ -195,31 +195,104 @@
     # display(h)
 
 
-## --- Plot moles of each alkalinity cation in Archean seds     
-    # Get individual cation abundances and resample.
+## --- Plot moles of each alkalinity cation in Archean seds, preserving class data 
+    # Definitions 
+    uncert = 0.05                       # Percent error 
+    xmin, xmax = 2500, 3800
+    nbins = Int((xmax-xmin)/100)
+
+    # Get sample ages and uncertainties
+    sampleage, ageuncert = resampling_age(mbulk.Age, mbulk.Age_Min, mbulk.Age_Max, 
+        macrostrat.age, macrostrat.agemin, macrostrat.agemax, 
+        uncert_rel=age_error, uncert_abs=age_error_abs
+    )
+
+    # Get rock classes
+    include_minor!(match_cats)
+    seds = (get_rock_class()[2]..., :sed)
+    a = Array{Int64}(undef, length(match_cats.sed), length(seds))
+    for i in eachindex(seds)
+        for j in eachindex(match_cats[seds[i]])
+            a[j,i] = ifelse(match_cats[seds[i]][j], 1, 0)
+        end
+    end
+
+    # Get cation mole abundance, including Fe in alkalinity since it's the Archean...
     Ca²⁺ = @. mbulk.CaO * CaO_to_Ca     # x2 for charge!!
     Mg²⁺ = @. mbulk.MgO * MgO_to_Mg     # x2 for charge!!
     K⁺ = @. mbulk.K2O * K2O_to_K
     Na⁺ = @. mbulk.Na2O * Na2O_to_Na
     Fe²⁺ = @. mbulk.FeOT * FeO_to_Fe    # x2 for charge!!
-    # alkalinity2 = nansum([2*Ca²⁺ 2*Mg²⁺ K⁺ Na⁺], dims=2)
-    alkalinity2 = nansum([2*Ca²⁺ 2*Mg²⁺ K⁺ Na⁺ 2*Fe²⁺], dims=2)
+    # alkalinity = nansum([2*Ca²⁺ 2*Mg²⁺ K⁺ Na⁺], dims=2)
+    alkalinity = nansum([2*Ca²⁺ 2*Mg²⁺ K⁺ Na⁺ 2*Fe²⁺], dims=2)
 
+    # Calculate resampling weights
     k = invweight_age(sampleage[match_cats.sed])
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
 
-    t = @. match_cats.sed & (2500 < sampleage < 3800)
-    # t .&= .!isnan.(Ca²⁺) .& .!isnan.(Mg²⁺) .& .!isnan.(K⁺) .& .!isnan.(Na⁺)
+    # Restrict data and remove any zero values
+    t = @. (xmin < sampleage[match_cats.sed] < xmax)                # Archean Seds
+    p = p[t]                                                        
+    t = @. match_cats.sed & (xmin < sampleage < xmax)               # Sed + archean
+    data = [Ca²⁺[t] Mg²⁺[t] K⁺[t] Na⁺[t] Fe²⁺[t] alkalinity[t]]
+    nanzero!(data)                                                  # Remove 0s
+    
+    resampled = bsresample(
+        [data sampleage[t] a[t,:]], 
+        [data.*uncert ageuncert[t] zeros(size(a[t,:]))], 
+        nsims, p
+    )
 
-    data = [Ca²⁺[t] Mg²⁺[t] K⁺[t] Na⁺[t] Fe²⁺[t] alkalinity2[t]]
-    nanzero!(data)
-    uncert = ones(size(data)) ./ 100
-    resampled = bsresample([data sampleage[t]], [uncert ageuncert[t]], nsims, p)
+    # Indexing lookup to avoid indexing errors
+    cations = (:Ca, :Mg, :K, :Na, :Fe,)
+    target = (cations..., :Alk, :Age, seds...,)
+    r_index = NamedTuple{target}(1:length(target))
 
 
 ## --- Plot data 
-    xmin, xmax = 2500, 3800
-    nbins = Int((xmax-xmin)/100)
+    # Re-parse rock class and age data 
+    sim_cats = NamedTuple{seds}(resampled[:,r_index[k]] .> 0 for k in seds)
+    for k in seds
+        sim_cats.sed .|= sim_cats[k]
+    end
+    sim_age = resampled[:,r_index.Age]
+
+    # marines = sim_cats.shale .| sim_cats.carb
+
+    # Plot alkalinity and cation abundance for bulk Archean sedimentary rocks 
+    p = palette(:rainbow, length(cations))
+    cation_labels = ["Ca²⁺", "Mg²⁺", "K⁺", "Na⁺", "Fe²⁺"]
+    t = @. 2500 < sim_age < 3800;
+
+    h = plot(
+        framestyle=:box,
+        fontfamily=:Helvetica,
+        fg_color_legend=:white,
+        ylabel="Cation [mol.]",
+        legend=:top,
+        title="Bulk Sedimentary Rocks", titleloc=:left,
+        y_foreground_color_border=:red,
+        y_foreground_color_text=:red,
+        y_foreground_color_axis=:red,
+        y_guidefontcolor=:red,
+    );
+    for i in eachindex(cations)
+        c,m,e = binmeans(sim_age[t], resampled[:,r_index[cations[i]]][t], xmin, xmax, nbins)
+        plot!(h, c,m,yerror=2e, 
+            color=p[i], lcolor=p[i], msc=:auto, 
+            markershape=:circle, label=cation_labels[i]
+        )
+    end
+    c,m,e = binmeans(sim_age[t], resampled[:,r_index.Alk][t], xmin, xmax, nbins)
+    plot!(twinx(), c,m,yerror=2e, 
+        label="Alkalinity", legend=:topright, fg_color_legend=:white,
+        ylabel="Alk [mol.]", color=:black,
+    )
+    display(h)
+
+
+## --- Plot data 
+    
 
     p = palette(:rainbow, 5)
     h = plot(

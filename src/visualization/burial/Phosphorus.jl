@@ -198,7 +198,7 @@
 ## --- Plot moles of each alkalinity cation in seds, preserving class data 
     # Definitions 
     uncert = 0.05                       # Percent error 
-    xmin, xmax = 2500, 3800
+    xmin, xmax = 0, 3800
     nbins = Int((xmax-xmin)/100)
 
     # Get sample ages and uncertainties
@@ -217,26 +217,25 @@
         end
     end
 
-    # Get cation mole abundance, including Fe in alkalinity since it's the Archean...
+    # Get cation mole abundance. Calculate Fe²⁺, but don't include it in calculations 
+    # since we're concerned with the all geologic time. Potential to include this for 
+    # Archean sediments in a later iteration....
     Ca²⁺ = @. mbulk.CaO * CaO_to_Ca     # x2 for charge!!
     Mg²⁺ = @. mbulk.MgO * MgO_to_Mg     # x2 for charge!!
     K⁺ = @. mbulk.K2O * K2O_to_K
     Na⁺ = @. mbulk.Na2O * Na2O_to_Na
     Fe²⁺ = @. mbulk.FeOT * FeO_to_Fe    # x2 for charge!!
-    # alkalinity = nansum([2*Ca²⁺ 2*Mg²⁺ K⁺ Na⁺], dims=2)
-    alkalinity = nansum([2*Ca²⁺ 2*Mg²⁺ K⁺ Na⁺ 2*Fe²⁺], dims=2)
+    alkalinity = nansum([2*Ca²⁺ 2*Mg²⁺ K⁺ Na⁺], dims=2)
+    # alkalinity = nansum([2*Ca²⁺ 2*Mg²⁺ K⁺ Na⁺ 2*Fe²⁺], dims=2)
 
     # Calculate resampling weights
     k = invweight_age(sampleage[match_cats.sed])
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
 
-    # Restrict data and remove any zero values
-    t = @. (xmin < sampleage[match_cats.sed] < xmax)                # Archean Seds
-    p = p[t]                                                        
-    t = @. match_cats.sed & (xmin < sampleage < xmax)               # Sed + archean
+    # Restrict data and remove any zero values                                                       
+    t = match_cats.sed
     data = [Ca²⁺[t] Mg²⁺[t] K⁺[t] Na⁺[t] Fe²⁺[t] alkalinity[t]]
-    nanzero!(data)                                                  # Remove 0s
-    
+    nanzero!(data)
     resampled = bsresample(
         [data sampleage[t] a[t,:]], 
         [data.*uncert ageuncert[t] zeros(size(a[t,:]))], 
@@ -244,8 +243,9 @@
     )
 
     # Indexing lookup to avoid indexing errors
-    cations = (:Ca, :Mg, :K, :Na, :Fe,)
-    target = (cations..., :Alk, :Age, seds...,)
+    cations_ferrous = (:Ca, :Mg, :K, :Na, :Fe,)
+    cations = (:Ca, :Mg, :K, :Na,)
+    target = (cations_ferrous..., :Alk, :Age, seds...,)
     r_index = NamedTuple{target}(1:length(target))
 
     # Create a new resampled array for charges to avoid confusion between cation 
@@ -295,13 +295,13 @@
         legend=:top
     ); 
     for i in eachindex(labels)
-        c,m,e = binmeans(sim_age[arc], resampled[:,i][arc], xmin, xmax, nbins)
+        c,m,e = binmeans(sim_age[arc], resampled[:,i][arc], 2500, 3800, 13)
         plot!(h, c,m,yerror=2e, 
             color=p[i], lcolor=p[i], msc=:auto, 
             markershape=:circle, label=labels[i]
         )
     end
-    c,m,e = binmeans(sim_age[arc], resampled[:,r_index.Alk][arc], xmin, xmax, nbins)
+    c,m,e = binmeans(sim_age[arc], resampled[:,r_index.Alk][arc], 2500, 3800, 13)
     plot!(twinx(), c,m,yerror=2e, 
         label="Alkalinity", legend=:topright, fg_color_legend=:white,
         ylabel="Alk [mol.]", color=:black,
@@ -321,10 +321,11 @@
         title="Alkalinity by Rock Class", titleloc=:left
     )
     for i in eachindex(seds)
-        s = t .& sim_cats[seds[i]]
+        s = arc .& sim_cats[seds[i]]
         count(s) == 0 && continue
-        c,m,e = binmeans(sim_age[s], resampled[:,r_index.Alk][s], xmin, xmax, nbins)
-        plot!(h, c, m, yerror=2e, label="$(seds[i])",
+        c,m,e = binmeans(sim_age[s], resampled[:,r_index.Alk][s], 2500, 3800, 13)
+        s = .!isnan.(m)
+        plot!(h, c[s], m[s], yerror=2e, label="$(seds[i])",
             linewidth=2, markershape=:circle,
             color=p[i], lcolor=p[i], msc=:auto
         )
@@ -341,23 +342,27 @@
         fontfamily=:Helvetica,
         xlabel="Age [Ma.]", ylabel="Sample Count",
         legend=:top, fg_color_legend=:white,
+        y_foreground_color_border=:red,
+        y_foreground_color_text=:red,
+        y_foreground_color_axis=:red,
+        y_guidefontcolor=:red,
     )
-    for i in eachindex(labels)
-        s = t .& .!isnan.(resampled[:,i])
-        c,n = bincounts(sim_age[s], xmin, xmax, nbins)
+    for i in eachindex(cations)
+        s = arc .& .!isnan.(resampled[:,i])
+        c,n = bincounts(sim_age[s], 2500, 3800, 13)
         plot!(c, n, markershape=:circle, label="$(labels[i])",
             color=p[i], lcolor=p[i], msc=:auto, 
         )
     end
-    c,m,e = binmeans(sim_age[arc], resampled[:,r_index.Alk][arc], xmin, xmax, nbins)
+    c,m,e = binmeans(sim_age[arc], resampled[:,r_index.Alk][arc], 2500, 3800, 13)
     plot!(twinx(), c,m,yerror=2e, label="", ylabel="Alk [mol.]", color=:black,)
     display(h)
 
 
 ## --- [PLOT] Are low values caused by a spike in chert abundance? 
     # Still restricting to the Archean...
-    c,n₁ = bincounts(resampled[:,r_index.Age][arc], xmin, xmax, nbins)
-    c,n₂ = bincounts(resampled[:,r_index.Age][arc .& sim_cats.chert], xmin, xmax, nbins)
+    c,n₁ = bincounts(resampled[:,r_index.Age][arc], 2500,3800,13)
+    c,n₂ = bincounts(resampled[:,r_index.Age][arc .& sim_cats.chert], 2500,3800,13)
     n = float.(n₂) ./ float.(n₁) .* 100
     h = plot(
         framestyle=:box,
@@ -365,11 +370,11 @@
         xlabel="Age [Ma.]", ylabel="Fractional Abundance",
         fg_color_legend=:white, legend=:top,
     )
-    c,m,e = binmeans(sim_age[arc], resampled[:,r_index.Alk][arc], xmin, xmax, nbins)
+    c,m,e = binmeans(sim_age[arc], resampled[:,r_index.Alk][arc], 2500,3800,13)
     plot!(c,m,yerror=2e, label="All Seds", ylabel="Alk [mol.]", 
         color=:seagreen, lcolor=:seagreen, msc=:auto
     )
-    c,m,e = binmeans(sim_age[arc .& sim_cats.chert], resampled[:,r_index.Alk][arc .& sim_cats.chert], xmin, xmax, nbins)
+    c,m,e = binmeans(sim_age[arc .& sim_cats.chert], resampled[:,r_index.Alk][arc .& sim_cats.chert], 2500,3800,13)
     plot!(c,m,yerror=2e, label="Chert", ylabel="Alk [mol.]", 
         color=:black, lcolor=:black, msc=:auto
     )
@@ -391,6 +396,33 @@
     # decrease in alkalinity for all seds... but it doesn't line up with the big drop. 
     # Could that just be because we don't have good ages for these rocks? Do note that 
     # we see drops in alkalinity in most rock types though...
+
+
+## --- [PLOT] Marine sediment alkalinity over time?
+    p = (;
+        carb=:teal,
+        shale=:darkviolet,
+    )
+    h = plot(
+        framestyle=:box,
+        fontfamily=:Helvetica,
+        xlabel="Age [Ma.]", ylabel="Alkalinity [mol.]",
+        fg_color_legend=:white,
+        title="Marine Alkalinity", titleloc=:left,
+    )
+    c,m,e = binmeans(sim_age[sim_cats.shale], resampled[:,r_index.Alk][sim_cats.shale], 
+        xmin, xmax, nbins)
+    plot!(c,m,yerror=2e, label="Carb", markershape=:circle, 
+        color=p.shale, lcolor=p.shale, msc=:auto,
+        legend=:topleft, fg_color_legend=:white,
+    )
+    c,m,e = binmeans(sim_age[sim_cats.carb], resampled[:,r_index.Alk][sim_cats.carb], 
+        xmin, xmax, nbins)
+    plot!(twinx(), c,m,yerror=2e, label="Shale", markershape=:circle, 
+        color=p.carb, lcolor=p.carb, msc=:auto,
+        legend=:bottomleft, fg_color_legend=:white,
+    )
+    display(h)
 
 
 ## --- End of file  

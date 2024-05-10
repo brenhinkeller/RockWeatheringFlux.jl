@@ -195,7 +195,7 @@
     # display(h)
 
 
-## --- Plot moles of each alkalinity cation in seds, preserving class data 
+## --- Resample moles of each alkalinity cation in seds, preserving class data 
     # Definitions 
     uncert = 0.05                       # Percent error 
     xmin, xmax = 0, 3800

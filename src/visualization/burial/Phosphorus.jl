@@ -17,13 +17,17 @@
     age_error_abs = 50                 # Minimum age error (Ma)
 
     # Conversion factors from wt.% element oxide to moles per 100g sample
-    # Note that these are molar masses and must be **divided** from the wt.% [g/g] value
+    # Note that these are molar masses and must be **divided** from the wt.% [g/g] value, 
+    # hence the inversion (1 / value)
     CaO_to_Ca =   1 / (molarmass["Ca"]   + molarmass["O"]  )
     MgO_to_Mg =   1 / (molarmass["Mg"]   + molarmass["O"]  )
     K2O_to_K =    2 / (molarmass["K"] *2 + molarmass["O"]  )    # 2 mol K / 1 mol K₂O
     Na2O_to_Na =  2 / (molarmass["Na"]*2 + molarmass["O"]  )    # 2 mol Na / 1 mol Na₂O
     FeO_to_Fe =   1 / (molarmass["Fe"]   + molarmass["O"]  )
     P2O5_to_mol = 2 / (molarmass["P"] *2 + molarmass["O"]*5)    # 2 mol P / 1 mol P₂O₅
+    SiO2_to_Si =  1 / (molarmass["Si"]   + molarmass["O"]*2)
+    Al2O3_to_Al = 2 / (molarmass["Al"]*2 + molarmass["O"]*3)    # 2 mol Al / 1 mol Al₂O₃
+    TiO2_to_Ti =  1 / (molarmass["Ti"]   + molarmass["O"]*2)
 
 
 ## --- Load data 
@@ -195,11 +199,12 @@
     # display(h)
 
 
-## --- Resample moles of each alkalinity cation in seds, preserving class data 
+## --- Resample major element data in seds, preserving class data 
     # Definitions 
     uncert = 0.05                       # Percent error 
     xmin, xmax = 0, 3800
     nbins = Int((xmax-xmin)/100)
+    majors = get_elements()[1]
 
     # Get sample ages and uncertainties
     sampleage, ageuncert = resampling_age(mbulk.Age, mbulk.Age_Min, mbulk.Age_Max, 
@@ -217,16 +222,20 @@
         end
     end
 
-    # Get cation mole abundance. Calculate Fe²⁺, but don't include it in calculations 
-    # since we're concerned with the all geologic time. Potential to include this for 
-    # Archean sediments in a later iteration....
+    # Mole abundance of all major cations, calculating alkalinity with and without Fe²⁺.
+    # Add charge balance calculation in after alkalinity for mass balance purposes 
     Ca²⁺ = @. mbulk.CaO * CaO_to_Ca     # x2 for charge!!
     Mg²⁺ = @. mbulk.MgO * MgO_to_Mg     # x2 for charge!!
     K⁺ = @. mbulk.K2O * K2O_to_K
     Na⁺ = @. mbulk.Na2O * Na2O_to_Na
     Fe²⁺ = @. mbulk.FeOT * FeO_to_Fe    # x2 for charge!!
     alkalinity = nansum([2*Ca²⁺ 2*Mg²⁺ K⁺ Na⁺], dims=2)
-    # alkalinity = nansum([2*Ca²⁺ 2*Mg²⁺ K⁺ Na⁺ 2*Fe²⁺], dims=2)
+    alkalinity_ferrous = nansum([2*Ca²⁺ 2*Mg²⁺ K⁺ Na⁺ 2*Fe²⁺], dims=2)
+
+    # Our insoluables...
+    Si⁴⁺ = @. mbulk.SiO2 * SiO2_to_Si
+    Al³⁺ = @. mbulk.Al2O3 * Al2O3_to_Al
+    Ti⁴⁺ = @. mbulk.TiO2 * TiO2_to_Ti
 
     # Calculate resampling weights
     k = invweight_age(sampleage[match_cats.sed])
@@ -234,7 +243,9 @@
 
     # Restrict data and remove any zero values                                                       
     t = match_cats.sed
-    data = [Ca²⁺[t] Mg²⁺[t] K⁺[t] Na⁺[t] Fe²⁺[t] alkalinity[t]]
+    data = hcat(Ca²⁺[t], Mg²⁺[t], K⁺[t], Na⁺[t], Fe²⁺[t], alkalinity[t], 
+        alkalinity_ferrous[t], Si⁴⁺[t], Al³⁺[t], Ti⁴⁺[t],
+    )
     nanzero!(data)
     resampled = bsresample(
         [data sampleage[t] a[t,:]], 
@@ -243,9 +254,9 @@
     )
 
     # Indexing lookup to avoid indexing errors
-    cations_ferrous = (:Ca, :Mg, :K, :Na, :Fe,)
-    cations = (:Ca, :Mg, :K, :Na,)
-    target = (cations_ferrous..., :Alk, :Age, seds...,)
+    cations = (:Ca, :Mg, :K, :Na,)          # Alkalinity cations
+    cations_ferrous = (cations..., :Fe,)    # Including Fe (II)
+    target = (cations_ferrous..., :Alk, :Alk_Fe2, :Si, :Al, :Ti, :Age, seds...,)
     r_index = NamedTuple{target}(1:length(target))
 
     # Create a new resampled array for charges to avoid confusion between cation 
@@ -254,6 +265,20 @@
     resampled_charge[:,r_index.Ca] .*= 2;
     resampled_charge[:,r_index.Mg] .*= 2;
     resampled_charge[:,r_index.Fe] .*= 2;
+
+    # Also resample wt.% major elements... 
+    t = match_cats.sed
+    data = Array{Float64}(undef, count(t), length(majors))
+    for i in eachindex(majors)
+        data[:,i] .= mbulk[majors[i]][t]
+    end
+    resampled_wt = bsresample(
+        [data sampleage[t] a[t,:]], 
+        [data.*uncert ageuncert[t] zeros(size(a[t,:]))], 
+        nsims, p
+    )
+    target = (majors..., :Age, seds...,)
+    r_index_wt = NamedTuple{target}(1:length(target))
 
     # Re-parse rock class data
     sim_cats = NamedTuple{seds}(resampled[:,r_index[k]] .> 0 for k in seds)
@@ -264,6 +289,7 @@
     # Get age data since we'll be accessing it a lot 
     sim_age = resampled[:,r_index.Age]
     arc = @. 2500 < sim_age < 3800;       # Filter for Archean samples 
+    sim_age_wt = resampled_wt[:,r_index_wt.Age]
 
 
 ## --- [PLOT] Agreement in alkalinity vs. sum of charges in resampled data
@@ -292,20 +318,28 @@
         fontfamily=:Helvetica,
         fg_color_legend=:white,
         ylabel="Cation [mol.]",
-        legend=:top
+        legend=:top,
+        title="Resampled Alkalinity, Cation Abundance", titleloc=:left,
     ); 
-    for i in eachindex(labels)
-        c,m,e = binmeans(sim_age[arc], resampled[:,i][arc], 2500, 3800, 13)
+    for i in eachindex(cations_ferrous)
+        c,m,e = binmeans(sim_age[arc], resampled[:,r_index[cations_ferrous[i]]][arc], 
+            2500, 3800, 13)
         plot!(h, c,m,yerror=2e, 
             color=p[i], lcolor=p[i], msc=:auto, 
             markershape=:circle, label=labels[i]
         )
     end
-    c,m,e = binmeans(sim_age[arc], resampled[:,r_index.Alk][arc], 2500, 3800, 13)
+    # c,m,e = binmeans(sim_age[arc], resampled[:,r_index.Alk][arc], 2500, 3800, 13)
+    # plot!(twinx(), c,m,yerror=2e, 
+    #     label="Alkalinity", legend=:topright, fg_color_legend=:white,
+    #     ylabel="Alk [mol.]", color=:black,
+        
+    # )
+    c,m,e = binmeans(sim_age[arc], resampled[:,r_index.Alk_Fe2][arc], 2500, 3800, 13)
     plot!(twinx(), c,m,yerror=2e, 
-        label="Alkalinity", legend=:topright, fg_color_legend=:white,
-        ylabel="Alk [mol.]", color=:black,
-        title="Resampled Alkalinity, Cation Abundance", titleloc=:left,
+        label="Alkalinity with Fe²⁺", legend=:topright, fg_color_legend=:white,
+        color=:hotpink, lcolor=:hotpink, msc=:auto,
+        linewidth=2,
     )
     display(h)
 
@@ -374,7 +408,8 @@
     plot!(c,m,yerror=2e, label="All Seds", ylabel="Alk [mol.]", 
         color=:seagreen, lcolor=:seagreen, msc=:auto
     )
-    c,m,e = binmeans(sim_age[arc .& sim_cats.chert], resampled[:,r_index.Alk][arc .& sim_cats.chert], 2500,3800,13)
+    c,m,e = binmeans(sim_age[arc .& sim_cats.chert], 
+        resampled[:,r_index.Alk][arc .& sim_cats.chert], 2500,3800,13)
     plot!(c,m,yerror=2e, label="Chert", ylabel="Alk [mol.]", 
         color=:black, lcolor=:black, msc=:auto
     )
@@ -435,5 +470,76 @@
     vline!([2500], label="", color=:black, linestyle=:dash)
     display(h)
 
+
+## --- Does including Fe in alkalinity matter?
+    h = plot(
+        framestyle=:box,
+        fontfamily=:Helvetica,
+        fg_color_legend=:white,
+        ylabel="Alkalinity [mol.]",
+        legend=:topright,
+        title="Alkalinity Variations", titleloc=:left,
+    );
+    c,m,e = binmeans(sim_age, resampled[:,r_index.Alk], xmin, xmax, nbins)
+    plot!(h, c,m,yerror=2e, label="Alkalinity",
+        color=:royalblue, lcolor=:royalblue, msc=:auto, 
+        markershape=:circle,
+    )
+    c,m,e = binmeans(sim_age, resampled[:,r_index.Alk_Fe2], xmin, xmax, nbins)
+    plot!(h, c,m,yerror=2e, label="Alkalinity with Fe²⁺",
+        color=:firebrick, lcolor=:firebrick, msc=:auto, 
+        markershape=:circle,
+    )
+    display(h)
+
+
+## --- Carbonate alkalinity with / without Fe in Archean alkalinity... 
+    h = plot(
+        framestyle=:box,
+        fontfamily=:Helvetica,
+        fg_color_legend=:white,
+        ylabel="Alkalinity [mol.]",
+        legend=:bottomleft,
+        title="Carbonate Alkalinity", titleloc=:left,
+    );
+    c,m,e = binmeans(sim_age[sim_cats.carb], resampled[:,r_index.Alk][sim_cats.carb], 
+        xmin, xmax, nbins)
+    plot!(c,m,yerror=2e, label="Alkalinity", markershape=:circle, 
+        color=:purple, lcolor=:purple, msc=:auto,
+    )
+    c,m,e = binmeans(sim_age[sim_cats.carb], resampled[:,r_index.Alk_Fe2][sim_cats.carb], 
+        xmin, xmax, nbins)
+    plot!(c,m,yerror=2e, label="Ferrous Alkalinity", markershape=:circle, 
+        color=colors.carb, lcolor=colors.carb, msc=:auto,
+    )
+    display(h)
+
+
+## --- Investigate the drop in shale alkalinity... major element composition over time?
+    majors = get_elements()[1]
+    p = palette([:black, :purple, :red, :darkorange, :green, :blue, :deeppink,], length(majors))
+    h = plot(
+        framestyle=:box,
+        fontfamily=:Helvetica,
+        fg_color_legend=:white,
+        ylabel="Composition [wt.%]",
+        legend=:bottomleft,
+        title="Shale Major Element Composition", titleloc=:left,
+        size=(400, 2400)
+    );
+    for i in eachindex(majors) 
+        c,m,e = binmeans(sim_age_wt, resampled_wt[:,r_index_wt[majors[i]]], xmin, xmax, nbins)
+        h = plot!(c, m, yerror=2e, label="$(majors[i])", 
+            color=p[i], lcolor=p[i], msc=:auto
+        )
+        # vline!([3250], label="")
+        display(h)
+    end
+    vline!([3250], label="")
+    display(h)
+
+    # Hypothesis... weathering? Like some fluid front moved through all rocks of this age 
+    # and removed all the soluable elements and left the insoluables behind. Idk wtf else 
+    # could possibly be going on
 
 ## --- End of file  

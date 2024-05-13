@@ -31,9 +31,6 @@
 
 
 ## --- Load data 
-    # # Carbon isotope data
-    # carbon = importdataset("data/carbonisotope/compilation.csv", ',', importas=:Tuple)
-
     # Matched samples 
     fid = readdlm(matchedbulk_io)
     gchem_ind = Int.(vec(fid[:,1]))
@@ -57,6 +54,9 @@
         age = read(fid["vars"]["age"])[t],
         agemax = read(fid["vars"]["agemax"])[t],
         agemin = read(fid["vars"]["agemin"])[t],
+        rocktype = read(fid["vars"]["rocktype"])[t],
+        rockdescrip = read(fid["vars"]["rockdescrip"])[t],
+        rockname = read(fid["vars"]["rockname"])[t],
     )
     close(fid)
 
@@ -204,7 +204,8 @@
     uncert = 0.05                       # Percent error 
     xmin, xmax = 0, 3800
     nbins = Int((xmax-xmin)/100)
-    majors = get_elements()[1]
+    majors, minors = get_elements()
+    allelements = [majors; minors]
 
     # Get sample ages and uncertainties
     sampleage, ageuncert = resampling_age(mbulk.Age, mbulk.Age_Min, mbulk.Age_Max, 
@@ -266,24 +267,28 @@
     resampled_charge[:,r_index.Mg] .*= 2;
     resampled_charge[:,r_index.Fe] .*= 2;
 
-    # Also resample wt.% major elements... 
+    # Also resample wt.% all elements... for fun, I guess
     t = match_cats.sed
-    data = Array{Float64}(undef, count(t), length(majors))
-    for i in eachindex(majors)
-        data[:,i] .= mbulk[majors[i]][t]
+    data = Array{Float64}(undef, count(t), length(allelements))
+    for i in eachindex(allelements)
+        data[:,i] .= mbulk[allelements[i]][t]
     end
     resampled_wt = bsresample(
         [data sampleage[t] a[t,:]], 
         [data.*uncert ageuncert[t] zeros(size(a[t,:]))], 
         nsims, p
     )
-    target = (majors..., :Age, seds...,)
+    target = (allelements..., :Age, seds...,)
     r_index_wt = NamedTuple{target}(1:length(target))
 
     # Re-parse rock class data
     sim_cats = NamedTuple{seds}(resampled[:,r_index[k]] .> 0 for k in seds)
     for k in seds
         sim_cats.sed .|= sim_cats[k]
+    end
+    sim_cats_wt = NamedTuple{seds}(resampled_wt[:,r_index_wt[k]] .> 0 for k in seds)
+    for k in seds
+        sim_cats_wt.sed .|= sim_cats_wt[k]
     end
 
     # Get age data since we'll be accessing it a lot 
@@ -471,7 +476,7 @@
     display(h)
 
 
-## --- Does including Fe in alkalinity matter?
+## --- [PLOT] Does including Fe in alkalinity matter?
     h = plot(
         framestyle=:box,
         fontfamily=:Helvetica,
@@ -493,7 +498,7 @@
     display(h)
 
 
-## --- Carbonate alkalinity with / without Fe in Archean alkalinity... 
+## --- [PLOT] Carbonate alkalinity with / without Fe in Archean alkalinity... 
     h = plot(
         framestyle=:box,
         fontfamily=:Helvetica,
@@ -515,7 +520,7 @@
     display(h)
 
 
-## --- Investigate the drop in shale alkalinity... major element composition over time?
+## --- [PLOT] Investigate the drop in shale alkalinity... major element composition over time?
     majors = get_elements()[1]
     p = palette([:black, :purple, :red, :darkorange, :green, :blue, :deeppink,], length(majors))
     h = plot(
@@ -528,18 +533,52 @@
         size=(400, 2400)
     );
     for i in eachindex(majors) 
-        c,m,e = binmeans(sim_age_wt, resampled_wt[:,r_index_wt[majors[i]]], xmin, xmax, nbins)
-        h = plot!(c, m, yerror=2e, label="$(majors[i])", 
+        c,m,e = binmeans(sim_age_wt[sim_cats_wt.shale], 
+            resampled_wt[:,r_index_wt[majors[i]]][sim_cats_wt.shale], 
+            xmin, xmax, nbins)
+        h = plot(c, m, yerror=2e, label="$(majors[i])", 
             color=p[i], lcolor=p[i], msc=:auto
         )
-        # vline!([3250], label="")
+        vline!([3250], label="")
         display(h)
     end
-    vline!([3250], label="")
+    # vline!([3250], label="")
     display(h)
 
-    # Hypothesis... weathering? Like some fluid front moved through all rocks of this age 
-    # and removed all the soluable elements and left the insoluables behind. Idk wtf else 
-    # could possibly be going on
+
+## --- [PLOT] Shale REEs over the mid-Archean?? 
+    # Maybe this would help with the weathering pattern hypothesis
+
+    # Definitions 
+    lbound = 2800
+    ubound = 3600
+    nbins2 = Int((ubound - lbound)/100)
+    edges = collect(range(start=lbound, stop=ubound, step=100))
+
+    REEs = get_REEs()
+    spider_REEs = Tuple(REEs[1:end .!= findfirst(x->x==:Pm, REEs)])  # Pm isn't in datasets
+
+    p = palette(:thermal, nbins2)
+    shale_avg = NamedTuple{spider_REEs}(
+        nanmean(resampled_wt[:,r_index_wt[k]][sim_cats_wt.shale] * 10_000) for k in spider_REEs);
+    h = spidergram(shale_avg, label="Shale Average",
+        color=:black,
+        size=(700,400), 
+        left_margin=(15,:px),
+    )
+    for i = 1:nbins2 
+        println(i)
+        # Collect REEs in this bin and plot
+        t = @. edges[i] <= sim_age_wt < edges[i+1]
+        t .&= sim_cats_wt.shale
+        REE_bin = NamedTuple{spider_REEs}(
+            nanmean(resampled_wt[:,r_index_wt[k]][t] * 10_000) for k in spider_REEs)
+        spidergram!(h, REE_bin, label="$(edges[i]) - $(edges[i+1])", 
+            seriescolor=p[i], msc=:auto,
+            markershape=:circle, markersize=2,
+        )
+    end
+    display(h)
+
 
 ## --- End of file  

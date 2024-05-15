@@ -103,7 +103,7 @@
             carbonatite = "Intrusive carbonatite",
         sed = "Sedimentary rock", 
             siliciclast = "Medium-grained mixed clastic rock", 
-            shale = "Siltstone", 
+            shale = "Wacke", 
             carb = "Carbonate rock",
             chert = "Novaculite", 
             evap = "Evaporite", 

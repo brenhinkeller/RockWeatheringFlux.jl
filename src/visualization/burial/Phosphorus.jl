@@ -112,15 +112,20 @@
         end
     end
 
-    # Create a filtered / groundtruthed rock class: 
-    filtered_in = Array{Int64}(undef, length(macro_cats.sed), length(classes))
-    for i in eachindex(classes)
-        # All rock classes must be BOTH matched and mapped as that rock class
-        filtered_in[:,i] .= (match_cats[classes[i]] .& macro_cats[classes[i]])
+    # Create a filtered / groundtruthed rock class: all rock classes must be BOTH matched 
+    # and mapped as that rock class, and metamorphic rocks are only undifferentiated 
+    filter_cats = get_cats(false, length(match_cats.sed))[2]
+    for k in classes
+        filter_cats[k] .= match_cats[k] .& macro_cats[k]
     end
-    # Metamorphic rocks are only undifferentiated metamorphics 
-    i = findfirst(x->x==:met, classes)
-    filtered_in[:,i] .= megaclass.met_undiff
+    filter_cats.met .&= megaclass.met_undiff
+
+    filtered_in = Array{Int64}(undef, length(filter_cats.sed), length(classes))
+    for i in eachindex(classes)
+        for j in eachindex(filter_cats[classes[i]])
+            filtered_in[j,i] = ifelse(filter_cats[classes[i]][j], 1, 0)
+        end
+    end
 
     # Calculate resampling weights 
     k = invweight_age(sampleage)
@@ -150,7 +155,7 @@
         NamedTuple{out}(Array{Float64}(undef, nbins) for _ in out) for _ in target
     )
     for k in target
-        t = match_cats[k]
+        t = filter_cats[k]
 
         c,m,el,eu = bin_bsr_ratios(sampleage[t], vec(phosphorus)[t], vec(alkalinity)[t], 
             xmin, xmax, nbins,
@@ -326,9 +331,10 @@
             color=colors[target[i]], lcolor=colors[target[i]], msc=:auto,
             # markershape=:circle,
             # linewidth=2,
-            seriestype=:bar
+            seriestype=:bar,
+            barwidths=((xmax-xmin)/nbins),
         )
-        ylims!(0, nanmaximum(n)*1.1)
+        ylims!(0, min(1, nanmaximum(n)*1.1))
         figs[i] = hᵢ
     end
 

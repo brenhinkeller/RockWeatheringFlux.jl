@@ -241,24 +241,24 @@
     # Ratio data
     g_prime = create_group(g, "ratio")
         out = (:c,:m,:el,:eu)
-        g_prime["ratio_head"] = string.(collect(out))
+        g_prime["head_ratio"] = string.(collect(out))
+        g_prime_data = create_group(g_prime, "data")
         for k in keys(sim_ratio)
-            g_prime["$k"] = [sim_ratio[k].c sim_ratio[k].m sim_ratio[k].el sim_ratio[k].eu]
+            g_prime_data["$k"] = [sim_ratio[k].c sim_ratio[k].m sim_ratio[k].el sim_ratio[k].eu]
         end
 
     # Mol. data 
     g_prime = create_group(g, "mole")
-    g_data = create_group(g_prime, "data")
         out = keys(sim_mol.data)
-        g_data["data_head"] = string.(collect(out))
+        g_prime["head_data"] = string.(collect(out))
+        g_prime["head_cats"] = string.(collect(keys(sim_mol.cats.match_cats)))
+    g_data = create_group(g_prime, "data")
         a = Array{Float64}(undef, nsims, length(out))
         for i in eachindex(out)
             a[:,i] .= sim_mol.data[out[i]]
         end
         g_data["data"] = a
-
     g_cats = create_group(g_prime, "cats")
-        g_cats["cats_head"] = string.(collect(keys(sim_mol.cats.match_cats)))
         for k in keys(sim_mol.cats)
             a = Array{Int64}(undef, nsims, length(sim_mol.cats[k]))
             for i in eachindex(keys(sim_mol.cats[k]))
@@ -271,16 +271,16 @@
 
     # Wt.% data 
     g_prime = create_group(g, "wt")
-    g_data = create_group(g_prime, "data")
         out = keys(sim_wt.data)
-        g_data["data_head"] = string.(collect(out))
+        g_prime["head_data"] = string.(collect(out))
+        g_prime["head_cats"] = string.(collect(keys(sim_wt.cats.match_cats)))
+    g_data = create_group(g_prime, "data")
         a = Array{Float64}(undef, nsims, length(out))
         for i in eachindex(out)
             a[:,i] .= sim_wt.data[out[i]]
         end
         g_data["data"] = a
     g_cats = create_group(g_prime, "cats")
-        g_cats["cats_head"] = string.(collect(keys(sim_wt.cats.match_cats)))
         for k in keys(sim_wt.cats)
             a = Array{Int64}(undef, nsims, length(sim_mol.cats[k]))
             for i in eachindex(keys(sim_wt.cats[k]))

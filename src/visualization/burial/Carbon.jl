@@ -23,6 +23,9 @@
         carb_dark = :royalblue,
     )
 
+    # Load carbon isotope data 
+    carbon = importdataset("data/carbonisotope/compilation.csv", ',', importas=:Tuple)
+
 
 ## --- Specific functions 
     # Function which describes Rayleigh curve
@@ -44,20 +47,6 @@
         y = r₀(x, p)
         return x, y
     end
-
-
-## --- Load data
-    # Carbon isotope data 
-    carbon = importdataset("data/carbonisotope/compilation.csv", ',', importas=:Tuple)
-
-    # Resampled geochemical data (phosphorus / alkalinity ratios)
-    fid = h5open("src/visualization/burial/resampled_geochem.h5", "r")
-    head = read(fid["vars"]["ratio"]["head_ratio"])
-    head_class = keys(fid["vars"]["ratio"]["data"])
-    sim_ratio = NamedTuple{Tuple(Symbol.(head_class))}(NamedTuple{Tuple(Symbol.(head))}(
-            read(fid["vars"]["ratio"]["data"]["$k"])[:,i] for i in eachindex(head)
-        ) for k in head_class
-    )
 
     
 ## --- Model H/C as a function of age and assign H/C values to all organic carbon samples
@@ -199,6 +188,7 @@
         for k in keys(sim_org)
             g_org["$k"] = sim_org[k]
         end 
+        g_org["d13c_org_corrected"] = corrected_sim
     close(fid)
 
 
@@ -309,7 +299,7 @@
         xlabel="Age [Ma.]", ylabel="Fraction Buried as Organic",
         framestyle=:box,
         fontfamily=:Helvetica,
-        ylims=(0,0.4),
+        ylims=(0,0.3),
         size=(400,500),
         legend=:bottomleft,
         fg_color_legend=:white
@@ -364,6 +354,7 @@
     # )
 
     display(h)
+    savefig("$filepath/f_org.pdf")
 
 
 ## --- End of file 

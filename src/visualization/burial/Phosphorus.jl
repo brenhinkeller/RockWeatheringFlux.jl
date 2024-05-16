@@ -114,7 +114,7 @@
 
     # Create a filtered / groundtruthed rock class: all rock classes must be BOTH matched 
     # and mapped as that rock class, and metamorphic rocks are only undifferentiated 
-    filter_cats = get_cats(false, length(match_cats.sed))[2]
+    filter_cats = delete_cover(get_cats(false, length(match_cats.sed))[2])
     for k in classes
         filter_cats[k] .= match_cats[k] .& macro_cats[k]
     end
@@ -159,7 +159,7 @@
     # Collect all class data and uncertainties
     class_all = hcat(matched_in, mapped_in, filtered_in)
     class_uncert = zeros(size(class_all));
-    cats = get_cats(false, nsims)[2];
+    cats = delete_cover(get_cats(false, nsims)[2]);
     cats_blank = (;
         match_cats = deepcopy(cats),
         macro_cats = deepcopy(cats),

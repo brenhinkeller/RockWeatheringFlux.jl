@@ -51,7 +51,7 @@
     )
 
 
-## --- Plot organic fraction with phosphorus 
+## --- [PLOT] Fraction buried as organic with phosphorus / alkalinity ratios 
     h = plot(
         xlabel="Age [Ma.]", ylabel="P / Alk [mol. ratio]",
         framestyle=:box,

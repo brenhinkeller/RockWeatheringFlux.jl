@@ -290,7 +290,7 @@
     savefig("$filepath/carbon_inorganic_record.pdf")
 
 
-## --- Fraction of carbon buried as organic 
+## --- [PLOT] Fraction of carbon buried as organic 
     # Define mantle and carbonate values 
     mantle = -5.5
     c,carbonate,e = binmeans(sim_carb.age, sim_carb.d13c_carb, xmin, xmax, nbins, relbinwidth=2)

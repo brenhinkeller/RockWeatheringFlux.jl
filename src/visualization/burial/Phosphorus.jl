@@ -127,7 +127,25 @@
         end
     end
 
-    # Calculate resampling weights 
+
+## --- Create a pseudo-filtered Tuple for P/Alkalinity calculations 
+    # Metamorphic rocks are still only undifferentiated metamorphic samples 
+    pseudo_cats = deepcopy(filter_cats)
+
+    # Sedimentary rocks exclude undifferentiated sedimentary rocks 
+    exclude_minor!(pseudo_cats)
+    sed_undiff = copy(pseudo_cats.sed)
+    include_minor!(pseudo_cats)
+    pseudo_cats.sed .&= .!sed_undiff
+
+    # We allow igneous rocks that were re-assigned to a rock type, because those samples 
+    # weren't causing problems (and restricting samples means larger uncertainties)
+    for k in (minorvolc..., minorplut..., minorign...,)
+        pseudo_cats[k] .= match_cats[k]
+    end
+
+
+## --- Calculate resampling weights 
     k = invweight_age(sampleage)
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
 
@@ -149,13 +167,13 @@
     )
 
     # Phosphorus / alkalinity ratio 
-    target = (:sed, :volc, :plut)
+    target = (:sed, :carb, :shale, :volc, :plut)
     out = (:c,:m,:el,:eu)
     sim_ratio = NamedTuple{target}(
         NamedTuple{out}(Array{Float64}(undef, nbins) for _ in out) for _ in target
     )
     for k in target
-        t = filter_cats[k]
+        t = pseudo_cats[k]
 
         c,m,el,eu = bin_bsr_ratios(sampleage[t], vec(phosphorus)[t], vec(alkalinity)[t], 
             xmin, xmax, nbins,
@@ -216,6 +234,66 @@
     end
 
 
+## --- Save resampled data to a file 
+    fid = h5open("src/visualization/burial/resampled_geochem.h5", "w")
+    g = create_group(fid, "vars")
+
+    # Ratio data
+    g_prime = create_group(g, "ratio")
+        out = (:c,:m,:el,:eu)
+        g_prime["ratio_head"] = string.(collect(out))
+        for k in keys(sim_ratio)
+            g_prime["$k"] = [sim_ratio[k].c sim_ratio[k].m sim_ratio[k].el sim_ratio[k].eu]
+        end
+
+    # Mol. data 
+    g_prime = create_group(g, "mole")
+    g_data = create_group(g_prime, "data")
+        out = keys(sim_mol.data)
+        g_data["data_head"] = string.(collect(out))
+        a = Array{Float64}(undef, nsims, length(out))
+        for i in eachindex(out)
+            a[:,i] .= sim_mol.data[out[i]]
+        end
+        g_data["data"] = a
+
+    g_cats = create_group(g_prime, "cats")
+        g_cats["cats_head"] = string.(collect(keys(sim_mol.cats.match_cats)))
+        for k in keys(sim_mol.cats)
+            a = Array{Int64}(undef, nsims, length(sim_mol.cats[k]))
+            for i in eachindex(keys(sim_mol.cats[k]))
+                for j in eachindex(sim_mol.cats[k][i])
+                    a[j,i] = ifelse(sim_mol.cats[k][i][j], 1, 0)
+                end
+            end
+            g_cats["$k"] = a
+        end
+
+    # Wt.% data 
+    g_prime = create_group(g, "wt")
+    g_data = create_group(g_prime, "data")
+        out = keys(sim_wt.data)
+        g_data["data_head"] = string.(collect(out))
+        a = Array{Float64}(undef, nsims, length(out))
+        for i in eachindex(out)
+            a[:,i] .= sim_wt.data[out[i]]
+        end
+        g_data["data"] = a
+    g_cats = create_group(g_prime, "cats")
+        g_cats["cats_head"] = string.(collect(keys(sim_wt.cats.match_cats)))
+        for k in keys(sim_wt.cats)
+            a = Array{Int64}(undef, nsims, length(sim_mol.cats[k]))
+            for i in eachindex(keys(sim_wt.cats[k]))
+                for j in eachindex(sim_wt.cats[k][i])
+                    a[j,i] = ifelse(sim_wt.cats[k][i][j], 1, 0)
+                end
+            end
+            g_cats["$k"] = a
+        end
+
+    close(fid)
+
+
 ## --- [PLOT] P/Alk ratios over time
     h = plot(
         xlabel="Age [Ma.]", ylabel="P / Alk [mol. ratio]",
@@ -244,8 +322,7 @@
         figs[i] = hᵢ
     end
 
-    nplots = length(target)
-    h = plot(figs..., layout=(1,nplots), size=(nplots*600,400))
+    h = plot(figs..., layout=(2,3), size=(1800,800))
     display(h)
     savefig(h, "$filepath/p_alk_ratio.pdf")
 

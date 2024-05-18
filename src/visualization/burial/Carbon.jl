@@ -17,8 +17,8 @@
     isocolors = (;
         org_light = :navajowhite,
         org_dark = :darkorange,
-        ct_dark = :seagreen,
-        ct_light = :palegreen,
+        ct_dark = :sienna,
+        ct_light = :sandybrown,
         carb_light = :lightblue,
         carb_dark = :royalblue,
     )
@@ -192,6 +192,59 @@
     close(fid)
 
 
+## --- [PLOT] Carbon isotope record over geologic time 
+    h = plot(
+        framestyle=:box,
+        xlabel="Age [Ma.]", ylabel="δ13C [‰]",
+        fg_color_legend=:white,
+        legend=:bottomleft,
+        size=(600,1200),
+        ylims=(-50, 20),
+        left_margin=(30,:px),
+    )
+
+    # Plot a random selection of observed data 
+    indices = 1:length(carbon.age)
+    t = rand(indices[.!isnan.(carbon.d13c_carb)], 5_000)
+    plot!(carbon.age[t], carbon.d13c_carb[t], 
+        label="",
+        color=isocolors.carb_light, msc=:auto, 
+        seriestype=:scatter,
+        markersize=1
+    )
+    # t = rand(indices[.!isnan.(carbon.d13c_org)], 5_000)
+    t = trues(length(carbon.age))
+    plot!(carbon.age[t], carbon.d13c_org[t], 
+        label="",
+        color=isocolors.org_light, msc=:auto, 
+        seriestype=:scatter,
+        markersize=1
+    )
+
+    # Resampled means
+    c,m,e = binmeans(sim_carb.age, sim_carb.d13c_carb, xmin, xmax, nbins, relbinwidth=2)
+    plot!(c, m, yerror=2e, 
+        label="Carbonate [200 Ma. running mean]", 
+        color=isocolors.carb_dark, lcolor=isocolors.carb_dark, msc=:auto, 
+        markershape=:circle,
+    )
+    c,m,e = binmeans(sim_org.age, sim_org.d13c_org, xmin, xmax, nbins)
+    plot!(c, m, yerror=2e, 
+        label="Organic", 
+        color=isocolors.org_dark, lcolor=isocolors.org_dark, msc=:auto, 
+        markershape=:circle,
+    )
+    c,m,e = binmeans(sim_org.age, corrected_sim, xmin, xmax, nbins)
+    plot!(c, m, yerror=2e, 
+        label="Organic Corrected", 
+        color=isocolors.ct_dark, lcolor=isocolors.ct_dark, msc=:auto, 
+        markershape=:circle,
+    )
+    display(h)
+    savefig(h, "$filepath/carbon_isotope_record.pdf")
+    
+
+
 ## --- [PLOT] Impact of correcting post-depositional alteration on isotope record
     # Resampled data
     h_sim = plot(
@@ -222,6 +275,7 @@
         markershape=:circle,
     )
     display(h_sim)
+    savefig("$filepath/carbon_isotope_record.pdf")
 
     # Observed data, no resampling
     h_obs = plot(
@@ -263,7 +317,7 @@
     # Together!
     h = plot(h_sim, h_obs, layout=(1, 2), size=(1200,1200))
     display(h)
-    savefig("$filepath/carbon_isotope_record.pdf")
+    
 
 
 ## --- [PLOT] Inorganic carbonate record 
@@ -286,6 +340,13 @@
         color=isocolors.carb_dark, lcolor=isocolors.carb_dark, msc=:auto, 
         markershape=:circle,
     )
+    # c,m,e = binmeans(carbon.age, carbon.d13c_carb, xmin, xmax, nbins)
+    # plot!(c[.!isnan.(m)], m[.!isnan.(m)], # yerror=2e[.!isnan.(m)], 
+    #     label="Observed Means", 
+    #     color=:white, lcolor=isocolors.carb_dark, msc=isocolors.carb_dark, 
+    #     markershape=:circle,
+    #     markersize=2
+    # )
     display(h)
     savefig("$filepath/carbon_inorganic_record.pdf")
 

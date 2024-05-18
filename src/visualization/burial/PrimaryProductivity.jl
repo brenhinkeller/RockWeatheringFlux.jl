@@ -32,6 +32,19 @@
             read(fid["vars"]["ratio"]["data"]["$k"])[:,i] for i in eachindex(head)
         ) for k in head_class
     )
+    # close(fid)
+
+    # Resampled geochemical data (phosphorus)
+    head_data = read(fid["vars"]["wt"]["head_data"])
+    head_cats = read(fid["vars"]["wt"]["head_cats"])
+    data = read(fid["vars"]["wt"]["data"]["data"])
+    cats = read(fid["vars"]["wt"]["cats"]["match_cats"])
+    cats = @. cats > 0
+    sim_wt = (;
+        data = NamedTuple{Tuple(Symbol.(head_data))}([data[:,i] for i in eachindex(head_data)]),
+        cats = NamedTuple{Tuple(Symbol.(head_cats))}([cats[:,i] for i in eachindex(head_cats)])
+    )
+
     close(fid)
 
 
@@ -65,19 +78,18 @@
     target = keys(sim_ratio)
     figs = Array{Plots.Plot{Plots.GRBackend}}(undef, length(target))
     for i in eachindex(figs)
-        # Remove Archean sedimentary uncertainties because they're so large they erase the 
-        # younger signal we can constrain 
-        el, eu = 2*sim_ratio[target[i]].el, 2*sim_ratio[target[i]].eu
+        # Remove Archean sedimentary values because uncertainties are so large they 
+        # take out any useful younger signal 
+        s = trues(length(sim_ratio[target[i]].c))
         if target[i] in seds
-            el[25:38] .= sim_ratio[target[i]].m[25:38] * 0.05
-            eu[25:38] .= sim_ratio[target[i]].m[25:38] * 0.05
+            s[25:38] .= false
         end
 
         # Plot data 
         hᵢ = deepcopy(h)
-        plot!(hᵢ, sim_ratio[target[i]].c, sim_ratio[target[i]].m,
-            yerror=(el,eu),
-            ribbon=(el,eu),
+        plot!(hᵢ, sim_ratio[target[i]].c[s], sim_ratio[target[i]].m[s],
+            yerror=(2*sim_ratio[target[i]].el[s], 2*sim_ratio[target[i]].eu[s]),
+            ribbon=(2*sim_ratio[target[i]].el[s], 2*sim_ratio[target[i]].eu[s]),
             fillalpha=0.25,
             label="",
             title="$(target[i])",
@@ -87,6 +99,7 @@
                 y_foreground_color_axis=colors[target[i]],
                 y_guidefontcolor=colors[target[i]],
             markershape=:circle,
+            seriestype=:scatter,
             linewidth=2,
         )
         plot!(twinx(), c, frog.val, 
@@ -100,6 +113,59 @@
     h = plot(figs..., layout=(2,3), size=(1800,800))
     display(h)
     savefig("$filepath/primaryproduction.pdf")
+
+
+## --- Fraction buried as organic and phosphorus abundance 
+    h = plot(
+        xlabel="Age [Ma.]", ylabel="Phosphorus [wt.]",
+        framestyle=:box,
+        fontfamily=:Helvetica,
+        fg_color_legend=:white,
+        legend=:topright,
+        titleloc=:left,
+        left_margin=(40,:px), right_margin=(25,:px), bottom_margin=(40,:px),
+    );
+
+    target = keys(sim_ratio)
+    figs = Array{Plots.Plot{Plots.GRBackend}}(undef, length(target))
+    for i in eachindex(figs)
+        # Remove Archean sedimentary values because uncertainties are so large they 
+        # take out any useful younger signal 
+        s = trues(length(sim_ratio[target[i]].c))
+        f = sim_wt.cats[target[i]]
+        # if target[i] in seds
+        #     s[25:38] .= false
+        # end
+
+        # Plot data 
+        hᵢ = deepcopy(h)
+        c,m,e = binmeans(sim_wt.data.Age[f], sim_wt.data.P2O5[f], xmin, xmax, nbins)
+        plot!(hᵢ, c[s], m[s],
+            yerror=2e[s],
+            ribbon=2e[s],
+            fillalpha=0.25,
+            label="",
+            title="$(target[i])",
+            color=colors[target[i]], lcolor=colors[target[i]], msc=:auto,
+                y_foreground_color_border=colors[target[i]],
+                y_foreground_color_text=colors[target[i]],
+                y_foreground_color_axis=colors[target[i]],
+                y_guidefontcolor=colors[target[i]],
+            markershape=:circle,
+            seriestype=:scatter,
+            linewidth=2,
+        )
+        plot!(twinx(), c, frog.val, 
+            yerror=2*frog.err,
+            label="", ylabel="Fraction Buried as Organic",
+            color=:black,
+        )
+        figs[i] = hᵢ
+    end
+
+    h = plot(figs..., layout=(2,3), size=(1800,800))
+    display(h)
+    savefig("$filepath/primaryproduction_Pwt.pdf")
 
 
 ## --- End of file 

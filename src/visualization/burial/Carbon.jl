@@ -198,7 +198,7 @@
         xlabel="Age [Ma.]", ylabel="δ13C [‰]",
         fg_color_legend=:white,
         legend=:bottomleft,
-        size=(600,1200),
+        size=(600,800),
         ylims=(-50, 20),
         left_margin=(30,:px),
     )
@@ -283,7 +283,7 @@
         xlabel="Age [Ma.]", ylabel="d13c",
         fg_color_legend=:white,
         legend=:bottomleft,
-        size=(600,1200),
+        size=(600,800),
         ylims=(-50, 5),
         title="Observed", titleloc=:left,
     )
@@ -318,6 +318,41 @@
     h = plot(h_sim, h_obs, layout=(1, 2), size=(1200,1200))
     display(h)
     
+
+## --- [PLOT] To correct or not to correct, and the consequences thereof 
+    h = plot(
+        framestyle=:box,
+        xlabel="Age [Ma.]", ylabel="d13c",
+        fg_color_legend=:white,
+        legend=:bottomleft,
+        size=(600,800),
+        # ylims=(0, 5),
+        left_margin=(30,:px),
+    )
+    c,m,e = binmeans(carbon.age, carbon.d13c_org, xmin, xmax, nbins)
+    plot!(c[.!isnan.(m)], m[.!isnan.(m)], yerror=2e, 
+        label="Observed", 
+        color=:white, lcolor=isocolors.org_dark, msc=isocolors.org_dark, 
+        markershape=:circle,
+        linestyle=:dash,
+    )
+    c,m,e = binmeans(carbon.age, corrected_obs, xmin, xmax, nbins)
+    plot!(c[.!isnan.(m)], m[.!isnan.(m)], yerror=2e, 
+        label="Corrected [Modeled H/C]", 
+        color=isocolors.ct_dark, lcolor=isocolors.ct_dark, msc=:auto, 
+        markershape=:circle,
+        # linewidth=2,
+    )
+    t = @. !isnan(carbon.d13c_org) & !isnan(carbon.hc)
+    c,m,e = binmeans(carbon.age[t], corrected_min, xmin, xmax, nbins)
+    plot!(c[.!isnan.(m)], m[.!isnan.(m)], yerror=2e, 
+        label="Corrected [Observed H/C]", 
+        color=:darkslategrey, lcolor=:darkslategrey, msc=:auto, 
+        markershape=:dtriangle,
+        # linewidth=2,
+    )
+    display(h)
+    savefig("$filepath/carbon_correction.pdf")
 
 
 ## --- [PLOT] Inorganic carbonate record 

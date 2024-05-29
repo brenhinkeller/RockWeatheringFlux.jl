@@ -18,10 +18,15 @@
 ## --- Load data
     # Carbon isotope data 
     fid = h5open("src/visualization/burial/resampled_carbon.h5", "r")
+    
     head = keys(fid["vars"]["carb"])
     sim_carb = NamedTuple{Tuple(Symbol.(head))}(read(fid["vars"]["carb"]["$k"]) for k in head)
+    
     head = keys(fid["vars"]["org"])
     sim_org = NamedTuple{Tuple(Symbol.(head))}(read(fid["vars"]["org"]["$k"]) for k in head)
+
+    head = keys(fid["vars"]["corrected"])
+    sim_corr = NamedTuple{Tuple(Symbol.(head))}(read(fid["vars"]["corrected"]["$k"]) for k in head)
     close(fid)
 
     # Resampled geochemical data (phosphorus / alkalinity ratios)
@@ -49,15 +54,12 @@
 
 
 ## --- Calculate fraction of carbon buried as organic 
-    mantle = -5.5
-    
-    c,m,e = binmeans(sim_carb.age, sim_carb.d13c_carb, xmin, xmax, nbins, relbinwidth=2)
-    carbonate = m .± e
-    
-    c,m,e = binmeans(sim_org.age, sim_org.d13c_org_corrected, xmin, xmax, nbins)
-    organic = m .± e
+    mantle = -5
+    carb = sim_carb.m .± nanmean([sim_carb.el sim_carb.eu], dims=2)
+    # org = sim_org.m .± nanmean([sim_org.el sim_org.eu], dims=2)
+    org_corrected = sim_corr.m .± nanmean([sim_corr.el sim_corr.eu], dims=2)
 
-    frog = (mantle .- carbonate) ./ (organic .- carbonate)
+    frog = (mantle .- carb) ./ (org_corrected .- carb)
     frog = (;
         val = Measurements.value.(frog),
         err = Measurements.uncertainty.(frog),
@@ -65,7 +67,7 @@
 
 
 ## --- [PLOT] Fraction buried as organic with phosphorus / alkalinity ratios 
-    h = plot(
+    h = Plots.plot(
         xlabel="Age [Ma.]", ylabel="P / Alk [mol. ratio]",
         framestyle=:box,
         fontfamily=:Helvetica,
@@ -87,7 +89,7 @@
 
         # Plot data 
         hᵢ = deepcopy(h)
-        plot!(hᵢ, sim_ratio[target[i]].c[s], sim_ratio[target[i]].m[s],
+        Plots.plot!(hᵢ, sim_ratio[target[i]].c[s], sim_ratio[target[i]].m[s],
             yerror=(2*sim_ratio[target[i]].el[s], 2*sim_ratio[target[i]].eu[s]),
             ribbon=(2*sim_ratio[target[i]].el[s], 2*sim_ratio[target[i]].eu[s]),
             fillalpha=0.25,
@@ -102,15 +104,15 @@
             seriestype=:scatter,
             linewidth=2,
         )
-        plot!(twinx(), c, frog.val, 
-            yerror=2*frog.err,
+        Plots.plot!(twinx(), c, frog.val, 
+            ribbon=2*frog.err,
             label="", ylabel="Fraction Buried as Organic",
-            color=:black,
+            color=:seagreen,
         )
         figs[i] = hᵢ
     end
 
-    h = plot(figs..., layout=(2,3), size=(1800,800))
+    h = Plots.plot(figs..., layout=(2,3), size=(1800,800))
     display(h)
     savefig("$filepath/primaryproduction.pdf")
 

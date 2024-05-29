@@ -150,52 +150,25 @@
     t = .!isnan.(carbon.d13c_carb)
     k = invweight(carbon.lat[t], carbon.lon[t], carbon.age[t])
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    # resampled = bsresample([carbon.d13c_carb[t] carbon.age[t]],
-    #     [carbon.d13c_carb_uncert[t] carbon.age_uncert[t]],
-    #     nsims,p
-    # )
-    # sim_carb = (;
-    #     d13c_carb = resampled[:,1],
-    #     age = resampled[:,2]
-    # )
     c,m,el,eu = bin_bsr_means(carbon.age[t], carbon.d13c_carb[t], xmin, xmax, nbins,
         x_sigma = carbon.age_uncert[t],
         y_sigma = carbon.d13c_carb_uncert[t],
         nresamplings = nsims,
         p = p
     )
-    sim_carb = (;
-        c = c,
-        m = m,
-        el = el,
-        eu = eu,
-    )
+    sim_carb = (c = c, m = m, el = el, eu = eu,)
 
     # Organic carbon isotope data 
     t = .!isnan.(carbon.d13c_org)
     k = invweight(carbon.lat[t], carbon.lon[t], carbon.age[t])
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    # resampled = bsresample([carbon.d13c_org[t] hc_assigned[t] carbon.age[t]],
-    #     [carbon.d13c_org_uncert[t] fill(0.01, count(t)) carbon.age_uncert[t]],
-    #     nsims,p
-    # )
-    # sim_org = (;
-    #     d13c_org = resampled[:,1],
-    #     hc = resampled[:,2],
-    #     age = resampled[:,3],
-    # )
     c,m,el,eu = bin_bsr_means(carbon.age[t], carbon.d13c_org[t], xmin, xmax, nbins,
         x_sigma = carbon.age_uncert[t],
         y_sigma = carbon.d13c_org_uncert[t],
         nresamplings = nsims,
         p = p
     )
-    sim_org = (;
-        c = c,
-        m = m,
-        el = el,
-        eu = eu,
-    )
+    sim_org = (c = c, m = m, el = el, eu = eu,)
 
     
 ## --- Correct organic carbon for post-depositional alteration 
@@ -217,12 +190,7 @@
         nresamplings = nsims,
         p = p
     )
-    corrected_sim = (;
-        c = c,
-        m = m,
-        el = el,
-        eu = eu,
-    )
+    sim_corr = (c = c, m = m, el = el, eu = eu,)
 
 
 ## --- Save resampled and corrected data to a file 
@@ -238,7 +206,7 @@
         end 
     g_corr = create_group(g, "corrected")
         for k in keys(sim_org)
-            g_corr["$k"] = collect(corrected_sim[k])
+            g_corr["$k"] = collect(sim_corr[k])
         end 
     close(fid)
 
@@ -287,8 +255,8 @@
         markershape=:circle,
         seriestype=:scatter,
     )
-    plot!(corrected_sim.c, corrected_sim.m, 
-        yerror=(2*corrected_sim.el, 2*corrected_sim.eu), 
+    plot!(sim_corr.c, sim_corr.m, 
+        yerror=(2*sim_corr.el, 2*sim_corr.eu), 
         label="Organic Corrected", 
         color=isocolors.ct_dark, lcolor=isocolors.ct_dark, msc=:auto, 
         markershape=:circle,
@@ -296,81 +264,6 @@
     )
     display(h)
     savefig(h, "$filepath/carbon_isotope_record.pdf")
-    
-
-
-## --- [DEPRECATED PLOT] Impact of correcting post-depositional alteration on isotope record
-    # Resampled data
-    h_sim = plot(
-        framestyle=:box,
-        xlabel="Age [Ma.]", ylabel="d13c",
-        fg_color_legend=:white,
-        legend=:bottomleft,
-        size=(600,1200),
-        ylims=(-50, 5),
-        title="Spatiotemporal Resampled", titleloc=:left,
-    )
-    c,m,e = binmeans(sim_org.age, sim_org.d13c_org, xmin, xmax, nbins)
-    plot!(c, m, yerror=2e, 
-        label="Observed", 
-        color=isocolors.org_dark, lcolor=isocolors.org_dark, msc=:auto, 
-        markershape=:circle,
-    )
-    c,m,e = binmeans(sim_org.age, corrected_sim, xmin, xmax, nbins)
-    plot!(c, m, yerror=2e, 
-        label="Corrected", 
-        color=isocolors.ct_dark, lcolor=isocolors.ct_dark, msc=:auto, 
-        markershape=:circle,
-    )
-    c,m,e = binmeans(sim_carb.age, sim_carb.d13c_carb, xmin, xmax, nbins, relbinwidth=2)
-    plot!(c, m, yerror=2e, 
-        label="Carbonate [200 Ma. avg.]", 
-        color=isocolors.carb_dark, lcolor=isocolors.carb_dark, msc=:auto, 
-        markershape=:circle,
-    )
-    display(h_sim)
-    savefig("$filepath/carbon_isotope_record.pdf")
-
-    # Observed data, no resampling
-    h_obs = plot(
-        framestyle=:box,
-        xlabel="Age [Ma.]", ylabel="d13c",
-        fg_color_legend=:white,
-        legend=:bottomleft,
-        size=(600,800),
-        ylims=(-50, 5),
-        title="Observed", titleloc=:left,
-    )
-    c,m,e = binmeans(carbon.age, carbon.d13c_org, xmin, xmax, nbins)
-    plot!(c[.!isnan.(m)], m[.!isnan.(m)], yerror=2e, 
-        label="Observed", 
-        color=isocolors.org_dark, lcolor=isocolors.org_dark, msc=:auto, 
-        markershape=:circle,
-    )
-    c,m,e = binmeans(carbon.age, corrected_obs, xmin, xmax, nbins)
-    plot!(c[.!isnan.(m)], m[.!isnan.(m)], yerror=2e, 
-        label="Corrected", 
-        color=isocolors.ct_dark, lcolor=isocolors.ct_dark, msc=:auto, 
-        markershape=:circle,
-    )
-    t = @. !isnan(carbon.d13c_org) & !isnan(carbon.hc)
-    c,m,e = binmeans(carbon.age[t], corrected_min, xmin, xmax, nbins)
-    plot!(c[.!isnan.(m)], m[.!isnan.(m)], yerror=2e, 
-        label="Corrected [Obs. H/C]", 
-        color=:purple, lcolor=:purple, msc=:auto, 
-        markershape=:circle,
-    )
-    c,m,e = binmeans(carbon.age, carbon.d13c_carb, xmin, xmax, nbins, relbinwidth=2)
-    plot!(c[.!isnan.(m)], m[.!isnan.(m)], yerror=2e, 
-        label="Carbonate [200 Ma. avg.]", 
-        color=isocolors.carb_dark, lcolor=isocolors.carb_dark, msc=:auto, 
-        markershape=:circle,
-    )
-    display(h_obs)
-
-    # Together!
-    h = plot(h_sim, h_obs, layout=(1, 2), size=(1200,1200))
-    display(h)
     
 
 ## --- [DEPRECATED PLOT] To correct or not to correct, and the consequences thereof 
@@ -446,7 +339,7 @@
     mantle = -5
     carb = sim_carb.m .± nanmean([sim_carb.el sim_carb.eu], dims=2)
     org = sim_org.m .± nanmean([sim_org.el sim_org.eu], dims=2)
-    org_corrected = corrected_sim.m .± nanmean([corrected_sim.el corrected_sim.eu], dims=2)
+    org_corrected = sim_corr.m .± nanmean([sim_corr.el sim_corr.eu], dims=2)
 
     h = plot(
         xlabel="Age [Ma.]", ylabel="Fraction Buried as Organic",
@@ -458,37 +351,7 @@
         fg_color_legend=:white
     );
 
-    # Resampled uncorrected
-    frog = (mantle .- carb) ./ (org .- carb)
-    plot!(c, frog, label="Uncorrected",
-        color=isocolors.org_dark, lcolor=isocolors.org_dark, msc=:auto, 
-        markershape=:circle,
-    )
-
-    # Resampled corrected
-    frog = (mantle .- carb) ./ (org_corrected .- carb)
-    plot!(c, frog, label="Corrected",
-        color=isocolors.ct_dark, lcolor=isocolors.ct_dark, msc=:auto, 
-        markershape=:circle,
-    )
-
-    # # Observed uncorrected
-    # c,m,e = binmeans(carbon.age, carbon.d13c_org, xmin, xmax, nbins, relbinwidth=1)
-    # frog = (mantle .- carbonate) ./ (m .- carbonate)
-    # plot!(c, frog, label="Uncorrected",
-    #     color=isocolors.org_dark, lcolor=isocolors.org_dark, msc=:auto, 
-    #     markershape=:utriangle,
-    # )
-
-    # # Observed corrected
-    # c,m,e = binmeans(carbon.age, corrected_obs, xmin, xmax, nbins, relbinwidth=1)
-    # frog = (mantle .- carbonate) ./ (m .- carbonate)
-    # plot!(c, frog, label="Corrected",
-    #     color=isocolors.ct_dark, lcolor=isocolors.ct_dark, msc=:auto, 
-    #     markershape=:utriangle,
-    # )
-
-    # Des Marais curve 
+        # Des Marais curve 
     des_marais = (;
         age=[2650.0, 2495.5516180173463, 2047.2862072181294, 1949.6316329385436, 
             1853.1940688240234, 1747.3141844633037, 1646.8618856663252, 1553.2220460691974, 
@@ -501,7 +364,35 @@
     )
     plot!(des_marais.age, des_marais.forg, label="Des Marais",
         markershape=:circle, linestyle=:dash,
-        color=:black, msc=:auto,
+        color=:white, lcolor=:black, msc=:black,
+    )
+
+    # Resampled uncorrected
+    frog = (mantle .- carb) ./ (org .- carb)
+    frog = (;
+        val = Measurements.value.(frog),
+        err = Measurements.uncertainty.(frog),
+    )
+    plot!(c, frog.val,
+        ribbon = 2*frog.err,
+        label="Uncorrected",
+        color=isocolors.org_dark, lcolor=isocolors.org_dark, msc=:auto, 
+        markershape=:circle,
+        # seriestype=:scatter,
+    )
+
+    # Resampled corrected
+    frog = (mantle .- carb) ./ (org_corrected .- carb)
+    frog = (;
+        val = Measurements.value.(frog),
+        err = Measurements.uncertainty.(frog),
+    )
+    plot!(c, frog.val,
+        ribbon = 2*frog.err,
+        label="Corrected",
+        color=isocolors.ct_dark, lcolor=isocolors.ct_dark, msc=:auto, 
+        markershape=:circle,
+        # seriestype=:scatter,
     )
 
     display(h)

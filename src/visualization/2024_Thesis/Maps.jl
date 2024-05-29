@@ -19,13 +19,13 @@
 
     
 ## --- Resample ages of matched geochemical dataset 
-    sampleage, ageuncert = resampling_age(mbulk.Age, mbulk.Age_Min, mbulk.Age_Max, 
-        macrostrat.age, macrostrat.agemin, macrostrat.agemax, 
-        uncert_rel=0.05, uncert_abs=50
-    )
-    k = invweight_age(sampleage)
-    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    sim_age = bsresample(sampleage, ageuncert, Int(1e6), p)
+    # sampleage, ageuncert = resampling_age(mbulk.Age, mbulk.Age_Min, mbulk.Age_Max, 
+    #     macrostrat.age, macrostrat.agemin, macrostrat.agemax, 
+    #     uncert_rel=0.05, uncert_abs=50
+    # )
+    # k = invweight_age(sampleage)
+    # p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+    # sim_age = bsresample(sampleage, ageuncert, Int(1e6), p)
 
 
 ## --- Global distribution and age of geochemical compilation 
@@ -45,6 +45,7 @@
     )
     display(f)
     save("$filepath/map_geochemical.pdf", f)
+    save("$filepath/map_geochemical.png", f)
 
 
 ## --- Global distribution and age of mapped samples 
@@ -64,6 +65,7 @@
     )
     display(f)
     save("$filepath/map_mapped.pdf", f)
+    save("$filepath/map_mapped.png", f)
 
 
 ## --- Set up histograms 

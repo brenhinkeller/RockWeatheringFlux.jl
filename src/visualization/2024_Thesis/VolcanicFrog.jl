@@ -5,7 +5,7 @@
     include("Definitions.jl")
 
     # Make the volcanic color visible
-    colorvolc = pal[2]
+    colorvolc = pal[5]
 
     # Definitions 
     xmin, xmax, nbins = 0, 3800, 38
@@ -55,44 +55,25 @@
         fg_color_legend=:white,
         legend=:topright,
         titleloc=:left,
-        # left_margin=(40,:px), right_margin=(25,:px), bottom_margin=(40,:px),
-        y_foreground_color_border=pal[3],
-        y_foreground_color_text=pal[3],
-        y_foreground_color_axis=pal[3],
-        y_guidefontcolor=pal[3],
-        # x_foreground_color_border=pal[8],
-        # x_foreground_color_text=pal[8],
-        # x_foreground_color_axis=pal[8],
-        # x_guidefontcolor=pal[8],
+        left_margin=(20,:px), right_margin=(20,:px),
+
     );
     Plots.plot!(sim_ratio.volc.c, sim_ratio.volc.m,
-        # yerror=(2*sim_ratio.volc.el, 2*sim_ratio.volc.eu),
-        # ribbon=(2*sim_ratio.volc.el, 2*sim_ratio.volc.eu),
-        # fillalpha=0.25,
         label="",
         color=colorvolc, lcolor=colorvolc, msc=:auto,
-            # x_foreground_color_border=pal[3],
-            # x_foreground_color_text=pal[3],
-            # x_foreground_color_axis=pal[3],
-            # x_guidefontcolor=pal[3],
-        # markershape=:circle,
-        # seriestype=:scatter,
+            y_foreground_color_border=colorvolc,
+            y_foreground_color_text=colorvolc,
+            y_foreground_color_axis=colorvolc,
+            y_guidefontcolor=colorvolc,
         linestyle=:dot,
         linewidth=2,
     )
     Plots.plot!(sim_ratio.volc.c, sim_ratio.volc.m,
         yerror=(2*sim_ratio.volc.el, 2*sim_ratio.volc.eu),
-        # ribbon=(2*sim_ratio.volc.el, 2*sim_ratio.volc.eu),
-        # fillalpha=0.25,
         label="",
         color=colorvolc, lcolor=colorvolc, msc=:auto,
-            # x_foreground_color_border=pal[3],
-            # x_foreground_color_text=pal[3],
-            # x_foreground_color_axis=pal[3],
-            # x_guidefontcolor=pal[3],
         markershape=:circle,
         seriestype=:scatter,
-        # linestyle=:dot,
         linewidth=2,
     )
     Plots.plot!(twinx(), c, frog.val, 
@@ -108,6 +89,7 @@
     vline!([541, 717, 2500], label="", linestyle=:dash, color=:black)
     display(h)
     savefig(h, "$filepath/primaryproduction.pdf")
+    savefig(h, "$filepath/primaryproduction.png")
     
 
 ## --- End of file

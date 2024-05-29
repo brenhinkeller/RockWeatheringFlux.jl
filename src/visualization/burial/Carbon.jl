@@ -12,7 +12,7 @@
     filepath = "results/figures/burial"
 
     # Definitions 
-    nsims = Int(1e6)
+    nsims = Int(1e5)
     xmin, xmax, nbins = 0, 3800, 38
     isocolors = (;
         org_light = :navajowhite,
@@ -78,18 +78,18 @@
     end
 
 
-## --- [PLOT] Model and modeled H/C data 
+## --- [PLOT] Model and plot H/C data 
     # Model 
     t = @. !isnan(carbon.d13c_org) & !isnan(carbon.hc) & (carbon.hc > 0);
     t .&= carbon.std_fm_name .!= "Onverwacht Gp";
     x = 50:50:3800
     y = Measurements.value.(hc_age.(x))
     e = Measurements.uncertainty.(hc_age.(x))
-    h = plot(
+    h1 = plot(
         carbon.age[t], carbon.hc[t],
         label="Observed", 
-        seriestype=:scatter, markersize=3,
-        color=:darkturquoise, msc=:auto,
+        seriestype=:scatter, markersize=2,
+        color=:red, msc=:auto, # alpha=0.5,
         xlabel="Age [Ma.]", ylabel="[LOG] H/C Ratio",
         framestyle=:box,
         fontfamily=:Helvetica,
@@ -99,20 +99,21 @@
     )
     plot!(x, y, ribbon=2*e, 
         label="Modeled ± 2 s.d.", 
-        linewidth=2, color=:teal
+        linewidth=2, color=:red,
+        fillalpha=0.25,
     )
-    display(h)
+    display(h1)
     savefig("$filepath/carbon_hc_model.pdf")
 
     # Modeled data 
     t = @. !isnan(carbon.d13c_org) 
-    h = plot(hc_assigned[t], carbon.d13c_org[t], 
+    h2 = plot(hc_assigned[t], carbon.d13c_org[t], 
         seriestype=:scatter, label="Assigned", 
         color=:lightblue, msc=:auto,
         markersize=2,
         framestyle=:box, 
         ylabel="d13c organic", xlabel="H/C ratio",
-        legend=:topright,
+        legend=:bottomright,
         fg_color_legend=:white,
     )
     plot!(carbon.hc[t], carbon.d13c_org[t], 
@@ -124,8 +125,15 @@
     params = fit_rayleigh(carbon.d13c_org[t], carbon.hc[t])
     x,y = rayleigh_curve(params, carbon.hc[t])
     plot!(x,y, label="Rayleigh Model", color=:black, linewidth=2)
-    display(h)
+    display(h2)
     savefig("$filepath/carbon_hc_model_carbon.pdf")
+
+    # Together -- temporary as a quick fix for thesis drafts
+    title!(h1, "A. H/C Age Model", titleloc=:left)
+    title!(h2, "B. H/C and δ13C", titleloc=:left)
+    h = plot(h1, h2, layout=(2,1), size=(600,800), left_margin=(30,:px))
+    display(h)
+    savefig(h, "$filepath/carbon_hc_combined.pdf")
 
 
 ## --- Resample all data with spatiotemporal weights 
@@ -142,39 +150,79 @@
     t = .!isnan.(carbon.d13c_carb)
     k = invweight(carbon.lat[t], carbon.lon[t], carbon.age[t])
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    resampled = bsresample([carbon.d13c_carb[t] carbon.age[t]],
-        [carbon.d13c_carb_uncert[t] carbon.age_uncert[t]],
-        nsims,p
+    # resampled = bsresample([carbon.d13c_carb[t] carbon.age[t]],
+    #     [carbon.d13c_carb_uncert[t] carbon.age_uncert[t]],
+    #     nsims,p
+    # )
+    # sim_carb = (;
+    #     d13c_carb = resampled[:,1],
+    #     age = resampled[:,2]
+    # )
+    c,m,el,eu = bin_bsr_means(carbon.age[t], carbon.d13c_carb[t], xmin, xmax, nbins,
+        x_sigma = carbon.age_uncert[t],
+        y_sigma = carbon.d13c_carb_uncert[t],
+        nresamplings = nsims,
+        p = p
     )
     sim_carb = (;
-        d13c_carb = resampled[:,1],
-        age = resampled[:,2]
+        c = c,
+        m = m,
+        el = el,
+        eu = eu,
     )
 
     # Organic carbon isotope data 
     t = .!isnan.(carbon.d13c_org)
     k = invweight(carbon.lat[t], carbon.lon[t], carbon.age[t])
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    resampled = bsresample([carbon.d13c_org[t] hc_assigned[t] carbon.age[t]],
-        [carbon.d13c_org_uncert[t] fill(0.01, count(t)) carbon.age_uncert[t]],
-        nsims,p
+    # resampled = bsresample([carbon.d13c_org[t] hc_assigned[t] carbon.age[t]],
+    #     [carbon.d13c_org_uncert[t] fill(0.01, count(t)) carbon.age_uncert[t]],
+    #     nsims,p
+    # )
+    # sim_org = (;
+    #     d13c_org = resampled[:,1],
+    #     hc = resampled[:,2],
+    #     age = resampled[:,3],
+    # )
+    c,m,el,eu = bin_bsr_means(carbon.age[t], carbon.d13c_org[t], xmin, xmax, nbins,
+        x_sigma = carbon.age_uncert[t],
+        y_sigma = carbon.d13c_org_uncert[t],
+        nresamplings = nsims,
+        p = p
     )
     sim_org = (;
-        d13c_org = resampled[:,1],
-        hc = resampled[:,2],
-        age = resampled[:,3],
+        c = c,
+        m = m,
+        el = el,
+        eu = eu,
     )
 
-
+    
 ## --- Correct organic carbon for post-depositional alteration 
     # Model with existing data 
     t = @. !isnan(carbon.d13c_org) & !isnan(carbon.hc)
     params = fit_rayleigh(carbon.d13c_org[t], carbon.hc[t])
 
-    # Correct observed and resampled data
+    # Correct observed data
     corrected_min = carbon.d13c_org[t] .- (vec(r₀(carbon.hc[t], params)) .-  r₀(1.5, params))
     corrected_obs = carbon.d13c_org .- (vec(r₀(hc_assigned, params)) .-  r₀(1.5, params))
-    corrected_sim = sim_org.d13c_org .- (vec(r₀(sim_org.hc, params)) .-  r₀(1.5, params))
+
+    # Correcte and resample observed data 
+    t = .!isnan.(carbon.d13c_org)
+    k = invweight(carbon.lat[t], carbon.lon[t], carbon.age[t])
+    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+    c,m,el,eu = bin_bsr_means(carbon.age[t], corrected_obs[t], xmin, xmax, nbins,
+        x_sigma = carbon.age_uncert[t],
+        y_sigma = carbon.d13c_org_uncert[t],
+        nresamplings = nsims,
+        p = p
+    )
+    corrected_sim = (;
+        c = c,
+        m = m,
+        el = el,
+        eu = eu,
+    )
 
 
 ## --- Save resampled and corrected data to a file 
@@ -182,13 +230,16 @@
     g = create_group(fid, "vars")
     g_carb = create_group(g, "carb")
         for k in keys(sim_carb)
-            g_carb["$k"] = sim_carb[k]
+            g_carb["$k"] = collect(sim_carb[k])
         end 
     g_org = create_group(g, "org")
         for k in keys(sim_org)
-            g_org["$k"] = sim_org[k]
+            g_org["$k"] = collect(sim_org[k])
         end 
-        g_org["d13c_org_corrected"] = corrected_sim
+    g_corr = create_group(g, "corrected")
+        for k in keys(sim_org)
+            g_corr["$k"] = collect(corrected_sim[k])
+        end 
     close(fid)
 
 
@@ -222,30 +273,33 @@
     )
 
     # Resampled means
-    c,m,e = binmeans(sim_carb.age, sim_carb.d13c_carb, xmin, xmax, nbins, relbinwidth=2)
-    plot!(c, m, yerror=2e, 
-        label="Carbonate [200 Ma. running mean]", 
+    plot!(sim_carb.c, sim_carb.m, 
+        yerror=(2*sim_carb.el, 2*sim_carb.eu),  
+        label="Carbonate", 
         color=isocolors.carb_dark, lcolor=isocolors.carb_dark, msc=:auto, 
         markershape=:circle,
+        seriestype=:scatter,
     )
-    c,m,e = binmeans(sim_org.age, sim_org.d13c_org, xmin, xmax, nbins)
-    plot!(c, m, yerror=2e, 
+    plot!(sim_org.c, sim_org.m, 
+        yerror=(2*sim_org.el, 2*sim_org.eu), 
         label="Organic", 
         color=isocolors.org_dark, lcolor=isocolors.org_dark, msc=:auto, 
         markershape=:circle,
+        seriestype=:scatter,
     )
-    c,m,e = binmeans(sim_org.age, corrected_sim, xmin, xmax, nbins)
-    plot!(c, m, yerror=2e, 
+    plot!(corrected_sim.c, corrected_sim.m, 
+        yerror=(2*corrected_sim.el, 2*corrected_sim.eu), 
         label="Organic Corrected", 
         color=isocolors.ct_dark, lcolor=isocolors.ct_dark, msc=:auto, 
         markershape=:circle,
+        seriestype=:scatter,
     )
     display(h)
     savefig(h, "$filepath/carbon_isotope_record.pdf")
     
 
 
-## --- [PLOT] Impact of correcting post-depositional alteration on isotope record
+## --- [DEPRECATED PLOT] Impact of correcting post-depositional alteration on isotope record
     # Resampled data
     h_sim = plot(
         framestyle=:box,
@@ -319,7 +373,7 @@
     display(h)
     
 
-## --- [PLOT] To correct or not to correct, and the consequences thereof 
+## --- [DEPRECATED PLOT] To correct or not to correct, and the consequences thereof 
     h = plot(
         framestyle=:box,
         xlabel="Age [Ma.]", ylabel="d13c",
@@ -355,11 +409,12 @@
     savefig("$filepath/carbon_correction.pdf")
 
 
-## --- [PLOT] Inorganic carbonate record 
+## --- [DEPRECATED PLOT] Inorganic carbonate record 
     h = plot(
         framestyle=:box,
         xlabel="Age [Ma.]", ylabel="d13c",
         fg_color_legend=:white,
+        size=(600,600)
     )
     # t = rand(1:length(carbon.age), 5_000)     # Random selection of data
     t = trues(length(carbon.age))
@@ -387,31 +442,31 @@
 
 
 ## --- [PLOT] Fraction of carbon buried as organic 
-    # Define mantle and carbonate values 
-    mantle = -5.5
-    c,carbonate,e = binmeans(sim_carb.age, sim_carb.d13c_carb, xmin, xmax, nbins, relbinwidth=2)
+    # Definitions  
+    mantle = -5
+    carb = sim_carb.m .± nanmean([sim_carb.el sim_carb.eu], dims=2)
+    org = sim_org.m .± nanmean([sim_org.el sim_org.eu], dims=2)
+    org_corrected = corrected_sim.m .± nanmean([corrected_sim.el corrected_sim.eu], dims=2)
 
     h = plot(
         xlabel="Age [Ma.]", ylabel="Fraction Buried as Organic",
         framestyle=:box,
         fontfamily=:Helvetica,
-        ylims=(0,0.3),
+        ylims=(0.05,0.3),
         size=(400,500),
         legend=:bottomleft,
         fg_color_legend=:white
     );
 
     # Resampled uncorrected
-    c,m,e = binmeans(sim_org.age, sim_org.d13c_org, xmin, xmax, nbins, relbinwidth=1)
-    frog = (mantle .- carbonate) ./ (m .- carbonate)
+    frog = (mantle .- carb) ./ (org .- carb)
     plot!(c, frog, label="Uncorrected",
         color=isocolors.org_dark, lcolor=isocolors.org_dark, msc=:auto, 
         markershape=:circle,
     )
 
     # Resampled corrected
-    c,m,e = binmeans(sim_org.age, corrected_sim, xmin, xmax, nbins, relbinwidth=1)
-    frog = (mantle .- carbonate) ./ (m .- carbonate)
+    frog = (mantle .- carb) ./ (org_corrected .- carb)
     plot!(c, frog, label="Corrected",
         color=isocolors.ct_dark, lcolor=isocolors.ct_dark, msc=:auto, 
         markershape=:circle,
@@ -433,21 +488,21 @@
     #     markershape=:utriangle,
     # )
 
-    # # Des Marais curve 
-    # des_marais = (;
-    #     age=[2650.0, 2495.5516180173463, 2047.2862072181294, 1949.6316329385436, 
-    #         1853.1940688240234, 1747.3141844633037, 1646.8618856663252, 1553.2220460691974, 
-    #         1451.8744754266536, 1350.582859274457, 1251.9162470079896, 1051.5664666811736, 
-    #         957.5075512657118, 850.7471608277119, 756.0325287284863, 656.6550224336061],
-    #     forg=[0.08958593677142582, 0.10020889676396522, 0.1494628368926606, 0.19049706238925668, 
-    #         0.17004010071808257, 0.11977338431409115, 0.12975286766763028, 0.14035064813951315, 
-    #         0.14039261400727404, 0.14105567471789607, 0.16009238967121547, 0.1497514947102282, 
-    #         0.19076697804304346, 0.2210044219590288, 0.21133867232428727, 0.14991501911778413]
-    # )
-    # plot!(des_marais.age, des_marais.forg, label="Des Marais",
-    #     markershape=:circle, linestyle=:dash,
-    #     color=:black, msc=:auto,
-    # )
+    # Des Marais curve 
+    des_marais = (;
+        age=[2650.0, 2495.5516180173463, 2047.2862072181294, 1949.6316329385436, 
+            1853.1940688240234, 1747.3141844633037, 1646.8618856663252, 1553.2220460691974, 
+            1451.8744754266536, 1350.582859274457, 1251.9162470079896, 1051.5664666811736, 
+            957.5075512657118, 850.7471608277119, 756.0325287284863, 656.6550224336061],
+        forg=[0.08958593677142582, 0.10020889676396522, 0.1494628368926606, 0.19049706238925668, 
+            0.17004010071808257, 0.11977338431409115, 0.12975286766763028, 0.14035064813951315, 
+            0.14039261400727404, 0.14105567471789607, 0.16009238967121547, 0.1497514947102282, 
+            0.19076697804304346, 0.2210044219590288, 0.21133867232428727, 0.14991501911778413]
+    )
+    plot!(des_marais.age, des_marais.forg, label="Des Marais",
+        markershape=:circle, linestyle=:dash,
+        color=:black, msc=:auto,
+    )
 
     display(h)
     savefig("$filepath/f_org.pdf")

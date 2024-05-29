@@ -6,6 +6,7 @@
     using HDF5, DelimitedFiles
     using Plots
     using LsqFit: curve_fit
+    using Distributions
 
     # Save figures to: 
     filepath = "results/figures/burial"
@@ -147,6 +148,53 @@
 
 
 ## --- Model erosion as a function of age 
+    # Data 
+    f = sim_cats.sed;
+    c,m,e = binmeans(sim_ersn.age[f], sim_ersn.ersn[f], xmin, xmax, nbins);
+    plot(c, m, yerror=2e, markershape=:circle, color=:black, lcolor=:black, msc=:auto, label="")
+
+    # σ = nanstd(log.(m))
+    # μ = log.(nanmean(c))
+    b = nanmean(m[22:38])
+
+    d = LogNormal(nanmean(m), nanstd(m))
+    μ=meanlogx(d)
+    σ=stdlogx(d)
+
+    d = fit(LogNormal, c)
+    μ=meanlogx(d)
+    σ=stdlogx(d)
+    # LogNormal(μ, σ)
+
+    # y = lognorm(c, [μ, σ, b])
+    # plot!(c, y)
+
+    # hline!([b])
+    # vline!([σ, μ])
+
+    # Start with a log-normal model, where 
+        # p[1] = σ 
+        # p[2] = μ 
+        # p[3] = intercept / asymptote
+
+    czoom = 0.01:0.01:4000
+    @. lognorm(x, p) = p[1] / (x * p[3]) * exp(- (log(x) - p[2])^2 / (2*p[3]^2)) + p[4]
+    p₀ = [100., 100., 10., 20.]
+    plot(czoom, lognorm(czoom, p₀))
+
+    fobj = curve_fit(lognorm, c, m, p₀)
+
+    plot(c, lognorm(c, fobj.param))
+    display(unique(lognorm(c, p₀)))
+
+
+## ---
+    p₀ = [1,0,nanmean(m[22:end])]
+    x = 0.01:0.01:10
+    y = lognorm(x, p₀)
+    plot(x, y)
+    vline!([1], label="mean")
+    # vline!([0], label="stdev")
 
 
 ## --- End of file

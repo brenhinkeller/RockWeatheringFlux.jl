@@ -132,6 +132,19 @@
     # Metamorphic rocks are still only undifferentiated metamorphic samples 
     pseudo_cats = deepcopy(filter_cats)
 
+    # # Exclude undifferentiated rocks 
+    # exclude_minor!(pseudo_cats)
+    # sed_undiff = copy(pseudo_cats.sed)
+    # ign_undiff = copy(pseudo_cats.ign)
+    # volc_undiff = copy(pseudo_cats.volc)
+    # plut_undiff = copy(pseudo_cats.plut)
+
+    # include_minor!(pseudo_cats)
+    # pseudo_cats.sed .&= .!sed_undiff
+    # pseudo_cats.ign .&= .!ign_undiff
+    # pseudo_cats.volc .&= .!volc_undiff
+    # pseudo_cats.plut .&= .!plut_undiff
+    
     # Sedimentary rocks exclude undifferentiated sedimentary rocks 
     exclude_minor!(pseudo_cats)
     sed_undiff = copy(pseudo_cats.sed)
@@ -356,42 +369,6 @@
             linewidth=2,
         )
     end
-    display(h2)
-
-## ---
-    h2 = plot(
-        xlabel="Age [Ma.]", 
-        ylabel="P / Alk [mol. ratio]",
-        framestyle=:box,
-        fontfamily=:Helvetica,
-        fg_color_legend=:white,
-        legend=:topright,
-        titleloc=:left,
-        # left_margin=(40,:px), right_margin=(25,:px), bottom_margin=(40,:px),
-        size=(600,800),
-        # ylims=(0,2.6),
-    );
-    k = :siliciclast
-    plot!(h2, sim_ratio[k].c, sim_ratio[k].m,
-        yerror=(2*sim_ratio[k].el, 2*sim_ratio[k].eu),
-        ribbon=(2*sim_ratio[k].el, 2*sim_ratio[k].eu),
-        fillalpha=0.25,
-        label="",
-        color=colors[k], lcolor=colors[k], msc=:auto,
-        markershape=:circle,
-        linewidth=2,
-    )
-    k = :basalt
-    plot!(twinx(), sim_ratio[k].c, sim_ratio[k].m,
-        yerror=(2*sim_ratio[k].el, 2*sim_ratio[k].eu),
-        ribbon=(2*sim_ratio[k].el, 2*sim_ratio[k].eu),
-        fillalpha=0.25,
-        label="",
-        color=colors[k], lcolor=colors[k], msc=:auto,
-        markershape=:circle,
-        linewidth=2,
-        ylims=(0.002, 0.01),
-    )
     display(h2)
 
 

@@ -14,10 +14,21 @@
     minorsed, minorvolc, minorplut, minorign = get_rock_class()[2:5];
     seds = (minorsed..., :sed)
 
+    colors2 = (
+        sed = :mediumturquoise,
+        carb = :dodgerblue,
+        shale = :slategrey,
+        siliciclast = :blueviolet,
+        ign = :crimson,
+        plut = :mediumvioletred,
+        volc = :deeppink,
+        basalt = :pink,
+    )
+
 
 ## --- Load data
     # Carbon isotope data 
-    fid = h5open("src/visualization/burial/resampled_carbon.h5", "r")
+    fid = h5open("src/burial/resampled_carbon.h5", "r")
     
     head = keys(fid["vars"]["carb"])
     sim_carb = NamedTuple{Tuple(Symbol.(head))}(read(fid["vars"]["carb"]["$k"]) for k in head)
@@ -30,7 +41,7 @@
     close(fid)
 
     # Resampled geochemical data (phosphorus / alkalinity ratios)
-    fid = h5open("src/visualization/burial/resampled_geochem.h5", "r")
+    fid = h5open("src/burial/resampled_geochem.h5", "r")
     head = read(fid["vars"]["ratio"]["head_ratio"])
     head_class = keys(fid["vars"]["ratio"]["data"])
     sim_ratio = NamedTuple{Tuple(Symbol.(head_class))}(NamedTuple{Tuple(Symbol.(head))}(
@@ -38,6 +49,17 @@
         ) for k in head_class
     )
     # close(fid)
+
+    # Resampled geochemical data (phosphorus / alkalinity mole abundance)
+    head_data = read(fid["vars"]["mole"]["head_data"])
+    head_cats = read(fid["vars"]["mole"]["head_cats"])
+    data = read(fid["vars"]["mole"]["data"]["data"])
+    cats = read(fid["vars"]["mole"]["cats"]["filter_cats"])
+    cats = @. cats > 0
+    sim_mol = (;
+        data = NamedTuple{Tuple(Symbol.(head_data))}([data[:,i] for i in eachindex(head_data)]),
+        cats = NamedTuple{Tuple(Symbol.(head_cats))}([cats[:,i] for i in eachindex(head_cats)])
+    )
 
     # Resampled geochemical data (phosphorus)
     head_data = read(fid["vars"]["wt"]["head_data"])
@@ -77,7 +99,11 @@
         left_margin=(40,:px), right_margin=(25,:px), bottom_margin=(40,:px),
     );
 
-    target = keys(sim_ratio)
+    # target = keys(sim_ratio)
+    target = (
+        :ign, :volc, :basalt, :plut, 
+        :sed, :siliciclast, :shale, :carb
+    )
     figs = Array{Plots.Plot{Plots.GRBackend}}(undef, length(target))
     for i in eachindex(figs)
         # Remove Archean sedimentary values because uncertainties are so large they 
@@ -95,11 +121,11 @@
             fillalpha=0.25,
             label="",
             title="$(target[i])",
-            color=colors[target[i]], lcolor=colors[target[i]], msc=:auto,
-                y_foreground_color_border=colors[target[i]],
-                y_foreground_color_text=colors[target[i]],
-                y_foreground_color_axis=colors[target[i]],
-                y_guidefontcolor=colors[target[i]],
+            color=colors2[target[i]], lcolor=colors2[target[i]], msc=:auto,
+                y_foreground_color_border=colors2[target[i]],
+                y_foreground_color_text=colors2[target[i]],
+                y_foreground_color_axis=colors2[target[i]],
+                y_guidefontcolor=colors2[target[i]],
             markershape=:circle,
             seriestype=:scatter,
             linewidth=2,
@@ -112,14 +138,19 @@
         figs[i] = hᵢ
     end
 
-    h = Plots.plot(figs..., layout=(2,3), size=(1800,800))
+    h = Plots.plot(figs..., layout=(2,4), size=(2000,900))
     display(h)
     savefig("$filepath/primaryproduction.pdf")
 
+    # # Check y limits
+    # for i in eachindex(figs)
+    #     println(ylims(figs[i])[2] - ylims(figs[i])[1])
+    # end
 
-## --- Fraction buried as organic and phosphorus abundance 
-    h = plot(
-        xlabel="Age [Ma.]", ylabel="Phosphorus [wt.]",
+
+## --- [PLOT] Phosphourus / alkalinity breakdown (who's driving the bus?)
+    h = Plots.plot(
+        xlabel="Age [Ma.]",
         framestyle=:box,
         fontfamily=:Helvetica,
         fg_color_legend=:white,
@@ -127,47 +158,65 @@
         titleloc=:left,
         left_margin=(40,:px), right_margin=(25,:px), bottom_margin=(40,:px),
     );
-
-    target = keys(sim_ratio)
     figs = Array{Plots.Plot{Plots.GRBackend}}(undef, length(target))
     for i in eachindex(figs)
         # Remove Archean sedimentary values because uncertainties are so large they 
         # take out any useful younger signal 
-        s = trues(length(sim_ratio[target[i]].c))
-        f = sim_wt.cats[target[i]]
-        # if target[i] in seds
-        #     s[25:38] .= false
-        # end
+        s = trues(nbins)
+        if target[i] in seds
+            s[25:38] .= false
+        end
 
-        # Plot data 
+        # Set up 
         hᵢ = deepcopy(h)
-        c,m,e = binmeans(sim_wt.data.Age[f], sim_wt.data.P2O5[f], xmin, xmax, nbins)
-        plot!(hᵢ, c[s], m[s],
+        f = sim_mol.cats[target[i]]
+
+        # Phosphorus 
+        c,m,e = binmeans(sim_mol.data.Age[f], sim_mol.data.P[f], xmin, xmax, nbins)
+        Plots.plot!(hᵢ, c[s], m[s],
             yerror=2e[s],
             ribbon=2e[s],
             fillalpha=0.25,
             label="",
+            ylabel="Phosphorus [mol.]",
             title="$(target[i])",
-            color=colors[target[i]], lcolor=colors[target[i]], msc=:auto,
-                y_foreground_color_border=colors[target[i]],
-                y_foreground_color_text=colors[target[i]],
-                y_foreground_color_axis=colors[target[i]],
-                y_guidefontcolor=colors[target[i]],
+            color=colors2[target[i]], lcolor=colors2[target[i]], msc=:auto,
+                y_foreground_color_border=colors2[target[i]],
+                y_foreground_color_text=colors2[target[i]],
+                y_foreground_color_axis=colors2[target[i]],
+                y_guidefontcolor=colors2[target[i]],
             markershape=:circle,
             seriestype=:scatter,
             linewidth=2,
+            xlims=(xmin, xmax),
         )
-        plot!(twinx(), c, frog.val, 
-            yerror=2*frog.err,
-            label="", ylabel="Fraction Buried as Organic",
-            color=:black,
+
+        # Alkalinity 
+        c,m,e = binmeans(sim_mol.data.Age[f], sim_mol.data.Alk[f], xmin, xmax, nbins)
+        Plots.plot!(twinx(), c[s], m[s],
+            yerror=2e[s],
+            ribbon=2e[s],
+            fillalpha=0.25,
+            label="",
+            ylabel="Alkalinity [mol.]",
+            color=:black, lcolor=:black, msc=:auto,
+            # color=colors2[target[i]], lcolor=colors2[target[i]], msc=:auto,
+                # y_foreground_color_border=colors2[target[i]],
+                # y_foreground_color_text=colors2[target[i]],
+                # y_foreground_color_axis=colors2[target[i]],
+                # y_guidefontcolor=colors2[target[i]],
+            markershape=:circle,
+            seriestype=:scatter,
+            linewidth=2,
+            xlims=(xmin, xmax),
         )
+
+        # Save to array 
         figs[i] = hᵢ
     end
-
-    h = plot(figs..., layout=(2,3), size=(1800,800))
+    h = Plots.plot(figs..., layout=(2,4), size=(2000,900))
     display(h)
-    savefig("$filepath/primaryproduction_Pwt.pdf")
-
+    savefig(h, "$filepath/p_alk_breakdown.pdf")
+    
 
 ## --- End of file 

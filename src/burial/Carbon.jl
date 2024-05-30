@@ -17,8 +17,8 @@
     isocolors = (;
         org_light = :navajowhite,
         org_dark = :darkorange,
-        ct_dark = :sienna,
-        ct_light = :sandybrown,
+        ct_dark = :seagreen,
+        ct_light = :aquamarine,
         carb_light = :lightblue,
         carb_dark = :royalblue,
     )
@@ -217,7 +217,7 @@
         xlabel="Age [Ma.]", ylabel="δ13C [‰]",
         fg_color_legend=:white,
         legend=:bottomleft,
-        size=(600,800),
+        size=(600,1000),
         ylims=(-50, 20),
         left_margin=(30,:px),
     )
@@ -241,6 +241,10 @@
     )
 
     # Resampled means
+    hline!([0], label="",
+        color=isocolors.carb_dark,
+        linestyle=:dash,
+    )
     plot!(sim_carb.c, sim_carb.m, 
         yerror=(2*sim_carb.el, 2*sim_carb.eu),  
         label="Carbonate", 
@@ -347,11 +351,18 @@
         fontfamily=:Helvetica,
         ylims=(0.05,0.3),
         size=(400,500),
-        legend=:bottomleft,
+        legend=:topright,
         fg_color_legend=:white
     );
 
-        # Des Marais curve 
+    # Significant ages 
+    vline!([2500, 717, 541, 252], label="", 
+        linestyle=:dot,
+        color=:grey
+    )
+
+
+    # Des Marais curve 
     des_marais = (;
         age=[2650.0, 2495.5516180173463, 2047.2862072181294, 1949.6316329385436, 
             1853.1940688240234, 1747.3141844633037, 1646.8618856663252, 1553.2220460691974, 
@@ -373,13 +384,13 @@
         val = Measurements.value.(frog),
         err = Measurements.uncertainty.(frog),
     )
-    plot!(c, frog.val,
-        ribbon = 2*frog.err,
-        label="Uncorrected",
-        color=isocolors.org_dark, lcolor=isocolors.org_dark, msc=:auto, 
-        markershape=:circle,
-        # seriestype=:scatter,
-    )
+    # plot!(c, frog.val,
+    #     ribbon = 2*frog.err,
+    #     label="Uncorrected",
+    #     color=isocolors.org_dark, lcolor=isocolors.org_dark, msc=:auto, 
+    #     markershape=:circle,
+    #     # seriestype=:scatter,
+    # )
 
     # Resampled corrected
     frog = (mantle .- carb) ./ (org_corrected .- carb)
@@ -392,6 +403,7 @@
         label="Corrected",
         color=isocolors.ct_dark, lcolor=isocolors.ct_dark, msc=:auto, 
         markershape=:circle,
+        markersize=3,
         # seriestype=:scatter,
     )
 

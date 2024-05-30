@@ -145,6 +145,7 @@
 
     h = plot(figs..., layout=(2,2), size=(1200,800))
     display(h)
+    savefig(h, "$filepath/erosion_age.pdf")
 
 
 ## --- Model erosion as a function of age 

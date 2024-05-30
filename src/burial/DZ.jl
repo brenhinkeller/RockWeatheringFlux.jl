@@ -77,6 +77,7 @@
             y_guidefontcolor=:seagreen,
     )
     display(h)
+    savefig(h, "$filepath/dz.pdf")
 
 
 ## --- End of File 

@@ -167,7 +167,8 @@
     )
 
     # Phosphorus / alkalinity ratio 
-    target = (:sed, :carb, :shale, :volc, :plut)
+    # target = (:sed, :carb, :shale, :phosphorite, :volc, :plut)
+    target = keys(cats)
     out = (:c,:m,:el,:eu)
     sim_ratio = NamedTuple{target}(
         NamedTuple{out}(Array{Float64}(undef, nbins) for _ in out) for _ in target
@@ -235,7 +236,7 @@
 
 
 ## --- Save resampled data to a file 
-    fid = h5open("src/visualization/burial/resampled_geochem.h5", "w")
+    fid = h5open("src/burial/resampled_geochem.h5", "w")
     g = create_group(fid, "vars")
 
     # Ratio data
@@ -296,7 +297,8 @@
 
 ## --- [PLOT] P/Alk ratios over time
     h = plot(
-        xlabel="Age [Ma.]", ylabel="P / Alk [mol. ratio]",
+        # xlabel="Age [Ma.]", 
+        # ylabel="P / Alk [mol. ratio]",
         framestyle=:box,
         fontfamily=:Helvetica,
         fg_color_legend=:white,
@@ -322,9 +324,75 @@
         figs[i] = hᵢ
     end
 
-    h = plot(figs..., layout=(2,3), size=(1800,800))
-    display(h)
-    savefig(h, "$filepath/p_alk_ratio.pdf")
+    # nrows = length(target)÷2
+    h1 = plot(figs..., layout=(10,3), size=(2000,10*500))
+    display(h1)
+
+    # This doesn't save right with so many plots, sadly :/
+    # savefig(h, "$filepath/phos_ratio_sanitycheck.pdf")
+
+## --- Plot all seds on the same plot
+    seds = (:siliciclast, :shale, :carb, :evap, :sed)
+    h2 = plot(
+        xlabel="Age [Ma.]", 
+        ylabel="P / Alk [mol. ratio]",
+        framestyle=:box,
+        fontfamily=:Helvetica,
+        fg_color_legend=:white,
+        legend=:topright,
+        titleloc=:left,
+        # left_margin=(40,:px), right_margin=(25,:px), bottom_margin=(40,:px),
+        size=(600,800),
+        # ylims=(0,2.6),
+    );
+    for k in seds 
+        plot!(h2, sim_ratio[k].c, sim_ratio[k].m,
+            yerror=(2*sim_ratio[k].el, 2*sim_ratio[k].eu),
+            ribbon=(2*sim_ratio[k].el, 2*sim_ratio[k].eu),
+            fillalpha=0.25,
+            label="$(k)",
+            color=colors[k], lcolor=colors[k], msc=:auto,
+            markershape=:circle,
+            linewidth=2,
+        )
+    end
+    display(h2)
+
+## ---
+    h2 = plot(
+        xlabel="Age [Ma.]", 
+        ylabel="P / Alk [mol. ratio]",
+        framestyle=:box,
+        fontfamily=:Helvetica,
+        fg_color_legend=:white,
+        legend=:topright,
+        titleloc=:left,
+        # left_margin=(40,:px), right_margin=(25,:px), bottom_margin=(40,:px),
+        size=(600,800),
+        # ylims=(0,2.6),
+    );
+    k = :siliciclast
+    plot!(h2, sim_ratio[k].c, sim_ratio[k].m,
+        yerror=(2*sim_ratio[k].el, 2*sim_ratio[k].eu),
+        ribbon=(2*sim_ratio[k].el, 2*sim_ratio[k].eu),
+        fillalpha=0.25,
+        label="",
+        color=colors[k], lcolor=colors[k], msc=:auto,
+        markershape=:circle,
+        linewidth=2,
+    )
+    k = :basalt
+    plot!(twinx(), sim_ratio[k].c, sim_ratio[k].m,
+        yerror=(2*sim_ratio[k].el, 2*sim_ratio[k].eu),
+        ribbon=(2*sim_ratio[k].el, 2*sim_ratio[k].eu),
+        fillalpha=0.25,
+        label="",
+        color=colors[k], lcolor=colors[k], msc=:auto,
+        markershape=:circle,
+        linewidth=2,
+        ylims=(0.002, 0.01),
+    )
+    display(h2)
 
 
 ## --- [PLOT] Phosphorus / alkalinity timeseries

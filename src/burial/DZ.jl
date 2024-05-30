@@ -11,6 +11,7 @@
 
     # Definitions 
     xmin, xmax, nbins = 0, 3800, 38
+    c = cntr(xmin:100:xmax)
     minorsed, minorvolc, minorplut, minorign = get_rock_class()[2:5];
     seds = (minorsed..., :sed)
 
@@ -50,31 +51,50 @@
 
 ## --- Plot 
     h = plot(
-        xlabel="Age [Ma.]",
         framestyle=:box,
         fontfamily=:Helvetica,
         fg_color_legend=:white,
         legend=:topright,
+        foreground_color_border=:seagreen,
+        foreground_color_text=:seagreen,
+        foreground_color_axis=:seagreen,
+        guidefontcolor=:seagreen,
+        xlabel="Carbon Age [Ma.]"
     );
-    plot!(c₁, n, 
+    plot!(c₁ .+ 350, n, 
         seriestype=:bar,
-        label="",
+        label="Offset DZ Age",
         ylabel="Global DZ Abundance",
+        # xlabel="DZ Age [Ma.]",
         color=mineralcolors["zircon"], lcolor=mineralcolors["zircon"], msc=:auto,
             y_foreground_color_border=mineralcolors["zircon"],
             y_foreground_color_text=mineralcolors["zircon"],
             y_foreground_color_axis=mineralcolors["zircon"],
             y_guidefontcolor=mineralcolors["zircon"],
+        # alpha=0.25, lalpha=0.25,
     )
+    plot!(c₁, n, 
+    seriestype=:bar,
+    label="Measured DZ Age",
+    ylabel="Global DZ Abundance",
+    # xlabel="DZ Age [Ma.]",
+    color=mineralcolors["zircon"], lcolor=mineralcolors["zircon"], msc=:auto,
+        y_foreground_color_border=mineralcolors["zircon"],
+        y_foreground_color_text=mineralcolors["zircon"],
+        y_foreground_color_axis=mineralcolors["zircon"],
+        y_guidefontcolor=mineralcolors["zircon"],
+    alpha=0.25, linealpha=0,
+)
+    # vline!([1000])
     plot!(twinx(), c, frog.val, 
         ribbon=2*frog.err,
         label="",
         ylabel="Fraction of Carbon Buried as Organic",
         color=:seagreen,
-            y_foreground_color_border=:seagreen,
-            y_foreground_color_text=:seagreen,
-            y_foreground_color_axis=:seagreen,
-            y_guidefontcolor=:seagreen,
+            foreground_color_border=:seagreen,
+            foreground_color_text=:seagreen,
+            foreground_color_axis=:seagreen,
+            guidefontcolor=:seagreen,
     )
     display(h)
     savefig(h, "$filepath/dz.pdf")

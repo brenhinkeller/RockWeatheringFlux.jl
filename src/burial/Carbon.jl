@@ -15,12 +15,11 @@
     nsims = Int(1e5)
     xmin, xmax, nbins = 0, 3800, 38
     isocolors = (;
-        org_light = :navajowhite,
-        org_dark = :darkorange,
-        ct_dark = :seagreen,
-        ct_light = :aquamarine,
-        carb_light = :lightblue,
+        org_dark = :peru,
+        org_light = :wheat,
+        ct_dark = :black,
         carb_dark = :royalblue,
+        carb_light = :lightblue,
     )
 
     # Load carbon isotope data 
@@ -89,7 +88,7 @@
         carbon.age[t], carbon.hc[t],
         label="Observed", 
         seriestype=:scatter, markersize=2,
-        color=:red, msc=:auto, # alpha=0.5,
+        color=:black, msc=:auto, # alpha=0.5,
         xlabel="Age [Ma.]", ylabel="[LOG] H/C Ratio",
         framestyle=:box,
         fontfamily=:Helvetica,
@@ -99,7 +98,7 @@
     )
     plot!(x, y, ribbon=2*e, 
         label="Modeled ± 2 s.d.", 
-        linewidth=2, color=:red,
+        linewidth=2, color=:goldenrod,
         fillalpha=0.25,
     )
     display(h1)
@@ -109,22 +108,23 @@
     t = @. !isnan(carbon.d13c_org) 
     h2 = plot(hc_assigned[t], carbon.d13c_org[t], 
         seriestype=:scatter, label="Assigned", 
-        color=:lightblue, msc=:auto,
-        markersize=2,
+        color=:lightgrey, msc=:auto,
+        markersize=1,
         framestyle=:box, 
         ylabel="d13c organic", xlabel="H/C ratio",
         legend=:bottomright,
         fg_color_legend=:white,
+        fontfamily=:Helvetica,
     )
     plot!(carbon.hc[t], carbon.d13c_org[t], 
         seriestype=:scatter, label="Observed", 
-        color=:red, msc=:auto,
+        color=:black, msc=:auto,
         markersize=2
     )
     t = @. !isnan(carbon.d13c_org) & !isnan(carbon.hc)
     params = fit_rayleigh(carbon.d13c_org[t], carbon.hc[t])
     x,y = rayleigh_curve(params, carbon.hc[t])
-    plot!(x,y, label="Rayleigh Model", color=:black, linewidth=2)
+    plot!(x,y, label="Rayleigh Model", color=:goldenrod, linewidth=3)
     display(h2)
     savefig("$filepath/carbon_hc_model_carbon.pdf")
 
@@ -177,14 +177,14 @@
     params = fit_rayleigh(carbon.d13c_org[t], carbon.hc[t])
 
     # Correct observed data
-    corrected_min = carbon.d13c_org[t] .- (vec(r₀(carbon.hc[t], params)) .-  r₀(1.5, params))
-    corrected_obs = carbon.d13c_org .- (vec(r₀(hc_assigned, params)) .-  r₀(1.5, params))
+    corrected_obs = carbon.d13c_org[t] .- (vec(r₀(carbon.hc[t], params)) .-  r₀(1.5, params))
+    corrected_mod = carbon.d13c_org .- (vec(r₀(hc_assigned, params)) .-  r₀(1.5, params))
 
     # Correcte and resample observed data 
     t = .!isnan.(carbon.d13c_org)
     k = invweight(carbon.lat[t], carbon.lon[t], carbon.age[t])
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    c,m,el,eu = bin_bsr_means(carbon.age[t], corrected_obs[t], xmin, xmax, nbins,
+    c,m,el,eu = bin_bsr_means(carbon.age[t], corrected_mod[t], xmin, xmax, nbins,
         x_sigma = carbon.age_uncert[t],
         y_sigma = carbon.d13c_org_uncert[t],
         nresamplings = nsims,
@@ -194,7 +194,7 @@
 
 
 ## --- Save resampled and corrected data to a file 
-    fid = h5open("src/visualization/burial/resampled_carbon.h5", "w")
+    fid = h5open("src/burial/resampled_carbon.h5", "w")
     g = create_group(fid, "vars")
     g_carb = create_group(g, "carb")
         for k in keys(sim_carb)
@@ -220,6 +220,7 @@
         size=(600,1000),
         ylims=(-50, 20),
         left_margin=(30,:px),
+        fontfamily=:Helvetica,
     )
 
     # Plot a random selection of observed data 
@@ -254,14 +255,14 @@
     )
     plot!(sim_org.c, sim_org.m, 
         yerror=(2*sim_org.el, 2*sim_org.eu), 
-        label="Organic", 
+        label="Organic [Observed]", 
         color=isocolors.org_dark, lcolor=isocolors.org_dark, msc=:auto, 
         markershape=:circle,
         seriestype=:scatter,
     )
     plot!(sim_corr.c, sim_corr.m, 
         yerror=(2*sim_corr.el, 2*sim_corr.eu), 
-        label="Organic Corrected", 
+        label="Organic [Corrected]", 
         color=isocolors.ct_dark, lcolor=isocolors.ct_dark, msc=:auto, 
         markershape=:circle,
         seriestype=:scatter,
@@ -270,72 +271,52 @@
     savefig(h, "$filepath/carbon_isotope_record.pdf")
     
 
-## --- [DEPRECATED PLOT] To correct or not to correct, and the consequences thereof 
+## --- [PLOT] To correct or not to correct, and the consequences thereof 
     h = plot(
         framestyle=:box,
-        xlabel="Age [Ma.]", ylabel="d13c",
+        xlabel="Age [Ma.]", ylabel="δ13C [‰]",
         fg_color_legend=:white,
         legend=:bottomleft,
-        size=(600,800),
-        # ylims=(0, 5),
+        size=(600,600),
+        ylims=(-60,-12),
         left_margin=(30,:px),
+        fontfamily=:Helvetica,
     )
     c,m,e = binmeans(carbon.age, carbon.d13c_org, xmin, xmax, nbins)
     plot!(c[.!isnan.(m)], m[.!isnan.(m)], yerror=2e, 
         label="Observed", 
-        color=:white, lcolor=isocolors.org_dark, msc=isocolors.org_dark, 
+        color=isocolors.org_dark, lcolor=isocolors.org_dark, msc=isocolors.org_dark, 
         markershape=:circle,
-        linestyle=:dash,
+        # linestyle=:dash,
     )
-    c,m,e = binmeans(carbon.age, corrected_obs, xmin, xmax, nbins)
-    plot!(c[.!isnan.(m)], m[.!isnan.(m)], yerror=2e, 
+
+    # Modeled data 
+    h1 = deepcopy(h)
+    t = @. !isnan(carbon.d13c_org)
+    c,m,e = binmeans(carbon.age[t], corrected_mod[t], xmin, xmax, nbins)
+    plot!(h1, c[.!isnan.(m)], m[.!isnan.(m)], yerror=2e, 
         label="Corrected [Modeled H/C]", 
+        # label="",
         color=isocolors.ct_dark, lcolor=isocolors.ct_dark, msc=:auto, 
         markershape=:circle,
-        # linewidth=2,
+        # linestyle=:dash,
     )
+    display(h1)
+    savefig(h1, "$filepath/correction_modeled.pdf")
+    
+    # Observed Data
+    h2 = deepcopy(h)
     t = @. !isnan(carbon.d13c_org) & !isnan(carbon.hc)
-    c,m,e = binmeans(carbon.age[t], corrected_min, xmin, xmax, nbins)
-    plot!(c[.!isnan.(m)], m[.!isnan.(m)], yerror=2e, 
+    c,m,e = binmeans(carbon.age[t], corrected_obs, xmin, xmax, nbins)
+    plot!(h2, c[.!isnan.(m)], m[.!isnan.(m)], yerror=2e, 
         label="Corrected [Observed H/C]", 
-        color=:darkslategrey, lcolor=:darkslategrey, msc=:auto, 
-        markershape=:dtriangle,
-        # linewidth=2,
-    )
-    display(h)
-    savefig("$filepath/carbon_correction.pdf")
-
-
-## --- [DEPRECATED PLOT] Inorganic carbonate record 
-    h = plot(
-        framestyle=:box,
-        xlabel="Age [Ma.]", ylabel="d13c",
-        fg_color_legend=:white,
-        size=(600,600)
-    )
-    # t = rand(1:length(carbon.age), 5_000)     # Random selection of data
-    t = trues(length(carbon.age))
-    plot!(carbon.age[t], carbon.d13c_carb[t], 
-        label="Observed Record",
-        color=isocolors.carb_light, msc=:auto, 
-        seriestype=:scatter,
-        markersize=1
-    )
-    c,m,e = binmeans(sim_carb.age, sim_carb.d13c_carb, xmin, xmax, nbins)
-    plot!(c, m, yerror=2e, 
-        label="Resampled Means", 
-        color=isocolors.carb_dark, lcolor=isocolors.carb_dark, msc=:auto, 
+        # label="",
+        color=isocolors.ct_dark, lcolor=isocolors.ct_dark, msc=:auto, 
         markershape=:circle,
+        # linestyle=:dash,
     )
-    # c,m,e = binmeans(carbon.age, carbon.d13c_carb, xmin, xmax, nbins)
-    # plot!(c[.!isnan.(m)], m[.!isnan.(m)], # yerror=2e[.!isnan.(m)], 
-    #     label="Observed Means", 
-    #     color=:white, lcolor=isocolors.carb_dark, msc=isocolors.carb_dark, 
-    #     markershape=:circle,
-    #     markersize=2
-    # )
-    display(h)
-    savefig("$filepath/carbon_inorganic_record.pdf")
+    display(h2)
+    savefig(h2, "$filepath/correction_observed.pdf")
 
 
 ## --- [PLOT] Fraction of carbon buried as organic 

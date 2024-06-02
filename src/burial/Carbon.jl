@@ -341,6 +341,10 @@
         linestyle=:dot,
         color=:grey
     )
+    annotate!([(2500,0.055, text("GOE", 8, :left, :bottom, :grey, rotation=90))])
+    annotate!([(717,0.055, text("Snowball Earth Initiation", 8, :left, :top, :grey, rotation=90))])
+    annotate!([(541,0.055, text("Cambrian Explosion", 8, :left, :bottom, :grey, rotation=90))])
+    annotate!([(252,0.055, text("end-Permian Extinction", 8, :left, :bottom, :grey, rotation=90))])
 
 
     # Des Marais curve 
@@ -354,42 +358,47 @@
             0.14039261400727404, 0.14105567471789607, 0.16009238967121547, 0.1497514947102282, 
             0.19076697804304346, 0.2210044219590288, 0.21133867232428727, 0.14991501911778413]
     )
-    plot!(des_marais.age, des_marais.forg, label="Des Marais",
+    plot!(des_marais.age, des_marais.forg, label="Des Marais et al.",
         markershape=:circle, linestyle=:dash,
         color=:white, lcolor=:black, msc=:black,
     )
 
-    # Resampled uncorrected
-    frog = (mantle .- carb) ./ (org .- carb)
-    frog = (;
-        val = Measurements.value.(frog),
-        err = Measurements.uncertainty.(frog),
-    )
-    # plot!(c, frog.val,
-    #     ribbon = 2*frog.err,
-    #     label="Uncorrected",
-    #     color=isocolors.org_dark, lcolor=isocolors.org_dark, msc=:auto, 
-    #     markershape=:circle,
-    #     # seriestype=:scatter,
-    # )
-
-    # Resampled corrected
+    # Measured carbonate record
+    h1 = deepcopy(h)
     frog = (mantle .- carb) ./ (org_corrected .- carb)
     frog = (;
         val = Measurements.value.(frog),
         err = Measurements.uncertainty.(frog),
     )
-    plot!(c, frog.val,
+    plot!(h1, c, frog.val,
         ribbon = 2*frog.err,
-        label="Corrected",
-        color=isocolors.ct_dark, lcolor=isocolors.ct_dark, msc=:auto, 
+        label="This Study",
+        color=:seagreen, lcolor=:seagreen, msc=:auto, 
         markershape=:circle,
         markersize=3,
         # seriestype=:scatter,
     )
+    display(h1)
+    savefig(h1, "$filepath/f_org.pdf")
 
-    display(h)
-    savefig("$filepath/f_org.pdf")
+    # 0‰ carbon record 
+    h2 = deepcopy(h)
+    carb = 0.0 ± 0.5
+    frog = (mantle .- carb) ./ (org_corrected .- carb)
+    frog = (;
+        val = Measurements.value.(frog),
+        err = Measurements.uncertainty.(frog),
+    )
+    plot!(h2, c, frog.val,
+        ribbon = 2*frog.err,
+        label="This Study",
+        color=:seagreen, lcolor=:seagreen, msc=:auto, 
+        markershape=:circle,
+        markersize=3,
+        # seriestype=:scatter,
+    )
+    display(h2)
+    savefig(h2, "$filepath/f_org_carbvariant.pdf")
 
 
 ## --- End of file 

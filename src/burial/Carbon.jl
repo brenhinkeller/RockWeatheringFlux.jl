@@ -221,6 +221,7 @@
         ylims=(-50, 20),
         left_margin=(30,:px),
         fontfamily=:Helvetica,
+        labelfontsize=18, tickfontsize=14,legendfontsize=14,
     )
 
     # Plot a random selection of observed data 
@@ -244,6 +245,10 @@
     # Resampled means
     hline!([0], label="",
         color=isocolors.carb_dark,
+        linestyle=:dash,
+    )
+    hline!([-25], label="",
+        color=isocolors.ct_dark,
         linestyle=:dash,
     )
     plot!(sim_carb.c, sim_carb.m, 
@@ -337,15 +342,15 @@
     );
 
     # Significant ages 
-    vline!([2500, 717, 541, 252], label="", 
+    vline!([2300, 717, 541, 252], label="", 
         linestyle=:dot,
-        color=:grey
+        color=:black,
+        alpha=0.5
     )
-    annotate!([(2500,0.055, text("GOE", 8, :left, :bottom, :grey, rotation=90))])
-    annotate!([(717,0.055, text("Snowball Earth Initiation", 8, :left, :top, :grey, rotation=90))])
-    annotate!([(541,0.055, text("Cambrian Explosion", 8, :left, :bottom, :grey, rotation=90))])
-    annotate!([(252,0.055, text("end-Permian Extinction", 8, :left, :bottom, :grey, rotation=90))])
-
+    annotate!([(2300,0.055, text("GOE", 8, :left, :bottom, :black, rotation=90))])
+    annotate!([(717,0.055, text("Snowball Earth Initiation", 8, :left, :top, :black, rotation=90))])
+    annotate!([(541,0.055, text("Cambrian Explosion", 8, :left, :bottom, :black, rotation=90))])
+    annotate!([(252,0.055, text("end-Permian Extinction", 8, :left, :bottom, :black, rotation=90))])
 
     # Des Marais curve 
     des_marais = (;

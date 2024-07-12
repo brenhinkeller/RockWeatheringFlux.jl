@@ -118,7 +118,8 @@
             xlabel="SiO2 [wt.%]", ylabel="Age [Ma]",
             size=(600,500),
             titleloc=:left, titlefont = font(12),
-            tickfontsize=12, labelfontsize=14
+            tickfontsize=12, labelfontsize=14,
+            fontfamily=:Helvetica,
         )
 
         # Resampled

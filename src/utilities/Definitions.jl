@@ -57,8 +57,8 @@
 
     # Warnings for sample sets that may not be compatible with current code  
     version==2024 && @error "$version geologic maps may contain unresolved errors."
-    !isfile(geochem_fid) && error("$geochem_fid does not exist :(")
-    !isfile(macrostrat_io) && error("$macrostrat_io does not exist :(")
+    !isfile(geochem_fid) && @warn "$geochem_fid does not exist :("
+    !isfile(macrostrat_io) && @warn "$macrostrat_io does not exist :("
 
     # Create directories if they do not exist 
     !ispath(output) && run(`mkdir -p $output`) 

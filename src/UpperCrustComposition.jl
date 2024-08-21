@@ -3,7 +3,7 @@
     using RockWeatheringFlux
     using DelimitedFiles, HDF5
     using StatsBase
-    using NNLS      # Unregistered package
+    using NNLS                      # Unregistered package
 
 
 ## --- Load data

@@ -15,7 +15,7 @@ module RockWeatheringFlux
     using JLD, HTTP, JSON
 
     # General requirements
-    using Static 
+    using Static
     using Colors: RGB, Colorant
     using StatsBase: percentile, countmap
     using LogExpFunctions: logsumexp

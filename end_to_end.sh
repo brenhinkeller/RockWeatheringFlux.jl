@@ -11,8 +11,9 @@ set -e
     julia --project="Project.toml" src/ParseMacrostrat.jl
 
     # Dataset used is controlled by a switch in src/utilities/Definitions.jl
-    julia --project="Project.toml" src/ScreenBulk.jl   # [output/bulk.h5]
-    julia --project="Project.toml" src/ScreenGard.jl   # [output/gard.h5]
+    julia --project="Project.toml" src/ScreenBulk.jl        # [output/geochemistry/bulk.h5]
+    julia --project="Project.toml" src/ScreenGard.jl        # [output/geochemistry/gard.h5]
+    julia --project="Project.toml" src/ScreenCombined.jl    # [output/geochemistry/combined.h5]
 
     # Compute slope at each point on Earth. 
     # Takes a couple hours. Use [output/srtm15plus_maxslope.h5]

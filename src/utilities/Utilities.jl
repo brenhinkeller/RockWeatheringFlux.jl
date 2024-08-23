@@ -1108,12 +1108,11 @@
     ```
     
     """
-    function mesh(A::AbstractArray{<: Number}, B::AbstractArray{<: Number})
+    function mesh(A::AbstractArray, B::AbstractArray)
         @assert size(A) == size(B)
-        ncols, nrows = size(A)
+        ncols, nrows = size(A[:,:])
         AB = Array{Base.promote_type(eltype(A), eltype(B))}(undef, ncols, nrows*2)
-
-        for i in 1:ncols
+        for i in 1:nrows
             AB[:,2i - 1] .= A[:,i]
             AB[:,2i] .= B[:,i]
         end

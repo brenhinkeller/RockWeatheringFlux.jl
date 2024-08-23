@@ -54,8 +54,13 @@
         result[:,i] .= [nanmean(mbulk[j][class[i]]) for j in allelements]
         result_err[:,i] .= [nanstd(mbulk[j][class[i]])./sqrt(npoints).*2 for j in allelements]
     end
-    writedlm("$ucc_out", vcat(cols, hcat(rows, result)))
-    writedlm("$ucc_out_err", vcat(cols, hcat(rows, result_err)))
+    writedlm(ucc_out, vcat(cols, hcat(rows, result)))
+    writedlm(ucc_out_err, vcat(cols, hcat(rows, result_err)))
+
+    # Save to publication-formatted file 
+    pubcols = hcat(cols[1], mesh(cols[:,2:end], fill("+/- 2 SEM", size(cols))[:,2:end]))
+    pubresult = mesh(result, result_err)
+    writedlm(exposedcrust, vcat(pubcols, hcat(rows, pubresult)))
 
     
 ## --- Terminal printout ± 2 SEM

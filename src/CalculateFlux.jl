@@ -36,18 +36,18 @@
 
 
 ## --- Calculate erosion rate at each coordinate point of interest	
-    # Load the slope variable from the SRTM15+ maxslope file
-    srtm15_slope = h5read("output/srtm15plus_maxslope.h5", "vars/slope")
-    srtm15_sf = h5read("output/srtm15plus_maxslope.h5", "vars/scalefactor")
+    # # Load the slope variable from the SRTM15+ maxslope file
+    # srtm15_slope = h5read("output/srtm15plus_maxslope.h5", "vars/slope")
+    # srtm15_sf = h5read("output/srtm15plus_maxslope.h5", "vars/scalefactor")
 
-    # Get slope at each coordinate point, exclude values above 1000 m/km
-    rockslope = movingwindow(srtm15_slope, rocklat, rocklon, srtm15_sf, n=5)
-    rockslope = Measurements.value.(rockslope)
-    rockslope[rockslope .>= 1000] .= NaN;
-    writedlm("output/srtm15plus_slope.csv", rockslope)
+    # # Get slope at each coordinate point, exclude values above 1000 m/km
+    # rockslope = movingwindow(srtm15_slope, rocklat, rocklon, srtm15_sf, n=5)
+    # rockslope = Measurements.value.(rockslope)
+    # rockslope[rockslope .>= 1000] .= NaN;
+    # writedlm("output/srtm15plus_slope.tsv", rockslope)
 
     # Calculate all erosion rates [mm/kyr] (exclude erosion > 10_000 mm/kyr)
-    rockslope = readdlm("output/srtm15plus_slope.csv")
+    rockslope = readdlm("$rockslope_tmp/srtm15plus_slope.tsv")
     rock_ersn = emmkyr.(rockslope);
     rock_ersn[rock_ersn .> 10_000] .= NaN
 
@@ -152,7 +152,7 @@
         @warn """
         Mass of global sediment production ± 2σ s.d.: $(global_sum.val) ± $(global_sum.err) Gt/yr
 
-        Mass of eroded sediment and sum of eroded elements are not within 2σ s.d. error.
+        Mass of eroded sediment and sum of eroded elements are not within 2σ s.d.
         \t Eroded sediment:        $(global_sum.val) ± $(global_sum.err) Gt/yr
         \t Sum of eroded elements: $(global_element_sum.val) ± $(global_element_sum.err) Gt/yr
         Difference: $diff Gt/yr
@@ -202,6 +202,7 @@
     end
 
     # The bulk mass eroded from each rock class is the sum of the mass of all elements 
+    # FIXME: error is 1-σ s.d. not 2-σ s.e.m.
     result.vals[end,:] .= vec(nansum(result.vals[1:end-1,:], dims=1))
     result.errs[end,:] .= vec(sqrt.(nansum((result.errs[1:end-1,:]).^2, dims=1)))
 
@@ -212,6 +213,11 @@
     # Save to file
     writedlm(erodedabs_out, vcat(cols, hcat(rows, result.vals)))
     writedlm(erodedabs_out_err, vcat(cols, hcat(rows, result.errs)))
+
+    # Save to publication-formatted file 
+    pubcols = hcat(cols[1], mesh(cols[:,2:end], fill("+/- 2 SEM", size(cols))[:,2:end]))
+    pubresult = mesh(result.vals, result.errs)
+    writedlm(eroded_mass, vcat(pubcols, hcat(rows, pubresult)))
 
     # Save major element values to print to terminal 
     erodedmass_to_terminal = (;
@@ -233,6 +239,7 @@
     # sed + volc + plut = 1
     
     # Calculate contribution 
+    # FIXME: error is 1-σ s.d. not 2-σ s.e.m.
     result_contribution = (;
         vals = result.vals ./ result.vals[:,end],
         errs = result.errs ./ result.vals[:,end],
@@ -241,6 +248,11 @@
     # Save to file 
     writedlm(erodedrel_out, vcat(cols, hcat(rows, result_contribution.vals)))
     writedlm(erodedrel_out_err, vcat(cols, hcat(rows, result_contribution.errs)))
+
+    # Save to publication-formatted file 
+    pubcols = hcat(cols[1], mesh(cols[:,2:end], fill("+/- 2 SEM", size(cols))[:,2:end]))
+    pubresult = mesh(result_contribution.vals, result_contribution.errs)
+    writedlm(eroded_contribution, vcat(pubcols, hcat(rows, pubresult)))
 
     # Format total contribution for terminal printout 
     contribution = NamedTuple{classes}(result_contribution.vals[end,:].*100)
@@ -251,7 +263,7 @@
     # infrequently-measured elements (e.g. REEs) will be skewed downward due to missing 
     # data. 
 
-    # TO DO: propagate uncertainty correctly :(
+    # TODO: propagate uncertainty correctly :(
     @warn "Composition of eroded material does not correctly propagate uncertainties"
 
     # Compute the average total erosion at each point [kg/yr] for each rock class
@@ -287,8 +299,15 @@
     end
 
     # Save to file
+    # FIXME: previously had resultcomposition.errs .* 100, but that can't be right... also, 
+    # that would ideally be done above for mesh() purposes
     writedlm(erodedcomp_out, vcat(cols, hcat(rows, result_composition.vals)))
-    writedlm(erodedcomp_out_err, vcat(cols, hcat(rows, result_composition.errs .* 100)))
+    writedlm(erodedcomp_out_err, vcat(cols, hcat(rows, result_composition.errs)))
+
+    # Save to publication-formatted file 
+    pubcols = hcat(cols[1], mesh(cols[:,2:end], fill("+/- 2 SEM", size(cols))[:,2:end]))
+    pubresult = mesh(result_contribution.vals, result_contribution.errs)
+    writedlm(eroded_composition, vcat(pubcols, hcat(rows, pubresult)))
 
     # Format for terminal printout 
     composition = NamedTuple{classes}([(
@@ -363,6 +382,13 @@
     # Save to file 
     cols = ["lithology" "surficial abundance" "fractional contribution"]
     writedlm(surfacelith_calc_out, vcat(cols, hcat(
+        collect(string.(classes)), 
+        collect(values(matched_surficial)), 
+        collect(values(contribution))
+    )))
+
+    # Save to publication-formatted file 
+    writedlm(surfaceproportion, vcat(cols, hcat(
         collect(string.(classes)), 
         collect(values(matched_surficial)), 
         collect(values(contribution))
@@ -490,6 +516,9 @@
     # Export file, values in percentages
     labels = [sed_label; volc_label; plut_label; ign_label; met_label];
     writedlm(surfacelith_mapped_out, vcat(cols, hcat(labels, result)))
+    
+    # Save to publication-formatted file 
+    writedlm(surfaceexposure, vcat(cols, hcat(labels, result)))
 
     # Check to make sure the sums work out 
     sums_match = isapprox.(nansum(result[:, 1:end-1], dims=2), result[:, end])

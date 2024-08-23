@@ -34,6 +34,7 @@
     # Intermediate files 
     matchedbulk_io = output * "bulkind" * ".tsv"
     eroded_out = output * "erodedmaterial.h5"
+    rockslope_tmp = "output/N_$tag/lith_$version/" 
 
     # Bulk continental crust
     ucc_out = results * "exposedcrust.tsv"
@@ -48,12 +49,23 @@
     erodedrel_out_err = results * "eroded_fraction_err.tsv"
     erodedcomp_out_err = results * "eroded_composition_err.tsv"
 
+    # Supplemental data formatted for publication
+    exposedcrust = results * "exposedcrust.csv"                         # ucc_out
+    eroded_composition = results * "erodedmaterial_composition.csv"     # erodedcomp_out
+    eroded_mass = results * "erodedmaterial_mass.csv"                   # erodedabs_out
+    eroded_contribution = results * "erodedmaterial_contribution.csv"   # erodedrel_out
+    surfaceexposure = "results/N_$tag/surfaceexposure.csv"              # surfacelith_mapped_out
+    surfaceproportion = "results/N_$tag/surfaceproportion.csv"          # surfacelith_calc_out
+
+    # Export filenames
     export geochem_fid, macrostrat_io
     export surfacelith_mapped_out, surfacelith_calc_out
-    export matchedbulk_io, eroded_out
+    export matchedbulk_io, eroded_out, rockslope_tmp
     export ucc_out, ucc_out_err
     export erodedabs_out, erodedrel_out, erodedcomp_out
-    export erodedabs_out_err, erodedrel_out_err, erodedcomp_out_err    
+    export erodedabs_out_err, erodedrel_out_err, erodedcomp_out_err   
+    export exposedcrust, eroded_composition, eroded_mass, eroded_contribution
+    export surfaceexposure, surfaceproportion
 
     # Warnings for sample sets that may not be compatible with current code  
     version==2024 && @error "$version geologic maps may contain unresolved errors."

@@ -1053,7 +1053,7 @@
     age uncertainties.
 
     # Example
-    ```julia-repl
+    ```julia
     sampleage, ageuncert = resampling_age(mbulk.Age, mbulk.Age_Min, mbulk.Age_Max, 
         macrostrat.age, macrostrat.agemin, macrostrat.agemax, 
         uncert_rel=5, uncert_abs=50
@@ -1081,6 +1081,46 @@
         return sampleage, ageuncert
     end
     export resampling_age
+
+
+## --- Merge two arrays, alternating columns
+    """
+    mesh(A::AbstractArray{<: Number}, B::AbstractArray{<: Number})
+
+
+    ```julia
+    mesh(A, B)
+    ```
+
+    Combine two equally sized arrays `A` and `B` into a single array, alternating columns 
+    from A and B.
+
+    # Example
+    ```julia-repl
+    julia> A = ones(Int,2,2);
+
+    julia> B = zeros(Int,2,2);
+
+    julia> mesh(A,B)
+    2×4 Matrix{Int64}:
+    1  0  1  0
+    1  0  1  0
+    ```
+    
+    """
+    function mesh(A::AbstractArray{<: Number}, B::AbstractArray{<: Number})
+        @assert size(A) == size(B)
+        ncols, nrows = size(A)
+        AB = Array{Base.promote_type(eltype(A), eltype(B))}(undef, ncols, nrows*2)
+
+        for i in 1:ncols
+            AB[:,2i - 1] .= A[:,i]
+            AB[:,2i] .= B[:,i]
+        end
+
+        return AB
+    end
+    export mesh
 
 
 ## --- End of file

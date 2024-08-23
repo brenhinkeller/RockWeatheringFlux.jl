@@ -36,62 +36,62 @@
 
 
 ## --- Calculate erosion rate at each coordinate point of interest	
-    # # Load the slope variable from the SRTM15+ maxslope file
-    # srtm15_slope = h5read("output/srtm15plus_maxslope.h5", "vars/slope")
-    # srtm15_sf = h5read("output/srtm15plus_maxslope.h5", "vars/scalefactor")
+    # Load the slope variable from the SRTM15+ maxslope file
+    srtm15_slope = h5read("output/srtm15plus_maxslope.h5", "vars/slope")
+    srtm15_sf = h5read("output/srtm15plus_maxslope.h5", "vars/scalefactor")
 
-    # # Get slope at each coordinate point, exclude values above 1000 m/km
-    # rockslope = movingwindow(srtm15_slope, rocklat, rocklon, srtm15_sf, n=5)
-    # rockslope = Measurements.value.(rockslope)
-    # rockslope[rockslope .>= 1000] .= NaN;
+    # Get slope at each coordinate point, exclude values above 1000 m/km
+    rockslope = movingwindow(srtm15_slope, rocklat, rocklon, srtm15_sf, n=5)
+    rockslope = Measurements.value.(rockslope)
+    rockslope[rockslope .>= 1000] .= NaN;
 
-    # # Calculate all erosion rates [mm/kyr] (exclude erosion > 10_000 mm/kyr)
-    # rock_ersn = emmkyr.(rockslope);
-    # rock_ersn[rock_ersn .> 10_000] .= NaN
+    # Calculate all erosion rates [mm/kyr] (exclude erosion > 10_000 mm/kyr)
+    rock_ersn = emmkyr.(rockslope);
+    rock_ersn[rock_ersn .> 10_000] .= NaN
 
 
 ## --- Calculate bulk erosion and erosion by element at each point 
-    # # Definitions 
-    # crustal_density = 2750                                  # kg/m³
-    # npoints = length(mbulk.SiO2)                            # Number of *matched* points
-    # unit_sample_area = (133_367_840 * 1000000) / npoints    # Area of continents / npoints (m²)
-    #     # Area considered = Total - (Antarctica + Greenland)
-    #     # 149,733,926 - (14,200,000 + 2,166,086) = 133_367_840
+    # Definitions 
+    crustal_density = 2750                                  # kg/m³
+    npoints = length(mbulk.SiO2)                            # Number of *matched* points
+    unit_sample_area = (133_367_840 * 1000000) / npoints    # Area of continents / npoints (m²)
+        # Area considered = Total - (Antarctica + Greenland)
+        # 149,733,926 - (14,200,000 + 2,166,086) = 133_367_840
 
-    # # Get element names
-    # majors, minors = get_elements()
-    # allelements = [majors; minors]
-    # nelements = length(allelements)
+    # Get element names
+    majors, minors = get_elements()
+    allelements = [majors; minors]
+    nelements = length(allelements)
     
-    # # Bulk (total / undifferentiated) erosion at each point
-    # # Multiply by 1e-6 to convert from kg/Myr to kg/yr
-    # erosion_bulk = [rock_ersn[i] * unit_sample_area * crustal_density * 1e-6 for i = 1:npoints];
+    # Bulk (total / undifferentiated) erosion at each point
+    # Multiply by 1e-6 to convert from kg/Myr to kg/yr
+    erosion_bulk = [rock_ersn[i] * unit_sample_area * crustal_density * 1e-6 for i = 1:npoints];
 
-    # # Contribution of each element to bulk erosion at each point
-    # # Multiply by 1e-2 to convert from wt.% to fraction
-    # erosion_element = (;
-    #     vals = Array{Float64}(undef, npoints, nelements),
-    #     errs = Array{Float64}(undef, npoints, nelements),
-    # )
-    # for i in eachindex(allelements)
-    #     elementflux = [erosion_bulk[j] * mbulk[allelements[i]][j] * 1e-2 for j = 1:npoints]
-    #     erosion_element.vals[:,i] .= Measurements.value.(elementflux)
-    #     erosion_element.errs[:,i] .= Measurements.uncertainty.(elementflux)
-    # end
+    # Contribution of each element to bulk erosion at each point
+    # Multiply by 1e-2 to convert from wt.% to fraction
+    erosion_element = (;
+        vals = Array{Float64}(undef, npoints, nelements),
+        errs = Array{Float64}(undef, npoints, nelements),
+    )
+    for i in eachindex(allelements)
+        elementflux = [erosion_bulk[j] * mbulk[allelements[i]][j] * 1e-2 for j = 1:npoints]
+        erosion_element.vals[:,i] .= Measurements.value.(elementflux)
+        erosion_element.errs[:,i] .= Measurements.uncertainty.(elementflux)
+    end
 
-    # # Save to file
-    # fid = h5open(eroded_out, "w")
+    # Save to file
+    fid = h5open(eroded_out, "w")
 
-    # g = create_group(fid, "erosion_bulk")
-    # write(g, "values", Measurements.value.(erosion_bulk))
-    # write(g, "errors", Measurements.uncertainty.(erosion_bulk))
+    g = create_group(fid, "erosion_bulk")
+    write(g, "values", Measurements.value.(erosion_bulk))
+    write(g, "errors", Measurements.uncertainty.(erosion_bulk))
 
-    # g = create_group(fid, "erosion_element")
-    # write(g, "header", string.(allelements))
-    # write(g, "values", erosion_element.vals)
-    # write(g, "errors", erosion_element.errs)
+    g = create_group(fid, "erosion_element")
+    write(g, "header", string.(allelements))
+    write(g, "values", erosion_element.vals)
+    write(g, "errors", erosion_element.errs)
 
-    # close(fid)
+    close(fid)
 
 
 ## --- Load data from file 

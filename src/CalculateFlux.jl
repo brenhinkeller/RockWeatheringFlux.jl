@@ -44,8 +44,10 @@
     rockslope = movingwindow(srtm15_slope, rocklat, rocklon, srtm15_sf, n=5)
     rockslope = Measurements.value.(rockslope)
     rockslope[rockslope .>= 1000] .= NaN;
+    writedlm("output/srtm15plus_slope.csv", rockslope)
 
     # Calculate all erosion rates [mm/kyr] (exclude erosion > 10_000 mm/kyr)
+    rockslope = readdlm("output/srtm15plus_slope.csv")
     rock_ersn = emmkyr.(rockslope);
     rock_ersn[rock_ersn .> 10_000] .= NaN
 

@@ -18,7 +18,7 @@
     ucc_plut =NamedTuple{anhyd_majors}([ucc.plut[elementindex[k]] for k in anhyd_majors]) 
 
     # Rudnick and Gao 
-    rudnick_gao = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple);
+    rudnick_gao = importdataset("data/rudnickgao2014.csv",  ',', importas=:Tuple);
     elementindex = NamedTuple{Tuple(Symbol.(rudnick_gao.Element))}(
         i for i in eachindex(rudnick_gao.Element))
     rudnick_gao = NamedTuple{Tuple(anhyd_majors)}((haskey(elementindex, k) ? 

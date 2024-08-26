@@ -13,7 +13,7 @@
     @info "Upper crust data: $ucc_out"
     ucc = importdataset(ucc_out, '\t', importas=:Tuple);
     ersn = importdataset(erodedcomp_out, '\t', importas=:Tuple);
-    rudnick_gao = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple);
+    rudnick_gao = importdataset("data/rudnickgao2014.csv",  ',', importas=:Tuple);
     GloRiSe = importdataset("output/GloRiSe_minor_screened.tsv", '\t', importas=:Tuple);
 
 

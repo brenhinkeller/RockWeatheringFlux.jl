@@ -21,7 +21,7 @@
     # Rudnick and Gao 2014; Condie 1993
     # I don't know where the numbers for Condie in Rudnick and Gao come from, but Condie 
     # doesn't estimate volatiles so I guess that's fine to use the Rudnick and Gao version
-    rudnick_gao = importdataset("data/rudnick_gao_2014_table1-2.csv",  ',', importas=:Tuple);
+    rudnick_gao = importdataset("data/rudnickgao2014.csv",  ',', importas=:Tuple);
     elementindex = NamedTuple{Tuple(Symbol.(rudnick_gao.Element))}(
         i for i in eachindex(rudnick_gao.Element))
     condie = NamedTuple{Tuple(anhydrous_majors)}((haskey(elementindex, k) ? 

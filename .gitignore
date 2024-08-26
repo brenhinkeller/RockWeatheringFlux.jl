@@ -1,31 +1,23 @@
 .DS_Store
 
-# Ignore data folders and files
+# Data files 
 data/
-data/octopus/
 figures/
 results/
+output/
+
+# Local folders (epidote)
 ~file_graveyard
 dev/
-output/
-/*.nc
-/*.xls
+
+# Common output files
 /*.csv
 /*.tsv
 /*.pdf
 /*.png
-*.out
 
-# Ignore large files
-*.jld
-*.mat
-*.gz
-*.kml
-*.kml.gz
-*.h5
+# Common large files 
+/*.jld
+/*.mat
+/*.h5
 
-# Some intermediate julia file types to ignore
-*.jl.cov
-*.jl.*.cov
-*.jl.mem
-deps/deps.jl

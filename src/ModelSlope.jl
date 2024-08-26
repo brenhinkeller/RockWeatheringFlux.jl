@@ -61,6 +61,7 @@
 
 ## --- Alternatively, load pregenerated OCTOPUS and slope data for each basin
     # Windows machines must start at this step
+    # Errors are 1-σ standard deviations
     @info "Loading pre-parsed OCTOPUS and basin slope data"
     octopusdata = importdataset("output/octopusdata.tsv",'\t', importas=:Tuple)
     basin_srtm = importdataset("output/basin_srtm15plus_avg_maxslope.tsv", '\t', importas=:Tuple)
@@ -85,6 +86,7 @@
     c, m, ex, ey = binmeans_percentile(x.v, y.v, step=5)
 
     # Fit slope to means
+    # Uses 1-σ standard deviations
     fobj = yorkfit(c, ex, log.(m), log.(ey))
     emmkyr(slp) = exp(slp * (fobj.slope) + (fobj.intercept))
     export emmkyr

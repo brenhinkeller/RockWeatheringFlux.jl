@@ -5,7 +5,8 @@
     emmkyr(slp)
     ```
 
-    Find erosion rate in mm/kyr given slope `slp`.
+    Find erosion rate in mm/kyr given slope `slp`. Propagates with, and returns, errors 
+    of 1-σ standard deviation.
     """
     emmkyr(slp) = exp(slp * (0.0098 ± 0.0047) + (2.97 ± 0.64))
     export emmkyr
@@ -100,7 +101,7 @@
     ```
 
     Find the average value of geospatial `data` in a `n` * `n` km window centered at 
-    `lat`ᵢ, `lon`ᵢ.
+    `lat`ᵢ, `lon`ᵢ. Returns errors as 1-σ standard deviation.
 
     ### Optional Kwargs:
     * `sf::Number=240`: Scale factor, or cells per degree, for the geospatial `data`. 
@@ -338,7 +339,7 @@
     get_basin_srtm15plus_aveslope(srtm::Dict,nbasins,subbasins,basin_polygon_lat,basin_polygon_lon)
     ```
 
-    Calculate average slope and standard deviation of each basin using the STRTM15+ DEM.
+    Calculate average slope and 1-σ standard deviation of each basin using the STRTM15+ DEM.
     """
     function get_basin_srtm15plus_aveslope(srtm::NamedTuple,
         nbasins, subbasins, basin_polygon_lat, basin_polygon_lon)

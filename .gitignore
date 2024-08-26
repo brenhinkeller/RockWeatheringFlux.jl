@@ -6,18 +6,19 @@ figures/
 results/
 output/
 
-# Local folders (epidote)
+# Local folders
 ~file_graveyard
 dev/
+src/visualization/figure_dev/
 
 # Common output files
-/*.csv
-/*.tsv
-/*.pdf
-/*.png
+*.csv
+*.tsv
+*.pdf
+*.png
 
 # Common large files 
-/*.jld
-/*.mat
-/*.h5
+*.jld
+*.mat
+*.h5
 

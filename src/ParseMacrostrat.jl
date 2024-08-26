@@ -14,7 +14,7 @@
     npoints = 1_000_000
     saveinterval = 100_000
     savepts = round(Int, npoints / saveinterval)
-    etopo = get_etopo("elevation")
+    etopo = h5read("data/etopo/etopo1.h5", "vars/elevation")
     rocklat, rocklon, elevations = gen_continental_points(npoints, etopo)
 
 

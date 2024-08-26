@@ -5,13 +5,7 @@
 
     # Get SRTM15+ file
     @info "Loading SRTM"
-    srtm = h5read("data/srtm15plus.h5", "vars/")
-    # try
-    #     srtm = h5read("data/srtm15plus.h5", "vars/")
-    # catch
-    #     # Note that this will download the SRTM15+ file to \resources, not \data
-    #     srtm = get_srtm15plus()
-    # end
+    srtm = h5read("data/srtm15plus/srtm15plus.h5", "vars/")
 
 
 ## --- Calculate maximum slope and save data set

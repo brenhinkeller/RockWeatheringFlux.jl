@@ -20,6 +20,9 @@ module RockWeatheringFlux
     using StatsBase: percentile, countmap
     using LogExpFunctions: logsumexp
     
+    # Download topographic data from StatGeochem, if needed
+    include("../src/Initialize.jl")
+
     # Utilities
     include("../src/utilities/Definitions.jl")
 

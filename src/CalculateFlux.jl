@@ -141,7 +141,6 @@
 
     # Print to terminal (these don't get used anywhere else)
     # Propagate error for global_element_sum: sum
-    # TODO: order of operations for latter error prop
     global_sum = (;
         val = round(global_erosion_bulk.vals, sigdigits=3),
         err = round(2*global_erosion_bulk.errs, sigdigits=3),                               # 2σ s.d.

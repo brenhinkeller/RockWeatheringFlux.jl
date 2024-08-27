@@ -18,7 +18,7 @@ Some setup and definitions file (e.g. `src/utilities/Definitions.jl`) call bash 
 
 ### `/src`
 
-All source code. See `end_to_end.sh` for the recommended code run order.
+All source code. See `run_endtoend.sh` for the recommended code run order (does not include figures).
 
 `/utilities`: functions specific to this project.
 
@@ -31,18 +31,3 @@ All source code. See `end_to_end.sh` for the recommended code run order.
 ### `/test`
 
 Unit tests.
-
-## Data Availability
-Datasets are too large to be stored in GitHub, even with Git LFS. All data will be stored in a non-GitHub repository when this research is published. Email rowan.m.gregoire.23 (at) dartmouth.edu with questions.
-
-### Data Access
-
-Erosion rates from the OCTOPUS compilation (https://doi.org/10.5194/essd-10-2123-2018) can be downloaded from the source, or from the `.gz` file in `/data/octopus`.
-
-Lithologic data can be requested from the Macrostrat API (https://macrostrat.org/burwell) using the script in `src/ParseMacrotrat.jl`.
-
-SRTM15+ elevation data (https://doi.org/10.1029/2019EA000658) can be downloaded from the source, or using the `get_srtm15plus` function from [StatGeochem.jl](https://github.com/brenhinkeller/StatGeochem.jl).
-
-EarthChem geochemical data is freely available at http://portal.earthchem.org/. 
-
-The Gard et al., 2019 geochemical data is available at https://doi.org/10.5194/essd-11-1553-2019.

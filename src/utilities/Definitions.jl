@@ -76,6 +76,23 @@
     !ispath(output) && run(`mkdir -p $output`) 
     !ispath(results) && run(`mkdir -p $results`)
 
+    # Download ETOPO data file if it does not exist 
+    if !isfile("data/etopo/etopo1.h5")
+        get_etopo()
+
+        @info "Moving ETOPO1 data to $(homedir())/resources/ to $(homedir())/RockWeatheringFlux.jl/data/"
+        run(`mv ../resources/etopo ../RockWeatheringFlux.jl/data`)
+        run(`rm -rf mv ../resources/etopo`)
+    end
+
+    # Download SRTM15+ data file if it does not exist 
+    if !isfile("data/srtm15plus.h5")
+        get_srtm15plus()
+
+        @info "Moving SRTM15+ data to $(homedir())/resources/ to $(homedir())/RockWeatheringFlux.jl/data/"
+        run(`mv ../resources/srtm15plus ../RockWeatheringFlux.jl/data`)
+        run(`rm -rf mv ../resources/srtm15plus`)
+    end
 
 ## --- Color names
 

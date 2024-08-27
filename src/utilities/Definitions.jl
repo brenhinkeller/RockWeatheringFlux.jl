@@ -86,7 +86,7 @@
     end
 
     # Download SRTM15+ data file if it does not exist 
-    if !isfile("data/srtm15plus.h5")
+    if !isfile("data/srtm15plus/srtm15plus.h5")
         get_srtm15plus()
 
         @info "Moving SRTM15+ data to $(homedir())/resources/ to $(homedir())/RockWeatheringFlux.jl/data/"

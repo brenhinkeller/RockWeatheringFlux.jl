@@ -65,7 +65,7 @@
     
 ## --- Terminal printout ± 2 SEM
     majorcomp = round.([result[:,end][i] for i in eachindex(majors)], digits=1)
-    majorcomp_err = round.([result_err[:,end][i]*2 for i in eachindex(majors)], sigdigits=1)
+    majorcomp_err = round.([result_err[:,end][i] for i in eachindex(majors)], sigdigits=1)
 
     @info """Bulk crustal composition ($geochem_fid | $macrostrat_io):
       $(join(rpad.(majors, 8), " "))
@@ -88,7 +88,7 @@
     i_calcium = findfirst(x->x==:CaO, majors)
     @info """Carbonates:
     SiO2: $(comp.carb.comp[i_silica]) \\pm $(comp.carb.sem[i_silica])
-    CaO:  $(comp.carb.comp[i_calcium]) \\pm $(comp.carb.sem[i_calcium])
+    CaO:  $(comp.carb.comp[i_calcium]) \\pm $(comp.carb.sem[i_calcium])\n
     """
 
     # Sedimentary, volcanic, and plutonic report only wt.% without error
@@ -118,7 +118,8 @@
     # proportions. Separate into sed / plut / volc.
 
     # In order: SiO2, Al2O3, FeOT, TiO2, MgO, CaO, Na2O, K2O, Volatiles
-    this_study = NamedTuple{keys(class)}([result[:,k][i] for i in eachindex(majors)] 
+    # OK to assume order of elements and classes because matrix is created in this file
+    this_study = NamedTuple{keys(class)}(result[1:length(majors),k] 
         for k in eachindex(keys(class))
     )
     pease = [59.5, 17.3, 6.53, 0.901, 2.88, 5.39, 4.14, 3.24, 0.129]
@@ -155,24 +156,32 @@
     
 
 ## --- Compute mixing ratios for our eroded material estimates 
-    # Load data and calculate anhydrous composition
+    # Load data
     fid = readdlm(erodedcomp_out)
-    bulk_i = findfirst(x->x=="bulk", fid)[2]
-    bulkcomp = float.(fid[2:length(majors)+1, bulk_i])
+    fid_i = NamedTuple{keys(class)}(findfirst(x->x==string(k), fid)[2] for k in keys(class))
+    @assert Symbol.(fid[2:length(majors)+1]) == majors "Major elements stored incorrectly"
+    
+    this_study = NamedTuple{keys(class)}(float.(fid[2:length(majors)+1,fid_i[k]]) 
+        for k in keys(class)
+    );
 
-    anhydcomp = copy(bulkcomp)
+    # Calculate anhydrous composition
+    anhydcomp = copy(this_study.bulk)
     anhydcomp[end] = 0
     normalize!(anhydcomp)
+
+    # Set mixing endmembers as the composition of eroded material
+    endmembers = [this_study.sed this_study.volc this_study.plut]
 
     # Muller et al.
     muller = [65.1,18.7,5.67,0.8,2.1,2.9,1.1,2.7,0]
 
     # Compute endmember mixing and calculate misfit :)
-    mix_bulk = nnls(endmembers, bulkcomp)
+    mix_bulk = nnls(endmembers, this_study.bulk)
     mix_anhyd = nnls(endmembers, anhydcomp)
     mix_muller = nnls(endmembers, muller)
 
-    misfit_bulk = sum((endmembers * mix_bulk - bulkcomp).^2)
+    misfit_bulk = sum((endmembers * mix_bulk - this_study.bulk).^2)
     misfit_anhyd = sum((endmembers * mix_anhyd - anhydcomp).^2)
     misfit_muller = sum((endmembers * mix_muller - muller).^2)
 

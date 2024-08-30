@@ -27,9 +27,8 @@
     geochem_fid = "output/geochemistry/" * dataset * ".h5"
     macrostrat_io = "output/lithology/$version/responses$N.h5"
 
-    # Surficial abundance (mapped and assigned)
+    # Surficial abundance
     surfacelith_mapped_out = "results/N_$tag/surfacelith_mapped_v$version.tsv"
-    surfacelith_calc_out = "results/N_$tag/surfacelith_calculated_v$version.tsv"
     
     # Intermediate files 
     matchedbulk_io = output * "bulkind" * ".tsv"
@@ -55,7 +54,6 @@
     eroded_mass = results * "erodedmaterial_mass.csv"                   # erodedabs_out
     eroded_contribution = results * "erodedmaterial_contribution.csv"   # erodedrel_out
     surfaceexposure = "results/N_$tag/surfaceexposure.csv"              # surfacelith_mapped_out
-    surfaceproportion = "results/N_$tag/surfaceproportion.csv"          # surfacelith_calc_out
 
     # Export filenames
     export geochem_fid, macrostrat_io

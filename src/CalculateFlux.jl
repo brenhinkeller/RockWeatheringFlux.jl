@@ -232,7 +232,7 @@
     # Save to publication-formatted file 
     pubcols = hcat(cols[1], mesh(cols[:,2:end], fill("+/- 2 SEM", size(cols))[:,2:end]))
     pubresult = mesh(result.vals, result.errs)
-    writedlm(eroded_mass, vcat(pubcols, hcat(rows, pubresult)))
+    writedlm(eroded_mass, vcat(pubcols, hcat(rows, pubresult)), ',')
 
     # Save major element values to print to terminal 
     erodedmass_to_terminal = (;
@@ -252,6 +252,14 @@
     # descriptive class (e.g., during matching, all rocks are assigned to be a subclass 
     # of sed / volc / plut rocks), the sum of the fractional contributions of 
     # sed + volc + plut = 1
+
+    # For context, we also want to print the total abundance of that lithology in our 
+    # dataset. To compare surficial abundance and contribution to total erosion, we use
+    # the lithology assigned to each sample during matching. This means the total surficial 
+    # abundance of sed + ign = 100%. Metamorphic abundances are considered subsets 
+    # of "descriptive" lithologies: e.g. 7% of sedimentary rocks are metasedimentary. The 
+    # "met" class is all metamorphic rocks (metased + metaign + undifferentiated)
+
     
     # Calculate contribution 
     # Propagate error: division by exact number
@@ -260,17 +268,36 @@
         errs = result.errs ./ result.vals[:,end],    # Error is already 2 s.e.m.
     )
 
+    # Calculate surficial abundance 
+    matched_surficial = NamedTuple{classes}(
+        count(classfilter[k])/length(classfilter[k]) for k in keys(classfilter)
+    )
+    surf = reshape(collect(matched_surficial), 1, :)
+    surf_err = fill("", size(surf))                     # Empty errors
+
+    # Check column order will print correctly
+    @assert collect(string.(keys(matched_surficial))) == reshape(cols, :, 1)[2:end] ":("
+
     # Save to file 
-    writedlm(erodedrel_out, vcat(cols, hcat(rows, result_contribution.vals)))
-    writedlm(erodedrel_out_err, vcat(cols, hcat(rows, result_contribution.errs)))
+    rows2 = [rows[1:end-1]; "Undifferentiated"; "Lithology Abundance"]
+    writedlm(erodedrel_out, vcat(cols, hcat(rows2, vcat(result_contribution.vals, surf))))
+    writedlm(erodedrel_out_err, vcat(cols, hcat(rows2, vcat(result_contribution.errs, surf))))
 
     # Save to publication-formatted file 
     pubcols = hcat(cols[1], mesh(cols[:,2:end], fill("+/- 2 SEM", size(cols))[:,2:end]))
     pubresult = mesh(result_contribution.vals, result_contribution.errs)
-    writedlm(eroded_contribution, vcat(pubcols, hcat(rows, pubresult)))
+    pubsurf = mesh(surf, surf_err)
+    writedlm(eroded_contribution, vcat(pubcols, hcat(rows2, vcat(pubresult, pubsurf))), ',')
 
-    # Format total contribution for terminal printout 
+    # Print to terminal
+    target = (:sed, :volc, :plut, :bulk)
     contribution = NamedTuple{classes}(result_contribution.vals[end,:].*100)
+    @info "Surficial abundance / fractional contribution to erosion: $target"
+    println(
+        """$(join([round(matched_surficial[k], sigdigits=3) for k in target], "; "))
+        $(join([round(contribution[k], sigdigits=3) for k in target], "; "))
+        """
+    )
 
 
 ## --- Save to file: Composition of eroded material 
@@ -331,7 +358,7 @@
     # Save to publication-formatted file 
     pubcols = hcat(cols[1], mesh(cols[:,2:end], fill("+/- 2 SEM", size(cols))[:,2:end]))
     pubresult = mesh(result_contribution.vals, result_contribution.errs)
-    writedlm(eroded_composition, vcat(pubcols, hcat(rows, pubresult)))
+    writedlm(eroded_composition, vcat(pubcols, hcat(rows, pubresult)), ',')
 
     # Format for terminal printout 
     composition = NamedTuple{classes}([(
@@ -352,6 +379,7 @@
       $(join(rpad.(composition.bulk.vals, 8), " "))
     ± $(join(rpad.(composition.bulk.errs, 8), " "))
     """
+
 
 ## --- Print to terminal: composition, formatted for LaTeX / Excel workflow
     # Preallocate
@@ -386,45 +414,6 @@
     for i in eachindex(out)
         println("$(out[i] * out_anhydrous[i])")
     end
-
-
-## --- Save to file / Print to terminal: Surficial abundance and fractional contribution
-    # This repeats data found in the fractional contribution to eroded material file, but
-    # simplified to only bulk data (e.g. undifferentiated by element)
-
-    # To compare surficial abundance and contribution to total erosion, we must use the 
-    # lithologies assigned to each sample during matching. This means the total surficial 
-    # abundance of sed + ign = 100%. Metamorphic abundances should be considered as subsets 
-    # of "descriptive" lithologies: e.g. 7% of sedimentary rocks are metasedimentary. The 
-    # "met" class is all metamorphic rocks (metased + metaign + undifferentiated)
-
-    # Calculate surficial abundance 
-    matched_surficial = NamedTuple{classes}(
-        count(classfilter[k])/length(classfilter[k])*100 for k in keys(classfilter)
-    )
-
-    # Save to file 
-    cols = ["lithology" "surficial abundance" "fractional contribution"]
-    writedlm(surfacelith_calc_out, vcat(cols, hcat(
-        collect(string.(classes)), 
-        collect(values(matched_surficial)), 
-        collect(values(contribution))
-    )))
-
-    # Save to publication-formatted file 
-    writedlm(surfaceproportion, vcat(cols, hcat(
-        collect(string.(classes)), 
-        collect(values(matched_surficial)), 
-        collect(values(contribution))
-    )))
-
-    # Print data for target classes to terminal 
-    @info "Surficial abundance / fractional contribution to erosion: $target"
-    println(
-        """$(join([round(matched_surficial[k], sigdigits=3) for k in target], "; "))
-        $(join([round(contribution[k], sigdigits=3) for k in target], "; "))
-        """
-    )
 
 
 ## --- Save to file: Surficial abundance as mapped
@@ -542,7 +531,7 @@
     writedlm(surfacelith_mapped_out, vcat(cols, hcat(labels, result)))
     
     # Save to publication-formatted file 
-    writedlm(surfaceexposure, vcat(cols, hcat(labels, result)))
+    writedlm(surfaceexposure, vcat(cols, hcat(labels, result)), ',')
 
     # Check to make sure the sums work out 
     sums_match = isapprox.(nansum(result[:, 1:end-1], dims=2), result[:, end])

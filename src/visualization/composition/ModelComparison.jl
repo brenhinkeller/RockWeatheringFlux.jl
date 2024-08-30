@@ -56,7 +56,7 @@
         yticks=(0.5:0.5:2, string.(((0.5:0.5:2)))),
         fg_color_legend=:white, legendfontsize=12, legend=:topleft,
         labelfontsize=12, tickfontsize=10,
-        ylabel="Relative Difference",
+        ylabel="Normalized to This Study",
         grid=false,
     )
 
@@ -98,5 +98,5 @@
     display(h)
     savefig(h, "$filepath/modelcomparison.pdf")
 
-    
+
 ## --- End of file 

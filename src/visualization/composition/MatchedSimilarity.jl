@@ -14,21 +14,28 @@
     h1 = plot(
         framestyle=:box, 
         fontfamily=:Helvetica, 
-        xlabel="Absolute Age Difference [Myr.]", ylabel="Logarithmic Relative Abundance",
+        xlabel="Absolute Age Difference [Myr.]", 
+        ylabel="Relative Abundance [LOG]",
         ylims=(9e-9,0.02),
         yticks=false,
         xlims=(-100, 3800),
-        left_margin=(15,:px)
+        left_margin=(15,:px),
+        tickfontsize=12,
+        labelfontsize=14,
+        title="A. Temporal Difference [LOG]",
+        titlefont=18,
+        titlepos=:left,
     )
     Plots.plot!(h1, c[n .> 0], n[n .> 0], label="",
         seriestype=:bar, 
         yscale=:log10,
-        color=colors_contrast.a, lcolor=:match,
+        # xscale=:log10,
+        color=:sandybrown, lcolor=:match,
         barwidths = 100,
     )
 
     vline!([m], color=:black, linestyle=:dot, linewidth=2, label="")
-    Plots.annotate!([(m*8, 2e-8, text("Median = $(round(m, sigdigits=3))", 9, :left, 
+    Plots.annotate!([(m*10, 2e-8, text("Median = $(round(m, sigdigits=4))", 14, :left, 
         :bottom, :black, rotation=90))]
     )
 
@@ -36,7 +43,7 @@
     xticks!((xlims(h1)[1]jump)*jump:jump:(xlims(h1)[2]÷jump)*jump)
 
     display(h1)
-    savefig(h1, "$filepath/diff_age.pdf")
+    # savefig(h1, "$filepath/diff_age.pdf")
 
 
 ## --- Location 
@@ -50,29 +57,37 @@
     h2 = plot(
         framestyle=:box, 
         fontfamily=:Helvetica, 
-        xlabel="Distance [arc degrees]", # ylabel="Abundance",
+        xlabel="Distance [arc degrees]", 
+        ylabel="Relative Abundance",
         # ylims=(0.1, round(Int, maximum(n)*1.05)),
         ylims=(-1e-4,0.026),
         yticks=false,
         xlims=(-2, 180),
+        left_margin=(15,:px),
+        tickfontsize=12,
+        labelfontsize=14,
+        title="B. Spatial Difference",
+        titlefont=18,
+        titlepos=:left,
     )
     Plots.plot!(h2, c, n, label="",
         seriestype=:bar, 
-        color=colors_contrast.b, lcolor=:match,
+        color=:darkturquoise, lcolor=:match,
         barwidths = 4,
     )
     vline!([m], color=:black, linestyle=:dot, linewidth=2, label="")
-    Plots.annotate!([(m*0.9,0.0026, text("Median = $(round(m, sigdigits=3))", 9, :left, 
+    Plots.annotate!([(m*1.45,0.001, text("Median = $(round(m, sigdigits=4))", 14, :left, 
         :bottom, :black, rotation=90))]
     )
     display(h2)
-    savefig(h2, "$filepath/diff_loc.pdf")
+    # savefig(h2, "$filepath/diff_loc.pdf")
 
 
 ## --- Collect plots for LaTeX placeholder
 
-    h = Plots.plot(h1, h2, layout=(1,2), size=(1200,400))
+    h = Plots.plot(h1, h2, layout=(2,1), size=(600, 800))
     display(h)
     savefig(h, "$filepath/diff_combo.pdf")
+    
 
 ## --- End of File

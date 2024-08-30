@@ -43,33 +43,56 @@
     # All igneous (spatial; spatiotemporal commented out)
     tₚ .&= .!isnan.(plutonic.Age)
     tᵥ .&= .!isnan.(volcanic.Age)
-    k = invweight(
-        [plutonic.Latitude[tₚ]; volcanic.Latitude[tᵥ]], 
-        [plutonic.Longitude[tₚ]; volcanic.Longitude[tᵥ]], 
-        [plutonic.Age[tₚ]; volcanic.Age[tᵥ]]
-    )
-    # k = invweight_location(
-    #     [plutonic.Latitude[tₚ]; volcanic.Latitude[tᵥ]], 
-    #     [plutonic.Longitude[tₚ]; volcanic.Longitude[tᵥ]])
+    try 
+        k = readdlm("data/volcanicplutonic/k_volcanicplutonic.tsv")
+    catch
+        k = invweight(
+            [plutonic.Latitude[tₚ]; volcanic.Latitude[tᵥ]], 
+            [plutonic.Longitude[tₚ]; volcanic.Longitude[tᵥ]], 
+            [plutonic.Age[tₚ]; volcanic.Age[tᵥ]]
+        )
+        writedlm("data/volcanicplutonic/k_volcanicplutonic.tsv", k)
+    end
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
     data = [plutonic.SiO2[tₚ]; volcanic.SiO2[tᵥ]]
     uncertainty = fill(SiO₂_error, length(data))
-    simigneous = bsresample(data, uncertainty, nsims, p)
+    simigneous = bsresample(data, uncertainty, nsims, vec(p))
 
 
 ## --- Resample (spatial) all silica distributions 
     # Preallocate 
-    simout = NamedTuple{keys(bulk_cats)}(Array{Float64}(undef, nsims) for _ in keys(bulk_cats))
+    simout = NamedTuple{keys(match_cats)}(Array{Float64}(undef, nsims) for _ in keys(match_cats));
 
     # Restrict to samples with data and resample 
     t = @. !isnan(bulk.Latitude) & !isnan(bulk.Longitude);
-    for key in keys(match_cats) 
-        s = t .& bulk_cats[key]
-        k = invweight_location(bulk.Latitude[s], bulk.Longitude[s])
-        p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-        data = bulk.SiO2[s]
-        uncertainty = fill(SiO₂_error, count(s))
-        simout[key] .= bsresample(data, uncertainty, nsims, p)
+    try
+        fid = h5open("src/visualization/composition/SilicaDistribution.h5", "r")
+        header = Tuple(Symbol.(read(fid["vars"]["header"])))
+        data = read(fid["vars"]["data"])
+        simout = NamedTuple{header}([data[:,i] for i in eachindex(header)])
+        close(fid)
+    catch
+        simout = NamedTuple{keys(match_cats)}(Array{Float64}(undef, nsims) for _ in keys(match_cats));
+        out = Array{Float64}(undef, nsims, length(keys(simout)))
+        
+        match_keys = keys(match_cats)
+        for i in eachindex(match_keys)
+            key = match_keys[i]
+            s = t .& bulk_cats[key]
+            k = invweight_location(bulk.Latitude[s], bulk.Longitude[s])
+            p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+            data = bulk.SiO2[s]
+            uncertainty = fill(SiO₂_error, count(s))
+
+            simout[key] .= bsresample(data, uncertainty, nsims, p)
+            out[:,i] .= simout[key]
+        end
+
+        fid = h5open("src/visualization/composition/SilicaDistribution.h5", "w")
+        g = create_group(fid, "vars")
+        write(g, "header", collect(string.(keys(simout))))
+        write(g, "data", out)
+        close(fid)
     end
 
 
@@ -149,11 +172,10 @@
         xlabel="SiO2 [wt.%]"
     )
     display(h)
-    savefig(h, "$filepath/histogram_ign.pdf")
 
     savefig(fig[1], "$filepath/histogram_volc.pdf")
     savefig(fig[2], "$filepath/histogram_plut.pdf")
-    savefig(fig[3], "$filepath/histogram_ign_isolate.pdf")
+    savefig(fig[3], "$filepath/histogram_ign.pdf")
 
 
 ## --- All 
@@ -182,7 +204,7 @@
 
         # Make sure there's actually data
         if count(match_cats[fig_types[i]]) == 0
-            Plots.annotate!(((0.03, 0.97), (fig_names[i] * "\nNo Data", 18, :left, :top)))
+            Plots.annotate!(((0.03, 0.97), (fig_names[i] * "\nNo Data", 30, :left, :top)))
             fig[i] = h
             continue
         end
@@ -219,7 +241,7 @@
         # Final formatting
         Plots.ylims!(0, round(maximum([n₁; n₂; u.density]), digits=2)+0.01)
         npoints = count(match_cats[fig_types[i]])
-        Plots.annotate!(((0.03, 0.97), (fig_names[i] * "\nn = $npoints", 18, :left, :top)))
+        Plots.annotate!(((0.03, 0.97), (fig_names[i] * "\nn = $npoints", 30, :left, :top)))
         fig[i] = h
     end
     
@@ -232,19 +254,20 @@
         framestyle=:none, grid = false,
         fontfamily=:Helvetica,
         xlims = (1, 10), ylims = (1, 10),
+        size = (600, 600),
         xticks=false, yticks=false
     )
     h = Plots.plot!(h, legendfontsize = 24, fg_color_legend=:white, legend=:inside)
     Plots.plot!(h, [0],[0], color=colors.evap, linecolor=:match, seriestype=:bar, 
         alpha=0.25, label=" Matched Samples")
 
-    Plots.plot!(h, [0],[0], color=:white, linecolor=:match, label=" ")
+    # Plots.plot!(h, [0],[0], color=:white, linecolor=:match, label=" ")
     Plots.plot!(h, [0],[0], color=colors.evap, linewidth=5, 
         label=" Kernel Density Estimate")
 
-    Plots.plot!(h, [0],[0], color=:white, linecolor=:match, label=" ")
+    # Plots.plot!(h, [0],[0], color=:white, linecolor=:match, label=" ")
     Plots.plot!(h, [0],[0], color=:black, linestyle=:dot, linewidth=5,
-        label=" Spatially Resampled\n Geochemical Data")
+        label="Spatially Resampled\n Geochemical Data")
     fig[30] = h
 
     # Assemble plots
@@ -252,9 +275,9 @@
     h = Plots.plot(fig..., layout=(6, 5), size=(3000, 3000), 
         # legend=false,
         left_margin=(75,:px), right_margin=(25,:px), bottom_margin=(45,:px),
-        tickfontsize=12,
+        tickfontsize=24,
         # titleloc=:center, titlefont = font(18),
-        labelfontsize=24
+        labelfontsize=48
     )
     display(h)
     savefig(h, "$filepath/histogram_all_classes.pdf")

@@ -13,9 +13,18 @@
 ## --- Load data 
     # This study
     ucc = importdataset(ucc_out, '\t', importas=:Tuple);
+    ucc_err = importdataset(ucc_out_err, '\t', importas=:Tuple);
     elementindex = NamedTuple{Tuple(Symbol.(ucc.element))}(i for i in eachindex(ucc.element))
     ucc = NamedTuple{keys(class)}([NamedTuple{Tuple(anhydrous_majors)}(
-        [ucc[f][elementindex[k]] for k in anhydrous_majors]) for f in keys(class)]
+        [ucc[f][elementindex[k]] ± ucc_err[f][elementindex[k]] for k in anhydrous_majors]) 
+        for f in keys(class)]
+    );
+
+    # Eroded material 
+    ersn = importdataset(erodedcomp_out, '\t', importas=:Tuple)
+    elementindex = NamedTuple{Tuple(Symbol.(ersn.elem))}(i for i in eachindex(ersn.elem))
+    ersn = NamedTuple{keys(class)}([NamedTuple{Tuple(anhydrous_majors)}(
+        [ersn[f][elementindex[k]] for k in anhydrous_majors]) for f in keys(class)]
     );
 
     # Rudnick and Gao 2014; Condie 1993
@@ -40,6 +49,7 @@
 ## --- Normalize all values to my whole earth UCC values
     ratio = (
         ucc = [ucc.bulk[k] ./ ucc.bulk[k] for k in anhydrous_majors],
+        ersn = [ersn.bulk[k] ./ ucc.bulk[k] for k in anhydrous_majors],
         plut = [ucc.plut[k] ./ ucc.bulk[k] for k in anhydrous_majors],
         rudnick_gao = [rudnick_gao[k] ./ ucc.bulk[k] for k in anhydrous_majors],
         condie = [condie[k] ./ ucc.bulk[k] for k in anhydrous_majors],
@@ -68,29 +78,29 @@
     )
     Plots.plot!(h, collect(xlims(h)), [1,1], label="", color=:black, linewidth=3)
 
-    Plots.plot!(h, x, ratio.ucc, markershape=:circle, 
+    Plots.plot!(h, x, Measurements.value.(ratio.ucc), markershape=:circle, 
         label="Surface Earth (This Study)",
         color=:black, msc=:auto, 
         markersize=6, linewidth=2
     )
-    Plots.plot!(h, x, ratio.plut, markershape=:circle, 
+    Plots.plot!(h, x, Measurements.value.(ratio.plut), markershape=:circle, 
         label="Plutonic (This Study)",
         color=colors_source.this_study, msc=:auto, 
         markersize=6, linewidth=2
     )
 
     # Plot previous estimates
-    Plots.plot!(h, x, ratio.rudnick_gao, markershape=:diamond, 
+    Plots.plot!(h, x, Measurements.value.(ratio.rudnick_gao), markershape=:diamond, 
         label="Rudnick and Gao, 2014",
         color=colors_source.rudnick, 
         msc=:auto, markersize=7, linewidth=2
     )
-    Plots.plot!(h, x, ratio.gao, markershape=:diamond, 
+    Plots.plot!(h, x, Measurements.value.(ratio.gao), markershape=:diamond, 
         label="Gao et al., 1998",
         color=colors_source.gao, 
         msc=:auto, markersize=7, linewidth=2
     )
-    Plots.plot!(h, x, ratio.condie, markershape=:diamond, 
+    Plots.plot!(h, x, Measurements.value.(ratio.condie), markershape=:diamond, 
         label="Condie, 1993",
         color=colors_source.condie, 
         msc=:auto, markersize=7, linewidth=2

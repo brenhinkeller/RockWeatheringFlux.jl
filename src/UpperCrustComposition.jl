@@ -60,7 +60,7 @@
     # Save to publication-formatted file 
     pubcols = hcat(cols[1], mesh(cols[:,2:end], fill("+/- 2 SEM", size(cols))[:,2:end]))
     pubresult = mesh(result, result_err)
-    writedlm(exposedcrust, vcat(pubcols, hcat(rows, pubresult)))
+    writedlm(exposedcrust, vcat(pubcols, hcat(rows, pubresult)), ',')
 
     
 ## --- Terminal printout ± 2 SEM

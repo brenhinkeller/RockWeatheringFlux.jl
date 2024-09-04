@@ -92,35 +92,25 @@
 ## --- Ping Macrostrat API
     """
     ```julia
-    query_macrostrat(lat, lon)
+    query_macrostrat(lat, lon, zoom::Number=11)
     ```
-    Get lithological data at highest available resolution for rocks at `lat`, `lon` 
-    coordinate from the Macrostrat API.
+    Get lithological data for rocks at `lat`, `lon` coordinate from the Macrostrat API.
 
+    Argument `zoom` controls precision; default is approximately 5km. Automatically retry with
+    less precise window if initial query does not return data.
     """
-    function query_macrostrat(lat, lon)
-        # Check highest possible resolution
-        resp = HTTP.get("https://macrostrat.org/api/v2/geologic_units/map?lat=$lat&lng=$lon&scale=large")
+    function query_macrostrat(lat, lon, zoom::Number=11)
+        resp = HTTP.get("https://macrostrat.org/api/mobile/map_query?lat=$lat&lng=$lon&z=$zoom")
         str = String(resp.body)
         parsed = JSON.Parser.parse(str)
-
-        # If no data, check medium scale resolution 
-        if isempty(parsed["success"]["data"])
-            resp = HTTP.get("https://macrostrat.org/api/v2/geologic_units/map?lat=$lat&lng=$lon&scale=medium")
-            str = String(resp.body)
-            parsed = JSON.Parser.parse(str)
-        else
-            return parsed
-        end
-
-        # If still no data, check small scale resolution
-        if isempty(parsed["success"]["data"])
-            resp = HTTP.get("https://macrostrat.org/api/v2/geologic_units/map?lat=$lat&lng=$lon&scale=small")
+        try
+            parsed["success"]["data"]["burwell"][1]["lith"]
+        catch error
+            resp = HTTP.get("https://macrostrat.org/api/mobile/map_query?lat=$lat&lng=$lon&z=5")
             str = String(resp.body)
             parsed = JSON.Parser.parse(str)
         end
-
-        return parsed 
+        return parsed
     end
     export query_macrostrat
 
@@ -128,7 +118,7 @@
 ## --- Get data from the unparsed response dictionary
     function get_macrostrat_min_age(jobj)
         try
-            return jobj["success"]["data"][1]["t_int_age"]::Number
+            return jobj["success"]["data"]["burwell"][1]["t_int_age"]::Number
         catch error
             return NaN
         end
@@ -137,7 +127,7 @@
 
     function get_macrostrat_max_age(jobj)
         try
-            return jobj["success"]["data"][1]["b_int_age"]::Number
+            return jobj["success"]["data"]["burwell"][1]["b_int_age"]::Number
         catch error
             return NaN
         end
@@ -146,7 +136,7 @@
 
     function get_macrostrat_map_id(jobj)
         try
-            return jobj["success"]["data"][1]["map_id"]::Number
+            return jobj["success"]["data"]["burwell"][1]["map_id"]::Number
         catch error
             return NaN
         end
@@ -155,7 +145,7 @@
 
     function get_macrostrat_lith(jobj)
         try
-            return jobj["success"]["data"][1]["lith"]
+            return jobj["success"]["data"]["burwell"][1]["lith"]
         catch error
             return "NA"
         end
@@ -164,7 +154,7 @@
 
     function get_macrostrat_descrip(jobj)
         try
-            return jobj["success"]["data"][1]["descrip"]
+            return jobj["success"]["data"]["burwell"][1]["descrip"]
         catch error
             return "NA"
         end
@@ -173,7 +163,7 @@
 
     function get_macrostrat_name(jobj)
         try
-            return jobj["success"]["data"][1]["name"]
+            return jobj["success"]["data"]["burwell"][1]["name"]
         catch error
             return "NA"
         end
@@ -182,7 +172,7 @@
 
     function get_macrostrat_strat_name(jobj)
         try
-            return jobj["success"]["data"][1]["strat_name"]
+            return jobj["success"]["data"]["burwell"][1]["strat_name"]
         catch error
             return "NA"
         end
@@ -191,21 +181,48 @@
 
     function get_macrostrat_comments(jobj)
         try
-            return jobj["success"]["data"][1]["comments"]
+            return jobj["success"]["data"]["burwell"][1]["comments"]
         catch error
             return "NA"
         end
     end
     export get_macrostrat_comments
 
-    function get_macrostrat_refs(jobj)
+    function get_macrostrat_ref_title(jobj)
         try
-            return join(collect(values(jobj["success"]["refs"])), " | ")
+            return jobj["success"]["data"]["burwell"][1]["ref"]["ref_title"]
         catch error
             return "NA"
         end
     end
-    export get_macrostrat_refs
+    export get_macrostrat_ref_title
+
+    function get_macrostrat_ref_authors(jobj)
+        try
+            return jobj["success"]["data"]["burwell"][1]["ref"]["authors"]
+        catch error
+            return "NA"
+        end
+    end
+    export get_macrostrat_ref_authors
+
+    function get_macrostrat_ref_year(jobj)
+        try
+            return jobj["success"]["data"]["burwell"][1]["ref"]["ref_year"]
+        catch error
+            return "NA"
+        end
+    end
+    export get_macrostrat_ref_year
+
+    function get_macrostrat_ref_doi(jobj)
+        try
+            return jobj["success"]["data"]["burwell"][1]["ref"]["isbn_doi"]
+        catch error
+            return "NA"
+        end
+    end
+    export get_macrostrat_ref_doi
 
 
 ## --- Parse responses
@@ -219,7 +236,10 @@
         agemax = Array{Float64}(undef, stop, 1)
         agemin = Array{Float64}(undef, stop, 1)
         age = Array{Float64}(undef, stop, 1)
-        refs = Array{String}(undef, stop, 1)
+        authors = Array{String}(undef, stop, 1)
+        years = Array{String}(undef, stop, 1)
+        titles = Array{String}(undef, stop, 1)
+        dois = Array{String}(undef, stop, 1)
 
         # Parse responses into preallocated arrays
         for i in 1:stop
@@ -232,7 +252,10 @@
             agemax[i] = get_macrostrat_max_age(responses[i])
             agemin[i] = get_macrostrat_min_age(responses[i])
 
-            refs[i] = get_macrostrat_refs(responses[i])
+            authors[i] = get_macrostrat_ref_authors(responses[i])
+            years[i] =get_macrostrat_ref_year(responses[i])
+            titles[i] = get_macrostrat_ref_title(responses[i])
+            dois[i] = get_macrostrat_ref_doi(responses[i])
         end
 
         # Filter ages younger than 0 and older than 4000 and compute age from min / max
@@ -263,6 +286,9 @@
         rockstratname = replace.(rockstratname, "    " => " ")
         rockcomments = replace.(rockcomments, "    " => " ")
 
+        # Condense references
+        refstrings = @. authors * ") | " * years * ") | " * titles * ") | " * dois
+
         # Return as a tuple
         return (
             agemax = agemax,
@@ -273,7 +299,7 @@
             rockdescrip = rockdescrip,
             rockstratname = rockstratname,
             rockcomments = rockcomments,
-            refstrings = refs
+            refstrings = refstrings
         )
     end
     export parse_macrostrat_responses

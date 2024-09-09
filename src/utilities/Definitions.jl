@@ -215,6 +215,38 @@
     end
     export get_elements
 
+    """
+    ```julia
+    get_isotopes()
+    ```
+
+    Radiogenic isotope ratios of petrological and geochronological interest.
+
+    Rb / Sr:
+     * Rb87/Sr86 Sr87/Sr86
+
+    Sm / Nd:
+     * Nd143/Nd144, Sm147/Nd144, 
+
+    Lu / Hf:
+     * Lu176/Hf177, Hf176/Hf177
+     
+    Re / Os: 
+     * Re187/Os188, Os187/Os188
+    
+    U / Th / Pb
+     * Pb206/Pb204, Pb207/Pb204, Pb208/Pb204, Th232/Pb204, U238/Pb204
+
+    """
+    get_isotopes() = return [
+        :Rb87_Sr86, :Sr87_Sr86, 
+        :Nd143_Nd144, :Sm147_Nd144, 
+        :Lu176_Hf177, :Hf176_Hf177, 
+        :Re187_Os188, :Os187_Os188, 
+        :Pb206_Pb204, :Pb207_Pb204, :Pb208_Pb204, :Th232_Pb204, :U238_Pb204
+    ]
+    export get_isotopes
+
 
     """
     ```julia

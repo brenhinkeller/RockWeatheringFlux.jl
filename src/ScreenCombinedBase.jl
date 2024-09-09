@@ -42,7 +42,8 @@
 ## --- Convert all units to wt.% and create geochemical data Tuple 
     # Preallocate 
     majors, minors = get_elements()
-    allelements = [majors; minors]
+    isotopes = get_isotopes()
+    allelements = [majors; minors; isotopes]
     deleteat!(allelements, findall(x->x==:Volatiles,allelements))
     
     out = NamedTuple{Tuple(allelements)}(Array{Float64}(undef, npoints) for _ in allelements);
@@ -195,7 +196,7 @@
 
     # Normalize to 100%
     p = Progress(length(out.SiO2) ÷ 10, desc="Normalizing compositions ...", enabled=show_progress)
-    contributing = [allelements; :Volatiles]             # Need to re-include volatiles!
+    contributing = [majors; minors; :Volatiles]          # Include volatiles, exclude isotopes!
     TOC = combined.TOC[t]                                # Include TOC in normalization...
     for i in eachindex(out.SiO2)
         sample = [out[j][i] for j in contributing]       # Get it

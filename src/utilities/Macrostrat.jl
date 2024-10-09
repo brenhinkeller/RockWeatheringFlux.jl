@@ -95,7 +95,7 @@
     query_macrostrat(lat, lon)
     ```
     Get lithological data at highest available resolution for rocks at `lat`, `lon` 
-    coordinate from the Macrostrat API.
+    coordinate from the Macrostrat geologic map compilation v2 API.
 
     """
     function query_macrostrat(lat, lon)

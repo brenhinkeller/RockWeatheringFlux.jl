@@ -6,8 +6,8 @@
     dataset = "combined"
 
     # Lithologic
-    version = 2023
-    # version = 2024
+    # version = v1    # Prev. 2023
+    version = v2    # Prev. 2024
     # N = 200_000;   tag = "200K"
     # N = 250_000;   tag = "250K"
     N = 1_000_000; tag = "1M"
@@ -28,7 +28,7 @@
     macrostrat_io = "output/lithology/$version/responses$N.h5"
 
     # Surficial abundance
-    surfacelith_mapped_out = "results/N_$tag/surfacelith_mapped_v$version.tsv"
+    surfacelith_mapped_out = "results/N_$tag/surfacelith_mapped_$version.tsv"
     
     # Intermediate files 
     matchedbulk_io = output * "bulkind" * ".tsv"

@@ -11,7 +11,8 @@
 
 ## --- Generate random points on the continental crust
     @info "Script started."
-    npoints = 1_000_000
+    # npoints = 1_000_000
+    npoints = 100_000
     saveinterval = 100_000
     savepts = round(Int, npoints / saveinterval)
     etopo = h5read("data/etopo/etopo1.h5", "vars/elevation")

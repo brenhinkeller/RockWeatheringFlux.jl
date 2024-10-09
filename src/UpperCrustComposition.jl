@@ -78,6 +78,14 @@
 
 
 ## --- Terminal printout to copy paste into the LaTeX-formatting Excel sheet 
+    # Indices of rows to print
+    target = (majors..., :P2O5)
+    ind = falses(length(rows))
+    for t in target 
+        ind .|= rows .== string(t)
+    end
+
+    # Get data 
     comp = NamedTuple{keys(class)}([(
         comp = round.([result[:,k][i] for i in eachindex(majors)], sigdigits=3),
         sem = round.([result_err[:,k][i] for i in eachindex(majors)], sigdigits=1)

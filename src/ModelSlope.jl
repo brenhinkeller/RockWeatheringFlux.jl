@@ -15,7 +15,7 @@
 
     # # Parse and export data
     # octopusdata = parse_octopus_kml_variables(str)
-    # exportdataset(octopusdata,"output/octopusdata.tsv",'\t')
+    # exportdataset(octopusdata, octopusdata_basins, '\t')
 
     # for i in keys(octopusdata)
     #     if typeof(octopusdata[i]) == Vector{SubString{String}}
@@ -31,12 +31,13 @@
     # # Get basin polygons
     # (basin_polygon_n, basin_polygon_lat, basin_polygon_lon) = parse_octopus_polygon_outlines(str,isfirstcoord)
 
-    # # Load and parse SRTM15+ data 
-    # # srtm = h5open("output/srtm15plus_aveslope.h5", "r")
-    # srtm = h5open("output/srtm15plus_maxslope.h5", "r")
+    # # Load and parse SRTM15+ maximum slope data 
+    # srtm = h5open(srtm_maxslope, "r")
     # srtm = read(srtm["vars"])
     # srtm = NamedTuple{Tuple(Symbol.(keys(srtm)))}(values(srtm))
 
+    # # Grab all maximum slopes in each basin. Average them
+    # # We're going to use this to calibrate our erosion / slope relationship
     # # Expected runtime 1.5 hrs
     # @timev avgslope, stdslope = get_basin_srtm15plus_aveslope(srtm, nbasins, subbasins, 
     #     basin_polygon_lat, basin_polygon_lon
@@ -44,27 +45,15 @@
 
     # # Save file
     # header = ["avg_slope" "err"]
-    # writedlm("output/basin_srtm15plus_avg_maxslope.tsv", vcat(header, hcat(avgslope, stdslope)))
-
-    # Save basin polygon lat / lon coordinates
-    # fid = h5open("output/basin_coordinates.h5", "w")
-    # g = create_group(fid, "vars")
-    # for i in eachindex(basin_polygon_lat, basin_polygon_lon)
-    #     g[lpad(i, 4, "0")] = hcat(basin_polygon_lat[i], basin_polygon_lon[i])
-    # end
-    # close(fid)
-
-    # # File names:
-    # #     basin_srtm15plus_avg_maxslope -> average of maximum slopes of each point in basin
-    # #     basin_srtm15plus_aveslope     -> average of average slopes of each point in the basin
+    # writedlm(srtm_maxslope_basin_avg, vcat(header, hcat(avgslope, stdslope)))
 
 
 ## --- Alternatively, load pregenerated OCTOPUS and slope data for each basin
     # Windows machines must start at this step
     # Errors are 1-σ standard deviations
     @info "Loading pre-parsed OCTOPUS and basin slope data"
-    octopusdata = importdataset("output/octopusdata.tsv",'\t', importas=:Tuple)
-    basin_srtm = importdataset("output/basin_srtm15plus_avg_maxslope.tsv", '\t', importas=:Tuple)
+    octopusdata = importdataset(octopusdata_basins,'\t', importas=:Tuple)
+    basin_srtm = importdataset(srtm_maxslope_basin_avg, '\t', importas=:Tuple)
 
 
 ## --- Fit erosion rate / slope curve

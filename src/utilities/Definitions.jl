@@ -6,91 +6,135 @@
     dataset = "combined"
 
     # Lithologic
-    # version = v1    # Prev. 2023
-    version = v2    # Prev. 2024
+    # version = "v1"
+    version = "v2"
+    N = 100_000;    tag = "100K"
     # N = 200_000;   tag = "200K"
-    # N = 250_000;   tag = "250K"
-    N = 1_000_000; tag = "1M"
+    # N = 1_000_000; tag = "1M"
     
     @info """ Datasets loaded:
     Geochemical: $dataset
     Macrostrat: $tag ($version)
     """
 
-## --- File names (switch mechanics)
 
-    # Folder paths 
-    output = "output/N_$tag/lith_$version/" * dataset * "/"
-    results = "results/N_$tag/lith_$version/" * dataset * "/"
+## --- Geochemical and geologic (Macrostrat) file names
 
-    # Geochemical and lithologic data 
-    geochem_fid = "output/geochemistry/" * dataset * ".h5"
-    macrostrat_io = "output/lithology/$version/responses$N.h5"
-
-    # Surficial abundance
-    surfacelith_mapped_out = "results/N_$tag/surfacelith_mapped_$version.tsv"
+    # Directories 
+    macrostrat_raw_dir = "output/macrostrat/raw_API_responses"
+    macrostrat_parsed_dir = "output/macrostrat/parsed"
+    geochem_dir = "output/geochemistry"
     
-    # Intermediate files 
-    matchedbulk_io = output * "bulkind" * ".tsv"
-    eroded_out = output * "erodedmaterial.h5"
-    rockslope_tmp = "output/N_$tag/lith_$version/" 
+    # Macrostrat output: unparsed API responses and parsed lithologic data
+    macrostrat_raw = "$macrostrat_raw_dir/macrostrat_$(version)_$N.jld"
+    macrostrat_parsed = "$macrostrat_parsed_dir/macrostrat_$(version)_"
 
-    # Bulk continental crust
-    ucc_out = results * "exposedcrust.tsv"
-    ucc_out_err = results * "exposedcrust_err.tsv"
+    # Files used in the rest of the code 
+    geochem_fid = "$geochem_dir/$dataset.h5"
+    macrostrat_io = "$macrostrat_parsed_dir/macrostrat_$(version)_$N.h5"
 
-    # Eroded material: absolute, fractional contribution, composition
-    erodedabs_out = results * "eroded_absolute_mass.tsv"
-    erodedrel_out = results * "eroded_fraction_contributed.tsv"
-    erodedcomp_out = results * "eroded_composition.tsv"
+    # Make directories if they do not exist 
+    !ispath(macrostrat_raw_dir) && run(`mkdir -p $macrostrat_raw_dir`) 
+    !ispath(macrostrat_parsed_dir) && run(`mkdir -p $macrostrat_parsed_dir`) 
+    !ispath(geochem_dir) && run(`mkdir -p $geochem_dir`) 
 
-    erodedabs_out_err = results * "eroded_absolute_err.tsv"
-    erodedrel_out_err = results * "eroded_fraction_err.tsv"
-    erodedcomp_out_err = results * "eroded_composition_err.tsv"
-
-    # Supplemental data formatted for publication
-    exposedcrust = results * "exposedcrust.csv"                         # ucc_out
-    eroded_composition = results * "erodedmaterial_composition.csv"     # erodedcomp_out
-    eroded_mass = results * "erodedmaterial_mass.csv"                   # erodedabs_out
-    eroded_contribution = results * "erodedmaterial_contribution.csv"   # erodedrel_out
-    surfaceexposure = "results/N_$tag/surfaceexposure.csv"              # surfacelith_mapped_out
-
-    # Export filenames
+    export macrostrat_raw, macrostrat_parsed
     export geochem_fid, macrostrat_io
-    export surfacelith_mapped_out, surfacelith_calc_out
-    export matchedbulk_io, eroded_out, rockslope_tmp
-    export ucc_out, ucc_out_err
-    export erodedabs_out, erodedrel_out, erodedcomp_out
-    export erodedabs_out_err, erodedrel_out_err, erodedcomp_out_err   
-    export exposedcrust, eroded_composition, eroded_mass, eroded_contribution
-    export surfaceexposure, surfaceproportion
+    
 
-    # Warnings for sample sets that may not be compatible with current code  
-    version==2024 && @error "$version geologic maps may contain unresolved errors."
-    !isfile(geochem_fid) && @warn "$geochem_fid does not exist :("
-    !isfile(macrostrat_io) && @warn "$macrostrat_io does not exist :("
+## --- Download elevation data from the cloud if necessary 
 
-    # Create directories if they do not exist 
-    !ispath(output) && run(`mkdir -p $output`) 
-    !ispath(results) && run(`mkdir -p $results`)
-
-    # Download ETOPO data file if it does not exist 
-    if !isfile("data/etopo/etopo1.h5")
-        get_etopo()
-
-        @info "Moving ETOPO1 data to $(homedir())/resources/ to $(homedir())/RockWeatheringFlux.jl/data/"
-        run(`mv ../resources/etopo ../RockWeatheringFlux.jl/data`)
-        run(`rm -rf mv ../resources/etopo`)
+    # ETOPO1 elevation data, downloading from the cloud if necessary 
+    etopo_home = "data/etopo/etopo1.h5"
+    if !isfile(etopo_home)
+        @info "Downloading etopo1.h5 from google cloud storage to data/etopo/"
+        run(`mkdir -p data/etopo/`)
+        Downloads.download("https://storage.googleapis.com/statgeochem/etopo1.references.txt", joinpath("data/etopo/","etopo1.references.txt"))
+        Downloads.download("https://storage.googleapis.com/statgeochem/etopo1.h5", etopo_home)
     end
+    export etopo_home
 
-    # Download SRTM15+ data file if it does not exist 
-    if !isfile("data/srtm15plus/srtm15plus.h5")
-        get_srtm15plus()
-
-        @info "Moving SRTM15+ data to $(homedir())/resources/ to $(homedir())/RockWeatheringFlux.jl/data/"
-        run(`mv ../resources/srtm15plus ../RockWeatheringFlux.jl/data`)
-        run(`rm -rf mv ../resources/srtm15plus`)
+    # SRTM15+ elevation data, downloading from the cloud if necessary
+    srtm_home = "data/srtm15plus/srtm15plus.h5" 
+    if !isfile(srtm_home)
+        @info "Downloading srtm15plus.h5 from google cloud storage to data/srtm15plus/"
+        run(`mkdir -p data/srtm15plus`)
+        Downloads.download("https://storage.googleapis.com/statgeochem/srtm15plus.references.txt", joinpath("data/srtm15plus/","srtm15plus.references.txt"))
+        Downloads.download("https://storage.googleapis.com/statgeochem/srtm15plus.h5", srtm_home)
     end
+    export srtm_home
+
+
+## --- Elevation and basin related files 
+
+    # Directories 
+    basins_dir = "output/basins"
+
+    # SRTM15+ slope 
+    srtm_maxslope = "$basins_dir/srtm15plus_maxslope.h5"
+    srtm_maxslope_basin_avg = "$basins_dir/srtm15plus_maxslope_basin_avg.tsv"
+
+    # OCTOPUS cosmogenic basins 
+    octopusdata_basins = "$basins_dir/octopusdata.tsv"
+
+    # Make directories if they do not already exist 
+    !ispath(basins_dir) && run(`mkdir -p $basins_dir`) 
+
+    export srtm_maxslope, srtm_maxslope_basin_avg
+    export octopusdata_basins
+
+
+## --- Misc. intermediate files 
+
+    # Indices and lithologies of matched samples 
+    matchedbulk_io = "output/matched/$dataset/matchedinds_$(version)_$tag.tsv"
+
+    # Mass of eroded material  
+    eroded_out = "output/eroded/$dataset/erodedmaterial_$(version)_$tag.h5"
+    
+    export matchedbulk_io, eroded_out
+
+
+## --- Results
+
+    # Base directory 
+    results = "results/$version/N_$tag"
+    !ispath(results) && run(`mkdir -p $results`) 
+    
+    # Mapped lithologic surficial abundance 
+    # This doesn't get re-read, so we can just export directly to a publishable format
+    mapped_surface_lith = "$results/mapped_surface_lithology.csv"
+
+    # Compositional data also depends on the dataset
+    results *= "/$dataset"
+    !ispath(results) && run(`mkdir -p $results`) 
+
+    # Exposed continental crust
+    ucc_out = "$results/exposedcrust.tsv"
+    ucc_out_err = "$results/exposedcrust_err.tsv"
+    ucc_out_csv = "$results/exposedcrust.csv"
+
+    # Mass of eroded material 
+    erodedmass_out = "$results/erosion_mass.tsv"
+    erodedmass_out_err = "$results/erosion_mass_err.tsv"
+    erodedmass_out_csv = "$results/erosion_mass.csv"
+
+    # Fraction contributed to total eroded material, by lithology 
+    frac_contributed = "$results/erosion_contribution.tsv"
+    frac_contributed_out_err = "$results/erosion_contribution_err.tsv"
+    frac_contributed_out_csv = "$results/erosion_contribution.csv"
+
+    # Composition of eroded material 
+    comp_eroded  = "$results/erosion_composition.tsv"
+    comp_eroded_err = "$results/erosion_composition_err.tsv"
+    comp_eroded_csv = "$results/erosion_composition.csv"
+
+    export mapped_surface_lith
+    export ucc_out, ucc_out_err, ucc_out_csv
+    export erodedmass_out, erodedmass_out_err, erodedmass_out_csv
+    export frac_contributed, frac_contributed_out_err, frac_contributed_out_csv
+    export comp_eroded, comp_eroded_err, comp_eroded_csv
+
 
 ## --- Color names
 

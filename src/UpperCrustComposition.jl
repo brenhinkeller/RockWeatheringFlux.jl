@@ -60,7 +60,7 @@
     # Save to publication-formatted file 
     pubcols = hcat(cols[1], mesh(cols[:,2:end], fill("+/- 2 SEM", size(cols))[:,2:end]))
     pubresult = mesh(result, result_err)
-    writedlm(exposedcrust, vcat(pubcols, hcat(rows, pubresult)), ',')
+    writedlm(ucc_out_csv, vcat(pubcols, hcat(rows, pubresult)), ',')
 
     
 ## --- Terminal printout ± 2 SEM
@@ -165,7 +165,7 @@
 
 ## --- Compute mixing ratios for our eroded material estimates 
     # Load data
-    fid = readdlm(erodedcomp_out)
+    fid = readdlm(comp_eroded)
     fid_i = NamedTuple{keys(class)}(findfirst(x->x==string(k), fid)[2] for k in keys(class))
     @assert Symbol.(fid[2:length(majors)+1]) == majors "Major elements stored incorrectly"
     

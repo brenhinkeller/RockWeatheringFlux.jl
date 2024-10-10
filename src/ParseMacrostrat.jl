@@ -11,12 +11,14 @@
 
 ## --- Generate random points on the continental crust
     @info "Script started."
-    # npoints = 1_000_000
-    npoints = 100_000
+    npoints = RockWeatheringFlux.N
     saveinterval = 100_000
     savepts = round(Int, npoints / saveinterval)
-    etopo = h5read("data/etopo/etopo1.h5", "vars/elevation")
+    # FIXME: files
+    etopo = h5read(etopo_home, "vars/elevation")
     rocklat, rocklon, elevations = gen_continental_points(npoints, etopo)
+
+    savefilename = "responses"
 
 
 ## --- Get data for each point from the Burwell / Macrostrat API
@@ -29,7 +31,6 @@
      * A set of 100,000 samples takes 4-5 hours.
     """
 
-    savefilename = "responses"
     responses = Array{Union{Dict{String, Any}, String}}(undef, npoints, 1)
     skipcount = 0
     for i = 1:npoints
@@ -38,7 +39,7 @@
         catch
             try
                 # Wait and try again
-                sleep(10)
+                sleep(1)
                 responses[i] = query_macrostrat(rocklat[i], rocklon[i])
             catch
                 # If still nothing, move on
@@ -52,7 +53,7 @@
         if i % saveinterval == 0
             GC.gc()
             parsed = parse_macrostrat_responses(responses, i)
-            fid = h5open("output/macrostrat/$savefilename$i.h5", "w")
+            fid = h5open("$macrostrat_parsed$i.h5", "w")
             g = create_group(fid, "vars")
                 g["rocklat"] = rocklat
                 g["rocklon"] = rocklon
@@ -78,7 +79,7 @@
     end
 
     # Save unparsed output, just in case
-    save("output/$savefilename.jld", "responses", responses, "elevations", elevations, 
+    save(macrostrat_raw, "responses", responses, "elevations", elevations, 
         "latitude", rocklat, "longitude", rocklon, "npoints", npoints
     )
 
@@ -91,25 +92,13 @@
     """
 
 
-## --- Alternatively, parse data from a .jld file
-	# @info "Loading Macrostrat file"
-    # retrive_file = load("output/pregenerated_responses.jld")
-    # @info "Success!"
-    
-    # responses = retrive_file["responses"]
-    # elevations = float.(retrive_file["elevations"])
-    # rocklat = float.(retrive_file["latitude"])
-    # rocklon = float.(retrive_file["longitude"])    
-    # npoints = retrive_file["npoints"]
-
-
 ## --- Parse Macrostrat responses and write data to a file
     @info "Parsing data: $(Dates.Date(now())) $(Dates.format(now(), "HH:MM"))"
     parsed = parse_macrostrat_responses(responses, npoints)
 
     # Write data to file
-    @info "Writing to file: $(Dates.Date(now())) $(Dates.format(now(), "HH:MM"))"
-    fid = h5open("output/$savefilename.h5", "w")
+    @info "Writing to file: $macrostrat_parsed$npoints.h5 at $(Dates.Date(now())) $(Dates.format(now(), "HH:MM"))"
+    fid = h5open("$macrostrat_parsed$npoints.h5", "w")
     g = create_group(fid, "vars")
         g["rocklat"] = rocklat
         g["rocklon"] = rocklon
@@ -150,6 +139,20 @@
     close(fid)
 
     @info "Data saved successfully! End of process."
+
+
+## --- Just see if everything makes sense 
+    # using Plots 
+    # fid = h5open(macrostrat_io, "r")
+    # rocklat = read(fid["vars"]["rocklat"])[t]
+    # rocklon = read(fid["vars"]["rocklon"])[t]
+    # close(fid)
+
+    # mapplot(rocklon, rocklat, 
+    #     label="",
+    #     markersize=1, 
+    #     msc=:auto
+    # )
 
 
 ## -- End of file

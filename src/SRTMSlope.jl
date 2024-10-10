@@ -5,7 +5,7 @@
 
     # Get SRTM15+ file
     @info "Loading SRTM"
-    srtm = h5read("data/srtm15plus/srtm15plus.h5", "vars/")
+    srtm = h5read(srtm_home, "vars/")
 
 
 ## --- Calculate maximum slope and save data set
@@ -15,8 +15,7 @@
 
     # Save results to the data folder
     @info "Saving slope to HDF5 file"
-    filename = "srtm15plus_maxslope"
-    fid = h5open("output/$filename.h5","w")
+    fid = h5open(srtm_maxslope,"w")
     g = create_group(fid, "vars")
 
     # Copy over SRTM15+ location data

@@ -627,4 +627,32 @@
     export find_metamorphics
 
 
+## --- Convert NamedTuples to an array for file saving
+    """
+    ```julia
+    cats_to_array(cats)
+    ```
+
+    Converts a NamedTuple of BitVectors `cats` to an array of 0s and 1s to save to a file. 
+    Returns an array where each column corresponds to an element in `cats`, and a string of 
+    header or row names.
+
+    # Example 
+    ```julia
+    a, row_names_a = cats_to_array(cats)
+    ``
+    """
+    function cats_to_array(cats::NamedTuple)
+        a = Array{Int64}(undef, length(cats[1]), length(cats))
+        for i in eachindex(keys(cats))
+            for j in eachindex(cats[i])
+                a[j,i] = ifelse(cats[i][j], 1, 0)
+            end
+        end
+
+        return a, string.(collect(keys(cats))) 
+    end
+    export cats_to_array
+
+
 ## --- End of file

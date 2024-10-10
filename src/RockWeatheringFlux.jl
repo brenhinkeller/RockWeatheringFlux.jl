@@ -14,6 +14,9 @@ module RockWeatheringFlux
     # Macrostrat API query 
     using JLD, HTTP, JSON
 
+    # Dowloading cloud files 
+    using Downloads
+
     # General requirements
     using Static
     using Colors: RGB, Colorant

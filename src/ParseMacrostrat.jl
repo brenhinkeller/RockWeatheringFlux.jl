@@ -54,6 +54,8 @@
             GC.gc()
             parsed = parse_macrostrat_responses(responses, i)
             fid = h5open("$macrostrat_parsed$i.h5", "w")
+
+            # All information
             g = create_group(fid, "vars")
                 g["rocklat"] = rocklat
                 g["rocklon"] = rocklon
@@ -68,6 +70,19 @@
                 g["rockcomments"] = parsed.rockcomments
                 g["reference"] = parsed.refstrings
                 g["npoints"] = npoints
+
+            # And rock types, so that we can grab any file and use it later
+            bulktypes = create_group(fid, "type")
+                macro_cats = match_rocktype(parsed.rocktype, parsed.rockname, 
+                    parsed.rockdescrip, showprogress=false)
+                a, head = cats_to_array(macro_cats)
+                bulktypes["macro_cats"] = a
+                bulktypes["macro_cats_head"] = head
+                
+                metamorph_cats = find_metamorphics(parsed.rocktype, parsed.rockname, 
+                    parsed.rockdescrip, showprogress=false)
+                a, head = cats_to_array(metamorph_cats)
+                bulktypes["metamorphic_cats"] = a
             close(fid)
 
             # Print info to terminal
@@ -116,24 +131,16 @@
 
     bulktypes = create_group(fid, "type")
         # Rock types
-        macro_cats = match_rocktype(parsed.rocktype, parsed.rockname, parsed.rockdescrip, showprogress=false)
-        a = Array{Int64}(undef, length(macro_cats[1]), length(macro_cats))
-        for i in eachindex(keys(macro_cats))
-            for j in eachindex(macro_cats[i])
-                a[j,i] = ifelse(macro_cats[i][j], 1, 0)
-            end
-        end
+        macro_cats = match_rocktype(parsed.rocktype, parsed.rockname, 
+            parsed.rockdescrip, showprogress=false)
+        a, head = cats_to_array(macro_cats)
         bulktypes["macro_cats"] = a
-        bulktypes["macro_cats_head"] = string.(collect(keys(macro_cats))) 
+        bulktypes["macro_cats_head"] = head
         
         # Metamorphic rocks 
-        metamorph_cats = find_metamorphics(parsed.rocktype, parsed.rockname, parsed.rockdescrip, showprogress=false)
-        a = Array{Int64}(undef, length(metamorph_cats[1]), length(metamorph_cats))
-        for i in eachindex(keys(metamorph_cats))
-            for j in eachindex(metamorph_cats[i])
-                a[j,i] = ifelse(metamorph_cats[i][j], 1, 0)
-            end
-        end
+        metamorph_cats = find_metamorphics(parsed.rocktype, parsed.rockname, 
+            parsed.rockdescrip, showprogress=false)
+        a, head = cats_to_array(metamorph_cats)
         bulktypes["metamorphic_cats"] = a
     
     close(fid)
@@ -144,15 +151,17 @@
 ## --- Just see if everything makes sense 
     # using Plots 
     # fid = h5open(macrostrat_io, "r")
-    # rocklat = read(fid["vars"]["rocklat"])[t]
-    # rocklon = read(fid["vars"]["rocklon"])[t]
+    # rocklat = read(fid["vars"]["rocklat"])
+    # rocklon = read(fid["vars"]["rocklon"])
     # close(fid)
 
-    # mapplot(rocklon, rocklat, 
+    # h = mapplot(rocklon, rocklat, 
     #     label="",
     #     markersize=1, 
-    #     msc=:auto
+    #     msc=:auto,
+    #     title="$macrostrat_io",
     # )
+    # display(h)
 
 
 ## -- End of file

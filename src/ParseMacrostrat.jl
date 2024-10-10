@@ -57,9 +57,9 @@
 
             # All information
             g = create_group(fid, "vars")
-                g["rocklat"] = rocklat
-                g["rocklon"] = rocklon
-                g["elevation"] = elevations
+                g["rocklat"] = rocklat[1:i]
+                g["rocklon"] = rocklon[1:i]
+                g["elevation"] = elevations[1:i]
                 g["agemax"] = parsed.agemax
                 g["agemin"] = parsed.agemin
                 g["age"] = parsed.age
@@ -69,7 +69,7 @@
                 g["rockstratname"] = parsed.rockstratname
                 g["rockcomments"] = parsed.rockcomments
                 g["reference"] = parsed.refstrings
-                g["npoints"] = npoints
+                g["npoints"] = i
 
             # And rock types, so that we can grab any file and use it later
             bulktypes = create_group(fid, "type")

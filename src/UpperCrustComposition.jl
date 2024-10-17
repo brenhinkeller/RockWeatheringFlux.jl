@@ -26,17 +26,12 @@
     majors, minors = get_elements()
     allelements = [majors; minors]
 
-    # How many samples explain 90% of the matches?
-    npoints = unique_sample(mbulk.Sample_ID, 90)
-    @info """ Matched sample metadata:
-    Total: $(length(unique(mbulk.Sample_ID))) samples 
-    90% of matches explained by $npoints samples"""
 
-
-## --- Compute and export composition of exposed crust!
-    # Some elements just aren't measured, but a good whole rock geochemistry should
-    # measure the major elements. If it's a NaN, it's probably just not there fr fr
-    # All other elements should have NaNs and not zeros though
+## --- How many samples explain 90% of the matches 
+    # First, make sure we're on the same page about missing values. 
+    # A good whole rock geochemical analysis should measure all the major elements. So missing 
+    # values are probably actually gone. That is, if it's a NaN, it's probably just not there fr fr
+    # All other elements should have NaNs and not zeros though because who tf is measuring Ir
     for i in majors
         zeronan!(mbulk[i])
     end
@@ -44,7 +39,19 @@
         nanzero!(mbulk[i])
     end
 
-    # Save to a file 
+    # This assumes that each sample has 100% of the data...
+    npoints = unique_sample(mbulk.Sample_ID, 90)
+    @info """ Matched sample metadata:
+    Total: $(length(unique(mbulk.Sample_ID))) samples 
+    90% of matches explained by $npoints samples"""
+
+    # Make a new npoints that's by element 
+    npoints = NamedTuple{Tuple(allelements)}(
+        [unique_sample(mbulk.Sample_ID[.!isnan.(mbulk[k])], 90) for k in allelements]
+    );
+
+
+## --- Compute and export composition of exposed crust!
     result = Array{Float64}(undef, (length(allelements), length(class)))
     result_err = similar(result)
     rows = string.(allelements)
@@ -52,7 +59,7 @@
     
     for i in eachindex(keys(class))
         result[:,i] .= [nanmean(mbulk[j][class[i]]) for j in allelements]
-        result_err[:,i] .= [nanstd(mbulk[j][class[i]])./sqrt(npoints).*2 for j in allelements]
+        result_err[:,i] .= [nanstd(mbulk[j][class[i]])./sqrt(npoints[j]).*2 for j in allelements]
     end
     writedlm(ucc_out, vcat(cols, hcat(rows, result)))
     writedlm(ucc_out_err, vcat(cols, hcat(rows, result_err)))
@@ -79,7 +86,7 @@
 
 ## --- Terminal printout to copy paste into the LaTeX-formatting Excel sheet 
     # Indices of rows to print
-    target = (majors..., :P2O5)
+    target = majors
     ind = falses(length(rows))
     for t in target 
         ind .|= rows .== string(t)
@@ -111,7 +118,7 @@
 
     # Whole-earth estimate reported with error
     for i in eachindex(majors)
-        out[i] *= "\$ $(comp.bulk.comp[i]) \\pm $(comp.bulk.sem[i]) \$; "
+        out[i] *= "\$$(comp.bulk.comp[i])\\pm$(comp.bulk.sem[i])\$; "
     end
     out[end] *= "$(round(sum(comp.bulk.comp), sigdigits=4)); "
 
@@ -152,10 +159,10 @@
     # Format for LaTeX-formatting Excel sheet (bulk, anhydrous, and other estimates)
     out = fill("", size(endmembers)[2] + 1)
     out = hcat(
-        round.([mix_this_study.*100; misfit_this_study], sigdigits=3),
-        round.([mix_rudnickgao.*100; misfit_rudnickgao], sigdigits=3),
-        round.([mix_gao.*100; misfit_gao], sigdigits=3),
-        round.([mix_pease.*100; misfit_pease], sigdigits=3),
+        round.([mix_this_study.*100; misfit_this_study], digits=2),
+        round.([mix_rudnickgao.*100; misfit_rudnickgao], digits=2),
+        round.([mix_gao.*100; misfit_gao], digits=2),
+        round.([mix_pease.*100; misfit_pease], digits=2),
     )
     println("sed / volc / plut mixing ratios for: bulk / R&G / Gao / Pease")
     for i in 1:size(out)[1]
@@ -205,4 +212,5 @@
         println(join(out[i,:], ";"))
     end
 
+    
 ## --- End of file

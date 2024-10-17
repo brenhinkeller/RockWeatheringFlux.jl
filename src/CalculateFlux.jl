@@ -179,8 +179,12 @@
     nmajors = length(majors)
     allelements = [majors; minors]
 
-    # N samples account for 90% of matches
-    npoints = unique_sample(mbulk.Sample_ID, 90)
+    # N samples account for 90% of matches.
+    # See UpperCrustComposition.jl for explanation of methods here.
+    # npoints = unique_sample(mbulk.Sample_ID, 90)
+    npoints = NamedTuple{Tuple(allelements)}(
+        [unique_sample(mbulk.Sample_ID[.!isnan.(mbulk[k])], 90) for k in allelements]
+    )
 
     # Preallocate results array (element row, rock class column)
     rows = vcat(string.(collect(keys(erosion_element.vals))), "Total")
@@ -222,10 +226,14 @@
     nanzero!(result.vals)
     nanzero!(result.errs)
 
-    # Convert 1σ s.d. to 2σ s.e.m. 
+    # Get npoints as a vector, and include that we're looking at bulk mass at the end 
+    npoints_vec = [collect(values(npoints)); npoints.SiO2]
+
+    # Convert 1σ s.d. to 2σ s.e.m.
+    # Dangerous game here with element order...
     # Propagate error: division and multiplication by exact number 
-    result.errs ./= sqrt(npoints)   # s.d -> s.e.m
-    result.errs .*= 2               # 1σ  -> 2σ
+    result.errs ./= sqrt.(npoints_vec)   # s.d -> s.e.m
+    result.errs .*= 2                    # 1σ  -> 2σ
 
     # Save to file
     writedlm(erodedmass_out, vcat(cols, hcat(rows, result.vals)))
@@ -314,8 +322,8 @@
         vals = NamedTuple{classes}(nanmean(erosion_bulk.vals[classfilter[k]]) for k in classes),
         errs = NamedTuple{classes}(
             ((sqrt(nansum(erosion_bulk.errs[classfilter[k]]).^2) / count(classfilter[k]))
-                / sqrt(npoints)    # s.d -> s.e.m
-                * 2                # 1σ  -> 2σ
+                / sqrt(npoints.SiO2)    # s.d -> s.e.m; use a major element for the bulk calculation
+                * 2                     # 1σ  -> 2σ
             )
         for k in classes),
     );
@@ -329,8 +337,8 @@
         ),
         errs = NamedTuple{classes}([NamedTuple{Tuple(allelements)}(
             ((sqrt(nansum(erosion_element.errs[e][classfilter[k]]).^2) / count(classfilter[k])) 
-                / sqrt(npoints)    # s.d -> s.e.m
-                * 2                # 1σ  -> 2σ
+                / sqrt(npoints[e])    # s.d -> s.e.m
+                * 2                   # 1σ  -> 2σ
             ) for e in allelements) for k in classes]
         ),
     );

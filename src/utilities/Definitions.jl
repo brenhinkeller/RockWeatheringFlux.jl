@@ -8,9 +8,9 @@
     # Lithologic
     # version = "v1"
     version = "v2"
-    N = 100_000;    tag = "100K"
+    # N = 100_000;    tag = "100K"
     # N = 200_000;   tag = "200K"
-    # N = 1_000_000; tag = "1M"
+    N = 1_000_000; tag = "1M"
     
     @info """ Datasets loaded:
     Geochemical: $dataset
@@ -18,7 +18,9 @@
     """
 
 
-## --- Geochemical and geologic (Macrostrat) file names
+## --- All file names (formatted into fake code blocks for readability)
+
+# --- Geochemical and geologic (Macrostrat) file names
 
     # Directories 
     macrostrat_raw_dir = "output/macrostrat/raw_API_responses"
@@ -42,7 +44,7 @@
     export geochem_fid, macrostrat_io
     
 
-## --- Download elevation data from the cloud if necessary 
+# --- Download elevation data from the cloud if necessary 
 
     # ETOPO1 elevation data, downloading from the cloud if necessary 
     etopo_home = "data/etopo/etopo1.h5"
@@ -65,7 +67,7 @@
     export srtm_home
 
 
-## --- Elevation and basin related files 
+# --- Elevation and basin related files 
 
     # Directories 
     basins_dir = "output/basins"
@@ -84,7 +86,7 @@
     export octopusdata_basins
 
 
-## --- Misc. intermediate files 
+# --- Misc. intermediate files 
 
     # Indices and lithologies of matched samples 
     matchedbulk_io = "output/matched/$dataset/matchedinds_$(version)_$tag.tsv"
@@ -95,7 +97,7 @@
     export matchedbulk_io, eroded_out
 
 
-## --- Results
+# --- Results
 
     # Base directory 
     results = "results/$version/N_$tag"

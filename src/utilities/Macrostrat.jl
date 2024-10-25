@@ -110,7 +110,7 @@
             str = String(resp.body)
             parsed = JSON.Parser.parse(str)
         else
-            return parsed
+            return parsed, "large"
         end
 
         # If still no data, check small scale resolution
@@ -118,6 +118,8 @@
             resp = HTTP.get("https://macrostrat.org/api/v2/geologic_units/map?lat=$lat&lng=$lon&scale=small")
             str = String(resp.body)
             parsed = JSON.Parser.parse(str)
+        else 
+            return parsed, "medium"
         end
 
         # Fallback: global geologic map
@@ -125,9 +127,11 @@
             resp = HTTP.get("https://macrostrat.org/api/v2/geologic_units/map?lat=$lat&lng=$lon&scale=tiny")
             str = String(resp.body)
             parsed = JSON.Parser.parse(str)
+        else
+            return parsed, "small"
         end
 
-        return parsed 
+        return parsed, "tiny"
     end
     export query_macrostrat
 

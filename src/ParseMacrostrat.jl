@@ -14,11 +14,8 @@
     npoints = RockWeatheringFlux.N
     saveinterval = 100_000
     savepts = round(Int, npoints / saveinterval)
-    # FIXME: files
     etopo = h5read(etopo_home, "vars/elevation")
     rocklat, rocklon, elevations = gen_continental_points(npoints, etopo)
-
-    savefilename = "responses"
 
 
 ## --- Get data for each point from the Burwell / Macrostrat API
@@ -32,18 +29,19 @@
     """
 
     responses = Array{Union{Dict{String, Any}, String}}(undef, npoints, 1)
+    scales = Array{String}(undef, npoints, 1)
     skipcount = 0
     for i = 1:npoints
         try
-            responses[i] = query_macrostrat(rocklat[i], rocklon[i])
+            responses[i], scales[i] = query_macrostrat(rocklat[i], rocklon[i])
         catch
             try
                 # Wait and try again
                 sleep(1)
-                responses[i] = query_macrostrat(rocklat[i], rocklon[i])
+                responses[i], scales[i] = query_macrostrat(rocklat[i], rocklon[i])
             catch
                 # If still nothing, move on
-                responses[i] = "No response"
+                responses[i] = scales[i] = "No response"
                 global skipcount += 1
             end
         end
@@ -70,6 +68,7 @@
                 g["rockcomments"] = parsed.rockcomments
                 g["reference"] = parsed.refstrings
                 g["npoints"] = i
+                g["scale"] = scales[1:i]
 
             # And rock types, so that we can grab any file and use it later
             bulktypes = create_group(fid, "type")
@@ -128,6 +127,7 @@
         g["rockcomments"] = parsed.rockcomments
         g["reference"] = parsed.refstrings
         g["npoints"] = npoints
+        g["scale"] = scales
 
     bulktypes = create_group(fid, "type")
         # Rock types

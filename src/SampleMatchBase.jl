@@ -131,12 +131,6 @@
     end
 
 
-## --- Exclude OIBs from analysis
-    # The easiest way to do this is just to re-assign any samples to a blank type
-    isOIB = findOIBs(macrostrat.rocklat, macrostrat.rocklon)
-    littletypes[isOIB] .= :none;
-
-
 ## --- Initialize for EarthChem sample matching
     # Definitions
     geochemkeys = get_elements()[1][1:end-1]        # Major non-volatile elements

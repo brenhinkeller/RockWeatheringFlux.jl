@@ -65,40 +65,43 @@
 
 
 ## --- Sort matched data into time bins, normalize, and save to a file
-    fid = h5open("src/visualization/composition/SilicaAgeDistribution.h5", "w")
-    g = create_group(fid, "vars")
+    suffix = RockWeatheringFlux.version * "_" * RockWeatheringFlux.tag
+    fpath = "src/visualization/composition/SilicaAgeDistribution_" * suffix * ".h5"
 
-    # Resampled
-    g_resam = create_group(g, "resampled")
-    for i in eachindex(target)
-        out_bulk = zeros(ybins, xbins)
-        for j = 1:ybins
-            t = @. yedges[j] <= simbulk[target[i]][:,2] < yedges[j+1]
-            c, n = bincounts(simbulk[target[i]][:,1][t], xmin, xmax, xbins)
-            out_bulk[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
+    if isfile(fpath)
+        fid = h5open(fpath, "r")
+        out_bulk = NamedTuple{target}(read(fid["vars"]["resampled"]["$key"]) for key in target)
+        out_mbulk = NamedTuple{target}(read(fid["vars"]["matched"]["$key"]) for key in target)
+        close(fid)
+    else
+        fid = h5open(fpath, "w")
+        g = create_group(fid, "vars")
+
+        # Resampled
+        g_resam = create_group(g, "resampled")
+        for i in eachindex(target)
+            out_bulk = zeros(ybins, xbins)
+            for j = 1:ybins
+                t = @. yedges[j] <= simbulk[target[i]][:,2] < yedges[j+1]
+                c, n = bincounts(simbulk[target[i]][:,1][t], xmin, xmax, xbins)
+                out_bulk[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
+            end
+            write(g_resam, "$(target[i])", out_bulk)
         end
-        write(g_resam, "$(target[i])", out_bulk)
-    end
 
-    # Matched
-    g_match = create_group(g, "matched")
-    for i in eachindex(target)
-        out_mbulk = zeros(ybins, xbins)
-        for j = 1:ybins
-            t = @. yedges[j] <= sim_mbulk[target[i]][:,2] < yedges[j+1]
-            c, n = bincounts(sim_mbulk[target[i]][:,1][t], xmin, xmax, xbins)
-            out_mbulk[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
+        # Matched
+        g_match = create_group(g, "matched")
+        for i in eachindex(target)
+            out_mbulk = zeros(ybins, xbins)
+            for j = 1:ybins
+                t = @. yedges[j] <= sim_mbulk[target[i]][:,2] < yedges[j+1]
+                c, n = bincounts(sim_mbulk[target[i]][:,1][t], xmin, xmax, xbins)
+                out_mbulk[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
+            end
+            write(g_match, "$(target[i])", out_mbulk)
         end
-        write(g_match, "$(target[i])", out_mbulk)
+        close(fid)
     end
-    close(fid)
-
-
-## --- Load data 
-    fid = h5open("src/visualization/composition/SilicaAgeDistribution.h5", "r")
-    out_bulk = NamedTuple{target}(read(fid["vars"]["resampled"]["$key"]) for key in target)
-    out_mbulk = NamedTuple{target}(read(fid["vars"]["matched"]["$key"]) for key in target)
-    close(fid)
 
 
 ## --- Build plot (subdivide igneous into volcanic and plutonic classes)

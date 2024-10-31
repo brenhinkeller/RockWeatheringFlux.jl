@@ -62,16 +62,20 @@
 ## --- Resample (spatial) all silica distributions 
     # Preallocate 
     simout = NamedTuple{keys(match_cats)}(Array{Float64}(undef, nsims) for _ in keys(match_cats));
+    
+    # Figure out where the time-saving file is
+    suffix = RockWeatheringFlux.version * "_" * RockWeatheringFlux.tag
+    fpath = "src/visualization/composition/SilicaDistribution_" * suffix * ".h5"
 
     # Restrict to samples with data and resample 
     t = @. !isnan(bulk.Latitude) & !isnan(bulk.Longitude);
-    try
-        fid = h5open("src/visualization/composition/SilicaDistribution.h5", "r")
+    if isfile(fpath)
+        fid = h5open(fpath, "r")
         header = Tuple(Symbol.(read(fid["vars"]["header"])))
         data = read(fid["vars"]["data"])
         simout = NamedTuple{header}([data[:,i] for i in eachindex(header)])
         close(fid)
-    catch
+    else
         simout = NamedTuple{keys(match_cats)}(Array{Float64}(undef, nsims) for _ in keys(match_cats));
         out = Array{Float64}(undef, nsims, length(keys(simout)))
         
@@ -88,7 +92,7 @@
             out[:,i] .= simout[key]
         end
 
-        fid = h5open("src/visualization/composition/SilicaDistribution.h5", "w")
+        fid = h5open(fpath, "w")
         g = create_group(fid, "vars")
         write(g, "header", collect(string.(keys(simout))))
         write(g, "data", out)
@@ -105,7 +109,7 @@
 
     # Build plots
     for i in eachindex(fig)
-        h = plot(
+        h = Plots.plot(
             framestyle=:box, 
             grid = false,
             fontfamily=:Helvetica, 
@@ -193,7 +197,7 @@
 
     # Build plots 
     for i in eachindex(fig_types)
-        h = plot(
+        h = Plots.plot(
             framestyle=:box, 
             grid = false,
             fontfamily=:Helvetica, 
@@ -246,8 +250,8 @@
     end
     
     # Axis labels
-    ylabel!(fig[11], "Relative Abundance")
-    xlabel!(fig[28], "SiO2 [wt.%]")
+    Plots.ylabel!(fig[11], "Relative Abundance")
+    Plots.xlabel!(fig[28], "SiO2 [wt.%]")
 
     # Common legend, as it's own plot
     h = Plots.plot(
@@ -281,6 +285,7 @@
     )
     display(h)
     savefig(h, "$filepath/histogram_all_classes.pdf")
+    # savefig(h, "histogram_all_classes.png")
 
     
 ## --- End of file

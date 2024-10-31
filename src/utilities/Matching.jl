@@ -36,8 +36,15 @@
         typelist, cats = get_cats(major, length(rocktype))
         set = keys(typelist)
 
+        # I need to know which keys in set are descriptive keys that correspond to a given
+        # major type. (e.g., give me all descriptive types for sed rocks) for some reason 
+        # (the reason is that I want this to work)
+        # setfilter = rock_type_filter(set, inclusiveign=true);
+
+        # I fear progress
         p = Progress(length(typelist)*4, desc="Finding Macrostrat rock types...", enabled=showprogress)
 
+        # OK now actually do stuff.
         # Check major lithology 
         for s in set
             for i in eachindex(typelist[s])
@@ -48,7 +55,7 @@
         end
 
         # Check the rest of rocktype
-        not_matched = find_unmetamorphosed_unmatched(cats)
+        not_matched = find_unmatched_useful(cats)
         for s in set
             for i in typelist[s]
                 cats[s][not_matched] .|= containsi.(rocktype[not_matched], i)
@@ -57,7 +64,7 @@
         end
 
         # Then rockname
-        not_matched = find_unmetamorphosed_unmatched(cats)
+        not_matched = find_unmatched_useful(cats)
         for s in set
             for i in typelist[s]
                 cats[s][not_matched] .|= containsi.(rockname[not_matched], i)
@@ -66,7 +73,7 @@
         end
 
         # Then rockdescrip
-        not_matched = find_unmetamorphosed_unmatched(cats)
+        not_matched = find_unmatched_useful(cats)
         for s in set
             for i in typelist[s]
                 cats[s][not_matched] .|= containsi.(rockdescrip[not_matched], i)
@@ -159,7 +166,7 @@
 
         # Match all unmatched samples with a defined metamorphic material
         # This means that protoliths should be mostly known, even though we didn't use
-        # find_unmetamorphosed_unmatched: we don't have to use it here, because we know
+        # find_unmatched_useful: we don't have to use it here, because we know
         # the values of Material and Type
         not_matched = find_unmatched(cats);
         cats.met[groups.met .& not_matched] .= true
@@ -214,7 +221,7 @@
         end
 
         # Check sample description inherited from previous databases
-        not_matched = find_unmetamorphosed_unmatched(cats)
+        not_matched = find_unmatched_useful(cats)
         for s in set
             for i in typelist[s]
                 cats[s][not_matched] .|= containsi.(sample_description[not_matched], i)
@@ -223,7 +230,7 @@
         end
 
         # Check QAP name
-        not_matched = find_unmetamorphosed_unmatched(cats)
+        not_matched = find_unmatched_useful(cats)
         for s in set
             for i in typelist[s]
                 cats[s][not_matched] .|= containsi.(qap_name[not_matched], i)
@@ -232,7 +239,7 @@
         end
 
         # Assign unmatched rocks by rock ID
-        not_matched = find_unmetamorphosed_unmatched(cats)
+        not_matched = find_unmatched_useful(cats)
 
         id_cats = get_cats(false, length(rockgroup_id))[2]
         for s in set
@@ -426,6 +433,55 @@
 
     """
     ```julia
+    rock_type_filter(set; [inclusiveign=false])
+    ```
+
+    Given a list of lithologic classes `set`, return a NamedTuple BitVector that filters 
+    all the minor classes for a given major class.
+
+    Set `inclusiveign=true` to make the BitVector filter for every single igneous class.
+
+    # Example 
+    ```julia-repl
+    julia> typelist = get_rock_class()[1];
+
+    julia> set = keys(typelist);
+
+    julia> setfilter = rock_type_filter(set);
+
+    julia> set[setfilter.sed]
+    (:siliciclast, :shale, :carb, :evap, :chert, :phosphorite, :coal)
+
+    julia> set[setfilter.sed] == minorsed
+    true
+    ```
+    """
+    function rock_type_filter(set; inclusiveign::Bool=false)
+        # Preallocate
+        majorlist = (:sed, :volc, :plut, :ign)
+        setfilter = NamedTuple{majorlist}(falses(length(set)) for _ in majorlist)
+        minorlist = zip(majorlist, get_rock_class()[2:end]);
+
+        # Search and destroy
+        for i in minorlist 
+            for j in i[2]
+                setfilter[i[1]] .|= (set .== j)
+            end
+        end
+
+        if inclusiveign
+            setfilter.ign .|= setfilter.volc
+            setfilter.ign .|= setfilter.plut
+            return setfilter
+        else
+            return setfilter
+        end
+    end
+    export rock_type_filter
+
+
+    """
+    ```julia
     find_unmatched(cats)
     ```
 
@@ -447,22 +503,33 @@
 
     """
     ```julia
-    find_unmetamorphosed_unmatched(cats)
+    find_unmatched_useful(cats)
     ```
 
-    As `find_unmatched`, but does not count uncategorized metamorphic rock as a matched
-    type. This allows `match_rocktype` to continue searching rockname and rockdescrip for
-    potential protoliths.
+    Imagine if `find_unmatched`, was more useful. 
+        
+    This finds all rocks that are unmatched to a minor / nondescriptive rock type. That means
+    if a sample is matched with a... 
+     * Undifferentiated metamorphic rock
+     * Nondescriptive types (undifferentiated sedimentary, volcanic, plutonic, igneous)
+    
+    Then I count it as not matched and search the next category for useful information.
+
+    So for example, something might have the rocktype "igneous" but specify "volcanic" in 
+    the rockname, and "volcanic breccia and tuff" in the rock description. I don't want to 
+    throw away the baby (tuff) in the bathwater (undifferentiated igneous).
     """
-    function find_unmetamorphosed_unmatched(cats)
+    function find_unmatched_useful(cats)
         matched = falses(length(cats[1]))
+
         @inbounds for k in keys(cats)
-            k == :met && continue
+            k in (:sed, :volc, :plut, :ign, :met) && continue
             matched .|= cats[k]
         end 
         return .!matched
     end
 
+    
     """
     ```julia
     rm_false_positives!(cats)

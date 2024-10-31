@@ -373,7 +373,7 @@
             "taconite", "banded iron", "spiculite", "jasper", "bif")
         phosphorite = ("phosphorite", "phosphate")
         coal = ("coal", "anthracite", "lignite", "bitumen")
-        sed = ("sediment", "clast", "diamict", "tillite", "stream deposits", 
+        sed = ("sediment", "clastic", "diamict", "tillite", "stream deposits", 
             "beach deposits", "terrace", "marine deposits", "paleosol", "glauconite", 
             "meta-sed", "metased", "paragneiss", "para", "melange")
 

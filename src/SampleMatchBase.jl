@@ -12,11 +12,14 @@
     )
 
     # Rock type matches
-    header = read(fid["type"]["macro_cats_head"])
-    data = read(fid["type"]["macro_cats"])
-    data = @. data > 0
-    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    # header = read(fid["type"]["macro_cats_head"])
+    # data = read(fid["type"]["macro_cats"])
+    # data = @. data > 0
+    # macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
 
+    macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
+        macrostrat.rockdescrip, showprogress=show_progress
+    )
     close(fid)
 
 
@@ -139,7 +142,7 @@
     bulk_inds = collect(1:length(bulk.SiO2))        # Indices of bulk samples
 
     # # Zero-NaN version of the major elements in bulk
-    bulkzero = NamedTuple{Tuple(geochemkeys)}([zeronan(bulk[i]) for i in geochemkeys])
+    bulkzero = NamedTuple{Tuple(geochemkeys)}([zeronan(bulk[i]) for i in geochemkeys]);
 
     # Average geochemistry of each rock type
     geochem_lookup = NamedTuple{Tuple(keys(macro_cats))}([major_elements(bulk, bulk_cats[i])

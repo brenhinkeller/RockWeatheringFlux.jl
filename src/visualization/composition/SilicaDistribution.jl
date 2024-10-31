@@ -16,6 +16,9 @@
     nsims = Int(1e7)
     SiO₂_error = 1.0        # Given error in volcanic.mat is 0.01
 
+    # Use the existing intermediate file, or re-do it?
+    redo_resample = true 
+
 
 ## --- Load and resample volcanic / plutonic data from Keller et al., 2015
     # Volcanic (spatial)
@@ -69,7 +72,7 @@
 
     # Restrict to samples with data and resample 
     t = @. !isnan(bulk.Latitude) & !isnan(bulk.Longitude);
-    if isfile(fpath)
+    if isfile(fpath) && redo_resample==false
         fid = h5open(fpath, "r")
         header = Tuple(Symbol.(read(fid["vars"]["header"])))
         data = read(fid["vars"]["data"])

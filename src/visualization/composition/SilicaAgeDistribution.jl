@@ -20,6 +20,10 @@
     target = (:ign, :plut, :volc)
 
 
+    # Use the existing intermediate file, or re-do it?
+    redo_resample = false 
+
+
 ## --- Resample (spatiotemporal) bulk geochemical data
     # Preallocate 
     simbulk = NamedTuple{target}(Array{Float64}(undef, nsims, 2) for _ in target)
@@ -68,7 +72,7 @@
     suffix = RockWeatheringFlux.version * "_" * RockWeatheringFlux.tag
     fpath = "src/visualization/composition/SilicaAgeDistribution_" * suffix * ".h5"
 
-    if isfile(fpath)
+    if isfile(fpath) && redo_resample==false
         fid = h5open(fpath, "r")
         out_bulk = NamedTuple{target}(read(fid["vars"]["resampled"]["$key"]) for key in target)
         out_mbulk = NamedTuple{target}(read(fid["vars"]["matched"]["$key"]) for key in target)

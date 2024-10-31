@@ -37,7 +37,7 @@
     close(fid)
 
 
-## --- Remove misleading positives from the matches
+## --- Update matches in mapped samples and geochemical samples
     typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
 
     # I hate cover
@@ -56,8 +56,8 @@
     # To calculate total volcanic / plutonic abundance, must include subtypes
     include_minor!(macro_cats)
 
-    # Absolute abundance of each rock type (count)
-    ptype = (
+    # Absolute abundance (count) of each rock type
+    ptype = (;
         sed = float.([count(macro_cats[i]) for i in minorsed]),
         volc = float.([count(macro_cats[i]) for i in minorvolc]),
         plut = float.([count(macro_cats[i]) for i in minorplut]),
@@ -78,8 +78,9 @@
     p_protolith ./= nansum(p_protolith)
 
 
-## --- If samples are matched to a rock subtype and a rock major type, don't!
+    # If samples are matched to a rock subtype and a rock major type, don't!
     # This is mostly important for figuring out what minor type to assign each sample
+    # If we know what kind of rock we have... we don't want to lose that information
     exclude_minor!(macro_cats)
     exclude_minor!(bulk_cats)
 
@@ -87,6 +88,7 @@
 ## --- Match each Macrostrat sample to a single informative rock name and type
     # Doing this in several passes over the sample set means that I can optimize sections
     # that can be optimized, which will make this faster... by two orders of magnitude
+    # I love coding. Affirm: I AM optimization
 
     # Preallocate
     littletypes = Array{Symbol}(undef, length(macrostrat.age), 1)   # Shale, chert, etc.
@@ -130,6 +132,151 @@
         end
     end
 
+
+## --- FIXME: something is terribly, horribly wrong 
+    # Also note that becomes the above is random, this is gonna change every time 
+    # Sorry future rowan, go fuck yourself I guess 
+
+    # Major types do not include minors
+    little_cats = match_rocktype(string.(littletypes))
+
+    for i in unique(macrostrat.rocktype[little_cats.evap])[end-10:end]
+        println("$i\n")
+    end
+    # For reference: 
+    # paragneiss [95.0%..100.0%]
+    # major:{metasedimentary,migmatite}
+    # dolomite [50.0%..95.0%]; evaporite [5.0%..50.0%]; limestone [5.0%..50.0%]
+    # major:{metasedimentary}
+    # major:{melange}
+    # evaporite [5.0%..50.0%]; impure carbonate [50.0%..95.0%]; sandstone [5.0%..50.0%]
+    # calcareous schist
+    # metasedimentary, granodiorite, quartz diorite, migmatite, monzogranite, metamorphic mafic rock, meta monzogranite, felsic metavolcanic
+    # tonalite, granite, granodiorite, migmatite, metagranitoid (granite), orthogneiss, paragneiss
+    # major: {basalt flows, olivine clasts}; major: {basaltic andesite flows, olivine clasts}
+    # major:{schist}
+
+    # I am not god's favorite 
+
+    target = "major: {basalt flows, olivine clasts}; major: {basaltic andesite flows, olivine clasts}"
+    s = macrostrat.rocktype .== target;
+    count(s)    
+    i = collect(1:length(macrostrat.rocktype))[vec(s)]
+
+    macro_cats.evap[i[1]]   # False 
+    macro_cats.evap[i[2]]   # False 
+
+    # LMAO
+    # It's picking up "clast" and is thinking this is a clastic rock 
+    get_type(macro_cats, i[1], all_keys=true)   # sed, basalt 
+    get_type(macro_cats, i[2], all_keys=true)   # sed, basalt 
+
+    # OK two options:
+        # (1) only let this pick from minor types 
+        # (2) igneous rocks... can also have clasts
+    # both?
+
+    # Run this bad boy again !
+    # I Changed "clast" to "clastic"
+    # macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
+    #     macrostrat.rockdescrip, showprogress=true
+    # )
+
+    # TODO: need to write some code that scrapes all the macrostrat files and re-does the matches 
+    # and also the bulk / combined files need to be redone 
+    # in conclusion, :(
+
+    # Double check that there are no more horrible things happening with mapped types 
+    # and matched little types 
+    
+    # So I want to find the differences between little_cats (future match_cats) and macro_cats 
+    # This is samples that are matched to a little type but NOT mapped as that
+    diff_cats = NamedTuple{keys(little_cats)}(little_cats[k] .& .!macro_cats[k] for k in keys(little_cats))
+    unique(macrostrat.rockname[diff_cats.granite])
+
+    target = "volcanic rocks of the gravina-nutzotin belt"
+    s = macrostrat.rockname[diff_cats.granite] .== target 
+    i = collect(1:length(macrostrat.rockname))[diff_cats.granite][s]
+    
+    macrostrat.rockname[i]                      #  "volcanic rocks of the gravina-nutzotin belt"
+    get_type(macro_cats, i[2], all_keys=true)   # ign
+    macro_cats.volc[i[2]]                       # False :(
+    
+    # Once again I am god's least favorite 
+    # I KNOW WHY
+    # remove_minors! probably removes volcanic and plutonic rocks because we know they're igneous?
+    # Or something like that
+    count(macro_cats.ign .| macro_cats.volc)        # 144096
+    
+    # Maybe not? Why isnt' that volcanic? :(
+    macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
+        macrostrat.rockdescrip, showprogress=true
+    )
+
+    # :( :( :( :( :( :(
+    # julia> macro_cats.volc[i[1]]
+    # false
+
+    # julia> macrostrat.rockname[i[1]]
+    # "volcanic rocks of the gravina-nutzotin belt"
+
+    # julia> include_minor!(macro_cats);
+
+    # julia> macro_cats.volc[i[1]]
+    # false
+
+## --- second code block now 
+    i = [937209, 999963]
+    get_type(macro_cats, i[1], all_keys=true)   # ign 
+    get_type(little_cats, i[1], all_keys=true)  # granite
+
+    j = i[1]-5:i[1]+5
+    rockname = macrostrat.rockname[j]
+    rocktype = macrostrat.rocktype[j]
+    rockdescrip = macrostrat.rockdescrip[j]
+
+    test_cats = match_rocktype(rocktype, rockname, rockdescrip, showprogress=true)
+
+
+    typelist, cats = get_cats(false, length(rocktype));
+    set = keys(typelist)
+
+    # Check major lithology 
+    for s in set
+        for i in eachindex(typelist[s])
+            cats[s] .|= (match.(r"major.*?{(.*?)}", rocktype) .|> 
+                x -> isa(x, RegexMatch) ? containsi.(x[1], typelist[s][i]) : false)
+        end
+    end
+
+    # Check the rest of rocktype
+    not_matched = RockWeatheringFlux.find_unmatched_useful(cats);
+    for s in set
+        for i in typelist[s]
+            cats[s][not_matched] .|= containsi.(rocktype[not_matched], i)
+        end
+    end
+
+    not_matched = RockWeatheringFlux.find_unmatched_useful(cats);
+    for s in set
+        for i in typelist[s]
+            cats[s][not_matched] .|= containsi.(rockname[not_matched], i)
+        end
+    end
+
+    not_matched = RockWeatheringFlux.find_unmatched_useful(cats);
+    for s in set
+        for i in typelist[s]
+            cats[s][not_matched] .|= containsi.(rockdescrip[not_matched], i)
+        end
+    end
+
+    [not_matched cats.ign cats.volc rocktype]
+
+    # OK. here's the deal. rockname has additional information that we aren't getting 
+    # We don't want to like... scan rockname for random weird shit... so if we didn't get a 
+    # minor type out of the rockname, but we DID get a major type, scan for better information 
+    # within that major type
 
 ## --- Initialize for EarthChem sample matching
     # Definitions

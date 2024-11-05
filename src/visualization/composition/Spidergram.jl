@@ -187,7 +187,7 @@
         label="Eroded Sediment", 
         seriescolor=colors_source.this_study, msc=:auto,
         markershape=:circle, markersize=5,
-        title="C. Sedimentary Rocks",
+        title="D. Sedimentary Rocks",
     )
     spidergram!(h3, ucc.sed,
         # collect(values(ucc.sed) .± values(ucc_err.sed)),
@@ -228,9 +228,9 @@
     # # display(h3)
 
     # Assemble plots, but this is a placeholder because the y axis gets all messed up :(
-    h = Plots.plot(h1, h2, h3, layout=(2, 2), size=(1200,800))
+    h = Plots.plot(h1, h5, h2, h3, layout=(2, 2), size=(1200,800))
     display(h)
-    # savefig(h, "$filepath/spidergram.pdf")
+    savefig(h, "$filepath/spidergram.pdf")
 
 
 ## --- End of file 

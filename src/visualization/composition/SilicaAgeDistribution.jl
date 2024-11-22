@@ -6,12 +6,15 @@
     include("Definitions.jl");
 
     # Preallocate / Local definitions
-    nsims = Int(1e7)                         # 10 M simulations
-    SiO2_error = 1.0                         # Assumed SiO₂ error
+    # elem = :MgO                              # Element of interest
+    elem = :SiO2
+    elem_error = 1.0                         # Assumed element of interest (SiO₂) error
     age_error = 5                            # Minimum age error (%)
     age_error_abs = 50                       # Minimum age error (Ma)
+    nsims = Int(1e7)                         # 10 M simulations
 
     xmin, xmax, xbins = 40, 80, 240          # Silica
+    # xmin, xmax, xbins  = 0, 50, 300          # MgO
     xedges = xmin:(xmax-xmin)/xbins:xmax
     ymin, ymax, ybins = 0, 3800, 380         # Age
     yedges = ymin:(ymax-ymin)/ybins:ymax
@@ -20,8 +23,8 @@
     target = (:ign, :plut, :volc)
 
 
-    # Use the existing intermediate file, or re-do it?
-    redo_resample = false 
+    # Use the existing intermediate file (false), or re-do it (true)?
+    redo_resample = true 
 
 
 ## --- Resample (spatiotemporal) bulk geochemical data
@@ -40,8 +43,8 @@
         s = t .& bulk_cats[key]
         k = invweight(bulk.Latitude[s], bulk.Longitude[s], bulk.Age[s])
         p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-        data = [bulk.SiO2[s] bulk.Age[s]]
-        uncertainty = [fill(SiO2_error, count(s)) ageuncert[s]]
+        data = [bulk[elem][s] bulk.Age[s]]
+        uncertainty = [fill(elem_error, count(s)) ageuncert[s]]
         simbulk[key] .= bsresample(data, uncertainty, nsims, p)
     end
 
@@ -62,15 +65,17 @@
         s = t .& match_cats[key]
         k = invweight_age(sampleage[s])
         p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-        data = [mbulk.SiO2[s] sampleage[s]]
-        uncertainty = [fill(SiO2_error, count(s)) ageuncert[s]]
+        data = [mbulk[elem][s] sampleage[s]]
+        uncertainty = [fill(elem_error, count(s)) ageuncert[s]]
         sim_mbulk[key] .= bsresample(data, uncertainty, nsims, p)
     end
 
 
 ## --- Sort matched data into time bins, normalize, and save to a file
     suffix = RockWeatheringFlux.version * "_" * RockWeatheringFlux.tag
-    fpath = "src/visualization/composition/SilicaAgeDistribution_" * suffix * ".h5"
+    fpath = "src/visualization/composition/SilicaAgeDistribution_$(elem)_" * suffix * ".h5"
+
+    p = Progress(length(target)*2, desc="Building 2D-Histogram Data...")
 
     if isfile(fpath) && redo_resample==false
         fid = h5open(fpath, "r")
@@ -91,6 +96,7 @@
                 out_bulk[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
             end
             write(g_resam, "$(target[i])", out_bulk)
+            next!(p)
         end
 
         # Matched
@@ -103,7 +109,14 @@
                 out_mbulk[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
             end
             write(g_match, "$(target[i])", out_mbulk)
+            next!(p)
         end
+        close(fid)
+
+        # Now read from the file. It's inefficient. But it's faster than making the code good.
+        fid = h5open(fpath, "r")
+        out_bulk = NamedTuple{target}(read(fid["vars"]["resampled"]["$key"]) for key in target)
+        out_mbulk = NamedTuple{target}(read(fid["vars"]["matched"]["$key"]) for key in target)
         close(fid)
     end
 

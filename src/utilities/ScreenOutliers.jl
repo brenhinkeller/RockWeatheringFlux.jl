@@ -26,7 +26,7 @@ function screen_outliers!(bulk::NamedTuple, cats::NamedTuple; warn::Bool=false)
     # needs un-converted. From Gard and EarthChem screening
     bulk.Cl[bulk.Cl .< 0.0003] .= bulk.Cl[bulk.Cl .< 0.0003] .* 10_000;
     bulk.F[bulk.F .< 0.0003] .= bulk.F[bulk.F .< 0.0003] .* 10_000;
-    bulk.S[bulk.S .< 0.0003] .= bulk.S[bulk.S .< 0.0003] .* 10_000;
+    # bulk.S[bulk.S .< 0.0003] .= bulk.S[bulk.S .< 0.0003] .* 10_000;
 
     # Some data were actually PPB, so they're too large and need an additional division
     # From Gard screening

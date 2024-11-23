@@ -136,6 +136,26 @@
     end
 
 
+## --- TEMP see if something is terrible 
+    littlecats = match_rocktype(string.(littletypes))
+
+    unique(macrostrat.rocktype[littlecats.evap])
+
+    # Here's the problem with the last one. It picks up on sedimentary and reassigns it to 
+    # sed, which gets reassigned to a random sed rock 
+    problems = [
+        "dacite, latite, andesite, rhyolite and related pyroclastic rocks; ",   # "clast" -- shouldn't this have gotten fixed??
+        "intermediate volcanic rocks",  # macrostrat.rockname = sed + volcanic
+        "low-medium grade metasedimentary/metavolcanic schist",
+    ]
+
+    ind = 1:length(macrostrat.rocktype)
+    t = vec(problems[2] .== macrostrat.rocktype);
+    i = ind[t]
+
+    get_type(macro_cats, i[1], all_keys=true)
+    
+
 ## --- Initialize for EarthChem sample matching
     # Definitions
     geochemkeys = get_elements()[1][1:end-1]        # Major non-volatile elements

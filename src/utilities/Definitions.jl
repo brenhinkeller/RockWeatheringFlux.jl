@@ -8,9 +8,9 @@
     # Lithologic
     # version = "v1"
     version = "v2"
-    # N = 100_000;    tag = "100K"
+    N = 100_000;    tag = "100K"
     # N = 200_000;   tag = "200K"
-    N = 1_000_000; tag = "1M"
+    # N = 1_000_000; tag = "1M"
     
     @info """ Datasets loaded:
     Geochemical: $dataset
@@ -373,9 +373,9 @@
             "taconite", "banded iron", "spiculite", "jasper", "bif")
         phosphorite = ("phosphorite", "phosphate")
         coal = ("coal", "anthracite", "lignite", "bitumen")
-        sed = ("sediment", "clastic", "diamict", "tillite", "stream deposits", 
-            "beach deposits", "terrace", "marine deposits", "paleosol", "glauconite", 
-            "meta-sed", "metased", "paragneiss", "para", "melange")
+        sed = ("sediment", "diamict", "tillite", "stream deposits", "beach deposits", 
+            "terrace", "marine deposits", "paleosol", "glauconite", "meta-sed", "metased", 
+            "paragneiss", "para", "melange")
 
         # Volcanic
         komatiite = ("komatiite", "meimechite", "ultramafitite")
@@ -384,11 +384,11 @@
             "mafic", "melaphyre", "greenstone", "spilite", "greenschist", "blueschist", 
             "basite", "metabasite", "hyaloclastite", "tholleiite")
         andesite = ("andesit", "andeste", "boninite", "icelandite", "marianite", "adakite", 
-            "propylite",)
+            "propylite", "intermediate volcanic")
         dacite = ("dacit", "santorinite", "ignimbrite",)
         rhyolite = ("rhyolit", "felsite", "liparite", "silicic", "pumice", 
             "obsidian", "dellenite", "rhyodacite", "ignimbrite", "lenticulite", 
-            "halleflinta", "rhyoite")
+            "halleflinta", "rhyoite", "felsic volcanic")
         alk_volc = ("polzenite", "hauynite", "arsoite", "benmoreite", "camptonite", 
             "ciminite", "damkjernite", "damtjernite", "dankjernite", "domite", "fortunite", 
             "gauteite","kenyte", "keratophyre", "kersantite", "kivite", "lampro", "madupite",
@@ -414,13 +414,13 @@
             "dolerit", "leucophyre", "glenmuirite", "jotunite", "labradorite", "luscladite", 
             "theralite", "norite", "troctolite", "sebastianite", "eclogite", "amphibolit", 
             "rodingite", "corganite", "corgaspinite",)
-        diorite = ("diorit", "iorite", "jotunite", "marscoite", "sanukite",)
+        diorite = ("diorit", "iorite", "jotunite", "marscoite", "sanukite", "intermediate pluton")
         trondhjemite =  ("trondhjemite", "trond", "ttg",)
         tonalite = ("tonalit", "adamellite", "enderbite", "ttg",)
         granodiorite = ("granodiorite", "ttg",)
         granite = ("granit", "microgranite", "adamellite", "aplite", "charnockite", 
             "granophyre", "rapakivi", "monzonit", "monzonize", "mangerite", "greisen", 
-            "pegmat", "adamelllite", "adamelite", "unakite", "felsic",)
+            "pegmat", "adamelllite", "adamelite", "unakite", "felsic plutonic",)
         alk_plut = ("syenit", "seyenite", "alaskite", "borolanite", "bostonite", "durbachite", 
             "foyaite", "jacupirangite", "juvite", "kentallenite", "larvikite", "lujavrite",
             "nordmarkite", "orthoclasite", "shonkinite", "sommaite", "kaersutitite",

@@ -239,10 +239,11 @@
 
     # Calculate spatial weights and resample
     nsims = 10_000
+    k = Array{Float64}(undef, count(matched))
     try 
-        k = readdlm("output/bulk_k.csv", ',')
+        k .= readdlm("output/bulk_k.csv", ',')
     catch
-        k = invweight_location(bulk.Latitude[matched], bulk.Longitude[matched])
+        k .= invweight_location(bulk.Latitude[matched], bulk.Longitude[matched])
         writedlm("output/bulk_k.csv", k, ',')
     end
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
@@ -285,6 +286,38 @@
     for i in 1:size(table)[1]
         println("$(join(table[i,:], " & ")) \\ \b\\")
     end
+
+
+## --- Visualize 
+    # using Plots, StatsPlots
+    # pal = Plots.palette(:managua, 3)
+
+    # table = round.(vcat(
+    #     reshape(major_dataset_abundance[1:3], 1, :),
+    #     reshape(major_global_abundance[1:3], 1, :),
+    #     reshape(major_resampled_abundance[1:3], 1, :),
+    #     ), digits=1
+    # )
+
+    # xticks = repeat(["Geochemical Data", "Mapped", "Resampled"], outer = 3)
+    # catg = repeat(["(a) Sedimentary", "(b) Volcanic", "(c) Plutonic"], inner = 3)
+    # color = repeat([pal[1], pal[2], pal[3]], inner = 3)
+    
+    # a = groupedbar(xticks, table, 
+    #     group = catg, 
+    #     bar_position = :dodge,
+    #     color = color,
+    #     linewidth=0,
+    #     barwidths=0.75,
+    #     ylabel="Percent Abundance",
+    #     ylims=(0, 70),
+    #     framestyle=:box,
+    #     bottom_margin=(0,:px),
+    #     fg_color_legend=:white,
+    #     legend=:topleft
+    # )
+    # display(a)
+    # savefig("abundance.png")
 
 
 ## --- End of file 

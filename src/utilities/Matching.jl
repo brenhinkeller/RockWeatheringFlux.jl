@@ -33,19 +33,27 @@
         showprogress::Bool=true) where T <: AbstractArray{<:String}
         
         # Get rock type classifications and initialized BitVector
-        typelist, cats = get_cats(major, length(rocktype))
+        npoints = length(rocktype)
+        typelist, cats = get_cats(major, npoints)
         set = keys(typelist)
 
-        # I need to know which keys in set are descriptive keys that correspond to a given
-        # major type. (e.g., give me all descriptive types for sed rocks) for some reason 
-        # (the reason is that I want this to work)
-        # setfilter = rock_type_filter(set, inclusiveign=true);
+        # Define descriptive and nondescriptive types
+        is_nondescript = (:sed, :ign, :volc, :plut, :met)
+        minorsed, minorvolc, minorplut, minorign = get_rock_class()[2:5];
+        minorset = (;
+            sed = (minorsed..., :sed), 
+            volc=(minorvolc..., :volc,), 
+            plut=(minorplut..., :plut), 
+            ign=(minorign..., :ign), 
+            met=(:met,)
+        )
 
         # I fear progress
-        p = Progress(length(typelist)*4, desc="Finding Macrostrat rock types...", enabled=showprogress)
+        p = Progress(length(set) + 3*length(is_nondescript), 
+            desc="Finding Macrostrat rock types...", enabled=showprogress
+        );
 
-        # OK now actually do stuff.
-        # Check major lithology 
+        # Start normally, checking major lithologies 
         for s in set
             for i in eachindex(typelist[s])
                 cats[s] .|= (match.(r"major.*?{(.*?)}", rocktype) .|> 
@@ -54,29 +62,44 @@
             next!(p)
         end
 
+        # Pause!! For samples matched only to a nondescriptive key (e.g. sed -> "sedimentary")
+        # we want to keep looking, but only look in the "sedimentary" lists. We'll 
+        # use catmatrix as a filter for which categories we're looking in
+        catmatrix = stack(cats[k] for k in is_nondescript)
+        catmatrix_col = NamedTuple{is_nondescript}(i for i in eachindex(is_nondescript))
+
         # Check the rest of rocktype
-        not_matched = find_unmatched_useful(cats)
-        for s in set
-            for i in typelist[s]
-                cats[s][not_matched] .|= containsi.(rocktype[not_matched], i)
+        find_unmatched!(cats, catmatrix, catmatrix_col, is_nondescript, npoints)
+        for bigtype in eachindex(catmatrix_col)
+            bigtype_filter = catmatrix[:,catmatrix_col[bigtype]]
+            for s in minorset[bigtype]
+                for i in typelist[s]
+                    cats[s][bigtype_filter] .|= containsi.(rocktype[bigtype_filter], i)
+                end
             end
             next!(p)
         end
 
-        # Then rockname
-        not_matched = find_unmatched_useful(cats)
-        for s in set
-            for i in typelist[s]
-                cats[s][not_matched] .|= containsi.(rockname[not_matched], i)
+        # Rockname 
+        find_unmatched!(cats, catmatrix, catmatrix_col, is_nondescript, npoints)
+        for bigtype in eachindex(catmatrix_col)
+            bigtype_filter = catmatrix[:,catmatrix_col[bigtype]]
+            for s in minorset[bigtype]
+                for i in typelist[s]
+                    cats[s][bigtype_filter] .|= containsi.(rockname[bigtype_filter], i)
+                end
             end
             next!(p)
         end
 
-        # Then rockdescrip
-        not_matched = find_unmatched_useful(cats)
-        for s in set
-            for i in typelist[s]
-                cats[s][not_matched] .|= containsi.(rockdescrip[not_matched], i)
+        # Rockdescrip
+        find_unmatched!(cats, catmatrix, catmatrix_col, is_nondescript, npoints)
+        for bigtype in eachindex(catmatrix_col)
+            bigtype_filter = catmatrix[:,catmatrix_col[bigtype]]
+            for s in minorset[bigtype]
+                for i in typelist[s]
+                    cats[s][bigtype_filter] .|= containsi.(rockdescrip[bigtype_filter], i)
+                end
             end
             next!(p)
         end
@@ -530,6 +553,72 @@
     end
 
     
+    """
+    ```julia
+    find_unmatched!(cats, catmatrix, catmatrix_col, is_nondescript, npoints)
+    ```
+
+    Modify the `catmatrix` BitMatrix so for a given sample (row) each nondescriptive rock
+    type (column) is true when that set of descriptive rocknames should be searched for 
+    matches.
+
+    # Arguments 
+     * `cats`: A NamedTuple of BitVectors which is true when the corresponding sample 
+       (index) has matched to a rock type.
+     * `catmatrix`: A BitMatrix with a row for each a sample, a column for each 
+       nondescriptive type. A given (row, column) is true if that sample matched with 
+       that nondescriptive type.
+     * `catmatrix_col`: Column indices of `catmatrix` which correspond to the nondescriptive 
+       types.
+     * `is_nondescript`: List of types considered nondescriptive. This should be equivalent 
+       to the keys of `catmatrix_col`.
+     * `npoints`: Number of samples in the dataset.
+
+    # Method
+     * If the sample matched to a descriptive type, all elements of the row are false. This 
+       sample will not match with any more rock types.
+     * If the sample did not match to *any* types, or *only* matched to metamorphic rocks, 
+       all elements of the row are true. This sample may match with any defined rock type.
+     * If the sample matched to *only* nondescriptive type(s), those types are true. In this 
+       case, the metamorphic column is set to be false. Since the match to metamorphic samples 
+       will not be undone, we don't need to search through the metamorphic names again. This 
+       sample will only match with rocktypes that fall under the nondescriptive umbrella 
+       (e.g., sedimentary rocks will only match with sedimentary subtypes)
+
+    """
+    function find_unmatched!(cats::NamedTuple, catmatrix::BitMatrix, catmatrix_col::NamedTuple, 
+        is_nondescript, npoints::Number)
+
+        # Find matched and descriptively matched samples
+        descriptive = falses(npoints);
+        matched = falses(npoints);
+        for k in keys(cats)
+            matched .|= cats[k]
+            k in is_nondescript && continue 
+            descriptive .|= cats[k]
+        end
+
+        # If the sample matched with a descriptive type, we're DONE
+        catmatrix[descriptive,:] .= 0
+
+        # Samples that didn't match with anything, OR samples that ONLY matched with 
+        # metamorphic rocks can match with anything
+        only_metamorphic = vec(cats.met .& (sum(catmatrix, dims=2) .== 1) .& .!descriptive);
+        catmatrix[only_metamorphic,:] .= 1;
+        catmatrix[.!matched,:] .= 1;
+
+        # If the sample matched with a nondescriptive type, we don't need to search through 
+        # the metamorphic terms again. That match isn't gonna go away, so set that to zero.
+        # Weird things happen with views, so we have to do it like this :(
+        restricted = vec(0 .< sum(catmatrix, dims=2) .< 5);
+        newmet = copy(catmatrix[:,catmatrix_col.met]);
+        newmet[restricted] .= 0;
+        catmatrix[:,catmatrix_col.met] .= newmet;
+
+        return catmatrix
+    end
+    export find_unmatched!
+
     """
     ```julia
     rm_false_positives!(cats)

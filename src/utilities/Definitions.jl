@@ -381,10 +381,10 @@
         komatiite = ("komatiite", "meimechite", "ultramafitite")
         basalt = ("basalt", "pillow", "scoria", "picrite", "anamesite", "hawaiite", 
             "mafite", "mugearite", "oceanite", "palagonite", "tachylyte", "tholeiite", 
-            "mafic", "melaphyre", "greenstone", "spilite", "greenschist", "blueschist", 
-            "basite", "metabasite", "hyaloclastite", "tholleiite")
+            "melaphyre", "greenstone", "spilite", "greenschist", "blueschist", 
+            "basite", "metabasite", "hyaloclastite", "tholleiite", "mafic igneous")
         andesite = ("andesit", "andeste", "boninite", "icelandite", "marianite", "adakite", 
-            "propylite", "intermediate volcanic")
+            "propylite", "intermediate volcan")
         dacite = ("dacit", "santorinite", "ignimbrite",)
         rhyolite = ("rhyolit", "felsite", "liparite", "silicic", "pumice", 
             "obsidian", "dellenite", "rhyodacite", "ignimbrite", "lenticulite", 
@@ -399,7 +399,7 @@
             "nephelinite","ugandite", "ottajanite", "melnoite", "pantellerite", "comendite", 
             "latite", "tristanite", "augitite", "absarokite", "shoshonite", "linosaite",
             "bergalite", "alnoite", "alnã\u96ite", "kimberlite",  "orangeite", "diatreme", 
-            "pipe", "alkaline volcan", "alkalic igneous", "malignite",)
+            "pipe", "alkaline volcan", "alkalic igneous", "alkalic", "malignite",)
         volcaniclast = ("tonstein", "peperite", "volcaniclastic", "lahar",)
         volc = ("volcanic", "extrusive", "lava", "eutaxite", "vitrophyre", "volcan", 
             "ash", "ashfall", "tuff",  "tephra", "cinder", "porphyrite", 
@@ -413,14 +413,14 @@
         gabbro = ("gabbro", "gabro", "mafraite", "allivalite", "anorthosite", "diabase", 
             "dolerit", "leucophyre", "glenmuirite", "jotunite", "labradorite", "luscladite", 
             "theralite", "norite", "troctolite", "sebastianite", "eclogite", "amphibolit", 
-            "rodingite", "corganite", "corgaspinite",)
+            "rodingite", "corganite", "corgaspinite", "mafic pluton",)
         diorite = ("diorit", "iorite", "jotunite", "marscoite", "sanukite", "intermediate pluton")
         trondhjemite =  ("trondhjemite", "trond", "ttg",)
         tonalite = ("tonalit", "adamellite", "enderbite", "ttg",)
         granodiorite = ("granodiorite", "ttg",)
         granite = ("granit", "microgranite", "adamellite", "aplite", "charnockite", 
             "granophyre", "rapakivi", "monzonit", "monzonize", "mangerite", "greisen", 
-            "pegmat", "adamelllite", "adamelite", "unakite", "felsic plutonic",)
+            "pegmat", "adamelllite", "adamelite", "unakite", "felsic plutonic", "felsic igneous")
         alk_plut = ("syenit", "seyenite", "alaskite", "borolanite", "bostonite", "durbachite", 
             "foyaite", "jacupirangite", "juvite", "kentallenite", "larvikite", "lujavrite",
             "nordmarkite", "orthoclasite", "shonkinite", "sommaite", "kaersutitite",

@@ -19,7 +19,7 @@
     ersn_errs = importdataset(comp_eroded_err, '\t', importas=:Tuple)
 
     rudnick_gao = importdataset("data/rudnickgao2014.csv",  ',', importas=:Tuple);
-    GloRiSe = importdataset("output/GloRiSe/GloRiSe_minor_screened.tsv", '\t', importas=:Tuple);
+    GloRiSe = importdataset("output/GlobalRivers/GloRiSe_minor_screened.tsv", '\t', importas=:Tuple);
 
 
 ## --- Load data 

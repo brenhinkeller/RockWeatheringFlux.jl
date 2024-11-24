@@ -41,60 +41,74 @@
 
 
 ## --- Update matches in mapped samples and geochemical samples
-    typelist, minorsed, minorvolc, minorplut, minorign = get_rock_class();
+    minorsed, minorvolc, minorplut, minorign = get_rock_class()[2:5];
 
     # I hate cover
     macro_cats = delete_cover(macro_cats)
     bulk_cats = delete_cover(bulk_cats)
 
-    # Metamorphic rocks are only metamorphic if we cannot infer a protolith
-    for type in keys(macro_cats)
-        type==:met && continue
-        macro_cats.met .&= .!macro_cats[type]
-        bulk_cats.met .&= .!bulk_cats[type]
-    end
 
-
-## --- Calculate relative abundance of each type in the lithological map
-    # To calculate total volcanic / plutonic abundance, must include subtypes
+## --- Calculate relative abundance of each descriptive rocktype
+    # For random re-assignment of nondescriptive types to descriptive types!
+    # To calculate accurate volcanic / plutonic abundances, include subtypes
     include_minor!(macro_cats)
 
-    # Absolute abundance (count) of each rock type
-    ptype = (;
+    # Calculate relative abundance of each descriptive type. Each type sums to 1.0
+    type_abundance = (;
         sed = float.([count(macro_cats[i]) for i in minorsed]),
         volc = float.([count(macro_cats[i]) for i in minorvolc]),
         plut = float.([count(macro_cats[i]) for i in minorplut]),
         ign = float.([count(macro_cats[i]) for i in minorign]),
     )
+    type_abundance.sed ./= nansum(type_abundance.sed)
+    type_abundance.volc ./= nansum(type_abundance.volc)
+    type_abundance.plut ./= nansum(type_abundance.plut)
+    type_abundance.ign ./= nansum(type_abundance.ign)
 
-    # Calculate fractional abundance (fraction of total)
-    ptype.sed ./= nansum(ptype.sed)
-    ptype.volc ./= nansum(ptype.volc)
-    ptype.plut ./= nansum(ptype.plut)
-    ptype.ign ./= nansum(ptype.ign)
-
-    # Calculate the relative abundance of protoliths that could become metamorphic rocks.
-    # Probably not chert / evaporite / coal / carbonatite? Metacarbonates are unlikely to
-    # end up as the type of rocks we have as uncategorized metamorphic (e.g., gneiss)
+    # Calculate relative abundance of possible undifferentiated protoliths.
+    # Carbonates, evaporites, chert, phosphorites, and coal are unlikely to become 
+    # undifferentiated metamorphic rocks (schist, gneiss, migmatite, etc.) 
     protolith = (:siliciclast, :shale, :volc, :plut)
-    p_protolith = float.([count(macro_cats[i]) for i in protolith])
-    p_protolith ./= nansum(p_protolith)
+    protolith_abundance = float.([count(macro_cats[i]) for i in protolith])
+    protolith_abundance ./= nansum(protolith_abundance)
 
+    # And metasedimentary protoliths 
+    protolith_metased = (:siliciclast, :shale)
+    protolith_metased_abundance = float.([count(macro_cats[i]) for i in protolith_metased])
+    protolith_metased_abundance ./= nansum(protolith_metased_abundance)
 
-    # If samples are matched to a rock subtype and a rock major type, don't!
-    # This is mostly important for figuring out what minor type to assign each sample
-    # If we know what kind of rock we have... we don't want to lose that information
-    exclude_minor!(macro_cats)
-    exclude_minor!(bulk_cats)
+    
+## --- Deal with undifferentiated metamorphic rocks 
+    # If we have information about descriptive rock types, then take that as the protolith 
+    # and ignore the metamorphic part of it. This doesn't matter as much for metaigneous rocks, 
+    # but we don't want to take "sed" from metasedimentary rocks and then assign our migmatite 
+    # to an evaporite!
 
+    # For sedimentary rocks, if we know there's an associated descriptive type, stick with
+    # that. Save the rest of the samples as metasedimentary rocks
+    for type in minorsed 
+        macro_cats.met .&= .!macro_cats[type]
+    end
+    metased = macro_cats.met .& macro_cats.sed;
 
-## --- Match each Macrostrat sample to a single informative rock name and type
+    # For igneous rocks, if we know it's igneous, stick with igneous
+    for type in (:ign, minorign..., minorvolc..., minorplut...) 
+        macro_cats.met .&= .!macro_cats[type]
+    end
+    
+
+## --- Match each Macrostrat sample to ONE informative (descriptive) rock name and type
     # Doing this in several passes over the sample set means that I can optimize sections
     # that can be optimized, which will make this faster... by two orders of magnitude
     # I love coding. Affirm: I AM optimization
 
     # Preallocate
-    littletypes = Array{Symbol}(undef, length(macrostrat.age), 1)   # Shale, chert, etc.
+    littletypes = Array{Symbol}(undef, length(macrostrat.age), 1)   # Descriptive types
+
+    # Make sure we're only looking at descriptive types -- if we know something's a shale, 
+    # we don't want to see "sed" pop up and thing it needs to be reassigned
+    exclude_minor!(macro_cats)
+    exclude_minor!(bulk_cats)
 
     # Pass one: randomly pick a type for each sample
     for i in eachindex(littletypes)
@@ -102,33 +116,42 @@
         littletypes[i] = rand(alltypes)
     end
 
-    # Pass two: assign uncategorized metamorphic rocks to a protolith 
+    # Pass two: assign undifferentiated metamorphic rocks to a protolith, and assign 
+    # metasedimentary rocks to a metasedimentary protolith. Keep in mind that metased 
+    # rocks may be currently assigned to sed!!     
     for i in eachindex(littletypes)
-        if littletypes[i] == :met 
-            littletypes[i] = protolith[weighted_rand(p_protolith)]
+        if (littletypes[i] == :met) && !metased[i]
+            littletypes[i] = protolith[weighted_rand(protolith_abundance)]
+
+        elseif (littletypes[i] == :met) && metased[i]
+            littletypes[i] = protolith_metased[weighted_rand(protolith_metased_abundance)]
+
+        elseif (littletypes[i] == :sed) && metased[i]
+            littletypes[i] = protolith_metased[weighted_rand(protolith_metased_abundance)]
+
         end
     end
 
-    # Pass three: reassign major types to a minor subtype
+    # Pass three: reassign nondescriptive types
     for i in eachindex(littletypes)
         if littletypes[i] == :sed
-            littletypes[i] = minorsed[weighted_rand(ptype.sed)]
+            littletypes[i] = minorsed[weighted_rand(type_abundance.sed)]
 
         elseif littletypes[i] == :volc 
-            littletypes[i] = minorvolc[weighted_rand(ptype.volc)]
+            littletypes[i] = minorvolc[weighted_rand(type_abundance.volc)]
 
         elseif littletypes[i] == :plut 
-            littletypes[i] = minorplut[weighted_rand(ptype.plut)]
+            littletypes[i] = minorplut[weighted_rand(type_abundance.plut)]
 
         elseif littletypes[i] == :ign 
             # Pick a sub-class (volcanic / plutonic / carbonatite) and re-assign volc / plut
-            littletypes[i] = minorign[weighted_rand(ptype.ign)]
+            littletypes[i] = minorign[weighted_rand(type_abundance.ign)]
 
             if littletypes[i] == :volc
-                littletypes[i] = minorvolc[weighted_rand(ptype.volc)]
+                littletypes[i] = minorvolc[weighted_rand(type_abundance.volc)]
 
             elseif littletypes[i] == :plut 
-                littletypes[i] = minorplut[weighted_rand(ptype.plut)]
+                littletypes[i] = minorplut[weighted_rand(type_abundance.plut)]
                 
             end
 
@@ -136,27 +159,7 @@
     end
 
 
-## --- TEMP see if something is terrible 
-    littlecats = match_rocktype(string.(littletypes))
-
-    unique(macrostrat.rocktype[littlecats.evap])
-
-    # Here's the problem with the last one. It picks up on sedimentary and reassigns it to 
-    # sed, which gets reassigned to a random sed rock 
-    problems = [
-        "dacite, latite, andesite, rhyolite and related pyroclastic rocks; ",   # "clast" -- shouldn't this have gotten fixed??
-        "intermediate volcanic rocks",  # macrostrat.rockname = sed + volcanic
-        "low-medium grade metasedimentary/metavolcanic schist",
-    ]
-
-    ind = 1:length(macrostrat.rocktype)
-    t = vec(problems[2] .== macrostrat.rocktype);
-    i = ind[t]
-
-    get_type(macro_cats, i[1], all_keys=true)
-    
-
-## --- Initialize for EarthChem sample matching
+## --- Initialize for geochemical sample matching
     # Definitions
     geochemkeys = get_elements()[1][1:end-1]        # Major non-volatile elements
     bulk_inds = collect(1:length(bulk.SiO2))        # Indices of bulk samples
@@ -174,7 +177,7 @@
     # include_minor!(macro_cats)
 
 
-## --- Find matching EarthChem sample for each Macrostrat sample
+## --- Find matching geochemical sample for each Macrostrat sample
     # Preallocate
     matches = zeros(Int64, length(macro_cats.sed))
 

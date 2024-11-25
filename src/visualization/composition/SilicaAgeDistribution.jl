@@ -20,103 +20,148 @@
     yedges = ymin:(ymax-ymin)/ybins:ymax
 
     # Rock classes to resample
-    target = (:ign, :plut, :volc)
+    target = (:ign, :plut, :volc)    
 
-
-    # Use the existing intermediate file (false), or re-do it (true)?
-    redo_resample = true 
-
-
-## --- Resample (spatiotemporal) bulk geochemical data
-    # Preallocate 
-    simbulk = NamedTuple{target}(Array{Float64}(undef, nsims, 2) for _ in target)
-
-    # Compute age uncertainties 
-    ageuncert = nanadd.(bulk.Age_Max, .- bulk.Age_Min) ./ 2;
-    for i in eachindex(ageuncert)
-        ageuncert[i] = max(bulk.Age[i]*age_error, ageuncert[i], age_error_abs)
-    end
-
-    # Restrict to samples with data and resample 
-    t = @. !isnan(bulk.Latitude) & !isnan(bulk.Longitude) & !isnan(bulk.Age);
-    for key in target 
-        s = t .& bulk_cats[key]
-        k = invweight(bulk.Latitude[s], bulk.Longitude[s], bulk.Age[s])
-        p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-        data = [bulk[elem][s] bulk.Age[s]]
-        uncertainty = [fill(elem_error, count(s)) ageuncert[s]]
-        simbulk[key] .= bsresample(data, uncertainty, nsims, p)
-    end
-
-
-## --- Resample (temporal) matched samples
-    # Preallocate 
-    sim_mbulk = NamedTuple{target}(Array{Float64}(undef, nsims, 2) for _ in target)
-
-    # Calculate sample age and uncertainty
-    sampleage, ageuncert = resampling_age(mbulk.Age, mbulk.Age_Min, mbulk.Age_Max, 
-        macrostrat.age, macrostrat.agemin, macrostrat.agemax, 
-        uncert_rel=age_error, uncert_abs=age_error_abs
-    )
-
-    # Restrict to only samples with data and resample 
-    t = @. !isnan.(sampleage);
-    for key in target 
-        s = t .& match_cats[key]
-        k = invweight_age(sampleage[s])
-        p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-        data = [mbulk[elem][s] sampleage[s]]
-        uncertainty = [fill(elem_error, count(s)) ageuncert[s]]
-        sim_mbulk[key] .= bsresample(data, uncertainty, nsims, p)
-    end
-
-
-## --- Sort matched data into time bins, normalize, and save to a file
+    # Set file 
     suffix = RockWeatheringFlux.version * "_" * RockWeatheringFlux.tag
     fpath = "src/visualization/composition/SilicaAgeDistribution_$(elem)_" * suffix * ".h5"
 
-    p = Progress(length(target)*2, desc="Building 2D-Histogram Data...")
+    # Preallocate 2D histogram data storage
+    out_bulk = NamedTuple{target}(zeros(ybins, xbins) for _ in target)
+    out_mbulk = NamedTuple{target}(zeros(ybins, xbins) for _ in target)
 
-    if isfile(fpath) && redo_resample==false
-        fid = h5open(fpath, "r")
-        out_bulk = NamedTuple{target}(read(fid["vars"]["resampled"]["$key"]) for key in target)
-        out_mbulk = NamedTuple{target}(read(fid["vars"]["matched"]["$key"]) for key in target)
-        close(fid)
-    else
-        fid = h5open(fpath, "w")
-        g = create_group(fid, "vars")
 
-        # Resampled
-        g_resam = create_group(g, "resampled")
+## --- Set switches 
+    # [CHANGE ME] 
+    # Set to TRUE to resample bulk geochemical or matched data 
+    redo_bulk = true
+    redo_matched = false
+
+    # If the file doesn't exist, we gotta create it 
+    !isfile(fpath) && (redo_bulk = redo_matched = true)
+
+    # Typically, re-doing the 2D histogram is gonna depend on if we resampled or not 
+    # If we resampled, we should redo the histogram. If we didn't resample, we don't have 
+    # the data to redo the histogram so we gotta load from the file 
+    redo_2D_bulk = redo_bulk 
+    redo_2D_matched = redo_matched 
+
+    # [CHANGE ME]
+    # The exception to this is debugging. Say we resampled something, and we want to recalculate 
+    # the 2D histogram for some reason using that data.
+    redo_2D_bulk = true
+    redo_2D_matched = false
+
+    if (redo_bulk != redo_2D_bulk) || (redo_matched != redo_2D_matched)
+        @warn "Your switches are in debugging mode"
+    end
+
+
+## --- Resample data 
+    # Bulk geochemical data: spatiotemporal resample 
+    if redo_bulk==true
+        simbulk = NamedTuple{target}(Array{Float64}(undef, nsims, 2) for _ in target)
+
+        # Compute age uncertainties 
+        ageuncert = nanadd.(bulk.Age_Max, .- bulk.Age_Min) ./ 2;
+        for i in eachindex(ageuncert)
+            ageuncert[i] = max(bulk.Age[i]*age_error, ageuncert[i], age_error_abs)
+        end
+
+        # Restrict to samples with data and resample 
+        t = @. !isnan(bulk.Latitude) & !isnan(bulk.Longitude) & !isnan(bulk.Age);
+        for key in target 
+            s = t .& bulk_cats[key]
+            k = invweight(bulk.Latitude[s], bulk.Longitude[s], bulk.Age[s])
+            p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+            data = [bulk[elem][s] bulk.Age[s]]
+            uncertainty = [fill(elem_error, count(s)) ageuncert[s]]
+            simbulk[key] .= bsresample(data, uncertainty, nsims, p)
+        end
+    end
+
+    # Matched data: temporal 
+    if redo_matched==true
+        sim_mbulk = NamedTuple{target}(Array{Float64}(undef, nsims, 2) for _ in target)
+
+        # Calculate sample age and uncertainty
+        sampleage, ageuncert = resampling_age(mbulk.Age, mbulk.Age_Min, mbulk.Age_Max, 
+            macrostrat.age, macrostrat.agemin, macrostrat.agemax, 
+            uncert_rel=age_error, uncert_abs=age_error_abs
+        )
+
+        # Restrict to only samples with data and resample 
+        t = @. !isnan.(sampleage);
+        for key in target 
+            s = t .& match_cats[key]
+            k = invweight_age(sampleage[s])
+            p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+            data = [mbulk[elem][s] sampleage[s]]
+            uncertainty = [fill(elem_error, count(s)) ageuncert[s]]
+            sim_mbulk[key] .= bsresample(data, uncertainty, nsims, p)
+        end
+    end
+
+
+## --- Calculate data for 2D histogram: sort matched data into time bins and normalize
+    # All geochemical data 
+    if redo_2D_bulk
+        p = Progress((ybins % 10) * length(target), desc="Bulk 2D histogram...")
+
         for i in eachindex(target)
-            out_bulk = zeros(ybins, xbins)
+            out = zeros(ybins, xbins)
             for j = 1:ybins
                 t = @. yedges[j] <= simbulk[target[i]][:,2] < yedges[j+1]
                 c, n = bincounts(simbulk[target[i]][:,1][t], xmin, xmax, xbins)
-                out_bulk[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
-            end
-            write(g_resam, "$(target[i])", out_bulk)
-            next!(p)
-        end
+                out[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
 
-        # Matched
-        g_match = create_group(g, "matched")
+                (i % 10 == 0) && next!(p)
+            end
+            out_bulk[target[i]] .= out
+        end
+    else
+        fid = h5open(fpath, "r")
+        out_bulk = NamedTuple{target}(read(fid["vars"]["resampled"]["$key"]) for key in target)
+        close(fid)
+    end
+
+    # Matched geochemical data 
+    if redo_2D_matched
+        p = Progress((ybins % 10) * length(target), desc="Matched 2D histogram...")
+
         for i in eachindex(target)
-            out_mbulk = zeros(ybins, xbins)
+            out = zeros(ybins, xbins)
             for j = 1:ybins
                 t = @. yedges[j] <= sim_mbulk[target[i]][:,2] < yedges[j+1]
                 c, n = bincounts(sim_mbulk[target[i]][:,1][t], xmin, xmax, xbins)
-                out_mbulk[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
+                out[j,:] .= (n .- nanminimum(n)) ./ (nanmaximum(n) - nanminimum(n))
+
+                (i % 10 == 0) && next!(p)
             end
-            write(g_match, "$(target[i])", out_mbulk)
+            out_mbulk[target[i]] .= out
             next!(p)
         end
-        close(fid)
-
-        # Now read from the file. It's inefficient. But it's faster than making the code good.
+    else
         fid = h5open(fpath, "r")
-        out_bulk = NamedTuple{target}(read(fid["vars"]["resampled"]["$key"]) for key in target)
         out_mbulk = NamedTuple{target}(read(fid["vars"]["matched"]["$key"]) for key in target)
+        close(fid)
+    end
+
+    # If we changed anything, just re-do the file
+    if redo_2D_bulk || redo_2D_matched
+        fid = h5open(fpath, "w")
+        g = create_group(fid, "vars")
+
+        g_resam = create_group(g, "resampled")
+        for i in eachindex(target)
+            write(g_resam, "$(target[i])", out_bulk[target[i]])
+        end
+
+        g_match = create_group(g, "matched")
+        for i in eachindex(target)
+            write(g_match, "$(target[i])", out_mbulk[target[i]])
+        end
+
         close(fid)
     end
 

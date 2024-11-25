@@ -86,26 +86,23 @@
     
 ## --- Deal with weird shit 
     # For undifferentiated metamorphic rocks: 
-    # 
     # If we have information about descriptive rock types, then take that as the protolith 
     # and ignore the metamorphic part of it. This doesn't matter as much for metaigneous rocks, 
     # but we don't want to take "sed" from metasedimentary rocks and then assign our migmatite 
     # to an evaporite!
-
-    # For sedimentary rocks, if we know there's an associated descriptive type, stick with
-    # that. Save the rest of the samples as metasedimentary rocks
+    # TL;DR For sedimentary rocks, if we know there's an associated descriptive type, stick with
+    # that. Save undifferentiated sed + met as metasedimentary rocks. If it's igneous, stick with 
+    # that
     for type in minorsed 
         macro_cats.met .&= .!macro_cats[type]
     end
     metased = macro_cats.met .& macro_cats.sed;
 
-    # For igneous rocks, if we know it's igneous, stick with igneous
     for type in (:ign, minorign..., minorvolc..., minorplut...) 
         macro_cats.met .&= .!macro_cats[type]
     end
     
     # For volcaniclastic rocks: 
-    # 
     # The only terms to match as volcaniclastic could be LITERALLY anything (it's like... 
     # lahar. ash that deposited in a swamp.) So if we have better information about what 
     # this is... use that instead. We also don't want to match with volcaniclastic rocks. 

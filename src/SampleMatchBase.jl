@@ -43,6 +43,10 @@
 ## --- Update matches in mapped samples and geochemical samples
     minorsed, minorvolc, minorplut, minorign = get_rock_class()[2:5];
 
+    # Volcaniclastic is a cursed category and I want it OUT
+    i = findall(x->x==:volcaniclast, minorvolc)
+    minorvolc = minorvolc[1:end .!= i]
+
     # I hate cover
     macro_cats = delete_cover(macro_cats)
     bulk_cats = delete_cover(bulk_cats)
@@ -54,6 +58,8 @@
     include_minor!(macro_cats)
 
     # Calculate relative abundance of each descriptive type. Each type sums to 1.0
+    # Except volcaniclastic is a cursed category and I don't want it 
+    
     type_abundance = (;
         sed = float.([count(macro_cats[i]) for i in minorsed]),
         volc = float.([count(macro_cats[i]) for i in minorvolc]),
@@ -78,7 +84,9 @@
     protolith_metased_abundance ./= nansum(protolith_metased_abundance)
 
     
-## --- Deal with undifferentiated metamorphic rocks 
+## --- Deal with weird shit 
+    # For undifferentiated metamorphic rocks: 
+    # 
     # If we have information about descriptive rock types, then take that as the protolith 
     # and ignore the metamorphic part of it. This doesn't matter as much for metaigneous rocks, 
     # but we don't want to take "sed" from metasedimentary rocks and then assign our migmatite 
@@ -96,6 +104,17 @@
         macro_cats.met .&= .!macro_cats[type]
     end
     
+    # For volcaniclastic rocks: 
+    # 
+    # The only terms to match as volcaniclastic could be LITERALLY anything (it's like... 
+    # lahar. ash that deposited in a swamp.) So if we have better information about what 
+    # this is... use that instead. We also don't want to match with volcaniclastic rocks. 
+    # As an aside -- we kinda... know what all the volcaniclastic rocks are. This wipes out 
+    # the entire category
+    for type in (:ign, minorign..., minorvolc..., minorplut...) 
+        macro_cats.volcaniclast .&= .!macro_cats[type]
+    end
+
 
 ## --- Match each Macrostrat sample to ONE informative (descriptive) rock name and type
     # Doing this in several passes over the sample set means that I can optimize sections
@@ -116,9 +135,10 @@
         littletypes[i] = rand(alltypes)
     end
 
-    # Pass two: assign undifferentiated metamorphic rocks to a protolith, and assign 
-    # metasedimentary rocks to a metasedimentary protolith. Keep in mind that metased 
-    # rocks may be currently assigned to sed!!     
+    # Pass two: assign weird shit (undifferentiated metamorphic + undifferentiated 
+    # volcaniclastic) to a protolith. Make sure metasedimentary rocks are assigned 
+    # to a metasedimentary protolith. Keep in mind that metased rocks may be 
+    # currently assigned only to sed!!
     for i in eachindex(littletypes)
         if (littletypes[i] == :met) && !metased[i]
             littletypes[i] = protolith[weighted_rand(protolith_abundance)]
@@ -128,6 +148,9 @@
 
         elseif (littletypes[i] == :sed) && metased[i]
             littletypes[i] = protolith_metased[weighted_rand(protolith_metased_abundance)]
+
+        elseif littletypes[i] == :volcaniclast 
+            littletypes[i] = minorvolc[weighted_rand(type_abundance.volc)]
 
         end
     end

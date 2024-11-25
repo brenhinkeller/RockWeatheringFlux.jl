@@ -5,11 +5,11 @@
     # dataset = "gard"
     dataset = "combined"
 
-    # Lithologic
+    # Lithologic (Macrostrat API and number of samples)
     # version = "v1"
     version = "v2"
-    N = 100_000;    tag = "100K"
-    # N = 200_000;   tag = "200K"
+    # N = 100_000;    tag = "100K"
+    N = 200_000;   tag = "200K"
     # N = 1_000_000; tag = "1M"
     
     @info """ Datasets loaded:
@@ -400,7 +400,12 @@
             "latite", "tristanite", "augitite", "absarokite", "shoshonite", "linosaite",
             "bergalite", "alnoite", "alnã\u96ite", "kimberlite",  "orangeite", "diatreme", 
             "pipe", "alkaline volcan", "alkalic igneous", "alkalic", "malignite",)
-        volcaniclast = ("tonstein", "peperite", "volcaniclastic", "lahar",)
+        volcaniclast = ("tonstein", "peperite", "volcaniclastic", "lahar",
+            # These next rock names match with something more specific, but I want to be 
+            # able to pull volcaniclastics for things like aereal extent of tuff, etc.
+            "ignimbrite",  "ash", "ashfall", "tuff",  "tephra", "cinder", "pyroclastic", 
+            "agglomerate"
+        )
         volc = ("volcanic", "extrusive", "lava", "eutaxite", "vitrophyre", "volcan", 
             "ash", "ashfall", "tuff",  "tephra", "cinder", "porphyrite", 
             "vulsinite", "glass", "vitrophere", "pyroclastic", "agglomerate")

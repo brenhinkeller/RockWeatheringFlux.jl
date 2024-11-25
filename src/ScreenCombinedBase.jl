@@ -189,6 +189,11 @@
             Age = combined.Age,
             Age_Max = combined.Age_Max,
             Age_Min = combined.Age_Min,
+            Rock_Group = combined.Rock_Group,
+            Rock_Subgroup = combined.Rock_Subgroup,
+            Rock_Composition = combined.Rock_Composition,
+            Rock_Facies = combined.Rock_Facies,
+            Rock_Name = combined.Rock_Name,
             Sample_ID = collect(1:npoints)
         )
     )

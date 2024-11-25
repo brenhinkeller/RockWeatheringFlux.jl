@@ -637,11 +637,13 @@
      *  Diorite from grano*diorite*.
      *  Lignite from ma*lignite*.
      *  Sedimentary (clastic) from volcani*clastic*.
+     *  Siliciclastic from ryolite (silicic)
     """
     function rm_false_positives!(cats)
         cats.diorite .&= .!cats.granodiorite  # granodiorite / diorite
         cats.coal .&= .!cats.alk_volc         # malignite / lignite 
         cats.sed .&= .!cats.volcaniclast      # volcaniclast / sed (clast)
+        cats.rhyolite .&= .!cats.siliciclast  # siliciclastic / silicic
 
         return cats
     end

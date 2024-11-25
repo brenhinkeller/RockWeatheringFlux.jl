@@ -370,7 +370,7 @@
         evap = ("evaporite", "anhydrite", "gypsum", "trona", "halite", "sylvite", 
             "salt flat", "caliche", "exhalite", "sulfate deposit")
         chert = ("chert", "opal", "porcellanite", "diatomite", "novaculite", "iron", 
-            "taconite", "banded iron", "spiculite", "jasper", "bif")
+            "taconite", "banded iron", "spiculite", "jasper", "bif", "siliceous")
         phosphorite = ("phosphorite", "phosphate")
         coal = ("coal", "anthracite", "lignite", "bitumen")
         sed = ("sediment", "diamict", "tillite", "stream deposits", "beach deposits", 
@@ -386,7 +386,7 @@
         andesite = ("andesit", "andeste", "boninite", "icelandite", "marianite", "adakite", 
             "propylite", "intermediate volcan")
         dacite = ("dacit", "santorinite", "ignimbrite",)
-        rhyolite = ("rhyolit", "felsite", "liparite", "silicic", "pumice", 
+        rhyolite = ("rhyolit", "felsite", "liparite", "silicic extrus", "pumice", 
             "obsidian", "dellenite", "rhyodacite", "ignimbrite", "lenticulite", 
             "halleflinta", "rhyoite", "felsic volcanic")
         alk_volc = ("polzenite", "hauynite", "arsoite", "benmoreite", "camptonite", 
@@ -425,7 +425,8 @@
         granodiorite = ("granodiorite", "ttg",)
         granite = ("granit", "microgranite", "adamellite", "aplite", "charnockite", 
             "granophyre", "rapakivi", "monzonit", "monzonize", "mangerite", "greisen", 
-            "pegmat", "adamelllite", "adamelite", "unakite", "felsic plutonic", "felsic igneous")
+            "pegmat", "adamelllite", "adamelite", "unakite", "felsic plutonic", 
+            "silicic intrus", "felsic igneous")
         alk_plut = ("syenit", "seyenite", "alaskite", "borolanite", "bostonite", "durbachite", 
             "foyaite", "jacupirangite", "juvite", "kentallenite", "larvikite", "lujavrite",
             "nordmarkite", "orthoclasite", "shonkinite", "sommaite", "kaersutitite",

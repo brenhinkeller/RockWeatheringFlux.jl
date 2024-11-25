@@ -189,11 +189,6 @@
             Age = combined.Age,
             Age_Max = combined.Age_Max,
             Age_Min = combined.Age_Min,
-            Rock_Group = combined.Rock_Group,
-            Rock_Subgroup = combined.Rock_Subgroup,
-            Rock_Composition = combined.Rock_Composition,
-            Rock_Facies = combined.Rock_Facies,
-            Rock_Name = combined.Rock_Name,
             Sample_ID = collect(1:npoints)
         )
     )
@@ -235,10 +230,11 @@
     class = create_group(fid, "bulktypes")
 
     # Data 
-    allkeys = collect(keys(out))
+    allkeys = collect(keys(out));
     write(data, "header", string.(allkeys))
     writebulk = create_dataset(data, "data", Float64, (count(t), length(allkeys)))
     for i in eachindex(allkeys)
+        println(allkeys[i])
         writebulk[:,i] = out[allkeys[i]]
     end
 
@@ -246,6 +242,10 @@
     write(bulktext, "Reference", combined.Reference[t])
     write(bulktext, "Data_Source", combined.Data_Source[t])
     write(bulktext, "Methods", combined.Methods[t])
+    write(bulktext, "Rock_Group", combined.Rock_Group[t])
+    write(bulktext, "Rock_Subgroup", combined.Rock_Subgroup[t])
+    write(bulktext, "Rock_Composition", combined.Rock_Composition[t])
+    write(bulktext, "Rock_Facies", combined.Rock_Facies[t])
     write(bulktext, "Rock_Name", combined.Rock_Name[t])
 
     # Rock class

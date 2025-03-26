@@ -67,6 +67,7 @@
         age = read(fid["vars"]["age"])[t],
         agemax = read(fid["vars"]["agemax"])[t],
         agemin = read(fid["vars"]["agemin"])[t],
+        scale = read(fid["vars"]["scale"])[t],
     )
     close(fid)
 

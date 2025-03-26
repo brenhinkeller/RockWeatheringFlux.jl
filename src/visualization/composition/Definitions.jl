@@ -69,6 +69,10 @@
         agemin = read(fid["vars"]["agemin"])[t],
         scale = read(fid["vars"]["scale"])[t],
     )
+    header = read(fid["type"]["macro_cats_head"])
+    data = read(fid["type"]["macro_cats"])
+    data = @. data > 0
+    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
     close(fid)
 
 

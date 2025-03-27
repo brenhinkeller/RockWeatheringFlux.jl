@@ -373,7 +373,7 @@
             "taconite", "banded iron", "spiculite", "jasper", "bif", "siliceous")
         phosphorite = ("phosphorite", "phosphate")
         coal = ("coal", "anthracite", "lignite", "bitumen")
-        sed = ("sediment", "diamict", "tillite", "stream deposits", "beach deposits", 
+        sed = ("sedimentary", "diamict", "tillite", "stream deposits", "beach deposits", 
             "terrace", "marine deposits", "paleosol", "glauconite", "meta-sed", "metased", 
             "paragneiss", "para", "melange")
 
@@ -382,13 +382,14 @@
         basalt = ("basalt", "pillow", "scoria", "picrite", "anamesite", "hawaiite", 
             "mafite", "mugearite", "oceanite", "palagonite", "tachylyte", "tholeiite", 
             "melaphyre", "greenstone", "spilite", "greenschist", "blueschist", 
-            "basite", "metabasite", "hyaloclastite", "tholleiite", "mafic igneous")
+            "basite", "metabasite", "hyaloclastite", "tholleiite", "mafic volcan",
+            "ophiolit")
         andesite = ("andesit", "andeste", "boninite", "icelandite", "marianite", "adakite", 
             "propylite", "intermediate volcan")
         dacite = ("dacit", "santorinite", "ignimbrite",)
         rhyolite = ("rhyolit", "felsite", "liparite", "silicic extrus", "pumice", 
             "obsidian", "dellenite", "rhyodacite", "ignimbrite", "lenticulite", 
-            "halleflinta", "rhyoite", "felsic volcanic")
+            "halleflinta", "rhyoite", "felsic volcan", "acid volcan", "acidic volcan")
         alk_volc = ("polzenite", "hauynite", "arsoite", "benmoreite", "camptonite", 
             "ciminite", "damkjernite", "damtjernite", "dankjernite", "domite", "fortunite", 
             "gauteite","kenyte", "keratophyre", "kersantite", "kivite", "lampro", "madupite",
@@ -412,13 +413,13 @@
             
         # Plutonic
         peridotite = ("periodotite", "olivinite", "dunit", "lherzolite", "peridot", "harzburg", 
-             "wehrlite", "wehlerite", "serpentin", "soapstone", "talc", "alkremite",)
+             "wehrlite", "wehlerite", "serpentin", "soapstone", "talc", "alkremite", "ophiolit")
         pyroxenite = ("bronzitite", "pyroxenite", "enstatitite", "websterite",
             "hornblendite", "cortlandite",)
         gabbro = ("gabbro", "gabro", "mafraite", "allivalite", "anorthosite", "diabase", 
             "dolerit", "leucophyre", "glenmuirite", "jotunite", "labradorite", "luscladite", 
             "theralite", "norite", "troctolite", "sebastianite", "eclogite", "amphibolit", 
-            "rodingite", "corganite", "corgaspinite", "mafic pluton",)
+            "rodingite", "corganite", "corgaspinite", "mafic pluton", "ophiolit")
         diorite = ("diorit", "iorite", "jotunite", "marscoite", "sanukite", "intermediate pluton")
         trondhjemite =  ("trondhjemite", "trond", "ttg",)
         tonalite = ("tonalit", "adamellite", "enderbite", "ttg",)
@@ -426,7 +427,7 @@
         granite = ("granit", "microgranite", "adamellite", "aplite", "charnockite", 
             "granophyre", "rapakivi", "monzonit", "monzonize", "mangerite", "greisen", 
             "pegmat", "adamelllite", "adamelite", "unakite", "felsic plutonic", 
-            "silicic intrus", "felsic igneous")
+            "silicic intrus", "felsic igneous", "acid pluton", "acidic pluton")
         alk_plut = ("syenit", "seyenite", "alaskite", "borolanite", "bostonite", "durbachite", 
             "foyaite", "jacupirangite", "juvite", "kentallenite", "larvikite", "lujavrite",
             "nordmarkite", "orthoclasite", "shonkinite", "sommaite", "kaersutitite",
@@ -443,7 +444,7 @@
             
         # Undefined igneous
         carbonatite = ("alvikite", "carbonatite", "beforsite", "rauhaugite", "sovite",
-            "breunneritite", "fenite")
+            "breunneritite", "fenite", "carbonatitic")
         ign = ("igneous", "metaign", "orthogneiss", "ortho", "meta-ign", "zeolite", "xenolith")
 
         # Undefined metamorphic
@@ -459,7 +460,7 @@
             "regolith", "debris", "fill", "slide", "unconsolidated", "talus", "stream", 
             "beach", "terrace", "placer", "paleosol", "mass-wasting", "pebble", "cover", 
             "quaternary", "soil", "laterite", "surficial deposits", "scree", "peat", 
-            "swamp", "marsh", "water", "ice")
+            "swamp", "marsh", "water", "ice", "outwash")
 
         # Define major and minor rock types
         minorsed = (:siliciclast, :shale, :carb, :evap, :chert, :phosphorite, :coal,)
@@ -630,7 +631,8 @@
     ```
 
     Return standardized filters for lithologic class. Optionally specify paths for matched 
-    samples and the Macrostrat responses file.
+    samples and the Macrostrat responses file. Major / non-descriptive classes are inclusive 
+    of minor / descriptive classes.
 
     # Return Values 
     * `match_cats`: lithologic class of samples, from the classes assigned during lithologic

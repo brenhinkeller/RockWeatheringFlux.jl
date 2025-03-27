@@ -44,6 +44,10 @@
     rockslope = movingwindow(srtm15_slope, rocklat, rocklon, srtm15_sf, n=5)
     rockslope = Measurements.value.(rockslope)
     rockslope[rockslope .>= 1000] .= NaN;
+
+    # ^ on taking only the values of rockslope: we account for variations in 
+    # basin slope in the uncertainty of the erosion-slope model, so we don't 
+    # need to double-propagate it here.
     
     # # Optionally save and load data from a tsv if your computer is small and weak 
     # writedlm("output/basins/rockslope_temp.tsv", rockslope)
@@ -74,6 +78,7 @@
 
     # Contribution of each element to bulk erosion at each point
     # Multiply by 1e-2 to convert from wt.% to fraction
+    # Uncertainty comes from: standard deviation in erosion / slope relationship
     erosion_element = (;
         vals = Array{Float64}(undef, npoints, nelements),
         errs = Array{Float64}(undef, npoints, nelements),
@@ -141,37 +146,42 @@
         errs = NamedTuple{elem}([sqrt(nansum((erosion_element.errs[k] ./ kg_gt).^2)) for k in elem]),
     );
 
-    # Print to terminal (these don't get used anywhere else)
+
+## --- Print to terminal (these don't get used anywhere else)
+    # If you want to do standard error, use emmkyr_npoints
+
     # Propagate error for global_element_sum: sum
+    # Bump error s.d. -> 2 s.e
     global_sum = (;
         val = round(global_erosion_bulk.vals, sigdigits=3),
-        err = round(2*global_erosion_bulk.errs, sigdigits=3),                               # 2σ s.d.
+        err = round(2*(global_erosion_bulk.errs/sqrt(basin_n)), sigdigits=3),
     )
     global_element_sum = (;
         val = round(nansum(values(global_erosion_element.vals)), sigdigits=3),
-        err = round(2*sqrt(nansum(values(global_erosion_element.errs).^2)), sigdigits=3),   # 2σ s.d.
+        err = round(2*(sqrt(nansum(values(global_erosion_element.errs).^2))/sqrt(basin_n)), sigdigits=3),
     )
 
     # Print to terminal, warn if sum of elements does not equal bulk erosion rate
-    # TODO: s.d or s.e.m.?
-    if isapprox(global_sum.val, global_element_sum.val, atol = max(global_sum.err, global_element_sum.err))
-        @info "Mass of global sediment production ± 2σ s.d.: $(global_sum.val) ± $(global_sum.err) Gt/yr"
+    # Use the standard deviation to figure this one out 
+    atol = max(global_sum.err*sqrt(basin_n), global_element_sum.err*sqrt(basin_n))
+    if isapprox(global_sum.val, global_element_sum.val, atol = atol)
+        @info "Mass of global sediment production ± 2 s.e.: $(global_sum.val) ± $(global_sum.err) Gt/yr"
     else
         diff = abs((global_sum.val ± global_sum.err) - (global_element_sum.val ± global_element_sum.err))
         @warn """
-        Mass of global sediment production ± 2σ s.d.: $(global_sum.val) ± $(global_sum.err) Gt/yr
+        Mass of global sediment production ± 2 s.e.: $(global_sum.val) ± $(global_sum.err) Gt/yr
 
         Mass of eroded sediment and sum of eroded elements are not within 2σ s.d.
         \t Eroded sediment:        $(global_sum.val) ± $(global_sum.err) Gt/yr
         \t Sum of eroded elements: $(global_element_sum.val) ± $(global_element_sum.err) Gt/yr
-        Difference: $diff Gt/yr
+        Difference: $diff Gt/yr (± 2 s.e.)
         """
     end
 
 
-## --- Preallocate and set switches for export
+## --- Preallocate 
     # [SWITCH] lithologic class filter 
-    classfilter = megaclass
+    classfilter = class
     classes = keys(classfilter)
 
     # Elements of interest 
@@ -179,14 +189,19 @@
     nmajors = length(majors)
     allelements = [majors; minors]
 
+    # Get set up to propagate error, baby! 🤕🥴
     # N samples account for 90% of matches.
     # See UpperCrustComposition.jl for explanation of methods here.
-    # npoints = unique_sample(mbulk.Sample_ID, 90)
-    npoints = NamedTuple{Tuple(allelements)}(
-        [unique_sample(mbulk.Sample_ID[.!isnan.(mbulk[k])], 90) for k in allelements]
-    )
+    npoints = NamedTuple{keys(class)}(
+        NamedTuple{Tuple(allelements)}([count(.!isnan.(mbulk[e]) .& class[k]) != 0 ? 
+            max(unique_sample(mbulk.Sample_ID[.!isnan.(mbulk[e]) .& class[k]], 90), 1) : NaN for e in allelements]
+    ) for k in keys(class));
 
-    # Preallocate results array (element row, rock class column)
+    # For bulk / undifferentiated mass, I think we're using this... because if data is
+    # missing we just assume it's 0
+    npoints_bulk = unique_sample(mbulk.Sample_ID, 90)
+
+    # Preallocate results array: element row, rock class column
     rows = vcat(string.(collect(keys(erosion_element.vals))), "Total")
     cols = hcat("elem", reshape(string.(collect(keys(classfilter))), 1, :));
 
@@ -214,6 +229,11 @@
             # Propagate error: division by exact number
             result.vals[j,i] /= kg_gt
             result.errs[j,i] /= kg_gt
+
+            # Convert 1σ s.d. to 2σ s.e.m.
+            # Propagate error: division and multiplication by exact number 
+            result.errs[j,i] /= sqrt(npoints[classes[i]][element])
+            result.errs[j,i] .* 2
         end
     end
 
@@ -226,15 +246,6 @@
     nanzero!(result.vals)
     nanzero!(result.errs)
 
-    # Get npoints as a vector, and include that we're looking at bulk mass at the end 
-    npoints_vec = [collect(values(npoints)); npoints.SiO2]
-
-    # Convert 1σ s.d. to 2σ s.e.m.
-    # Dangerous game here with element order...
-    # Propagate error: division and multiplication by exact number 
-    result.errs ./= sqrt.(npoints_vec)   # s.d -> s.e.m
-    result.errs .*= 2                    # 1σ  -> 2σ
-
     # Save to file
     writedlm(erodedmass_out, vcat(cols, hcat(rows, result.vals)))
     writedlm(erodedmass_out_err, vcat(cols, hcat(rows, result.errs)))
@@ -245,9 +256,10 @@
     writedlm(erodedmass_out_csv, vcat(pubcols, hcat(rows, pubresult)), ',')
 
     # Save major element values to print to terminal 
+    # We round these later so don't do it now lol
     erodedmass_to_terminal = (;
-        vals = round.(result.vals[1:nmajors, end], digits=1),
-        errs = round.(result.errs[1:nmajors, end], digits=1),
+        vals = result.vals[1:nmajors, end],
+        errs = result.errs[1:nmajors, end],
     )
 
 
@@ -275,10 +287,13 @@
     # Propagate error: division by exact number
     result_contribution = (;
         vals = result.vals ./ result.vals[:,end],
-        errs = result.errs ./ result.vals[:,end],    # Error is already 2 s.e.m.
+        errs = result.errs ./ result.vals[:,end],    # Error is already 2 s.e.
     )
 
     # Calculate surficial abundance 
+    # Empty errors here, because surficial abundance is just counting the number of points
+    # that match each type. No quantifiable uncertainty because the error is probably in 
+    # the word-matching 
     matched_surficial = NamedTuple{classes}(
         count(classfilter[k])/length(classfilter[k]) for k in keys(classfilter)
     )
@@ -322,7 +337,7 @@
         vals = NamedTuple{classes}(nanmean(erosion_bulk.vals[classfilter[k]]) for k in classes),
         errs = NamedTuple{classes}(
             ((sqrt(nansum(erosion_bulk.errs[classfilter[k]]).^2) / count(classfilter[k]))
-                / sqrt(npoints.SiO2)    # s.d -> s.e.m; use a major element for the bulk calculation
+                / sqrt(npoints.bulk.SiO2)    # s.d -> s.e.m; use a major element for the bulk calculation
                 * 2                     # 1σ  -> 2σ
             )
         for k in classes),
@@ -330,14 +345,14 @@
 
     # Compute the average erosion at each point [kg/yr] for each element for each rock class 
     # Propagate error: mean (sum, division by an exact number)
-    # Propagate error: s.d. -> s.e.m. division and multiplication by exact number 
+    # Propagate error: s.d. -> s.e. division and multiplication by exact number 
     erosion_element_average = (;
         vals = NamedTuple{classes}([NamedTuple{Tuple(allelements)}(
             nanmean(erosion_element.vals[e][classfilter[k]]) for e in allelements) for k in classes]
         ),
         errs = NamedTuple{classes}([NamedTuple{Tuple(allelements)}(
             ((sqrt(nansum(erosion_element.errs[e][classfilter[k]]).^2) / count(classfilter[k])) 
-                / sqrt(npoints[e])    # s.d -> s.e.m
+                / sqrt(npoints[k][e])    # s.d -> s.e.m
                 * 2                   # 1σ  -> 2σ
             ) for e in allelements) for k in classes]
         ),
@@ -376,10 +391,13 @@
         errs = round.([result_composition.errs[:,k][i] for i in eachindex(majors)], sigdigits=1)
     ) for k in eachindex(classes)]);
 
+    erodedmass_to_terminal.vals .= round.(erodedmass_to_terminal.vals, sigdigits=3);
+    erodedmass_to_terminal.errs .= round.(erodedmass_to_terminal.errs, sigdigits=1);
+
 
 ## --- Print to terminal: major element mass and composition vibe check
     @info """ Annual mass flux of denuded material:
-    Total mass flux [Gt/yr] ± 2σ s.d.
+    Total mass flux [Gt/yr] ± 2 s.e.
       $(join(rpad.(majors, 8), " "))
       $(join(rpad.(erodedmass_to_terminal.vals, 8), " "))
     ± $(join(rpad.(erodedmass_to_terminal.errs, 8), " "))

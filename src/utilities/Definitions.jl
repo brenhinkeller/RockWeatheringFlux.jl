@@ -116,6 +116,9 @@
     ucc_out_err = "$results/exposedcrust_err.tsv"
     ucc_out_csv = "$results/exposedcrust.csv"
 
+    # Number of unique samples per lithology per element 
+    unique_n = "$results/uniquesamples.csv"
+
     # Mass of eroded material 
     erodedmass_out = "$results/erosion_mass.tsv"
     erodedmass_out_err = "$results/erosion_mass_err.tsv"
@@ -133,6 +136,7 @@
 
     export mapped_surface_lith
     export ucc_out, ucc_out_err, ucc_out_csv
+    export unique_n
     export erodedmass_out, erodedmass_out_err, erodedmass_out_csv
     export frac_contributed, frac_contributed_out_err, frac_contributed_out_csv
     export comp_eroded, comp_eroded_err, comp_eroded_csv

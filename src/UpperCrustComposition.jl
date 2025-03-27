@@ -14,6 +14,7 @@
 
     # Lithologic class 
     match_cats, metamorphic_cats, class, megaclass = get_lithologic_class();
+    classkeys = collect(keys(class))
 
     # Matched geochemical data
     fid = h5open(geochem_fid, "r")
@@ -42,7 +43,7 @@
     # This assumes that each sample has 100% of the data...
     npoints = unique_sample(mbulk.Sample_ID, 90)
     @info """ Matched sample metadata:
-    Total: $(length(unique(mbulk.Sample_ID))) samples 
+    $(length(unique(mbulk.Sample_ID))) unique samples matched to $(length(mbulk.Sample_ID)) spatial points.
     90% of matches explained by $npoints samples"""
 
     # Make a new npoints that's by element AND lithology 
@@ -54,11 +55,25 @@
     ) for k in keys(class));
 
 
-## --- Compute and export composition of exposed crust!
-    result = Array{Float64}(undef, (length(allelements), length(class)))
-    result_err = similar(result)
+## --- Export total unique samples per element and per lithology
+    # Preallocate element rows, lithology columns  
+    nmatrix = Array{Float64}(undef, length(allelements), length(class))
     rows = string.(allelements)
     cols = hcat("element", reshape(string.(collect(keys(class))), 1, :))
+
+    for j in eachindex(classkeys) 
+        for i in eachindex(allelements) 
+            nmatrix[i,j] = npoints[classkeys[j]][allelements[i]]
+        end
+    end
+    zeronan!(nmatrix)
+    writedlm(unique_n, vcat(cols, hcat(rows, Int.(nmatrix))), ',')
+
+
+## --- Compute and export composition of exposed crust!
+    # Preallocate element rows, lithology columns
+    result = Array{Float64}(undef, (length(allelements), length(class)))
+    result_err = similar(result)
     
     for i in eachindex(keys(class))
         result[:,i] .= [nanmean(mbulk[j][class[i]]) for j in allelements]

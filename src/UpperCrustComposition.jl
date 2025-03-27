@@ -77,7 +77,7 @@
     
     for i in eachindex(keys(class))
         result[:,i] .= [nanmean(mbulk[j][class[i]]) for j in allelements]
-        result_err[:,i] .= [nanstd(mbulk[j][class[i]])./sqrt(npoints[k][j]).*2 for j in allelements]
+        result_err[:,i] .= [nanstd(mbulk[j][class[i]])./sqrt(npoints[classkeys[i]][j]).*2 for j in allelements]
     end
     writedlm(ucc_out, vcat(cols, hcat(rows, result)))
     writedlm(ucc_out_err, vcat(cols, hcat(rows, result_err)))

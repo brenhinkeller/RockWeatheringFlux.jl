@@ -712,10 +712,21 @@
 
     Get the number of geochemical samples that explain `p`% of the matches. Default is 90%.
 
+    In other words: what is the smallest number of unique samples that will allow us to retain 
+    `p`% of the samples in `sample_ID`?
+
     """
     function unique_sample(sample_ID, p::Int=90)
-        c = countmap(sample_ID)
-        return count(<(percentile(values(c), p)), values(c))
+        n = round(Int, length(sample_ID) * p/100)
+        c = sort(collect(values(countmap(sample_ID))), rev=true)
+
+        s = 0 
+        for i in eachindex(c)
+            s += c[i]
+            if s >= n 
+                return i 
+            end
+        end
     end
     export unique_sample
 

@@ -625,14 +625,17 @@
     end
     export get_cats
 
+
     """
     ```julia
     get_lithologic_class([matchedbulk_io], [macrostrat_io])
     ```
 
     Return standardized filters for lithologic class. Optionally specify paths for matched 
-    samples and the Macrostrat responses file. Major / non-descriptive classes are inclusive 
-    of minor / descriptive classes.
+    samples and the Macrostrat responses file. All filters are inclusive of minor lithologic 
+    classes.
+
+    Cover and volcaniclastics are removed.
 
     # Return Values 
     * `match_cats`: lithologic class of samples, from the classes assigned during lithologic
@@ -642,8 +645,6 @@
     * `class`: as `match_cats`, but with an additional `bulk` key that is true for all samples.
     * `megaclass`: as `class`, but with additional filters for metasedimentary, metaigneous,
         and undifferentiated metamorphic samples.
-
-    All filters are inclusive of minor lithologic classes.
 
     # Example
     ```julia
@@ -669,10 +670,14 @@
         # Delete cover
         match_cats = delete_cover(match_cats)
         metamorphic_cats = delete_cover(metamorphic_cats)
-        
+
         # Include minor types 
         include_minor!(match_cats)
         include_minor!(metamorphic_cats)
+
+        # Delete volcaniclastics
+        match_cats = delete_volcaniclast(match_cats)
+        metamorphic_cats = delete_volcaniclast(metamorphic_cats)
 
         # Set matched lithologic classes to include all identified metamorphic samples
         match_cats.met .|= (metamorphic_cats.sed .| metamorphic_cats.ign .| metamorphic_cats.met)

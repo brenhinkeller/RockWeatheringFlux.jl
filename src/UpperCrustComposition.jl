@@ -45,10 +45,13 @@
     Total: $(length(unique(mbulk.Sample_ID))) samples 
     90% of matches explained by $npoints samples"""
 
-    # Make a new npoints that's by element 
-    npoints = NamedTuple{Tuple(allelements)}(
-        [unique_sample(mbulk.Sample_ID[.!isnan.(mbulk[k])], 90) for k in allelements]
-    );
+    # Make a new npoints that's by element AND lithology 
+    # If there are samples, take the samples that explain 90% of the matches. If this comes to 0, set value to 1
+    # If there are no samples, set value to NaN
+    npoints = NamedTuple{keys(class)}(
+        NamedTuple{Tuple(allelements)}([count(.!isnan.(mbulk[e]) .& class[k]) != 0 ? 
+            max(unique_sample(mbulk.Sample_ID[.!isnan.(mbulk[e]) .& class[k]], 90), 1) : NaN for e in allelements]
+    ) for k in keys(class));
 
 
 ## --- Compute and export composition of exposed crust!
@@ -59,7 +62,7 @@
     
     for i in eachindex(keys(class))
         result[:,i] .= [nanmean(mbulk[j][class[i]]) for j in allelements]
-        result_err[:,i] .= [nanstd(mbulk[j][class[i]])./sqrt(npoints[j]).*2 for j in allelements]
+        result_err[:,i] .= [nanstd(mbulk[j][class[i]])./sqrt(npoints[k][j]).*2 for j in allelements]
     end
     writedlm(ucc_out, vcat(cols, hcat(rows, result)))
     writedlm(ucc_out_err, vcat(cols, hcat(rows, result_err)))

@@ -10,13 +10,16 @@
 
 
 ## --- Slope vs. Erosion rate
-    octopusdata = importdataset("output/octopusdata.tsv",'\t', importas=:Tuple)
-    basin_srtm = importdataset("output/basin_srtm15plus_avg_maxslope.tsv", '\t', importas=:Tuple)
+    octopusdata = importdataset("output/basins/octopusdata.tsv",'\t', importas=:Tuple)
+    basin_srtm = importdataset("output/basins/srtm15plus_maxslope_basin_avg.tsv", '\t', importas=:Tuple)
 
     # Collect erosion rate and slope data for Be and Al data
     t = .!isnan.(basin_srtm.avg_slope) .& .!isnan.(basin_srtm.err)
+    RockWeatheringFlux.basin_n = count(t)
+    
     t_be = t .& .!isnan.(octopusdata.ebe_mmkyr) .& .!isnan.(octopusdata.ebe_err)
     t_al = t .& .!isnan.(octopusdata.eal_mmkyr) .& .!isnan.(octopusdata.eal_err)
+    
 
     x = (
         v = [basin_srtm.avg_slope[t_be]; basin_srtm.avg_slope[t_al]],
@@ -38,7 +41,7 @@
 
     # Fit slope to means
     fobj = yorkfit(collect(c), ex, log.(m), log.(ey))
-    emmkyr(slp) = exp(slp * (fobj.slope) + (fobj.intercept))
+    RockWeatheringFlux.emmkyr(slp) = exp(slp * (fobj.slope) + (fobj.intercept))
     model, = unmeasurementify(emmkyr.(1:600))
 
     # Build plot
@@ -56,11 +59,11 @@
         size=(600,400),
         # left_margin=(10,:px), bottom_margin=(10,:px)
     )
-    Plots.scatter!(basin_srtm.avg_slope,octopusdata.ebe_mmkyr, label="Be-10", 
+    Plots.scatter!(basin_srtm.avg_slope,octopusdata.ebe_mmkyr, label="Be-10 (n = $(count(t_be)))", 
         msc=:auto, color=colors_covariance.a, 
         markersize = 2,
     )
-    Plots.scatter!(h, basin_srtm.avg_slope,octopusdata.eal_mmkyr, label="Al-26", 
+    Plots.scatter!(h, basin_srtm.avg_slope,octopusdata.eal_mmkyr, label="Al-26 (n = $(count(t_al)))", 
         msc=:auto, color=colors_covariance.b, 
         markersize = 2,
     )

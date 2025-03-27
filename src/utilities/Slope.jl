@@ -13,6 +13,10 @@
 
     # Previously 10^(slp*0.00567517 + 0.971075)
 
+    # Number of basins used to calibrate erosion / slope relationship 
+    basin_n = 3265
+    export basin_n
+
 
 ## --- Calculate wt.% and flux by rock type
 

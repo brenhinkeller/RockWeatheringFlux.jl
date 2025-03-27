@@ -20,6 +20,24 @@
 
     """
     ```julia
+    delete_volcaniclast(cats)
+    ```
+
+    As `delete_cover.`
+
+    """
+    function delete_volcaniclast(cats)
+        start = collect(keys(cats))
+        notvolcaniclast = start .!= :volcaniclast
+
+        kittens = NamedTuple{Tuple(start[notvolcaniclast])}(cats[k] for k in start[notvolcaniclast])
+        return kittens
+    end
+    export delete_volcaniclast
+
+
+    """
+    ```julia
     include_minor!(cats, [minorsed, minorvolc, minorplut, minorign])
     ```
 

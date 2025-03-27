@@ -51,8 +51,9 @@
         for k in spider_REEs
     );
 
-    # Gao et al., 1998 carbonate free estimate 
+    # Gao et al., 1998 carbonate inclusive estimate 
     gao = (La=31.0,Ce=58.7,Nd=26.1,Sm=4.45,Eu=1.08,Tb=0.69,Yb=1.91,Lu=0.30)
+    gao_carb = (La=13.8,Ce=25.9,Nd=11.5,Sm=1.50,Eu=NaN,Tb=0.22,Yb=0.58,Lu=0.08)
 
     # Condie by lithology and time (Late Archean, Middle Proterozoic, and Meso-Cenozoic)
     condiearcheanshale=(La=30.7,Ce=60.9,Nd=27.7,Sm=4.85,Eu=1.12,Gd=4.55,Tb=0.71,Yb=2.43,Lu=0.39)
@@ -64,173 +65,154 @@
     GloRiSe = NamedTuple{Tuple(spider_REEs)}(nanmean(GloRiSe[k].*10_000) for k in spider_REEs)
 
 
-## --- Resample (temporal) Archean vs. post-Archean shales 
-    # # Resample 
-    # nsims = Int(1e7)
-    # err = 0.01
-    # age_error = 5
-    # simout = Array{Float64}(undef, nsims, length(spider_REEs)+1)
+## --- Calculate REE abundance for TTGs
+    ttg = match_cats.trondhjemite .| match_cats.tonalite .| match_cats.granodiorite;
+    npoints = NamedTuple{Tuple(spider_REEs)}(
+        [unique_sample(mbulk.Sample_ID[.!isnan.(mbulk[k])], 90) for k in spider_REEs]
+    );
 
-    # # Calculate sample age and uncertainty
-    # sampleage, ageuncert = resampling_age(mbulk.Age, mbulk.Age_Min, mbulk.Age_Max, 
-    #     macrostrat.age, macrostrat.agemin, macrostrat.agemax, 
-    #     uncert_rel=age_error
-    # )
-
-    # t = @. !isnan.(sampleage) .& match_cats.shale;
-    # data = Array{Float64}(undef, count(t), length(spider_REEs)+1)
-    # uncertainty = similar(data)
-
-    # k = invweight_age(sampleage[t])
-    # p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    # [data[:,i] .= mbulk[spider_REEs[i]][t].*10_000 for i in eachindex(spider_REEs)]
-    # data[:,end] .= sampleage[t]
-    # uncertainty[:,1:end-1] .= err
-    # uncertainty[:,end] .= ageuncert[t]
-
-    # simout .= bsresample(data, uncertainty, nsims, p)
-
-    # # Create NamedTuples of Archean vs. post-Archean shales 
-    # archean = 3800 .>= simout[:,end] .> 2500;
-    # proterozoic = 2500 .>= simout[:,end] .> 541;
-    # phanerozoic = 541 .>= simout[:,end] .> 0;
-
-    # archeanshale = NamedTuple{Tuple(spider_REEs)}(
-    #     reshape(nanmean(simout[:,1:end-1][archean,:], dims=1), :, 1)
-    # )
-    # proterozoicshale = NamedTuple{Tuple(spider_REEs)}(
-    #     reshape(nanmean(simout[:,1:end-1][proterozoic,:], dims=1), :, 1)
-    # )
-    # phanerozoicshale = NamedTuple{Tuple(spider_REEs)}(
-    #     reshape(nanmean(simout[:,1:end-1][phanerozoic,:], dims=1), :, 1)
-    # )
-    # allshale = NamedTuple{Tuple(spider_REEs)}(
-    #     reshape(nanmean(simout[:,1:end-1], dims=1), :, 1)
-    # )
-    
+    ucc = merge(ucc, (;
+        ttg = NamedTuple{Tuple(spider_REEs)}(
+            [nanmean(mbulk[j][ttg])*10_000 for j in spider_REEs])
+    ));
+    ucc_err = merge(ucc_err, (;
+        ttg = NamedTuple{Tuple(spider_REEs)}(
+            [nanstd(mbulk[k][ttg])*10_000 ./sqrt(npoints[k]).*2 for k in spider_REEs])
+    ));
+        
 
 ## --- Assemble plots
     # Base plot (surface earth)
     # Error bars smaller than markers
     h = spidergram(ucc.bulk, 
         # collect(values(ucc.bulk) .± values(ucc_err.bulk)),
-        label="Surface Earth (This Study)",
+        label="Exposed Continental Crust",
         seriescolor=:black, msc=:auto,
         markershape=:circle, markersize=5,
         fontfamily=:Helvetica, 
-        legend=:topright, titleloc=:left,
+        legend=:topright,
+        titleloc=:left,
         legendfont=10, titlefont=16,
         ylims=(3,175),
-        size=(700,400), 
+        size=(550,400), 
         left_margin=(15,:px),
     );
 
     # Surface Earth
-    h1 = deepcopy(h)
-    spidergram!(h1, rudnick_gao, label="Rudnick and Gao", 
+    h_surf = deepcopy(h)
+    spidergram!(h_surf, rudnick_gao, label="Rudnick and Gao, 2014", 
         seriescolor=colors_source.rudnick, msc=:auto,
         markershape=:diamond, markersize=6,
-        title="A. Surface Earth Average",
+        title="A. Exposed / Upper Continental Crust",
     )
-    # spidergram!(h1, condie, label="Condie", 
-    #     seriescolor=colors_source.condie, msc=:auto,
-    #     markershape=:diamond, markersize=6,
-    # )
-    spidergram!(h1, gao, label="Gao et al.", 
+    spidergram!(h_surf, gao, label="Gao et al., 1998", 
         seriescolor=colors_source.gao, msc=:auto,
         markershape=:diamond, markersize=6,
     )
-    savefig("$filepath/spidergram_surface.pdf")
-
-    # Eroded material 
-    h5 = deepcopy(h)
-    spidergram!(h5, GloRiSe, label="Suspended Sediment", 
-        seriescolor=colors_source.muller, msc=:auto,
-        markershape=:diamond, markersize=6,
-        title="B. Eroded Material"
-    )
-    spidergram!(h5, ersn.bulk, 
-        # collect(values(ersn.bulk) .± values(ersn_err.bulk)),
-        label="Eroded Sediment (This Study)", 
-        seriescolor=colors_source.this_study, msc=:auto,
-        markershape=:circle, markersize=5,
-    )
-    savefig("$filepath/spidergram_eroded.pdf")
-
-    # Igneous
-    h2 = deepcopy(h)
-    spidergram!(h2, ucc.ign, 
-        # collect(values(ucc.ign) .± values(ucc_err.ign)),
-        label="All Igneous",
-        seriescolor=colors.ign, msc=:auto, 
-        markershape=:circle, markersize=5,
-        title="C. Igneous Rocks",
-    )
-    spidergram!(h2, ucc.granite, 
+    
+    # Selected lithologies
+    h_lith = deepcopy(h)
+    spidergram!(h_lith, ucc.granite, 
         # collect(values(ucc.granite) .± values(ucc_err.granite)),
         label="Granite",
         seriescolor=colors.plut, msc=:auto, 
-        markershape=:circle, markersize=5
+        markershape=:circle, markersize=5,
+        title="B. Selected Lithologies",
     )
-    spidergram!(h2, ucc.basalt, 
+    spidergram!(h_lith, ucc.basalt, 
         # collect(values(ucc.basalt) .± values(ucc_err.basalt)),
         label="Basalt",
-        seriescolor=colors.basalt, msc=:auto, 
+        seriescolor=:sandybrown, msc=:auto, 
         markershape=:circle, markersize=5
     )
-    savefig("$filepath/spidergram_ign.pdf")
-
-    # Sedimentary
-    h3 = deepcopy(h)
-    spidergram!(h3, ersn.bulk, 
-        # collect(values(ersn.bulk) .± values(ersn_err.bulk)),
-        label="Eroded Sediment", 
-        seriescolor=colors_source.this_study, msc=:auto,
-        markershape=:circle, markersize=5,
-        title="D. Sedimentary Rocks",
+    spidergram!(h_lith, ucc.ttg, 
+        # collect(values(ucc.ttg) .± values(ucc_err.ttg)),
+        label="TTG",
+        seriescolor=:purple, msc=:auto, 
+        markershape=:circle, markersize=5
     )
-    spidergram!(h3, ucc.sed,
-        # collect(values(ucc.sed) .± values(ucc_err.sed)),
-        label="Sedimentary", 
-        seriescolor=colors_dark.sed, msc=:auto,
-        markershape=:circle, markersize=5,
-    )
-    spidergram!(h3, ucc.shale, 
+    spidergram!(h_lith, ucc.shale, 
         # collect(values(ucc.shale) .± values(ucc_err.shale)),
         label="Shale", 
         seriescolor=colors_dark.shale, msc=:auto,
         markershape=:circle, markersize=5,
     )
-    spidergram!(h3, ucc.carb, 
-        # collect(values(ucc.carb) .± values(ucc_err.carb)),
-        label="Carbonate", 
-        seriescolor=colors.carb, msc=:auto,
+
+    # Eroded material 
+    h_ersn = deepcopy(h)
+    spidergram!(h_ersn, GloRiSe, label="Suspended Sediment (Mueller et al.)", 
+        seriescolor=colors_source.muller, msc=:auto,
+        markershape=:diamond, markersize=6,
+        title="C. Eroded Material"
+    )
+    spidergram!(h_ersn, ersn.bulk, 
+        # collect(values(ersn.bulk) .± values(ersn_err.bulk)),
+        label="Eroded Sediment", 
+        seriescolor=colors_source.this_study, msc=:auto,
         markershape=:circle, markersize=5,
     )
-    savefig("$filepath/spidergram_sed.pdf")
+    
+    display(h_surf)
+    display(h_lith)
+    display(h_ersn)
 
-    # # Shales 
-    # h4 = deepcopy(h)
-    # spidergram!(h4, archeanshale, label="Archean Shale", 
-    #     seriescolor=parse(Colorant, "#007a6c"), msc=:auto,
-    #     markershape=:circle, markersize=5,
-    #     title="D. Fine Grained Sedimentary Rocks",
-    # )
-    # spidergram!(h4, condiearcheansed, label="Archean Graywacke (Condie)",
-    #     seriescolor=colors_source.condie, msc=:auto,
-    #     markershape=:diamond, markersize=6
-    # )
-    # spidergram!(h4, phanerozoicshale, label="Phanerozoic Shale", 
-    #     seriescolor=parse(Colorant, "#f58220"), msc=:auto,
-    #     markershape=:circle, markersize=5,
-    # )
-    # savefig("$filepath/spidergram_shale.pdf")
-    # # display(h3)
+
+## --- Save files 
+    savefig(h_surf, "$filepath/spidergram_surface.pdf")
+    savefig(h_lith, "$filepath/spidergram_lithologies.pdf")
+    savefig(h_ersn, "$filepath/spidergram_eroded.pdf")
 
     # Assemble plots, but this is a placeholder because the y axis gets all messed up :(
-    h = Plots.plot(h1, h5, h2, h3, layout=(2, 2), size=(1200,800))
-    display(h)
-    savefig(h, "$filepath/spidergram.pdf")
+    bigH = Plots.plot(h_surf, h_lith, h_ersn, layout=(1, 3), size=(1800, 400))
+    display(bigH)
+    savefig(bigH, "$filepath/spidergram.pdf")
+
+
+## --- Look at all lithologies
+    include("spidergramtest.jl")
+    minorsed, minorvolc, minorplut, minorign = get_rock_class()[2:5];
+    cats = (
+        sed = minorsed, 
+        volc = (minorvolc[collect(minorvolc) .!= :volcaniclast]..., :carbonatite),
+        plut = minorplut,
+    )
+
+    m = maximum(length.([cats[k] for k in keys(cats)])) + 1
+    p = palette(:jet1, m)
+
+    n = chondrite
+    h = spidergram(ucc.bulk, normalizer=n,
+        # collect(values(ucc.bulk) .± values(ucc_err.bulk)),
+        label="Surface Earth",
+        seriescolor=:black, msc=:auto,
+        markershape=:circle, markersize=5,
+        fontfamily=:Helvetica, 
+        legend=:outerright, titleloc=:left,
+        legendfont=8, titlefont=16,
+        ylims=(1,500),
+        # ylims=(10^-2, 10^1),
+        # yticks=(10.0 .^(-2:1), ["0.01", "0.1", "1", "10"]),
+        size=(700,400), 
+        left_margin=(15,:px),
+    )
+
+    for k in keys(cats)
+        hprime = deepcopy(h)
+        p = palette(:jet1, length(cats[k])+1)
+
+        spidergram!(hprime, ucc[k], normalizer=n,
+            label="$k",
+            color=p[1], msc=:auto,
+        )
+        for i in eachindex(cats[k])
+            kprime = cats[k][i] 
+            spidergram!(hprime, ucc[kprime], normalizer=n,
+                label="$kprime",
+                color=p[i+1], msc=:auto,
+            )
+        end
+        display(hprime)
+    end
 
 
 ## --- End of file 

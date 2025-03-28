@@ -38,16 +38,21 @@
         set = keys(typelist);
 
         # Define descriptive and nondescriptive types
-        is_nondescript = (:sed, :ign, :volc, :plut, :met, :cover)
+        # Define what descriptive types fit inside a nondescriptive type
+        is_nondescript = (:sed, :ign, :volc, :volcaniclast, :plut, :met, :cover)
         minorsed, minorvolc, minorplut, minorign = get_rock_class()[2:5];
+            i = findall(x->x==:volcaniclast, minorvolc)    # Volcaniclastic could be anything
+            minorvolc = minorvolc[1:end .!= i]
         minorset = (;
             sed = (minorsed..., :sed), 
-            volc=(minorvolc..., :volc,), 
+            volc=(minorvolc..., :volc,),
+            volcaniclast=(minorvolc..., :volc,),
             plut=(minorplut..., :plut), 
-            ign=(minorign..., :ign), 
+            ign=(minorign..., :ign),                # Carbonatites are descriptive 
             met=(:met,),
             cover=(:cover,),
         )
+        @assert sort(collect(keys(minorset))) == sort(collect(is_nondescript))
 
         # I fear progress
         p = Progress(length(set) + 3*length(is_nondescript), 

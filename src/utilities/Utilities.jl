@@ -1153,4 +1153,24 @@
     export mesh
 
 
+## --- Other 
+    # This is mainly for heatmap stuff !! 
+    """
+    ```julia 
+    rescale_range(x, min1, max1, min2, max2)
+    ```
+    Rescale `x` from from a range (`min1`, `max1`) to a range (`min2`, `max2`)
+
+    # Examples
+    ```
+    190.0 = rescale_range(1900, 0,3800, 0, 380)
+
+    160.0 = rescale_range(60, 40,80, 0, 240)
+    ```
+    
+    """
+    rescale_in_range(x, min1, max1, min2, max2) = (max2 - min2)*(x - min1)/(max1 - min1) + min1
+    export rescale_in_range 
+
+
 ## --- End of file

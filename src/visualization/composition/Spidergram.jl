@@ -10,7 +10,8 @@
     REEs = get_REEs()
     spider_REEs = REEs[1:end .!= findfirst(x->x==:Pm, REEs)]       # Pm isn't in datasets
 
-    # Load data
+
+## --- Load data
     @info "Upper crust data: $ucc_out"
     ucc = importdataset(ucc_out, '\t', importas=:Tuple)
     ucc_errs = importdataset(ucc_out_err, '\t', importas=:Tuple)
@@ -18,7 +19,7 @@
     ersn = importdataset(comp_eroded, '\t', importas=:Tuple)
     ersn_errs = importdataset(comp_eroded_err, '\t', importas=:Tuple)
 
-    rudnick_gao = importdataset("data/rudnickgao2014.csv",  ',', importas=:Tuple);
+    rudnick_gao = importdataset("data/rudnickgao14_table3_processed.csv",  ',', importas=:Tuple);
     GloRiSe = importdataset("output/GlobalRivers/GloRiSe_minor_screened.tsv", '\t', importas=:Tuple);
 
 
@@ -43,17 +44,26 @@
     elementindex = NamedTuple{Tuple(Symbol.(rudnick_gao.Element))}(
         i for i in eachindex(rudnick_gao.Element)
     )
-    condie = NamedTuple{Tuple(spider_REEs)}(rudnick_gao.Condie_1993[elementindex[k]] 
-        for k in spider_REEs)
-    taylor_mclennan = NamedTuple{Tuple(spider_REEs)}(rudnick_gao.Taylor_and_McLennan_1985[elementindex[k]] 
-        for k in spider_REEs)
-    rudnick_gao = NamedTuple{Tuple(spider_REEs)}(rudnick_gao.This_Study[elementindex[k]] 
-        for k in spider_REEs
-    );
+    
+    # Rudnick and Gao, 2014 
+    elementindex = NamedTuple{Tuple(Symbol.(rudnick_gao.Element))}(i for i in eachindex(rudnick_gao.Element))
+    rudnick_gao_err = NamedTuple{Tuple(spider_REEs)}(
+        rudnick_gao.SE_1_Sigma[elementindex[k]]*2 for k in spider_REEs
+    )
+    rudnick_gao = NamedTuple{Tuple(spider_REEs)}(
+        rudnick_gao.Upper_crust[elementindex[k]] for k in spider_REEs
+    )
 
     # Gao et al., 1998 carbonate inclusive estimate 
     gao = (La=31.0,Ce=58.7,Nd=26.1,Sm=4.45,Eu=1.08,Tb=0.69,Yb=1.91,Lu=0.30)
     gao_carb = (La=13.8,Ce=25.9,Nd=11.5,Sm=1.50,Eu=NaN,Tb=0.22,Yb=0.58,Lu=0.08)
+
+    # Shaw et al., 1967, 1976 (Canadian Shield)
+    shaw = (La=32.3,Ce=65.6,Nd=25.9,Sm=4.61,Eu=0.937,Tb=0.481,Dy=2.9,Ho=0.62,Yb=1.47, Lu=0.233)
+
+    # Martin et al. TTG 
+    martin_old_ttg = (La=35.3,Ce=61.7,Nd=25.8,Sm=4.2,Eu=1,Gd=3.2,Dy=1.8,Er=0.77,Yb=0.78,Lu=0.2)
+    margin_young_ttg = (La=30.8,Ce=58.5,Nd=23.2,Sm=3.5,Eu=0.6,Gd=2.3,Dy=1.6,Er=0.75,Yb=0.63,Lu=0.12)
 
     # Condie by lithology and time (Late Archean, Middle Proterozoic, and Meso-Cenozoic)
     condiearcheanshale=(La=30.7,Ce=60.9,Nd=27.7,Sm=4.85,Eu=1.12,Gd=4.55,Tb=0.71,Yb=2.43,Lu=0.39)
@@ -62,157 +72,209 @@
     condiemidphansed = (La=28,Ce=61,Nd=26,Sm=4.9,Eu=0.9,Gd=4.34,Tb=0.66,Yb=2.2,Lu=0.38,)
 
     # Suspended load, convert to ppm
+    GloRiSe_err = NamedTuple{Tuple(spider_REEs)}(2 * nanstd(GloRiSe[k].*10_000) / sqrt(count(.!isnan.(GloRiSe[k]))) for k in spider_REEs)
     GloRiSe = NamedTuple{Tuple(spider_REEs)}(nanmean(GloRiSe[k].*10_000) for k in spider_REEs)
-
-
-## --- Calculate REE abundance for TTGs
-    ttg = match_cats.trondhjemite .| match_cats.tonalite .| match_cats.granodiorite;
-    npoints = NamedTuple{Tuple(spider_REEs)}(
-        [unique_sample(mbulk.Sample_ID[.!isnan.(mbulk[k])], 90) for k in spider_REEs]
-    );
-
-    ucc = merge(ucc, (;
-        ttg = NamedTuple{Tuple(spider_REEs)}(
-            [nanmean(mbulk[j][ttg])*10_000 for j in spider_REEs])
-    ));
-    ucc_err = merge(ucc_err, (;
-        ttg = NamedTuple{Tuple(spider_REEs)}(
-            [nanstd(mbulk[k][ttg])*10_000 ./sqrt(npoints[k]).*2 for k in spider_REEs])
-    ));
         
 
-## --- Assemble plots
-    # Base plot (surface earth)
-    # Error bars smaller than markers
+## --- Base plot (surface earth)
     h = spidergram(ucc.bulk, 
         # collect(values(ucc.bulk) .± values(ucc_err.bulk)),
         label="Exposed Continental Crust",
         seriescolor=:black, msc=:auto,
         markershape=:circle, markersize=5,
         fontfamily=:Helvetica, 
-        legend=:topright,
+        legend=false,
         titleloc=:left,
         legendfont=10, titlefont=16,
-        ylims=(3,175),
+        ylims=(1.5, 200),
+        yticks=([10, 100], ["10", "100"]),
         size=(550,400), 
-        left_margin=(15,:px),
+        # left_margin=(15,:px),
     );
 
-    # Surface Earth
+
+## --- Surface Earth
     h_surf = deepcopy(h)
-    spidergram!(h_surf, rudnick_gao, label="Rudnick and Gao, 2014", 
-        seriescolor=colors_source.rudnick, msc=:auto,
-        markershape=:diamond, markersize=6,
-        title="A. Exposed / Upper Continental Crust",
+    title!(h_surf, "A. Average Continental Crust")
+
+    # Error bars
+    spidergram!(h_surf, 
+        collect(values(rudnick_gao) .± values(rudnick_gao_err)),
+        label="", 
+        msw=2, msc=colors_source.rudnick, 
+        mcolor=:white, markershape=:none,
     )
-    spidergram!(h_surf, gao, label="Gao et al., 1998", 
-        seriescolor=colors_source.gao, msc=:auto,
-        markershape=:diamond, markersize=6,
+
+    # Values 
+    spidergram!(h_surf, rudnick_gao, 
+        label="Upper crust (Rudnick and Gao, 2014)", 
+        seriescolor=colors_source.rudnick, msc=colors_source.rudnick, markercolor=:white,
+        markershape=:diamond, markersize=5,
+        mswidth=1.5, linewidth=1.5,        
+    )
+
+    spidergram!(h_surf, gao, label="Exposed crust (Gao et al., 1998)", 
+        seriescolor=colors_source.gao, msc=colors_source.gao, markercolor=:white,
+        markershape=:diamond, markersize=5,
+        mswidth=1.5, linewidth=1.5,
     )
     
-    # Selected lithologies
+    spidergram!(h_surf, shaw, label="Canadian Shield (Shaw et al., 1967, 1976)", 
+        seriescolor=colors_source.shaw, msc=colors_source.shaw, markercolor=:white,
+        markershape=:diamond, markersize=5,
+        mswidth=1.5, linewidth=1.5,
+    )
+    
+
+## --- Selected lithologies
     h_lith = deepcopy(h)
-    spidergram!(h_lith, ucc.granite, 
-        # collect(values(ucc.granite) .± values(ucc_err.granite)),
-        label="Granite",
-        seriescolor=colors.plut, msc=:auto, 
-        markershape=:circle, markersize=5,
-        title="B. Selected Lithologies",
+    title!(h_lith, "B. Selected Lithologies")
+
+    # Error bars 
+    spidergram!(h_lith, 
+        collect(values(ucc.carb) .± values(ucc_err.carb)),
+        label="", 
+        msw=1, msc=colors.carb, 
+        mcolor=:white, markershape=:none,
     )
-    spidergram!(h_lith, ucc.basalt, 
-        # collect(values(ucc.basalt) .± values(ucc_err.basalt)),
-        label="Basalt",
-        seriescolor=:sandybrown, msc=:auto, 
-        markershape=:circle, markersize=5
+    spidergram!(h_lith, 
+        collect(values(ucc.trondhjemite) .± values(ucc_err.trondhjemite)),
+        label="", 
+        msw=1, msc=colors.trondhjemite, 
+        mcolor=:white, markershape=:none,
     )
-    spidergram!(h_lith, ucc.ttg, 
-        # collect(values(ucc.ttg) .± values(ucc_err.ttg)),
-        label="TTG",
-        seriescolor=:purple, msc=:auto, 
-        markershape=:circle, markersize=5
+    spidergram!(h_lith, 
+        collect(values(ucc.tonalite) .± values(ucc_err.tonalite)),
+        label="", 
+        msw=1, msc=colors.tonalite, 
+        mcolor=:white, markershape=:none,
     )
+    spidergram!(h_lith, 
+        collect(values(ucc.granodiorite) .± values(ucc_err.granodiorite)),
+        label="", 
+        msw=1, msc=colors.granodiorite, 
+        mcolor=:white, markershape=:none,
+    )
+
+    # Values 
+    # spidergram!(h_lith, ucc.granite, 
+    #     label="Granite",
+    #     seriescolor=colors.plut, msc=:auto, 
+    #     markershape=:circle, markersize=5,
+    # )
     spidergram!(h_lith, ucc.shale, 
-        # collect(values(ucc.shale) .± values(ucc_err.shale)),
         label="Shale", 
         seriescolor=colors_dark.shale, msc=:auto,
         markershape=:circle, markersize=5,
     )
-
-    # Eroded material 
-    h_ersn = deepcopy(h)
-    spidergram!(h_ersn, GloRiSe, label="Suspended Sediment (Mueller et al.)", 
-        seriescolor=colors_source.muller, msc=:auto,
-        markershape=:diamond, markersize=6,
-        title="C. Eroded Material"
+    spidergram!(h_lith, ucc.carb, 
+        label="Carbonate", 
+        seriescolor=colors.carb, msc=:auto,
+        markershape=:circle, markersize=5,
     )
-    spidergram!(h_ersn, ersn.bulk, 
+
+    spidergram!(h_lith, ucc.trondhjemite, 
+        label="Trondhjemite",
+        seriescolor=colors.trondhjemite, msc=:auto,
+        markershape=:circle, markersize=5,
+    )
+    spidergram!(h_lith, ucc.tonalite, 
+        label="Tonalite",
+        seriescolor=colors.tonalite, msc=:auto,
+        markershape=:circle, markersize=5,
+    )
+    spidergram!(h_lith, ucc.granodiorite, 
+        label="Granodiorite",
+        seriescolor=colors.granodiorite, msc=:auto,
+        markershape=:circle, markersize=5,
+    )
+
+
+## --- Eroded material 
+    h_ersn = deepcopy(h)
+    title!(h_ersn, "C. Weathered Material")
+
+    spidergram!(h_ersn, GloRiSe, 
+        label="Suspended Sediment (Muller et al., 2021)", 
+        seriescolor=colors_source.muller, msc=colors_source.muller, markercolor=:white,
+        markershape=:diamond, markersize=5,
+        mswidth=1.5, linewidth=1.5,
+    )
+    spidergram!(h_ersn, 
+        ersn.bulk, 
         # collect(values(ersn.bulk) .± values(ersn_err.bulk)),
         label="Eroded Sediment", 
-        seriescolor=colors_source.this_study, msc=:auto,
+        seriescolor=colors.sed, msc=:auto,
         markershape=:circle, markersize=5,
     )
     
+    
+## --- Communal legend?? 
+    h_leg = plot(
+        fg_color_legend=:transparent, 
+        bg_color_legend=:transparent,
+        legendfont=12, 
+        legend=:inside,
+        grid=false, axis=false,
+        xlims=(2,3), ylims=(2,3),
+        size=(550,400), 
+    )
+
+    plot!(h_leg, [1],[1], label="A. Average Continental Crust", color=:white)
+    plot!(h_leg, [1],[1], label="Exposed Continental Crust", 
+        seriescolor=:black, msc=:auto, 
+        markershape=:circle, markersize=5,)
+    plot!(h_leg, [1],[1], label="Rudnick and Gao, 2014 (Upper Continental Crust)", 
+        seriescolor=colors_source.rudnick, msc=colors_source.rudnick, markercolor=:white,
+        msw=1.5, markershape=:diamond, markersize=5,)
+    plot!(h_leg, [1],[1], label="Gao et al., 1998 (Exposed Continental Crust)", 
+        seriescolor=colors_source.gao, msc=colors_source.gao, markercolor=:white,
+        msw=1.5, markershape=:diamond, markersize=5,)
+    plot!(h_leg, [1],[1], label="Shaw et al., 1967, 1976 (Canadian Shield)", 
+        seriescolor=colors_source.shaw, msc=colors_source.shaw, markercolor=:white,
+        msw=1.5, markershape=:diamond, markersize=5,)
+
+    plot!(h_leg, [1],[1], label="\t", color=:white)
+    plot!(h_leg, [1],[1], label="B. Selected Lithologies", color=:white)
+    plot!(h_leg, [1],[1], label="Shale", 
+        seriescolor=colors_dark.shale, msc=:auto, 
+        markershape=:circle, markersize=5,) 
+    plot!(h_leg, [1],[1], label="Carbonate", 
+        seriescolor=colors.carb, msc=:auto, 
+        markershape=:circle, markersize=5,) 
+    plot!(h_leg, [1],[1], label="Trondhjemite", 
+        seriescolor=colors.trondhjemite, msc=:auto, 
+        markershape=:circle, markersize=5,) 
+    plot!(h_leg, [1],[1], label="Tonalite", 
+        seriescolor=colors.tonalite, msc=:auto, 
+        markershape=:circle, markersize=5,)
+    plot!(h_leg, [1],[1], label="Granodiorite", 
+        seriescolor=colors.granodiorite, msc=:auto, 
+        markershape=:circle, markersize=5,) 
+
+    plot!(h_leg, [1],[1], label="\t", color=:white)
+    plot!(h_leg, [1],[1], label="C. Weathered Material", color=:white)
+    plot!(h_leg, [1],[1], label="Weathered Material", 
+        seriescolor=colors.sed, msc=:auto, 
+        markershape=:circle, markersize=5,) 
+    plot!(h_leg, [1],[1], label="Muller et al., 2021 (Suspended Sediment)", 
+        seriescolor=colors_source.muller, msc=colors_source.muller, markercolor=:white,
+        msw=1.5, markershape=:diamond, markersize=5,)
+
+
+## --- Save files 
     display(h_surf)
     display(h_lith)
     display(h_ersn)
 
-
-## --- Save files 
     savefig(h_surf, "$filepath/spidergram_surface.pdf")
     savefig(h_lith, "$filepath/spidergram_lithologies.pdf")
     savefig(h_ersn, "$filepath/spidergram_eroded.pdf")
 
     # Assemble plots, but this is a placeholder because the y axis gets all messed up :(
-    bigH = Plots.plot(h_surf, h_lith, h_ersn, layout=(1, 3), size=(1800, 400))
+    bigH = Plots.plot(h_surf, h_lith, h_ersn, h_leg, layout=(2, 2), size=(1100, 800))
     display(bigH)
     savefig(bigH, "$filepath/spidergram.pdf")
-
-
-## --- Look at all lithologies
-    include("spidergramtest.jl")
-    minorsed, minorvolc, minorplut, minorign = get_rock_class()[2:5];
-    cats = (
-        sed = minorsed, 
-        volc = (minorvolc[collect(minorvolc) .!= :volcaniclast]..., :carbonatite),
-        plut = minorplut,
-    )
-
-    m = maximum(length.([cats[k] for k in keys(cats)])) + 1
-    p = palette(:jet1, m)
-
-    n = chondrite
-    h = spidergram(ucc.bulk, normalizer=n,
-        # collect(values(ucc.bulk) .± values(ucc_err.bulk)),
-        label="Surface Earth",
-        seriescolor=:black, msc=:auto,
-        markershape=:circle, markersize=5,
-        fontfamily=:Helvetica, 
-        legend=:outerright, titleloc=:left,
-        legendfont=8, titlefont=16,
-        ylims=(1,500),
-        # ylims=(10^-2, 10^1),
-        # yticks=(10.0 .^(-2:1), ["0.01", "0.1", "1", "10"]),
-        size=(700,400), 
-        left_margin=(15,:px),
-    )
-
-    for k in keys(cats)
-        hprime = deepcopy(h)
-        p = palette(:jet1, length(cats[k])+1)
-
-        spidergram!(hprime, ucc[k], normalizer=n,
-            label="$k",
-            color=p[1], msc=:auto,
-        )
-        for i in eachindex(cats[k])
-            kprime = cats[k][i] 
-            spidergram!(hprime, ucc[kprime], normalizer=n,
-                label="$kprime",
-                color=p[i+1], msc=:auto,
-            )
-        end
-        display(hprime)
-    end
 
 
 ## --- End of file 

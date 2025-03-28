@@ -18,7 +18,7 @@
     # Standardized color schemes 
     colors_covariance = (
         a = parse(Colorant, "#5b80bb"),             # Based on managua blues
-        b = parse(Colorant, "#bb965b"),
+        b = parse(Colorant, "#bb5b80"),
     )
     colors_contrast = (
         a = parse(Colorant, "#91463b"),             # Based on managua oranges
@@ -27,10 +27,10 @@
     p = Plots.palette(:managua, 5)
     colors_source = (
         rudnick = parse(Colorant, "#f0a400"),       # Rudnick and Gao, 2014
-        shaw = p[2],                                 # Shaw et al., 1967, 1976
+        shaw = p[2],                                # Shaw et al., 1967, 1976
         condie = p[3],                              # Condie, 1993
         gao = p[4],                                 # Gao et al., 1998
-        muller = parse(Colorant, "#0bd1ff"),        # Muller et al., 2021
+        muller = parse(Colorant, "#009abe"),        # Muller et al., 2021
     )
     colors_dark = (                                 # Modified USGS colors
         sed = parse(Colorant, "#206341"),

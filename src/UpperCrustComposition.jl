@@ -25,7 +25,7 @@
 
     # Elements of interest
     majors, minors = get_elements()
-    allelements = [majors; minors]
+    allelements = [majors; minors];
 
 
 ## --- How many samples explain 90% of the matches 
@@ -158,77 +158,133 @@
     pease = [59.5, 17.3, 6.53, 0.901, 2.88, 5.39, 4.14, 3.24, 0.129]
     rudnickgao = [66.62, 15.4, 5.04, 0.64, 2.48, 3.59, 3.27, 2.8, 0]
     gao = [58.48, 12.12, 4.6, 0.57, 3.73, 7.41, 2.57, 2.27, 7.36]
+    condie = [66.21, 14.96, 4.70, 0.55, 2.42, 3.60, 3.51, 2.73, 0]
 
     # Set mixing endmembers
     endmembers = [this_study.sed this_study.volc this_study.plut]
 
     # Calculate percent of each endmember represented in each estimate
-    mix_this_study = nnls(endmembers, this_study.bulk)
-    mix_pease = nnls(endmembers, pease)
-    mix_rudnickgao = nnls(endmembers, rudnickgao)
-    mix_gao = nnls(endmembers, gao)
+    # Also normalize to 100% because... they're percentages I guess
+    mix_this_study = normalize!(nnls(endmembers, this_study.bulk), 1)
+    mix_pease = normalize!(nnls(endmembers, pease), 1)
+    mix_rudnickgao = normalize!(nnls(endmembers, rudnickgao), 1)
+    mix_gao = normalize!(nnls(endmembers, gao), 1)
+    mix_condie = normalize!(nnls(endmembers, condie), 1)
 
     # Calculate misfit
     misfit_this_study = sum((endmembers * mix_this_study - this_study.bulk).^2)
     misfit_pease = sum((endmembers * mix_pease - pease).^2)
     misfit_rudnickgao = sum((endmembers * mix_rudnickgao - rudnickgao).^2)
     misfit_gao = sum((endmembers * mix_gao - gao).^2)
+    misfit_condie = sum((endmembers * mix_condie - condie).^2)
     
-    # Format for LaTeX-formatting Excel sheet (bulk, anhydrous, and other estimates)
+    # Format for LaTeX-formatting Excel sheet
     out = fill("", size(endmembers)[2] + 1)
     out = hcat(
         round.([mix_this_study.*100; misfit_this_study], digits=2),
         round.([mix_rudnickgao.*100; misfit_rudnickgao], digits=2),
         round.([mix_gao.*100; misfit_gao], digits=2),
+        round.([mix_condie.*100; misfit_condie], digits=2),
         round.([mix_pease.*100; misfit_pease], digits=2),
     )
-    println("sed / volc / plut mixing ratios for: bulk / R&G / Gao / Pease")
+    println("sed / volc / plut mixing ratios for: bulk / R&G / Gao / Condie / Pease")
     for i in 1:size(out)[1]
         println(join(out[i,:], ";"))
     end
     
 
-## --- Compute mixing ratios for our eroded material estimates 
-    # Load data
-    fid = readdlm(comp_eroded)
-    fid_i = NamedTuple{keys(class)}(findfirst(x->x==string(k), fid)[2] for k in keys(class))
-    @assert Symbol.(fid[2:length(majors)+1]) == majors "Major elements stored incorrectly"
-    
-    this_study = NamedTuple{keys(class)}(float.(fid[2:length(majors)+1,fid_i[k]]) 
-        for k in keys(class)
-    );
+## --- I am curious if these change if we do an anhydrous normalized estimate 
+    # Answer: no (at least, not for Rudnick and Gao / Condie, which is what I was curious 
+    # about, since at the very least I would expect Condie to have some volcanic influence... 
+    # although I guess there's not a ton of basalts in there, so maybe the little bit of mafic 
+    # plutonics in our estimate carries that)
+    #
+    # Does take the misfit down though, so that's something. 
 
-    # Calculate anhydrous composition
-    anhydcomp = copy(this_study.bulk)
-    anhydcomp[end] = 0
-    normalize!(anhydcomp)
+    # Volatiles are the last element in all the arrays, so just... strip it off 
+    this_study = NamedTuple{keys(class)}(normalize!(result[1:length(majors)-1,k])
+        for k in eachindex(keys(class))
+    )
+    pease = normalize!(pease[1:end-1])
+    rudnickgao = normalize!(rudnickgao[1:end-1])
+    gao = normalize!(gao[1:end-1])
+    condie = normalize!(condie[1:end-1])
 
-    # Set mixing endmembers as the composition of eroded material
+    # Set mixing endmembers
     endmembers = [this_study.sed this_study.volc this_study.plut]
 
-    # Muller et al.
-    muller = [65.1,18.7,5.67,0.8,2.1,2.9,1.1,2.7,0]
+    # Slam down a good ol' copy paste from above 
 
-    # Compute endmember mixing and calculate misfit :)
-    mix_bulk = nnls(endmembers, this_study.bulk)
-    mix_anhyd = nnls(endmembers, anhydcomp)
-    mix_muller = nnls(endmembers, muller)
+    # Calculate percent of each endmember represented in each estimate
+    # Also normalize to 100% because... they're percentages I guess
+    mix_this_study = normalize!(nnls(endmembers, this_study.bulk), 1)
+    mix_pease = normalize!(nnls(endmembers, pease), 1)
+    mix_rudnickgao = normalize!(nnls(endmembers, rudnickgao), 1)
+    mix_gao = normalize!(nnls(endmembers, gao), 1)
+    mix_condie = normalize!(nnls(endmembers, condie), 1)
 
-    misfit_bulk = sum((endmembers * mix_bulk - this_study.bulk).^2)
-    misfit_anhyd = sum((endmembers * mix_anhyd - anhydcomp).^2)
-    misfit_muller = sum((endmembers * mix_muller - muller).^2)
-
-    # Print to terminal 
+    # Calculate misfit
+    misfit_this_study = sum((endmembers * mix_this_study - this_study.bulk).^2)
+    misfit_pease = sum((endmembers * mix_pease - pease).^2)
+    misfit_rudnickgao = sum((endmembers * mix_rudnickgao - rudnickgao).^2)
+    misfit_gao = sum((endmembers * mix_gao - gao).^2)
+    misfit_condie = sum((endmembers * mix_condie - condie).^2)
+    
+    # Format for LaTeX-formatting Excel sheet
     out = fill("", size(endmembers)[2] + 1)
     out = hcat(
-        round.([mix_bulk.*100; misfit_bulk], sigdigits=3),
-        round.([mix_anhyd.*100; misfit_anhyd], sigdigits=3),
-        round.([mix_muller.*100; misfit_muller], sigdigits=3),
+        round.([mix_this_study.*100; misfit_this_study], digits=2),
+        round.([mix_rudnickgao.*100; misfit_rudnickgao], digits=2),
+        round.([mix_gao.*100; misfit_gao], digits=2),
+        round.([mix_condie.*100; misfit_condie], digits=2),
+        round.([mix_pease.*100; misfit_pease], digits=2),
     )
-    println("sed / volc / plut mixing ratios for: bulk / anhydrous / Muller")
+    println("ANHYDROUS sed / volc / plut mixing ratios for: bulk / R&G / Gao / Condie / Pease")
     for i in 1:size(out)[1]
         println(join(out[i,:], ";"))
     end
+
+## --- Compute mixing ratios for our eroded material estimates 
+    # # Load data
+    # fid = readdlm(comp_eroded)
+    # fid_i = NamedTuple{keys(class)}(findfirst(x->x==string(k), fid)[2] for k in keys(class))
+    # @assert Symbol.(fid[2:length(majors)+1]) == majors "Major elements stored incorrectly"
+    
+    # this_study = NamedTuple{keys(class)}(float.(fid[2:length(majors)+1,fid_i[k]]) 
+    #     for k in keys(class)
+    # );
+
+    # # Calculate anhydrous composition
+    # anhydcomp = copy(this_study.bulk)
+    # anhydcomp[end] = 0
+    # normalize!(anhydcomp)
+
+    # # Set mixing endmembers as the composition of eroded material
+    # endmembers = [this_study.sed this_study.volc this_study.plut]
+
+    # # Muller et al.
+    # muller = [65.1,18.7,5.67,0.8,2.1,2.9,1.1,2.7,0]
+
+    # # Compute endmember mixing and calculate misfit :)
+    # mix_bulk = nnls(endmembers, this_study.bulk)
+    # mix_anhyd = nnls(endmembers, anhydcomp)
+    # mix_muller = nnls(endmembers, muller)
+
+    # misfit_bulk = sum((endmembers * mix_bulk - this_study.bulk).^2)
+    # misfit_anhyd = sum((endmembers * mix_anhyd - anhydcomp).^2)
+    # misfit_muller = sum((endmembers * mix_muller - muller).^2)
+
+    # # Print to terminal 
+    # out = fill("", size(endmembers)[2] + 1)
+    # out = hcat(
+    #     round.([mix_bulk.*100; misfit_bulk], sigdigits=3),
+    #     round.([mix_anhyd.*100; misfit_anhyd], sigdigits=3),
+    #     round.([mix_muller.*100; misfit_muller], sigdigits=3),
+    # )
+    # println("sed / volc / plut mixing ratios for: bulk / anhydrous / Muller")
+    # for i in 1:size(out)[1]
+    #     println(join(out[i,:], ";"))
+    # end
 
 
 ## --- End of file

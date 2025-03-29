@@ -12,14 +12,14 @@
     )
 
     # Rock type matches
-    # header = read(fid["type"]["macro_cats_head"])
-    # data = read(fid["type"]["macro_cats"])
-    # data = @. data > 0
-    # macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    header = read(fid["type"]["macro_cats_head"])
+    data = read(fid["type"]["macro_cats"])
+    data = @. data > 0
+    macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
 
-    macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
-        macrostrat.rockdescrip, showprogress=show_progress
-    )
+    # macro_cats = match_rocktype(macrostrat.rocktype, macrostrat.rockname, 
+    #     macrostrat.rockdescrip, showprogress=show_progress
+    # )
     close(fid)
 
 

@@ -1,5 +1,10 @@
 ## --- Set up 
-    # Figure out the mapped lithologies on Earth's surface 
+    # FIXME: Carbonatites coming out to NaN and not zero for continent values?
+    # also check if we have at least one carbonatite sample... maybe we need more 
+    # sig figs?
+
+    # Figure out the mapped lithologies on Earth's surface and compare this to the 
+    # abundance in the combined geochemical datasets  
     using RockWeatheringFlux
     using HDF5, DelimitedFiles
 
@@ -21,6 +26,21 @@
     macro_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i][t] for i in eachindex(header)])
     macro_cats = delete_cover(macro_cats)
     close(fid)
+
+    # Bulk geochemical data 
+    fid = h5open(geochem_fid, "r")
+    header = read(fid["bulk"]["header"])
+    data = read(fid["bulk"]["data"])
+    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+
+    header = read(fid["bulktypes"]["bulk_cats_head"])
+    data = read(fid["bulktypes"]["bulk_cats"])
+    data = @. data > 0
+    bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
+    close(fid)
+
+    include_minor!(bulk_cats);
+    bulk_cats = delete_cover(bulk_cats)
 
 
 ## --- Definitions
@@ -105,7 +125,7 @@
         volc .= volc ./ nregion * 100
         plut .= plut ./ nregion * 100
         
-        # Normalize thos eminor class percentages to the abundance of the constituent class
+        # Normalize those minor class percentages to the abundance of the constituent class
         # This just means the percent abundances of e.g. sedimentary rocks will add to the 
         # total percent abundance of all sedimentary rocks that we calcualted earlier 
         sed .= sed ./ sum(sed) .* abundance.sed
@@ -176,42 +196,27 @@
     """
 
 
-## --- Store major lithologic class abundances 
-    target = ("Total Sedimentary", "Total Volcanic", "Total Plutonic",
-        "Carbonatite", "Undifferentiated Igneous", "Undifferentiated Metamorphic",
-    )
-    target_i = [findfirst(x->x == target[i], labels) for i in eachindex(target)]
-    major_global_abundance = result[target_i, end]
+# ## --- Store major lithologic class abundances 
+#     target = ("Total Sedimentary", "Total Volcanic", "Total Plutonic",
+#         "Carbonatite", "Undifferentiated Igneous", "Undifferentiated Metamorphic",
+#     )
+#     target_i = [findfirst(x->x == target[i], labels) for i in eachindex(target)]
+#     major_global_abundance = result[target_i, end]
 
 
-## --- Check major lithologic class abundance in geochemical dataset 
-    # Load dataset (we only care about the lithologic class, but we'll need lat,lon later)
-    fid = h5open(geochem_fid, "r")
-    header = read(fid["bulk"]["header"])
-    data = read(fid["bulk"]["data"])
-    bulk = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
-
-    header = read(fid["bulktypes"]["bulk_cats_head"])
-    data = read(fid["bulktypes"]["bulk_cats"])
-    data = @. data > 0
-    bulk_cats = NamedTuple{Tuple(Symbol.(header))}([data[:,i] for i in eachindex(header)])
-
-    close(fid)
-
-    # We only care about the abundance of major lithologies, so include everything in
-    # majors 
-    include_minor!(bulk_cats)
-
-    # We need undifferentiated metamorphic, to compare with the mapped samples
-    bulk_cats.met .&= .!bulk_cats.ign;
-    bulk_cats.met .&= .!bulk_cats.sed;
-
-    # Get the number of matched samples 
-    matched = .!(RockWeatheringFlux.find_unmatched(bulk_cats))
-    npoints = count(matched)
-
-    # Calculate abundance 
+## --- Check lithologic class abundance in geochemical dataset 
+    # Undifferentiated igneous 
     ign_undiff = .!(bulk_cats.volc .| bulk_cats.plut .| bulk_cats.carbonatite);
+
+    # Undifferentiated metamorphic can't be matched with anything else
+    met_undiff = bulk_cats.met
+    for k in keys(bulk_cats)    
+        k == :met && continue
+        met_undiff .&= .!bulk_cats[k]
+    end
+
+    # Sed, volc, plut, carbonatite, undiff ign, undiff met = 100
+    n = length(bulk.Sample_ID)
     abundance = NamedTuple{(:sed, :volc, :plut, :carbonatite, :ign_undiff, :met_undiff)}(
         normalize!([
             count(bulk_cats.sed),                 # Sedimentary
@@ -219,105 +224,127 @@
             count(bulk_cats.plut),                # Plutonic
             count(bulk_cats.carbonatite),         # Carbonatite
             count(bulk_cats.ign .& ign_undiff),   # Undifferentiated ign
-            count(bulk_cats.met)                  # Undifferentiated met
-        ]./npoints.*100
+            count(met_undiff)                     # Undifferentiated met
+        ]./n.*100
     ))
-    abundance_ign = (abundance.volc +                   # All igneous rocks 
+    ign_total = (abundance.volc +                 # All igneous rocks 
         abundance.plut + abundance.carbonatite + 
         abundance.ign_undiff
     )
+    abundance = merge(abundance, (; ign_total=ign_total))
+    
 
-    # Store major lithologic class abundances 
-    major_dataset_abundance = [abundance.sed, abundance.volc, abundance.plut, 
-        abundance.carbonatite, abundance.ign_undiff, abundance.met_undiff]
+    # Count the number of occurances of each minor class
+    exclude_minor!(macro_cats);
+    sed = float.([[count(macro_cats[k]) for k in minorsed]; count(macro_cats.sed)])
+    volc = float.([[count(macro_cats[k]) for k in minorvolc]; count(macro_cats.volc)])
+    plut = float.([[count(macro_cats[k]) for k in minorplut]; count(macro_cats.plut)])
+
+    # Convert above counts to percentage of the total number of samples
+    sed .= sed ./ n * 100
+    volc .= volc ./ n * 100
+    plut .= plut ./ n * 100
+    
+    # Calculate the percentage of metased and metaign rocks as the fraction of total 
+    # sed / ign rocks tagged as metamorphic 
+    include_minor!(macro_cats);
+    metased = count(megaclass.metased) / count(macro_cats.sed)
+    metaign = count(megaclass.metaign) / count(macro_cats.ign)
+    metased *= abundance.sed 
+    metaign *= abundance_ign
+
+    met_total = metased + metaign + abundance.met_undiff
+
+    # Normalize those minor class percentages to the abundance of the constituent class
+    # This just means the percent abundances of e.g. sedimentary rocks will add to the 
+    # total percent abundance of all sedimentary rocks that we calcualted earlier 
+    sed .= sed ./ sum(sed) .* abundance.sed
+    volc .= volc ./ sum(volc) .* abundance.volc
+    plut .= plut ./ sum(plut) .* abundance.plut
+
+    # Slam that bad boy together
+    # We don't need to do any of the area shit because we're not separating by continent here
+    ign_out = [abundance_ign, abundance.carbonatite, abundance.ign_undiff]
+    sed_out = [sum(sed); sed]
+    volc_out = [sum(volc); volc]
+    plut_out = [sum(plut); plut]
+    met_out = [met_total, metased, metaign, abundance.met_undiff]
+
+    # Save all data to the results array in the order [total; subtypes] 
+    # Be SURE to check that this is in the same order as labeled in the output 🤦
+    result = [sed_out; volc_out; plut_out; ign_out; met_out]
+
+    # Wheeeeeeeeeeeeeeeee! We could export this if we wanted 
+    bulkabundance = vcat(["Lithology" "Abundance"], hcat(labels, result))
+
+
+## --- Compare the two abundances 
+    # Load the global file
+    surfabundance = readdlm(mapped_surface_lith, ',')[:,end]
+
+    # See how far off we are 
+    difference = bulkabundance[2:end,2] .- surfabundance[2:end]
+
+    smashed = (hcat(bulkabundance[2:end,2], surfabundance[2:end], difference))
+    smashed = round.(smashed, sigdigits=3)
+    display(hcat(bulkabundance[:,1], vcat(["Geochem" "Maps" "Difference"], smashed)))
+    
 
 
 ## --- Spatially resampled geochemical dataset 
-    # Convert lithology to a resample-able data array
-    a, head = cats_to_array(bulk_cats)
-    a_err = zeros(size(a))
+#     # Convert lithology to a resample-able data array
+#     a, head = cats_to_array(bulk_cats)
+#     a_err = zeros(size(a))
 
-    # Calculate spatial weights and resample
-    nsims = 10_000
-    k = Array{Float64}(undef, count(matched))
-    try 
-        k .= readdlm("output/bulk_k.csv", ',')
-    catch
-        k .= invweight_location(bulk.Latitude[matched], bulk.Longitude[matched])
-        writedlm("output/bulk_k.csv", k, ',')
-    end
-    p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
-    simout = bsresample(a, a_err, nsims, vec(p))
+#     # Calculate spatial weights and resample
+#     nsims = 10_000
+#     k = Array{Float64}(undef, count(matched))
+#     try 
+#         k .= readdlm("output/bulk_k.csv", ',')
+#     catch
+#         k .= invweight_location(bulk.Latitude[matched], bulk.Longitude[matched])
+#         writedlm("output/bulk_k.csv", k, ',')
+#     end
+#     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
+#     simout = bsresample(a, a_err, nsims, vec(p))
 
-    # Parse data back into a Tuple
-    data = @. simout > 0
-    sim_cats = NamedTuple{Tuple(Symbol.(head))}([data[:,i] for i in eachindex(head)])
-    include_minor!(sim_cats)
+#     # Parse data back into a Tuple
+#     data = @. simout > 0
+#     sim_cats = NamedTuple{Tuple(Symbol.(head))}([data[:,i] for i in eachindex(head)])
+#     include_minor!(sim_cats)
 
-    # Do as above 
-    ign_undiff = .!(sim_cats.volc .| sim_cats.plut .| sim_cats.carbonatite);
-    abundance = NamedTuple{(:sed, :volc, :plut, :carbonatite, :ign_undiff, :met_undiff)}(
-        normalize!([
-            count(sim_cats.sed),                 # Sedimentary
-            count(sim_cats.volc),                # Volcanic
-            count(sim_cats.plut),                # Plutonic
-            count(sim_cats.carbonatite),         # Carbonatite
-            count(sim_cats.ign .& ign_undiff),   # Undifferentiated ign
-            count(sim_cats.met)                  # Undifferentiated met
-        ]./npoints.*100
-    ))
-    abundance_ign = (abundance.volc +                   # All igneous rocks 
-        abundance.plut + abundance.carbonatite + 
-        abundance.ign_undiff
-    )
+#     # Do as above 
+#     ign_undiff = .!(sim_cats.volc .| sim_cats.plut .| sim_cats.carbonatite);
+#     abundance = NamedTuple{(:sed, :volc, :plut, :carbonatite, :ign_undiff, :met_undiff)}(
+#         normalize!([
+#             count(sim_cats.sed),                 # Sedimentary
+#             count(sim_cats.volc),                # Volcanic
+#             count(sim_cats.plut),                # Plutonic
+#             count(sim_cats.carbonatite),         # Carbonatite
+#             count(sim_cats.ign .& ign_undiff),   # Undifferentiated ign
+#             count(sim_cats.met)                  # Undifferentiated met
+#         ]./npoints.*100
+#     ))
+#     abundance_ign = (abundance.volc +                   # All igneous rocks 
+#         abundance.plut + abundance.carbonatite + 
+#         abundance.ign_undiff
+#     )
 
-    # Store major lithologic class abundances 
-    major_resampled_abundance = [abundance.sed, abundance.volc, abundance.plut, 
-        abundance.carbonatite, abundance.ign_undiff, abundance.met_undiff]
-
-
-## --- Print to terminal for LaTeX 
-    cols = ["" "Geochemical Data" "Resampled" "Mapped"]
-    table = round.(
-        hcat(major_dataset_abundance, major_resampled_abundance, major_global_abundance),
-        digits=1
-    )
-    table = vcat(cols, hcat(collect(target), table))
-    for i in 1:size(table)[1]
-        println("$(join(table[i,:], " & ")) \\ \b\\")
-    end
+#     # Store major lithologic class abundances 
+#     major_resampled_abundance = [abundance.sed, abundance.volc, abundance.plut, 
+#         abundance.carbonatite, abundance.ign_undiff, abundance.met_undiff]
 
 
-## --- Visualize 
-    # using Plots, StatsPlots
-    # pal = Plots.palette(:managua, 3)
-
-    # table = round.(vcat(
-    #     reshape(major_dataset_abundance[1:3], 1, :),
-    #     reshape(major_global_abundance[1:3], 1, :),
-    #     reshape(major_resampled_abundance[1:3], 1, :),
-    #     ), digits=1
-    # )
-
-    # xticks = repeat(["Geochemical Data", "Mapped", "Resampled"], outer = 3)
-    # catg = repeat(["(a) Sedimentary", "(b) Volcanic", "(c) Plutonic"], inner = 3)
-    # color = repeat([pal[1], pal[2], pal[3]], inner = 3)
-    
-    # a = groupedbar(xticks, table, 
-    #     group = catg, 
-    #     bar_position = :dodge,
-    #     color = color,
-    #     linewidth=0,
-    #     barwidths=0.75,
-    #     ylabel="Percent Abundance",
-    #     ylims=(0, 70),
-    #     framestyle=:box,
-    #     bottom_margin=(0,:px),
-    #     fg_color_legend=:white,
-    #     legend=:topleft
-    # )
-    # display(a)
-    # savefig("abundance.png")
+# ## --- Print to terminal for LaTeX 
+#     cols = ["" "Geochemical Data" "Resampled" "Mapped"]
+#     table = round.(
+#         hcat(major_dataset_abundance, major_resampled_abundance, major_global_abundance),
+#         digits=1
+#     )
+#     table = vcat(cols, hcat(collect(target), table))
+#     for i in 1:size(table)[1]
+#         println("$(join(table[i,:], " & ")) \\ \b\\")
+#     end
 
 
 ## --- End of file 

@@ -16,7 +16,7 @@
     nsims = Int(1e7)
     SiO₂_error = 1.0        # Given error in volcanic.mat is 0.01
 
-    # Use the existing intermediate file, or re-do it?
+    # Use the existing intermediate file (set FALSE), or re-do it (set TRUE)?
     redo_resample = true 
 
 
@@ -59,16 +59,16 @@
     p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
     data = [plutonic.SiO2[tₚ]; volcanic.SiO2[tᵥ]]
     uncertainty = fill(SiO₂_error, length(data))
-    simigneous = bsresample(data, uncertainty, nsims, vec(p))
+    simigneous = bsresample(data, uncertainty, nsims, vec(p));
 
 
-## --- Resample (spatial) all silica distributions 
+## --- Resample (spatial) all silica distributions from bulk geochemical dataset 
     # Preallocate 
-    simout = NamedTuple{keys(match_cats)}(Array{Float64}(undef, nsims) for _ in keys(match_cats));
+    # simout = NamedTuple{keys(match_cats)}(Array{Float64}(undef, nsims) for _ in keys(match_cats));
     
     # Figure out where the time-saving file is
     suffix = RockWeatheringFlux.version * "_" * RockWeatheringFlux.tag
-    fpath = "src/visualization/composition/SilicaDistribution_" * suffix * ".h5"
+    fpath = "src/visualization/composition/shortcuts/SilicaDistribution_" * suffix * ".h5"
 
     # Restrict to samples with data and resample 
     t = @. !isnan(bulk.Latitude) & !isnan(bulk.Longitude);
@@ -119,7 +119,7 @@
             xlims=(40,80),
             xticks=(40:10:80, string.(40:10:80)),
             yticks=false,
-            fg_color_legend=:white,
+            fg_color_legend=:transparent, bg_color_legend=:transparent,
             labelfontsize=18, titlefont=20, tickfontsize=16,legendfontsize=18,
         )
 
@@ -128,7 +128,8 @@
         n₁ = float(n) ./ nansum(float(n) .* step(c))
         Plots.plot!(c, n₁, 
             seriestype=:bar, barwidths=0.5,
-            color=colors[fig_types[i]], linecolor=:match, alpha=0.25,
+            color=colors[fig_types[i]], alpha=0.3,
+            linecolor=colors[fig_types[i]], linewidth=1, 
             # label="Matched samples",
             label=""
         )
@@ -165,10 +166,18 @@
     # xlabel!(fig[2], "SiO2 [wt.%]")
 
     # Shared legend
-    Plots.plot!(fig[1], [0],[0], color=:white, linecolor=:match, label=" ")
-    Plots.plot!(fig[1], [0],[0], color=colors.volc, linecolor=:match, seriestype=:bar, 
-        alpha=0.25, label=" This study",)
-    Plots.plot!(fig[1], [0], [0], linewidth=2, color=:black, linestyle=:dot,
+    # Plots.plot!(fig[3], [0],[0], color=:white, linecolor=:match, label=" ")
+    Plots.plot!(fig[3], [0],[0], 
+        label=" This study",
+        seriestype=:bar, 
+        color=colors.ign, linewidth=0.5, linecolor=colors.ign, alpha=0.3,
+    )
+    Plots.plot!(fig[3], [0],[0], 
+        label="Kernel Density Estimate",
+        seriestype=:path,
+        color=colors.ign, linewidth=4,
+    )
+    Plots.plot!(fig[3], [0], [0], linewidth=2, color=:black, linestyle=:dot,
         label=" Keller et al., 2015")
 
     # Assemble plots
@@ -191,10 +200,10 @@
     fig_names =  ("A. Siliciclastic", "B. Shale", "C. Carbonate", "D. Evaporite", 
         "E. Chert", "F. Phosphorite", "G. Coal", "H. Sedimentary", "I. Komatiite", 
         "J. Basalt", "K. Andesite", "L. Dacite", "M. Rhyolite", "N. Alkaline Volcanic", 
-        "O. Volcaniclastic", "P. Volcanic", "Q. Peridotite", "R. Pyroxenite", "S. Gabbro", 
-        "T. Diorite", "U. Trondhjemite", "V. Tonalite", "W. Granodiorite", "X. Granite", 
-        "Y. Alkaline Plutonic", "Z. Plutonic", "AA. Carbonatite", "AB. Igneous", 
-        "AC. All Metamorphic"
+        "O. Volcanic", "P. Peridotite", "Q. Pyroxenite", "R. Gabbro", 
+        "S. Diorite", "T. Trondhjemite", "U. Tonalite", "V. Granodiorite", "W. Granite", 
+        "Z. Alkaline Plutonic", "Y. Plutonic", "Z. Carbonatite", "AA. Igneous", 
+        "AB. All Metamorphic"
     )
     fig = Array{Plots.Plot{Plots.GRBackend}}(undef, length(fig_names) + 1)
 
@@ -261,25 +270,21 @@
         framestyle=:none, grid = false,
         fontfamily=:Helvetica,
         xlims = (1, 10), ylims = (1, 10),
-        size = (600, 600),
-        xticks=false, yticks=false
+        size = (600, 400),
+        xticks=false, yticks=false,
+        legendfontsize = 24, fg_color_legend=:white, legend=:inside
     )
-    h = Plots.plot!(h, legendfontsize = 24, fg_color_legend=:white, legend=:inside)
     Plots.plot!(h, [0],[0], color=colors.evap, linecolor=:match, seriestype=:bar, 
-        alpha=0.25, label=" Matched Samples")
-
-    # Plots.plot!(h, [0],[0], color=:white, linecolor=:match, label=" ")
+        alpha=0.25, label="Matched Samples")
     Plots.plot!(h, [0],[0], color=colors.evap, linewidth=5, 
-        label=" Kernel Density Estimate")
-
-    # Plots.plot!(h, [0],[0], color=:white, linecolor=:match, label=" ")
+        label="Kernel Density Estimate")
     Plots.plot!(h, [0],[0], color=:black, linestyle=:dot, linewidth=5,
-        label="Spatially Resampled\n Geochemical Data")
-    fig[30] = h
+        label="Spatially Resampled Geochemical Data")
+    fig[end] = h
 
     # Assemble plots
     # Size: 500px for each row, 600 px for each column
-    h = Plots.plot(fig..., layout=(6, 5), size=(3000, 3000), 
+    h = Plots.plot(fig..., layout=(6,5), size=(3000, 3000), 
         # legend=false,
         left_margin=(75,:px), right_margin=(25,:px), bottom_margin=(45,:px),
         tickfontsize=24,

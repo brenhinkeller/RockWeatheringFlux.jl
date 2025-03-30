@@ -5,7 +5,8 @@
     # Load data and base packages
     include("Definitions.jl");
 
-    # Preallocate / Local definitions
+
+## --- Preallocate / Local definitions
     # elem = :MgO                              # Element of interest
     elem = :SiO2
     elem_error = 1.0                         # Assumed element of interest (SiO₂) error
@@ -13,10 +14,12 @@
     age_error_abs = 50                       # Minimum age error (Ma)
     nsims = Int(1e7)                         # 10 M simulations
 
-    xmin, xmax, xbins = 40, 80, 240          # Silica
+    xmin, xmax = 40, 80                      # Silica
     # xmin, xmax, xbins  = 0, 50, 300          # MgO
+    xbins = Int((xmax - xmin) / 0.2)
     xedges = xmin:(xmax-xmin)/xbins:xmax
-    ymin, ymax, ybins = 0, 3800, 380         # Age
+    ymin, ymax = 0, 3800                     # Age
+    ybins = Int((ymax - ymin) / 10)
     yedges = ymin:(ymax-ymin)/ybins:ymax
 
     # Rock classes to resample
@@ -24,7 +27,7 @@
 
     # Set file 
     suffix = RockWeatheringFlux.version * "_" * RockWeatheringFlux.tag
-    fpath = "src/visualization/composition/SilicaAgeDistribution_$(elem)_" * suffix * ".h5"
+    fpath = "src/visualization/composition/shortcuts/SilizcaAgeDistribution_$(elem)_" * suffix * ".h5"
 
     # Preallocate 2D histogram data storage
     out_bulk = NamedTuple{target}(zeros(ybins, xbins) for _ in target)
@@ -35,7 +38,7 @@
     # [CHANGE ME] 
     # Set to TRUE to resample bulk geochemical or matched data 
     redo_bulk = true
-    redo_matched = false
+    redo_matched = true
 
     # If the file doesn't exist, we gotta create it 
     !isfile(fpath) && (redo_bulk = redo_matched = true)
@@ -50,7 +53,7 @@
     # The exception to this is debugging. Say we resampled something, and we want to recalculate 
     # the 2D histogram for some reason using that data.
     redo_2D_bulk = true
-    redo_2D_matched = false
+    redo_2D_matched = true
 
     if (redo_bulk != redo_2D_bulk) || (redo_matched != redo_2D_matched)
         @warn "Your switches are in debugging mode"
@@ -63,9 +66,11 @@
         simbulk = NamedTuple{target}(Array{Float64}(undef, nsims, 2) for _ in target)
 
         # Compute age uncertainties 
+        # TODO: re-run and see the impact of changing uncertainties
         ageuncert = nanadd.(bulk.Age_Max, .- bulk.Age_Min) ./ 2;
         for i in eachindex(ageuncert)
-            ageuncert[i] = max(bulk.Age[i]*age_error, ageuncert[i], age_error_abs)
+            # ageuncert[i] = max(bulk.Age[i]*age_error, ageuncert[i], age_error_abs)
+            ageuncert[i] = max(bulk.Age[i]*age_error, ageuncert[i])
         end
 
         # Restrict to samples with data and resample 
@@ -75,7 +80,7 @@
             k = invweight(bulk.Latitude[s], bulk.Longitude[s], bulk.Age[s])
             p = 1.0 ./ ((k .* nanmedian(5.0 ./ k)) .+ 1.0)
             data = [bulk[elem][s] bulk.Age[s]]
-            uncertainty = [fill(elem_error, count(s)) ageuncert[s]]
+            uncertainty = [fill(0.1, count(s)) ageuncert[s]]
             simbulk[key] .= bsresample(data, uncertainty, nsims, p)
         end
     end
@@ -118,6 +123,7 @@
                 (i % 10 == 0) && next!(p)
             end
             out_bulk[target[i]] .= out
+            next!(p)
         end
     else
         fid = h5open(fpath, "r")
@@ -172,18 +178,23 @@
     subclass = (:ign, :volc, :plut)
     labels = ("Igneous", "Volcanic", "Plutonic")
     subfig = (("A", "B"), ("C", "D"), ("E", "F"))
-    colorgrad = :inferno
+    colorgrad = :magma      # teehee
 
     for i in eachindex(fig)
         # Base plot 
+        x = xmin:10:xmax 
+        y = [0, 1000, 2000, 3000, 3800]
         h = Plots.plot(
-            ylims=(0,ybins), yflip=true, 
-            xticks=(0:xbins/4:xbins, string.(40:10:80)),
-            yticks=(0:ybins/7.6:ybins, string.(0:500:3800)),
+            yflip=true, grid=false, framestyle=:box,
+            xlims=(0.5,xbins+0.5),
+            ylims=(0.5,ybins+0.5), 
+            xticks=(rescale_in_range.(x, xmin, xmax, 0.5, xbins+0.5), x),
+            yticks=(rescale_in_range.(y, ymin, ymax, 0.5, ybins+0.5), y),
             xlabel="SiO2 [wt.%]", ylabel="Age [Ma]",
             size=(600,500),
             titleloc=:left, titlefont = font(12),
             tickfontsize=12, labelfontsize=14,
+            fg_axis=:white,
             fontfamily=:Helvetica,
         )
 
@@ -206,8 +217,8 @@
         savefig(h2, "$filepath/heatmap_$(subclass[i])_matched.pdf")
 
         # Temporary display 
-        h = plot(h1, h2, size=(1200,500))
-        display(h)
+        # h = plot(h1, h2, size=(1200,500))
+        # display(h)
         
         # # Assemble all plots with a common color bar
         # l = @layout [a{0.95w} b{0.05w}]
@@ -228,8 +239,8 @@
         #     lims=(-1,0)
         # )
 
-        # h = Plots.plot(a, b, layout=l)
-        # fig[i] = h
+        h = Plots.plot(h2, h1, layout=(1, 2))
+        fig[i] = h
         # savefig(h, "$filepath/heatmap_$(subclass[i]).pdf")
     end
 
@@ -242,9 +253,9 @@
 
     # # Assemble The Big Plot™
     # # But just for looks. Do this in illustrator because this keeps moving stuff around
-    # h = Plots.plot(fig..., layout=(3, 1), size=(1000,1300))
+    h = Plots.plot(fig..., layout=(3, 1), size=(1000,1300))
     # savefig(h, "$filepath/heatmap_all_classes.pdf")
-    # display(h)
+    display(h)
 
 
 ## --- End of file 

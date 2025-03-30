@@ -309,6 +309,7 @@
     savefig(h_surf, "$filepath/spidergram_surface.pdf")
     savefig(h_lith, "$filepath/spidergram_lithologies.pdf")
     savefig(h_ersn, "$filepath/spidergram_eroded.pdf")
+    savefig(h_leg, "$filepath/spidergram_legend.pdf")
 
     # Assemble plots, but this is a placeholder because the y axis gets all messed up :(
     bigH = Plots.plot(h_surf, h_lith, h_ersn, h_leg, layout=(2, 2), size=(1100, 800))

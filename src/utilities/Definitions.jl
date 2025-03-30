@@ -8,9 +8,9 @@
     # Lithologic (Macrostrat API and number of samples)
     # version = "v1"
     version = "v2"
-    N = 100_000;    tag = "100K"
+    # N = 100_000;    tag = "100K"
     # N = 200_000;   tag = "200K"
-    # N = 1_000_000; tag = "1M"
+    N = 1_000_000; tag = "1M"
     
     @info """ Datasets loaded:
     Geochemical: $dataset

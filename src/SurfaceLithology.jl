@@ -251,7 +251,7 @@
     metased = count(megaclass.metased) / count(macro_cats.sed)
     metaign = count(megaclass.metaign) / count(macro_cats.ign)
     metased *= abundance.sed 
-    metaign *= abundance_ign
+    metaign *= abundance.ign_total
 
     met_total = metased + metaign + abundance.met_undiff
 
@@ -264,7 +264,7 @@
 
     # Slam that bad boy together
     # We don't need to do any of the area shit because we're not separating by continent here
-    ign_out = [abundance_ign, abundance.carbonatite, abundance.ign_undiff]
+    ign_out = [abundance.ign_total, abundance.carbonatite, abundance.ign_undiff]
     sed_out = [sum(sed); sed]
     volc_out = [sum(volc); volc]
     plut_out = [sum(plut); plut]
@@ -287,8 +287,12 @@
 
     smashed = (hcat(bulkabundance[2:end,2], surfabundance[2:end], difference))
     smashed = round.(smashed, sigdigits=3)
-    display(hcat(bulkabundance[:,1], vcat(["Geochem" "Maps" "Difference"], smashed)))
-    
+    smashed = (hcat(bulkabundance[:,1], vcat(["Geochem" "Maps" "Difference"], smashed)))
+    display(smashed)
+    for i in eachindex(smashed[:,1])
+        println(join(smashed[i,:], ";"))
+    end
+
 
 
 ## --- Spatially resampled geochemical dataset 

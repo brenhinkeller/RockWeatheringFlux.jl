@@ -88,7 +88,7 @@
         ylims=(0.3, 2.5),
         yticks=(0.5:0.5:2, string.(((0.5:0.5:2)))),
         fg_color_legend=:transparent, bg_color_legend=:transparent, 
-        legendfontsize=12, legend=:topleft,
+        legendfontsize=10, legend=:topleft,
         labelfontsize=12, tickfontsize=10,
         ylabel="Normalized to This Study",
         titleloc=:left,
@@ -120,7 +120,7 @@
 
 ## --- Continental crust 
     h_rox = deepcopy(h_base)
-    title!(h_rox, "A")
+    title!(h_rox, "A. Exposed Continental Crust")
 
     # Errors from all plotted series,
     plot!(h_rox, ratio.plut,
@@ -135,6 +135,12 @@
         msw=2, msc=colors_source.rudnick, 
         mcolor=colors_source.rudnick, markershape=:none,
     )
+    # plot!(h_rox, ratio.pease,
+    #     label="", 
+    #     seriestype=:scatter, markersize=0,
+    #     msw=2, msc=colors_source.pease, 
+    #     mcolor=colors_source.pease, markershape=:none,
+    # )
     plot!(h_rox, ratio.gao,
         label="", 
         seriestype=:scatter, markersize=0,
@@ -158,9 +164,17 @@
 
 
     # Plot previous estimates
+    # plot!(h_rox, x, Measurements.value.(ratio.pease), 
+    #     markershape=:diamond, 
+    #     label="Pease et al., 2023",
+    #     msc=colors_source.pease, 
+    #     linecolor=colors_source.pease,
+    #     markercolor=:white, markersize=7, 
+    #     mswidth=2, linewidth=2
+    # )
     plot!(h_rox, x, Measurements.value.(ratio.rudnick_gao), 
         markershape=:diamond, 
-        label="Rudnick and Gao, 2014 (Upper Cont. Crust)",
+        label="Rudnick and Gao, 2014",
         msc=colors_source.rudnick,
         linecolor=colors_source.rudnick,
         markercolor=:white, markersize=7, 
@@ -168,7 +182,7 @@
     )
     plot!(h_rox, x, Measurements.value.(ratio.gao), 
         markershape=:diamond, 
-        label="Gao et al., 1998 (Exposed Cont. Crust)",
+        label="Gao et al., 1998",
         msc=colors_source.gao, 
         linecolor=colors_source.gao,
         markercolor=:white, markersize=7, 
@@ -176,12 +190,18 @@
     )
     plot!(h_rox, x, Measurements.value.(ratio.condie), 
         markershape=:diamond, 
-        label="Condie, 1993 (Exposed Cont. Crust)",
+        label="Condie, 1993",
         msc=colors_source.condie, 
         linecolor=colors_source.condie,
         markercolor=:white, markersize=7, 
         mswidth=2, linewidth=2
     )
+    
+    # # Plot the Pease TiO2 value that goes off the screen 
+    # i = 4 
+    # TiO2 = round(Measurements.value.(ratio.pease[i]), sigdigits=2)
+    # annotate!(h_rox, x[i], 0.5, ("$TiO2", colors_source.pease, 10, :bottom))
+    # annotate!(h_rox, x[i], 0.5, ("l", colors_source.pease, :top))
     
     display(h_rox)
     savefig(h_rox, "$filepath/modelcomparison_surface.pdf")
@@ -189,7 +209,7 @@
 
 ## --- Eroded sediment 
     h_ersn = deepcopy(h_base)
-    title!(h_ersn, "B")
+    title!(h_ersn, "B. Weathered Material")
 
     # Errors
     plot!(h_ersn, ratio.ersn,
@@ -208,7 +228,7 @@
     # Values 
     plot!(h_ersn, x, Measurements.value.(ratio.ersn), 
         markershape=:circle, 
-        label="Eroded Sediment",
+        label="Weathered Material",
         color=colors.sed, msc=:auto, 
         markersize=6, linewidth=2,
     )
@@ -227,5 +247,7 @@
 ## --- Slam that bad boy together 
     bigH = plot(h_rox, h_ersn, layout=(2,1), size=(600, 800))
     savefig(bigH, "$filepath/modelcomparison.pdf")
+    display(bigH)
 
+    
 ## --- End of file 

@@ -17,7 +17,7 @@
     SiO₂_error = 1.0        # Given error in volcanic.mat is 0.01
 
     # Use the existing intermediate file (set FALSE), or re-do it (set TRUE)?
-    redo_resample = true 
+    redo_resample = false 
 
 
 ## --- Load and resample volcanic / plutonic data from Keller et al., 2015
@@ -113,11 +113,12 @@
     # Build plots
     for i in eachindex(fig)
         h = Plots.plot(
-            framestyle=:box, 
+            framestyle=:none, 
             grid = false,
             fontfamily=:Helvetica, 
             xlims=(40,80),
-            xticks=(40:10:80, string.(40:10:80)),
+            # xticks=(40:10:80, string.(40:10:80)),
+            xticks=false,
             yticks=false,
             fg_color_legend=:transparent, bg_color_legend=:transparent,
             labelfontsize=18, titlefont=20, tickfontsize=16,legendfontsize=18,
@@ -168,7 +169,7 @@
     # Shared legend
     # Plots.plot!(fig[3], [0],[0], color=:white, linecolor=:match, label=" ")
     Plots.plot!(fig[3], [0],[0], 
-        label=" This study",
+        label="This study",
         seriestype=:bar, 
         color=colors.ign, linewidth=0.5, linecolor=colors.ign, alpha=0.3,
     )
@@ -178,7 +179,7 @@
         color=colors.ign, linewidth=4,
     )
     Plots.plot!(fig[3], [0], [0], linewidth=2, color=:black, linestyle=:dot,
-        label=" Keller et al., 2015")
+        label="Keller et al., 2015")
 
     # Assemble plots
     h = Plots.plot(fig..., layout=(1, 3), size=(2000, 500), 

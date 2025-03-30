@@ -40,12 +40,6 @@
         nanzero!(mbulk[i])
     end
 
-    # This assumes that each sample has 100% of the data...
-    npoints = unique_sample(mbulk.Sample_ID, 90)
-    @info """ Matched sample metadata:
-    $(length(unique(mbulk.Sample_ID))) unique samples matched to $(length(mbulk.Sample_ID)) spatial points.
-    90% of matches explained by $npoints samples"""
-
     # Make a new npoints that's by element AND lithology 
     # If there are samples, take the samples that explain 90% of the matches. If this comes to 0, set value to 1
     # If there are no samples, set value to NaN
@@ -54,7 +48,13 @@
             max(unique_sample(mbulk.Sample_ID[.!isnan.(mbulk[e]) .& class[k]], 90), 1) : NaN for e in allelements]
     ) for k in keys(class));
 
+    # This assumes that each sample has 100% of the data...
+    alln = unique_sample(mbulk.Sample_ID, 90)
+    @info """ Matched sample metadata:
+    $(length(unique(mbulk.Sample_ID))) unique samples matched to $(length(mbulk.Sample_ID)) spatial points.
+    90% of matches explained by $alln samples"""
 
+    
 ## --- Export total unique samples per element and per lithology
     # Preallocate element rows, lithology columns  
     nmatrix = Array{Float64}(undef, length(allelements), length(class))
@@ -146,7 +146,7 @@
     end
 
 
-## --- Compute mixing ratios for other crust composition estimates
+## --- Compute mixing ratios for other crust composition estimates    
     # Hypothesis: other estimates can be approximated by mixing our estimates in different 
     # proportions. Separate into sed / plut / volc.
 

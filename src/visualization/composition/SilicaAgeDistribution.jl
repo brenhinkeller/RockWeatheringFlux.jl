@@ -27,7 +27,7 @@
 
     # Set file 
     suffix = RockWeatheringFlux.version * "_" * RockWeatheringFlux.tag
-    fpath = "src/visualization/composition/shortcuts/SilizcaAgeDistribution_$(elem)_" * suffix * ".h5"
+    fpath = "src/visualization/composition/shortcuts/SilicaAgeDistribution_$(elem)_" * suffix * ".h5"
 
     # Preallocate 2D histogram data storage
     out_bulk = NamedTuple{target}(zeros(ybins, xbins) for _ in target)

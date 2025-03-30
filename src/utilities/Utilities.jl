@@ -385,21 +385,6 @@
     end
     export major_elements
 
-    """
-    ```julia
-    normalize!(A::AbstractVector)
-    ```
-
-    Normalize the percentage values in `A` to 100%.
-    """
-    function normalize!(A::AbstractVector)
-        sum_a = nansum(A)
-        @turbo for i in eachindex(A)
-            A[i] = A[i] / sum_a * 100
-        end
-        return A
-    end
-    export normalize!
 
     """
     ```julia
@@ -1153,8 +1138,7 @@
     export mesh
 
 
-## --- Other 
-    # This is mainly for heatmap stuff !! 
+## --- Numbers and statistics
     """
     ```julia 
     rescale_in_range(x, min1, max1, min2, max2)
@@ -1171,6 +1155,23 @@
     """
     rescale_in_range(x, min1, max1, min2, max2) = (max2 - min2)*(x - min1)/(max1 - min1) + min2
     export rescale_in_range 
+
+
+    """
+    ```julia
+    normalize!(A::AbstractVector; [total])
+    ```
+
+    Normalize the values in `A` to `total` (default: 100).
+    """
+    function normalize!(A::AbstractVector, total::Number=100)
+        sum_a = nansum(A)
+        @turbo for i in eachindex(A)
+            A[i] = A[i] / sum_a * total
+        end
+        return A
+    end
+    export normalize!
 
 
 ## --- End of file

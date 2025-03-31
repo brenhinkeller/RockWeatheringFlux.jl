@@ -41,13 +41,12 @@
     srtm15_sf = h5read(srtm_maxslope, "vars/scalefactor")
 
     # Get slope at each coordinate point, exclude values above 1000 m/km
-    rockslope = movingwindow(srtm15_slope, rocklat, rocklon, srtm15_sf, n=5)
-    rockslope = Measurements.value.(rockslope)
-    rockslope[rockslope .>= 1000] .= NaN;
-
-    # ^ on taking only the values of rockslope: we account for variations in 
+    # On taking only the values of rockslope: we account for variations in 
     # basin slope in the uncertainty of the erosion-slope model, so we don't 
     # need to double-propagate it here.
+    rockslope = movingwindow(srtm15_slope, rocklat, rocklon, srtm15_sf, n=5)
+    rockslope = Measurements.value.(rockslope)    
+    rockslope[rockslope .>= 1000] .= NaN;
     
     # # Optionally save and load data from a tsv if your computer is small and weak 
     # writedlm("output/basins/rockslope_temp.tsv", rockslope)
@@ -57,6 +56,8 @@
     # Gives us 1-σ standard deviations
     rock_ersn = emmkyr.(rockslope);
     rock_ersn[rock_ersn .> 10_000] .= NaN;
+
+    @info "$(count(isnan.(rock_ersn))) samples excluded for weird slopes."
 
 
 ## --- Calculate bulk erosion and erosion by element at each point 
@@ -148,8 +149,6 @@
 
 
 ## --- Print to terminal (these don't get used anywhere else)
-    # If you want to do standard error, use emmkyr_npoints
-
     # Propagate error for global_element_sum: sum
     # Bump error s.d. -> 2 s.e
     global_sum = (;
@@ -304,7 +303,7 @@
     @assert collect(string.(keys(matched_surficial))) == reshape(cols, :, 1)[2:end] ":("
 
     # Save to file 
-    rows2 = [rows[1:end-1]; "Undifferentiated"; "Lithology Abundance"]
+    rows2 = [rows[1:end-1]; "Lithology Contribution"; "Lithology Abundance"]
     writedlm(frac_contributed, vcat(cols, hcat(rows2, vcat(result_contribution.vals, surf))))
     writedlm(frac_contributed_out_err, vcat(cols, hcat(rows2, vcat(result_contribution.errs, surf))))
 

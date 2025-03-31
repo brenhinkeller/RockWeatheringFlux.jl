@@ -1,8 +1,4 @@
 ## --- Set up 
-    # FIXME: Carbonatites coming out to NaN and not zero for continent values?
-    # also check if we have at least one carbonatite sample... maybe we need more 
-    # sig figs?
-
     # Figure out the mapped lithologies on Earth's surface and compare this to the 
     # abundance in the combined geochemical datasets  
     using RockWeatheringFlux

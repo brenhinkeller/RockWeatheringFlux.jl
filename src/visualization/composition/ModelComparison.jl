@@ -51,11 +51,21 @@
     )
 
     # GloRiSe ± 2 s.e.
-    glorise = importdataset("output/GlobalRivers/GloRiSe_major_screened.tsv", '\t', importas=:Tuple);
-    glorise = NamedTuple{Tuple(majors)}(k in keys(glorise) ? 
-        (nanmean(glorise[k]) ± 2*nansem(glorise[k])) : NaN ± NaN for k in majors
-    );
-    
+    # glorise = importdataset("output/GlobalRivers/GloRiSe_major_screened.tsv", '\t', importas=:Tuple);
+    # glorise = NamedTuple{Tuple(majors)}(k in keys(glorise) ? 
+    #     (nanmean(glorise[k]) ± 2*nansem(glorise[k])) : NaN ± NaN for k in majors
+    # );
+    glorise = (;
+        SiO2 = 65.1±0.43,
+        Al2O3 = 18.7±0.35,
+        FeOT = 5.67±0.15,
+        TiO2 = 0.8±0.067,
+        MgO = 2.1±0.11,
+        CaO = 2.9±0.20,
+        Na2O = 1.1±0.06,
+        K2O = 2.7±0.11,
+    )
+
     # # GLORICH ± 2 s.e.
     # glorich = importdataset("output/GlobalRivers/GLORICH_major_screened.tsv", '\t', importas=:Tuple);
     # glorich = NamedTuple{Tuple(anhydrous_majors)}(

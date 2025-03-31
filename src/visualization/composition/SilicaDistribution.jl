@@ -186,13 +186,24 @@
         left_margin=(25,:px), right_margin=(25,:px), bottom_margin=(55,:px),
         labelfontsize=18, titlefont=20, tickfontsize=16,
         legendfontsize=18, fg_color_legend=:white, legend=:topright,
-        xlabel="SiO2 [wt.%]"
+        xlabel="SiO2 [wt.%]",
+        framestyle=:box, xticks=true
     )
     display(h)
 
     savefig(fig[1], "$filepath/histogram_volc.pdf")
     savefig(fig[2], "$filepath/histogram_plut.pdf")
     savefig(fig[3], "$filepath/histogram_ign.pdf")
+
+    # Find compositional peaks
+    u = kde(mbulk.SiO2[match_cats.ign .& here])
+    mafic = u.x[40 .<u.x .<60][findmax(u.density[40 .<u.x .<60])[2]]
+    felsic = u.x[60 .<u.x .<80][findmax(u.density[60 .<u.x .<80])[2]]
+
+    @info """ Compositional peaks [wt.% SiO2]
+    Mafic peak: $(round(mafic, sigdigits=3))
+    Felsic peak: $(round(felsic, sigdigits=3))
+    """
 
 
 ## --- All 

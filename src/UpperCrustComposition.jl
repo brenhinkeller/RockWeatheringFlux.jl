@@ -58,8 +58,8 @@
 ## --- Export total unique samples per element and per lithology
     # Preallocate element rows, lithology columns  
     nmatrix = Array{Float64}(undef, length(allelements), length(class))
-    rows = string.(allelements)
-    cols = hcat("element", reshape(string.(collect(keys(class))), 1, :))
+    rows = ["Total nonunique samples"; string.(allelements)]
+    cols = hcat("", reshape(string.(collect(keys(class))), 1, :))
 
     for j in eachindex(classkeys) 
         for i in eachindex(allelements) 
@@ -67,7 +67,9 @@
         end
     end
     zeronan!(nmatrix)
-    writedlm(unique_n, vcat(cols, hcat(rows, Int.(nmatrix))), ',')
+
+    nonunique_n = reshape([length(mbulk.Sample_ID[class[k]]) for k in keys(class)], 1, :)
+    writedlm(unique_n, vcat(cols, hcat(rows, vcat(nonunique_n, Int.(nmatrix)))), ',')
 
 
 ## --- Compute and export composition of exposed crust!

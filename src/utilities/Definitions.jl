@@ -120,19 +120,19 @@
     unique_n = "$results/uniquesamples.csv"
 
     # Mass of eroded material 
-    erodedmass_out = "$results/erosion_mass.tsv"
-    erodedmass_out_err = "$results/erosion_mass_err.tsv"
-    erodedmass_out_csv = "$results/erosion_mass.csv"
+    erodedmass_out = "$results/weathered_mass.tsv"
+    erodedmass_out_err = "$results/weathered_mass_err.tsv"
+    erodedmass_out_csv = "$results/weathered_mass.csv"
 
     # Fraction contributed to total eroded material, by lithology 
-    frac_contributed = "$results/erosion_contribution.tsv"
-    frac_contributed_out_err = "$results/erosion_contribution_err.tsv"
-    frac_contributed_out_csv = "$results/erosion_contribution.csv"
+    frac_contributed = "$results/weathered_contribution.tsv"
+    frac_contributed_out_err = "$results/weathered_contribution_err.tsv"
+    frac_contributed_out_csv = "$results/weathered_contribution.csv"
 
     # Composition of eroded material 
-    comp_eroded  = "$results/erosion_composition.tsv"
-    comp_eroded_err = "$results/erosion_composition_err.tsv"
-    comp_eroded_csv = "$results/erosion_composition.csv"
+    comp_eroded  = "$results/weathered_composition.tsv"
+    comp_eroded_err = "$results/weathered_composition_err.tsv"
+    comp_eroded_csv = "$results/weathered_composition.csv"
 
     export mapped_surface_lith
     export ucc_out, ucc_out_err, ucc_out_csv

@@ -31,14 +31,23 @@
 ## --- How many samples explain 90% of the matches 
     # First, make sure we're on the same page about missing values. 
     # A good whole rock geochemical analysis should measure all the major elements. So missing 
-    # values are probably actually gone. That is, if it's a NaN, it's probably just not there fr fr
-    # All other elements should have NaNs and not zeros though because who tf is measuring Ir
+    # values are probably actually gone. That is, if it's a NaN, it's probably just not 
+    # there fr fr
+    # All other elements should have NaNs and not zeros though because who tf is measuring 
+    # like... Ir
+    
+    # Also, this is supposed to modify the array but because everyone hates me it doesn't
     for i in majors
-        zeronan!(mbulk[i])
+        mbulk[i] .= zeronan!(mbulk[i])
     end
     for i in minors 
-        nanzero!(mbulk[i])
-    end
+       mbulk[i] .= nanzero!(mbulk[i])
+    end    
+
+    # I think we want igneous volatiles to be NaN... We deal with sedimentary 
+    # volatiles, but not igneous. Source: the distributions are weird if we don't 
+    # do this 
+    mbulk.Volatiles[match_cats.ign] .= nanzero!(mbulk.Volatiles[match_cats.ign])
 
     # Make a new npoints that's by element AND lithology 
     # If there are samples, take the samples that explain 90% of the matches. If this comes to 0, set value to 1
@@ -73,6 +82,8 @@
 
 
 ## --- Compute and export composition of exposed crust!
+    rows = rows[2:end]
+    
     # Preallocate element rows, lithology columns
     result = Array{Float64}(undef, (length(allelements), length(class)))
     result_err = similar(result)

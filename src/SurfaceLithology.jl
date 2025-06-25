@@ -346,5 +346,35 @@
 #         println("$(join(table[i,:], " & ")) \\ \b\\")
 #     end
 
+## --- Consider proportion of surface covered by shields 
+    # Define tectonic settings 
+    tectonicsettings = (Accreted_Arc=10, Island_Arc=11, Continental_Arc=12, Collisional_Orogen=13, 
+        Extensional=20, Rift=21, Plume=22, Shield=31, Platform=32, Basin=33, No_data=00
+    )
+
+    # Find tectonic setting and continent
+    prov = find_geolprov(rocklat, rocklon)
+    isprov =  NamedTuple{keys(tectonicsettings)}(
+        [prov .== tectonicsettings[k] for k in keys(tectonicsettings)]
+    )
+    prov = NamedTuple{keys(isprov)}(
+        normalize!([count(isprov[k])/npoints for k in keys(isprov)])
+    )
+
+
+    cont = find_geolcont(rocklat, rocklon)
+    iscont = NamedTuple{Tuple(Symbol.(continents))}(
+        cont .== i for i in eachindex(continents)
+    )
+    cont = NamedTuple{keys(iscont)}(
+        normalize!([count(iscont[k])/npoints for k in keys(iscont)])
+    )
+
+    @info """Shields:
+    Total: $(round(prov.Shield, digits=1))%
+    In Africa: $(round(count(isprov.Shield .& iscont.Africa) / npoints * 100, digits=1))%
+    Outside Africa: $(round(count(isprov.Shield .& .!iscont.Africa) / npoints * 100, digits=1))%
+    """
+
 
 ## --- End of file 
